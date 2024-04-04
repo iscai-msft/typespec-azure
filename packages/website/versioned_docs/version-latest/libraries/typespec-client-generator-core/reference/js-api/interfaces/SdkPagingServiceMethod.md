@@ -60,7 +60,7 @@ This property is deprecated. Access .correspondingMethodParams on the service pa
 
 ***
 
-### ~~getResponseMapping()~~
+### getResponseMapping()
 
 ```ts
 getResponseMapping(): undefined | string
@@ -73,7 +73,3 @@ getResponseMapping(): undefined | string
 #### Inherited from
 
 `SdkServiceMethodBase.getResponseMapping`
-
-#### Deprecated
-
-This property is deprecated. Access .resultPath on the method response instead

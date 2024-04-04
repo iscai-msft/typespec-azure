@@ -16,8 +16,8 @@ title: "[I] SdkEnumType"
 | `apiVersions` | `string`[] | - | - | - |
 | `crossLanguageDefinitionId` | `string` | - | - | - |
 | `deprecation?` | `string` | - | `SdkTypeBase.deprecation` | `SdkTypeBase.deprecation` |
-| `description?` | `string` | - | `SdkTypeBase.description` | `SdkTypeBase.description` |
-| `details?` | `string` | - | `SdkTypeBase.details` | `SdkTypeBase.details` |
+| `description?` | `string` | - | - | - |
+| `details?` | `string` | - | - | - |
 | `isFixed` | `boolean` | - | - | - |
 | `isFlags` | `boolean` | - | - | - |
 | `isGeneratedName` | `boolean` | - | - | - |

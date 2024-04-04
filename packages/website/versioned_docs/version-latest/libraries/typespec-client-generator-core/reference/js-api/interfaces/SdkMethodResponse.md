@@ -9,5 +9,4 @@ title: "[I] SdkMethodResponse"
 | :------ | :------ |
 | `kind` | `"method"` |
 | `nullable` | `boolean` |
-| `resultPath?` | `string` |
 | `type?` | [`SdkType`](../type-aliases/SdkType.md) |

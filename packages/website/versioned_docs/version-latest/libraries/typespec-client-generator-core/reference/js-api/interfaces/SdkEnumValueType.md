@@ -13,8 +13,8 @@ title: "[I] SdkEnumValueType"
 | :------ | :------ | :------ | :------ | :------ |
 | `__raw?` | `Type` | - | `SdkTypeBase.__raw` | `SdkTypeBase.__raw` |
 | `deprecation?` | `string` | - | `SdkTypeBase.deprecation` | `SdkTypeBase.deprecation` |
-| `description?` | `string` | - | `SdkTypeBase.description` | `SdkTypeBase.description` |
-| `details?` | `string` | - | `SdkTypeBase.details` | `SdkTypeBase.details` |
+| `description?` | `string` | - | - | - |
+| `details?` | `string` | - | - | - |
 | `enumType` | [`SdkEnumType`](SdkEnumType.md) | - | - | - |
 | `kind` | `"enumvalue"` | - | `SdkTypeBase.kind` | `SdkTypeBase.kind` |
 | `name` | `string` | - | - | - |

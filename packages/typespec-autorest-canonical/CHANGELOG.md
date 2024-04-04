@@ -1,5 +1,12 @@
 # Changelog - @azure-tools/typespec-autorest-canonical
 
+## 0.3.0
+
+### Bug Fixes
+
+- [#568](https://github.com/Azure/typespec-azure/pull/568) Small performance improvements
+
+
 
 
 ## 0.2.0
