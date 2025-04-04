@@ -2,133 +2,151 @@ import "./main.tsp";
 import "@azure-tools/typespec-client-generator-core";
 import "@typespec/spector";
 
-using Azure.ClientGenerator.Core;
 using Spector;
-@@clientNamespace(_Specs_.Azure.ClientGenerator.Core.ClientInitialization, "azure.clientgenerator.core.clientinitialization", "java")
+
+namespace _Specs_.Azure.ClientGeneratorCore.ClientInitialization;
+
+model HeaderParamClientOptions {
+  @doc("The name of the client. This parameter is used as a header in all operations.")
+  name: string;
+}
+
+model MultipleParamsClientOptions {
+  @doc("The name of the client. This parameter is used as a header in all operations.")
+  name: string;
+
+  @doc("The region to use for all operations. This parameter is used as a query parameter.")
+  region: string;
+}
+
+model MixedParamsClientOptions {
+  @doc("The name of the client. This parameter is used as a header in all operations.")
+  name: string;
+}
+model PathParamClientOptions {
+  @doc("The name of the blob. This parameter is used as a path parameter in all operations.")
+  blobName: string;
+}
 
 // Scenario 1: Header parameter moved to client level
 @scenarioDoc("""
-  Client for testing a basic header parameter (name) moved to client level.
-  The client should be generated with 'name' as a constructor parameter.
+  Client for testing header parameter moved to client level.
+  
+  Parameters elevated to client level:
+  - name: "test-name-value" (header parameter)
   
   Expected client usage:
   ```ts
   const client = new HeaderParamClient({
-    name: "my-name"
+    name: "test-name-value"
   });
   
   client.withQuery("some-id");  // No need to pass name here
-  client.withBody({ name: "test" });  // No need to pass name here
+  client.withBody({ name: "test-name" });  // No need to pass name here
   ```
   """)
-@client({
-  name: "HeaderParamClient",
-  service: _Specs_.Azure.ClientGenerator.Core.ClientInitialization.HeaderParam,
-})
-@clientInitialization(HeaderParamClientOptions)
 @scenario
-namespace _Specs_.Azure.ClientGenerator.Core.ClientInitialization.HeaderParamClient {
-  model HeaderParamClientOptions {
-    @doc("The name of the client.")
-    @clientName("name")
-    name: string;
-  }
-  op withQuery is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.HeaderParam.withQuery;
-  op withBody is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.HeaderParam.withBody;
+@doc("Client for testing header parameter moved to client level.")
+@global.Azure.ClientGenerator.Core.client({
+  name: "HeaderParamClient",
+  service: Service,
+})
+@global.Azure.ClientGenerator.Core.clientInitialization(HeaderParamClientOptions)
+interface HeaderParamClient {
+  withQuery is Service.HeaderParam.withQuery;
+  withBody is Service.HeaderParam.withBody;
 }
 
 // Scenario 2: Multiple parameters (header and query) moved to client level
 @scenarioDoc("""
   Client for testing multiple parameters (header and query) moved to client level.
-  The client should be generated with both 'name' and 'region' as constructor parameters.
+  
+  Parameters elevated to client level:
+  - name: "test-name-value" (header parameter)
+  - region: "us-west" (query parameter)
   
   Expected client usage:
   ```ts
   const client = new MultipleParamsClient({
-    name: "my-name",
+    name: "test-name-value",
     region: "us-west"
   });
   
   client.withQuery("some-id");  // No need to pass name or region here
-  client.withBody({ name: "test" });  // No need to pass name or region here
+  client.withBody({ name: "test-name" });  // No need to pass name or region here
   ```
   """)
-@client({
-  name: "MultipleParamsClient",
-  service: _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MultipleParams,
-})
-@clientInitialization(MultipleParamsClientOptions)
 @scenario
-namespace _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MultipleParamsClient {
-  model MultipleParamsClientOptions {
-    name: string;
-    region: string;
-  }
-    op withQuery is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MultipleParams.withQuery;
-    op withBody is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MultipleParams.withBody;
+@global.Azure.ClientGenerator.Core.client({
+  name: "MultipleParamsClient",
+  service: Service,
+})
+@global.Azure.ClientGenerator.Core.clientInitialization(MultipleParamsClientOptions)
+interface MultipleParamsClient {
+  withQuery is Service.MultipleParams.withQuery;
+  withBody is Service.MultipleParams.withBody;
 }
 
 // Scenario 3: Mix of client-level and method-level parameters
 @scenarioDoc("""
-  Client for testing a mix of client-level and method-level parameters.
-  The client should be generated with 'name' as constructor parameter,
-  but 'region' should remain a method parameter.
-  
-  Expected client usage:
-  ```ts
-  const client = new MixedParamsClient({
-    name: "my-name"
-  });
-  
-  client.withQuery("some-id", { region: "us-west" });  // region stays as method param
-  client.withBody({ name: "test" }, { region: "us-west" });  // region stays as method param
-  ```
+    Client for testing a mix of client-level and method-level parameters.
+    
+    Parameters elevated to client level:
+    - name: "test-name-value" (header parameter)
+    
+    Parameters remaining at method level:
+    - region: "us-west" (query parameter)
+    
+    Expected client usage:
+    ```ts
+    const client = new MixedParamsClient({
+      name: "test-name-value"
+    });
+    
+    client.withQuery("some-id", { region: "us-west" });  // region stays as method param
+    client.withBody({ name: "test-name" }, { region: "us-west" });  // region stays as method param
+    ```
   """)
-@client({
-  name: "MixedParamsClient",
-  service: _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MixedParams,
-})
-@clientInitialization(MixedParamsClientOptions)
 @scenario
-namespace _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MixedParamsClient {
-  model MixedParamsClientOptions {
-    name: string;
-  }
-  op withQuery is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MixedParams.withQuery;
-  op withBody is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.MixedParams.withBody;
+@global.Azure.ClientGenerator.Core.client({
+  name: "MixedParamsClient",
+  service: Service,
+})
+@global.Azure.ClientGenerator.Core.clientInitialization(MixedParamsClientOptions)
+interface MixedParamsClient {
+  withQuery is Service.MixedParams.withQuery;
+  withBody is Service.MixedParams.withBody;
 }
 
 // Scenario 4: Path parameter moved to client level
 @scenarioDoc("""
   Client for testing a path parameter (blobName) moved to client level.
-  The client should be generated with 'blobName' as a constructor parameter.
+  
+  Parameters elevated to client level:
+  - blobName: "sample-blob" (path parameter)
   
   Expected client usage:
   ```ts
   const client = new PathParamClient({
-    blobName: "my-blob"
+    blobName: "sample-blob"
   });
   
   // No need to pass blobName to any operations
-  client.getBlobContent({ format: "text" });  
-  client.getBlobProperties();
-  client.putBlobContent("Hello world");
-  client.deleteBlob();
+  client.withQuery({ format: "text" });  
+  client.getStandalone();
+  client.withBody("New content for sample-blob");
+  client.deleteStandalone();
   ```
   """)
-@client({
-  name: "PathParamClient",
-  service: _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParam,
-})
-@clientInitialization(PathParamClientOptions)
 @scenario
-namespace _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParamClient {
-  model PathParamClientOptions {
-    @doc("The name of the blob. This parameter is used in all operations.")
-    blobName: string;
-  }
-    op withQuery is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParam.withQuery;
-    op getStandalone is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParam.getStandalone;
-    op withBody is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParam.withBody;
-    op deleteStandalone is _Specs_.Azure.ClientGenerator.Core.ClientInitialization.PathParam.deleteStandalone;
+@global.Azure.ClientGenerator.Core.client({
+  name: "PathParamClient",
+  service: Service,
+})
+@global.Azure.ClientGenerator.Core.clientInitialization(PathParamClientOptions)
+interface PathParamClient {
+  withQuery is Service.PathParam.withQuery;
+  getStandalone is Service.PathParam.getStandalone;
+  withBody is Service.PathParam.withBody;
+  deleteStandalone is Service.PathParam.deleteStandalone;
 }
