@@ -736,6 +736,36 @@ export function getOverriddenClientMethod(
 const alternateTypeKey = createStateSymbol("alternateType");
 
 /**
+ * Check if a model is an external type.
+ * The external type model has properties: identity (required), package (optional), minVersion (optional).
+ */
+function isExternalType(model: Model): boolean {
+  if (model.indexer !== undefined) {
+    return false;
+  }
+
+  const properties = [...model.properties.values()];
+
+  // Check if it has an 'identity' property with String literal type
+  const hasIdentity = properties.some(
+    (prop) => prop.name === "identity" && prop.type.kind === "String",
+  );
+
+  if (!hasIdentity) {
+    return false;
+  }
+
+  // Check that all other properties are only 'package' or 'minVersion' with String literal types
+  const otherProps = properties.filter((prop) => prop.name !== "identity");
+  const validProps = otherProps.every(
+    (prop) =>
+      (prop.name === "package" || prop.name === "minVersion") && prop.type.kind === "String",
+  );
+
+  return validProps;
+}
+
+/**
  * Replace a source type with an alternate type in a specific scope.
  *
  * @param context the decorator context
@@ -750,7 +780,7 @@ export const $alternateType: AlternateTypeDecorator = (
   scope?: LanguageScopes,
 ) => {
   let alternateInput: Type | ExternalTypeInfo = alternate;
-  if (alternate.kind === "Model" && alternate.indexer === undefined) {
+  if (alternate.kind === "Model" && isExternalType(alternate)) {
     // This means we're dealing with external type
     if (!scope) {
       reportDiagnostic(context.program, {
@@ -828,7 +858,7 @@ export function getAlternateType(
     alternateTypeKey,
     source,
   );
-  if (retval !== undefined && "identity" in retval) {
+  if (retval !== undefined && "identity" in retval && !("kind" in retval)) {
     if (!context.__externalPackageToVersions) {
       context.__externalPackageToVersions = new Map();
     }
