@@ -1,7 +1,7 @@
 import { EventsTestLibrary } from "@typespec/events/testing";
 import { SSETestLibrary } from "@typespec/sse/testing";
 import { StreamsTestLibrary } from "@typespec/streams/testing";
-import { deepStrictEqual, strictEqual } from "assert";
+import { deepStrictEqual, ok, strictEqual } from "assert";
 import { beforeEach, describe, it } from "vitest";
 import { SdkTestRunner, createSdkTestRunner } from "../test-host.js";
 import { getServiceMethodOfClient } from "../utils.js";
@@ -29,11 +29,17 @@ describe("stream request", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.parameters[0].type.kind, "model");
     strictEqual(method.parameters[0].type.properties[1].type.kind, "bytes");
     strictEqual(method.parameters[0].type.properties[1].type.encode, "bytes");
     deepStrictEqual(method.operation.bodyParam?.type, method.parameters[0].type.properties[1].type);
+
+    // stream metadata on body param
+    const bodyMeta = method.operation.bodyParam?.streamMetadata;
+    ok(bodyMeta);
+    strictEqual(bodyMeta.streamType.kind, "model");
+    strictEqual(bodyMeta.streamType.name, "Thing");
+    deepStrictEqual(bodyMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("json stream request", async () => {
@@ -47,11 +53,17 @@ describe("stream request", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.parameters[0].type.kind, "model");
     strictEqual(method.parameters[0].type.properties[1].type.kind, "bytes");
     strictEqual(method.parameters[0].type.properties[1].type.encode, "bytes");
     deepStrictEqual(method.operation.bodyParam?.type, method.parameters[0].type.properties[1].type);
+
+    // stream metadata on body param
+    const bodyMeta = method.operation.bodyParam?.streamMetadata;
+    ok(bodyMeta);
+    strictEqual(bodyMeta.streamType.kind, "model");
+    strictEqual(bodyMeta.streamType.name, "Thing");
+    deepStrictEqual(bodyMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("custom stream request", async () => {
@@ -71,11 +83,17 @@ describe("stream request", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.parameters[0].type.kind, "model");
     strictEqual(method.parameters[0].type.properties[1].type.kind, "bytes");
     strictEqual(method.parameters[0].type.properties[1].type.encode, "bytes");
     deepStrictEqual(method.operation.bodyParam?.type, method.parameters[0].type.properties[1].type);
+
+    // stream metadata on body param
+    const bodyMeta = method.operation.bodyParam?.streamMetadata;
+    ok(bodyMeta);
+    strictEqual(bodyMeta.streamType.kind, "model");
+    strictEqual(bodyMeta.streamType.name, "Thing");
+    deepStrictEqual(bodyMeta.contentTypes, ["custom/built-here"]);
   });
 
   it("spread stream request", async () => {
@@ -89,10 +107,16 @@ describe("stream request", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.parameters[1].type.kind, "bytes");
     strictEqual(method.parameters[1].type.encode, "bytes");
     deepStrictEqual(method.operation.bodyParam?.type, method.parameters[1].type);
+
+    // stream metadata on body param
+    const bodyMeta = method.operation.bodyParam?.streamMetadata;
+    ok(bodyMeta);
+    strictEqual(bodyMeta.streamType.kind, "model");
+    strictEqual(bodyMeta.streamType.name, "Thing");
+    deepStrictEqual(bodyMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("sse request", async () => {
@@ -130,11 +154,17 @@ describe("stream request", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.parameters[0].type.kind, "model");
     strictEqual(method.parameters[0].type.properties[1].type.kind, "bytes");
     strictEqual(method.parameters[0].type.properties[1].type.encode, "bytes");
     deepStrictEqual(method.operation.bodyParam?.type, method.parameters[0].type.properties[1].type);
+
+    // stream metadata on body param - SSE streams have union streamType
+    const bodyMeta = method.operation.bodyParam?.streamMetadata;
+    ok(bodyMeta);
+    strictEqual(bodyMeta.streamType.kind, "union");
+    strictEqual(bodyMeta.streamType.name, "ChannelEvents");
+    deepStrictEqual(bodyMeta.contentTypes, ["text/event-stream"]);
   });
 });
 
@@ -150,12 +180,25 @@ describe("stream response", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.response.type?.kind, "bytes");
     strictEqual(method.response.type?.encode, "bytes");
     strictEqual(method.operation.responses.length, 1);
     strictEqual(method.operation.responses[0].type?.kind, "bytes");
     strictEqual(method.operation.responses[0].type?.encode, "bytes");
+
+    // stream metadata on HTTP response
+    const responseMeta = method.operation.responses[0].streamMetadata;
+    ok(responseMeta);
+    strictEqual(responseMeta.streamType.kind, "model");
+    strictEqual(responseMeta.streamType.name, "Thing");
+    deepStrictEqual(responseMeta.contentTypes, ["application/jsonl"]);
+
+    // stream metadata propagated to method response
+    const methodMeta = method.response.streamMetadata;
+    ok(methodMeta);
+    strictEqual(methodMeta.streamType.kind, "model");
+    strictEqual(methodMeta.streamType.name, "Thing");
+    deepStrictEqual(methodMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("json stream response", async () => {
@@ -169,12 +212,24 @@ describe("stream response", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.response.type?.kind, "bytes");
     strictEqual(method.response.type?.encode, "bytes");
     strictEqual(method.operation.responses.length, 1);
     strictEqual(method.operation.responses[0].type?.kind, "bytes");
     strictEqual(method.operation.responses[0].type?.encode, "bytes");
+
+    // stream metadata on HTTP response
+    const responseMeta = method.operation.responses[0].streamMetadata;
+    ok(responseMeta);
+    strictEqual(responseMeta.streamType.kind, "model");
+    strictEqual(responseMeta.streamType.name, "Thing");
+    deepStrictEqual(responseMeta.contentTypes, ["application/jsonl"]);
+
+    // stream metadata propagated to method response
+    const methodMeta = method.response.streamMetadata;
+    ok(methodMeta);
+    strictEqual(methodMeta.streamType.kind, "model");
+    deepStrictEqual(methodMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("custom stream response", async () => {
@@ -194,12 +249,24 @@ describe("stream response", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.response.type?.kind, "bytes");
     strictEqual(method.response.type?.encode, "bytes");
     strictEqual(method.operation.responses.length, 1);
     strictEqual(method.operation.responses[0].type?.kind, "bytes");
     strictEqual(method.operation.responses[0].type?.encode, "bytes");
+
+    // stream metadata on HTTP response
+    const responseMeta = method.operation.responses[0].streamMetadata;
+    ok(responseMeta);
+    strictEqual(responseMeta.streamType.kind, "model");
+    strictEqual(responseMeta.streamType.name, "Thing");
+    deepStrictEqual(responseMeta.contentTypes, ["custom/built-here"]);
+
+    // stream metadata propagated to method response
+    const methodMeta = method.response.streamMetadata;
+    ok(methodMeta);
+    strictEqual(methodMeta.streamType.kind, "model");
+    deepStrictEqual(methodMeta.contentTypes, ["custom/built-here"]);
   });
 
   it("intersection stream response", async () => {
@@ -213,12 +280,24 @@ describe("stream response", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.response.type?.kind, "bytes");
     strictEqual(method.response.type?.encode, "bytes");
     strictEqual(method.operation.responses.length, 1);
     strictEqual(method.operation.responses[0].type?.kind, "bytes");
     strictEqual(method.operation.responses[0].type?.encode, "bytes");
+
+    // stream metadata on HTTP response
+    const responseMeta = method.operation.responses[0].streamMetadata;
+    ok(responseMeta);
+    strictEqual(responseMeta.streamType.kind, "model");
+    strictEqual(responseMeta.streamType.name, "Thing");
+    deepStrictEqual(responseMeta.contentTypes, ["application/jsonl"]);
+
+    // stream metadata propagated to method response
+    const methodMeta = method.response.streamMetadata;
+    ok(methodMeta);
+    strictEqual(methodMeta.streamType.kind, "model");
+    deepStrictEqual(methodMeta.contentTypes, ["application/jsonl"]);
   });
 
   it("sse response", async () => {
@@ -256,11 +335,24 @@ describe("stream response", () => {
     );
     const sdkPackage = runner.context.sdkPackage;
     const method = getServiceMethodOfClient(sdkPackage);
-    strictEqual(sdkPackage.models.length, 0);
     strictEqual(method.response.type?.kind, "bytes");
     strictEqual(method.response.type?.encode, "bytes");
     strictEqual(method.operation.responses.length, 1);
     strictEqual(method.operation.responses[0].type?.kind, "bytes");
     strictEqual(method.operation.responses[0].type?.encode, "bytes");
+
+    // stream metadata on HTTP response - SSE streams have union streamType
+    const responseMeta = method.operation.responses[0].streamMetadata;
+    ok(responseMeta);
+    strictEqual(responseMeta.streamType.kind, "union");
+    strictEqual(responseMeta.streamType.name, "ChannelEvents");
+    deepStrictEqual(responseMeta.contentTypes, ["text/event-stream"]);
+
+    // stream metadata propagated to method response
+    const methodMeta = method.response.streamMetadata;
+    ok(methodMeta);
+    strictEqual(methodMeta.streamType.kind, "union");
+    strictEqual(methodMeta.streamType.name, "ChannelEvents");
+    deepStrictEqual(methodMeta.contentTypes, ["text/event-stream"]);
   });
 });
