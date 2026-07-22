@@ -7,6 +7,7 @@ export const interfacesRule = createRule({
   name: "arm-resource-interface-requires-decorator",
   severity: "warning",
   description: "Each resource interface must have an @armResourceOperations decorator.",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-resource-manager/rules/arm-resource-interface-requires-decorator",
   messages: {
     default: "Each resource interface must have an @armResourceOperations decorator.",
   },
@@ -18,7 +19,11 @@ export const interfacesRule = createRule({
           !isArmOperationsListInterface(context.program, interfaceContext)
         ) {
           if (
-            !interfaceContext.decorators.some((d) => d.decorator.name === "$armResourceOperations")
+            !interfaceContext.decorators.some(
+              (d) =>
+                d.decorator.name === "$armResourceOperations" ||
+                d.decorator.name === "$armResourceRoute",
+            )
           ) {
             context.reportDiagnostic({
               target: interfaceContext,

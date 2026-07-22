@@ -1,5 +1,7 @@
 ---
 title: "Data types"
+description: "Data types exported by @azure-tools/typespec-azure-core"
+llmstxt: true
 ---
 
 ## Azure.Core
@@ -22,11 +24,11 @@ model Azure.Core.AadOauth2Auth<Scopes, AuthUrl, TokenUrl>
 
 #### Properties
 
-| Name          | Type                                                 | Description                                                                    |
-| ------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| type          | `TypeSpec.Http.AuthType.oauth2`                      | OAuth2 authentication                                                          |
-| flows         | `[Core.AadTokenAuthFlow<Scopes, AuthUrl, TokenUrl>]` | Supported OAuth2 flows                                                         |
-| defaultScopes | `[]`                                                 | Oauth2 scopes of every flow. Overridden by scope definitions in specific flows |
+| Name          | Type                                                       | Description                                                                    |
+| ------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| type          | `TypeSpec.Http.AuthType.oauth2`                            | OAuth2 authentication                                                          |
+| flows         | `[Azure.Core.AadTokenAuthFlow<Scopes, AuthUrl, TokenUrl>]` | Supported OAuth2 flows                                                         |
+| defaultScopes | `[]`                                                       | Oauth2 scopes of every flow. Overridden by scope definitions in specific flows |
 
 ### `AadTokenAuthFlow` {#Azure.Core.AadTokenAuthFlow}
 
@@ -64,7 +66,7 @@ model Azure.Core.ArmResourceIdentifierAllowedResource
 | Name    | Type                                             | Description                                                                                                                                                                          |
 | ------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | type    | [`armResourceType`](#Azure.Core.armResourceType) | The type of resource that is being referred to. For example Microsoft.Network/virtualNetworks or Microsoft.Network/virtualNetworks/subnets. See Example Types for more examples.     |
-| scopes? | `Core.ArmResourceDeploymentScope[]`              | An array of scopes. If not specified, the default scope is ["ResourceGroup"].<br />See [Allowed Scopes](https://github.com/Azure/autorest/tree/main/docs/extensions#allowed-scopes). |
+| scopes? | `Azure.Core.ArmResourceDeploymentScope[]`        | An array of scopes. If not specified, the default scope is ["ResourceGroup"].<br />See [Allowed Scopes](https://github.com/Azure/autorest/tree/main/docs/extensions#allowed-scopes). |
 
 ### `AzureApiKeyAuthentication` {#Azure.Core.AzureApiKeyAuthentication}
 
@@ -265,7 +267,7 @@ model Azure.Core.PollingOptions
 | ------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
 | kind          | [`PollingOptionKind`](./data-types.md#Azure.Core.PollingOptionKind) | The kind of polling options                                     |
 | pollingModel? | `Model \| void`                                                     | The model that is returned when polling should continue.        |
-| finalResult?  | `Model \| void`                                                     | The type that is returned when polling terminates successfully. |
+| finalResult?  | `Model \| unknown \| void`                                          | The type that is returned when polling terminates successfully. |
 
 ### `RepeatabilityRequestHeaders` {#Azure.Core.RepeatabilityRequestHeaders}
 
@@ -467,19 +469,6 @@ model Azure.Core.TopQueryParameter
 | ---- | ------- | ------------------------------------- |
 | top? | `int32` | The number of result items to return. |
 
-### `Versions` {#Azure.Core.Versions}
-
-Supported versions of Azure.Core TypeSpec building blocks.
-
-```typespec
-enum Azure.Core.Versions
-```
-
-| Name           | Value             | Description           |
-| -------------- | ----------------- | --------------------- |
-| v1_0_Preview_1 | `"1.0-preview.1"` | Version 1.0-preview.1 |
-| v1_0_Preview_2 | `"1.0-preview.2"` | Version 1.0-preview.2 |
-
 ### `ArmResourceDeploymentScope` {#Azure.Core.ArmResourceDeploymentScope}
 
 ```typespec
@@ -493,6 +482,12 @@ The available kinds of polling options
 ```typespec
 union Azure.Core.PollingOptionKind
 ```
+
+#### Variants
+
+| Name          | Type              | Description                          |
+| ------------- | ----------------- | ------------------------------------ |
+| statusMonitor | `"statusMonitor"` | Polling options for a status monitor |
 
 ### `RepeatabilityResult` {#Azure.Core.RepeatabilityResult}
 
@@ -529,7 +524,7 @@ model MyModel {
   scoped: armResourceIdentifier<[
     {
       type: "Microsoft.Compute/vm";
-      scopes: ["tenant", "resourceGroup"];
+      scopes: ["Tenant", "ResourceGroup"];
     }
   ]>;
 }
@@ -768,7 +763,7 @@ model Azure.Core.Foundations.Error
 | code        | `string`                                                          | One of a server-defined set of error codes.                                             |
 | message     | `string`                                                          | A human-readable representation of the error.                                           |
 | target?     | `string`                                                          | The target of the error.                                                                |
-| details?    | `Core.Foundations.Error[]`                                        | An array of details about specific errors that led to this reported error.              |
+| details?    | `Azure.Core.Foundations.Error[]`                                  | An array of details about specific errors that led to this reported error.              |
 | innererror? | [`InnerError`](./data-types.md#Azure.Core.Foundations.InnerError) | An object containing more specific information than the current object about the error. |
 
 ### `ErrorResponse` {#Azure.Core.Foundations.ErrorResponse}
@@ -809,7 +804,7 @@ model Azure.Core.Foundations.ErrorResponseBase<Error>
 
 ### `InnerError` {#Azure.Core.Foundations.InnerError}
 
-An object containing more specific information about the error. As per Microsoft One API guidelines - https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#handling-errors.
+An object containing more specific information about the error. As per Azure REST API guidelines - https://aka.ms/AzureRestApiGuidelines#handling-errors.
 
 ```typespec
 model Azure.Core.Foundations.InnerError
@@ -1022,6 +1017,16 @@ Enum describing allowed operation states.
 union Azure.Core.Foundations.OperationState
 ```
 
+#### Variants
+
+| Name       | Type           | Description                                  |
+| ---------- | -------------- | -------------------------------------------- |
+| NotStarted | `"NotStarted"` | The operation has not started.               |
+| Running    | `"Running"`    | The operation is in progress.                |
+| Succeeded  | `"Succeeded"`  | The operation has completed successfully.    |
+| Failed     | `"Failed"`     | The operation has failed.                    |
+| Canceled   | `"Canceled"`   | The operation has been canceled by the user. |
+
 ## Azure.Core.Legacy
 
 ### `parameterizedNextLink` {#Azure.Core.Legacy.parameterizedNextLink}
@@ -1042,7 +1047,7 @@ model Certificate {
   name: string;
 }
 model Page {
-  @items items: Certificate[];
+  @pageItems items: Certificate[];
   @nextLink nextLink: Azure.Core.Legacy.parameterizedNextLink<[
     ListCertificateOptions.includePending
   ]>;

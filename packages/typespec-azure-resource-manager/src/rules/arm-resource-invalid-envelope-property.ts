@@ -1,4 +1,4 @@
-import { Model, ModelProperty, createRule, paramMessage } from "@typespec/compiler";
+import { Model, ModelProperty, createRule, isKey, paramMessage } from "@typespec/compiler";
 
 import { getArmResource } from "../resource.js";
 import { getNamespaceName, getSourceModel } from "./utils.js";
@@ -7,6 +7,7 @@ export const armResourceEnvelopeProperties = createRule({
   name: "arm-resource-invalid-envelope-property",
   severity: "warning",
   description: "Check for invalid resource envelope properties.",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-resource-manager/rules/arm-resource-invalid-envelope-property",
   messages: {
     default: paramMessage`Property "${"propertyName"}" is not valid in the resource envelope.  Please remove this property, or add it to the resource-specific property bag.`,
   },
@@ -16,7 +17,7 @@ export const armResourceEnvelopeProperties = createRule({
         const resourceModel = getArmResource(context.program, model);
         if (resourceModel !== undefined) {
           for (const property of getProperties(model)) {
-            if (property.name !== "name") {
+            if (property.name !== "name" && !isKey(context.program, property)) {
               const sourceModel = getSourceModel(property);
               const sourceNamespace = getNamespaceName(context.program, sourceModel);
               if (

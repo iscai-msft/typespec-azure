@@ -1,7 +1,15 @@
 import { createRule, Model, paramMessage, Union } from "@typespec/compiler";
 import { createTCGCContext } from "../context.js";
-import { UsageFlags } from "../interfaces.js";
-import { createSdkPackage } from "../package.js";
+import {
+  isSdkBuiltInKind,
+  SdkEnumType,
+  SdkModelType,
+  SdkNullableType,
+  SdkType,
+  SdkUnionType,
+  UsageFlags,
+} from "../interfaces.js";
+import { handleAllTypes } from "../types.js";
 
 export const noUnnamedTypesRule = createRule({
   name: "no-unnamed-types",
@@ -15,15 +23,23 @@ export const noUnnamedTypesRule = createRule({
     const tcgcContext = createTCGCContext(
       context.program,
       "@azure-tools/typespec-client-generator-core",
+      {
+        mutateNamespace: false,
+      },
     );
-    // we create the package to see if the model is used in the final output
-    createSdkPackage(tcgcContext);
+    // Run the type-handling pass to populate __referencedTypeCache so we can
+    // determine which types are referenced and how they are used in the final output.
+    handleAllTypes(tcgcContext);
     return {
       model: (model: Model) => {
         const createdModel = tcgcContext.__referencedTypeCache.get(model);
         if (
           createdModel &&
+          createdModel.kind === "model" &&
+          createdModel.properties.length > 0 &&
           createdModel.usage !== UsageFlags.None &&
+          (createdModel.usage & UsageFlags.LroInitial) === 0 &&
+          (createdModel.usage & UsageFlags.MultipartFormData) === 0 &&
           createdModel.isGeneratedName
         ) {
           context.reportDiagnostic({
@@ -37,16 +53,19 @@ export const noUnnamedTypesRule = createRule({
       },
       union: (union: Union) => {
         const createdUnion = tcgcContext.__referencedTypeCache.get(union);
+        const unionToCheck = getUnionType(createdUnion);
         if (
-          createdUnion &&
-          createdUnion.usage !== UsageFlags.None &&
-          createdUnion.isGeneratedName
+          unionToCheck &&
+          unionToCheck.usage !== UsageFlags.None &&
+          unionToCheck.isGeneratedName &&
+          !allVariantsBuiltIn(unionToCheck)
         ) {
+          // report diagnostic for unions and nullable unions
           context.reportDiagnostic({
             target: union,
             format: {
               type: "union",
-              generatedName: createdUnion.name,
+              generatedName: unionToCheck.name,
             },
           });
         }
@@ -54,3 +73,30 @@ export const noUnnamedTypesRule = createRule({
     };
   },
 });
+
+function getUnionType(
+  union: SdkModelType | SdkEnumType | SdkNullableType | SdkUnionType<SdkType> | undefined,
+): SdkModelType | SdkEnumType | SdkNullableType | SdkUnionType<SdkType> | undefined {
+  if (!union) {
+    return undefined;
+  }
+  if (union.kind === "nullable") {
+    const inner = union.type;
+    if (inner.kind === "union" || inner.kind === "model" || inner.kind === "enum") {
+      return inner;
+    }
+    return undefined;
+  }
+  return union;
+}
+
+function allVariantsBuiltIn(
+  union: SdkModelType | SdkEnumType | SdkNullableType | SdkUnionType<SdkType>,
+): boolean {
+  if (union.kind !== "union") {
+    return false;
+  }
+  return union.variantTypes.every((variant) => {
+    return isSdkBuiltInKind(variant.kind);
+  });
+}

@@ -1,6 +1,6 @@
 import { Operation, Program, Type, createRule } from "@typespec/compiler";
 import { getHeaderFieldName, isHeader } from "@typespec/http";
-import { getOperationLink } from "../decorators.js";
+import { getOperationLink } from "../decorators/operation-link.js";
 import {
   isExcludedCoreType,
   isTemplatedInterfaceOperation,
@@ -24,6 +24,7 @@ export const longRunningOperationsRequirePollingOperation = createRule({
   name: "long-running-polling-operation-required",
   description: "Long-running operations should have a linked polling operation.",
   severity: "warning",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-core/rules/long-running-polling-operation-required",
   messages: {
     default:
       "This operation has an 'Operation-Location' header but no polling operation. Use the '@pollingOperation' decorator to link a status polling operation.",

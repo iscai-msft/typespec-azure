@@ -4,14 +4,15 @@ import {
   Operation,
   Program,
   createRule,
+  isTemplateInstance,
   paramMessage,
 } from "@typespec/compiler";
 import { SyntaxKind } from "@typespec/compiler/ast";
 import { HttpVerb, getOperationVerb } from "@typespec/http";
+import { getSegment } from "@typespec/rest";
 import {
   getNamespaceName,
   getSourceModel,
-  isInternalTypeSpec,
   isSourceOperationResourceManagerInternal,
   isTemplatedInterfaceOperation,
 } from "./utils.js";
@@ -20,6 +21,7 @@ export const coreOperationsRule = createRule({
   name: "arm-resource-operation",
   severity: "warning",
   description: "Validate ARM Resource operations.",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-resource-manager/rules/arm-resource-operation",
   messages: {
     default:
       "All Resource operations must use an api-version parameter. Please include Azure.ResourceManager.ApiVersionParameter in the operation parameter list using the spread (...ApiVersionParameter) operator, or using one of the common resource parameter models.",
@@ -30,8 +32,8 @@ export const coreOperationsRule = createRule({
     return {
       operation: (operation: Operation) => {
         if (
-          !isInternalTypeSpec(context.program, operation) &&
-          !isSourceOperationResourceManagerInternal(operation)
+          !isSourceOperationResourceManagerInternal(operation) &&
+          !isTemplateInstance(operation)
         ) {
           const verb = getOperationVerb(context.program, operation);
           if (
@@ -60,7 +62,7 @@ export const coreOperationsRule = createRule({
               const decorator = operation.decorators.find(
                 (d) => requiredDecorators.indexOf(d.decorator.name) >= 0,
               );
-              if (!decorator) {
+              if (!decorator && !isArmProviderOperation(context.program, operation)) {
                 context.reportDiagnostic({
                   messageId: "opMissingDecorator",
                   target: operation,
@@ -104,4 +106,29 @@ function hasApiParameter(program: Program, model: Model): boolean {
     isApiParameter(program, i),
   );
   return apiVersionParams !== null && apiVersionParams.length === 1;
+}
+
+function isStaticSegment(segment: string | undefined, property: ModelProperty): boolean {
+  return segment === undefined || segment === "locations";
+}
+
+function isArmProviderOperation(program: Program, operation: Operation): boolean {
+  let isProviderAction = false;
+
+  for (const [index, [, property]] of [...operation.parameters.properties].entries()) {
+    const segment = getSegment(program, property);
+
+    if (segment === "providers") {
+      isProviderAction = true;
+    } else if (isProviderAction && !isStaticSegment(segment, property)) {
+      return false;
+    }
+
+    const isLastSegment = index === operation.parameters.properties.size - 1;
+    if (isLastSegment && !segment) {
+      return true;
+    }
+  }
+
+  return false;
 }

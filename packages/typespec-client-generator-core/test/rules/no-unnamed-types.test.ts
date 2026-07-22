@@ -1,17 +1,17 @@
 import {
-  BasicTestRunner,
   createLinterRuleTester,
   LinterRuleTester,
+  TesterInstance,
 } from "@typespec/compiler/testing";
 import { beforeEach, describe, it } from "vitest";
 import { noUnnamedTypesRule } from "../../src/rules/no-unnamed-types.rule.js";
-import { createSdkTestRunner } from "../test-host.js";
+import { ArmTester, AzureCoreTester } from "../tester.js";
 
-let runner: BasicTestRunner;
+let runner: TesterInstance;
 let tester: LinterRuleTester;
 
 beforeEach(async () => {
-  runner = await createSdkTestRunner();
+  runner = await AzureCoreTester.createInstance();
   tester = createLinterRuleTester(
     runner,
     noUnnamedTypesRule,
@@ -147,6 +147,130 @@ describe("models", () => {
       )
       .toBeValid();
   });
+  it("discriminated model with nested anonymous model with readonly property", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService {
+          @usage(Usage.output)
+          model JobModelProperties {
+            customProperties: JobModelCustomProperties;
+          }
+          @discriminator("instanceType")
+          model JobModelCustomProperties {
+            @visibility(Lifecycle.Read)
+            affectedObjectDetails?: {
+              description?: string;
+              type?: "object";
+            };
+          }
+        }
+          `,
+      )
+      .toEmitDiagnostics([
+        {
+          code: "@azure-tools/typespec-client-generator-core/no-unnamed-types",
+          severity: "warning",
+          message: `Anonymous model with generated name "JobModelCustomPropertiesAffectedObjectDetails" detected. Define this model separately with a proper name to improve code readability and reusability.`,
+        },
+      ]);
+  });
+  it("anonymous model in versioned service", async () => {
+    await tester
+      .expect(
+        `
+        @versioned(Versions)
+        @service
+        namespace Test;
+
+        enum Versions {
+          "2021-10-01-preview",
+        }
+
+        @usage(Usage.input)
+        model Temp {
+          foo: {
+            bar: string;
+          }
+        }
+        `,
+      )
+      .toEmitDiagnostics([
+        {
+          code: "@azure-tools/typespec-client-generator-core/no-unnamed-types",
+          severity: "warning",
+          message: `Anonymous model with generated name "TempFoo" detected. Define this model separately with a proper name to improve code readability and reusability.`,
+        },
+      ]);
+  });
+
+  it("empty model", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService;
+          model Test {
+            prop: {};
+          }
+        `,
+      )
+      .toBeValid();
+  });
+
+  it("empty model array", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService;
+          model Test {
+            prop: {}[];
+          }
+        `,
+      )
+      .toBeValid();
+  });
+
+  it("anonymous model caused by lro metadata", async () => {
+    const armRunner = await ArmTester.createInstance();
+    const armTester = createLinterRuleTester(
+      armRunner,
+      noUnnamedTypesRule,
+      "@azure-tools/typespec-client-generator-core",
+    );
+    await armTester
+      .expect(
+        `
+        @armProviderNamespace
+        @service
+        @versioned(Versions)
+        namespace TestClient;
+        enum Versions {
+          @armCommonTypesVersion(Azure.ResourceManager.CommonTypes.Versions.v5)
+          v1: "v1",
+        }
+        model Employee is TrackedResource<EmployeeProperties> {
+          ...ResourceNameParameter<Employee>;
+        }
+        model MoveRequest {
+          targetResourceGroup?: string;
+        }
+        model EmployeeProperties {
+          age?: int32;
+        }
+        op move is ArmResourceActionAsync<Employee, MoveRequest, {@body body: {id?: string}}>;
+        `,
+      )
+      .toEmitDiagnostics([
+        {
+          code: "@azure-tools/typespec-client-generator-core/no-unnamed-types",
+          severity: "warning",
+          message: `Anonymous model with generated name "MoveFinalResult" detected. Define this model separately with a proper name to improve code readability and reusability.`,
+        },
+      ]);
+  });
 });
 
 describe("unions", () => {
@@ -231,5 +355,90 @@ describe("unions", () => {
           message: `Anonymous union with generated name "FooRequestParam" detected. Define this union separately with a proper name to improve code readability and reusability.`,
         },
       ]);
+  });
+  it("nullable scalar", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService {
+        @usage(Usage.input)
+          model One {
+            prop?: string | null;
+          }
+        }
+        `,
+      )
+      .toBeValid();
+  });
+  it("nullable enum", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService {
+          enum Foo { one }
+          
+          op bar(param: Foo | null): void;
+        }
+        `,
+      )
+      .toBeValid();
+  });
+  it("nullable model", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService {
+          model One {
+            prop: string;
+          }
+          op foo(param: One | null): void;
+        }
+        `,
+      )
+      .toBeValid();
+  });
+
+  it("nullable model union", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService {
+          model One {
+            prop: string;
+          }
+
+          model Two {
+            prop: string;
+          }
+          op foo(param: One | Two | null): void;
+        }
+        `,
+      )
+      .toEmitDiagnostics([
+        {
+          code: "@azure-tools/typespec-client-generator-core/no-unnamed-types",
+          severity: "warning",
+          message: `Anonymous union with generated name "FooRequestParam" detected. Define this union separately with a proper name to improve code readability and reusability.`,
+        },
+      ]);
+  });
+  it("union of scalars", async () => {
+    await tester
+      .expect(
+        `
+        @service
+        namespace TestService;
+
+        @usage(Usage.input)
+        model Foo {
+          prop: string | int32;
+        }
+        `,
+      )
+      .toBeValid();
   });
 });

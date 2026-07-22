@@ -12,6 +12,7 @@ export default {
     "@azure-tools/typespec-azure-core/use-extensible-enum": true,
     "@azure-tools/typespec-azure-core/known-encoding": true,
     "@azure-tools/typespec-azure-core/long-running-polling-operation-required": true,
+    "@azure-tools/typespec-azure-core/no-case-mismatch": true,
     "@azure-tools/typespec-azure-core/no-closed-literal-union": true,
     "@azure-tools/typespec-azure-core/no-enum": true,
     "@azure-tools/typespec-azure-core/no-error-status-codes": true,
@@ -26,6 +27,7 @@ export default {
     "@azure-tools/typespec-azure-core/no-multiple-discriminator": true,
     "@azure-tools/typespec-azure-core/no-rest-library-interfaces": true,
     "@azure-tools/typespec-azure-core/no-unknown": true,
+    "@azure-tools/typespec-azure-core/no-unnamed-union": true,
     "@azure-tools/typespec-azure-core/documentation-required": true,
     "@azure-tools/typespec-azure-core/key-visibility-required": true,
     "@azure-tools/typespec-azure-core/response-schema-problem": true,
@@ -38,6 +40,7 @@ export default {
     "@azure-tools/typespec-azure-core/friendly-name": true,
     "@azure-tools/typespec-azure-core/no-query-explode": true,
     "@azure-tools/typespec-azure-core/no-header-explode": true,
+    "@azure-tools/typespec-azure-core/no-route-parameter-name-mismatch": true,
 
     // Azure core not enable - Arm has its own conflicting rule
     "@azure-tools/typespec-azure-core/no-response-body": false,
@@ -54,8 +57,12 @@ export default {
 
     // Azure resource manager
     "@azure-tools/typespec-azure-resource-manager/arm-no-record": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-no-path-casing-conflicts": true,
+    "@azure-tools/typespec-azure-resource-manager/no-override-props": true,
     "@azure-tools/typespec-azure-resource-manager/no-empty-model": true,
     "@azure-tools/typespec-azure-resource-manager/arm-common-types-version": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-agent-base-type-child-resources": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-agent-base-type-lifecycle-operations": true,
     "@azure-tools/typespec-azure-resource-manager/arm-delete-operation-response-codes": true,
     "@azure-tools/typespec-azure-resource-manager/arm-put-operation-response-codes": true,
     "@azure-tools/typespec-azure-resource-manager/arm-post-operation-response-codes": true,
@@ -63,12 +70,17 @@ export default {
     "@azure-tools/typespec-azure-resource-manager/arm-resource-duplicate-property": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-invalid-envelope-property": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-invalid-version-format": true,
+    "@azure-tools/typespec-azure-resource-manager/version-progression": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-key-invalid-chars": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-name-pattern": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-custom-resource-no-key": true,
     "@azure-tools/typespec-azure-resource-manager/arm-custom-resource-usage-discourage": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-feature-file-usage-discourage": true,
+    "@azure-tools/typespec-azure-resource-manager/arm-legacy-operations-discourage": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-operation-response": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-path-segment-invalid-chars": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-provisioning-state": true,
+    "@azure-tools/typespec-azure-resource-manager/no-reserved-resource-property": true,
     "@azure-tools/typespec-azure-resource-manager/beyond-nesting-levels": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-operation": true,
     "@azure-tools/typespec-azure-resource-manager/no-resource-delete-operation": true,
@@ -83,12 +95,13 @@ export default {
     "@azure-tools/typespec-azure-resource-manager/patch-envelope": true,
     "@azure-tools/typespec-azure-resource-manager/arm-resource-patch": true,
     "@azure-tools/typespec-azure-resource-manager/resource-name": true,
-    "@azure-tools/typespec-azure-resource-manager/retry-after": true,
+    "@azure-tools/typespec-azure-resource-manager/retry-after": false, // Disable https://github.com/Azure/typespec-azure/issues/3351
+    "@azure-tools/typespec-azure-resource-manager/secret-prop": true,
     "@azure-tools/typespec-azure-resource-manager/unsupported-type": true,
 
     // TCGC rules
     "@azure-tools/typespec-client-generator-core/require-client-suffix": true,
     "@azure-tools/typespec-client-generator-core/property-name-conflict": true,
-    "@azure-tools/typespec-client-generator-core/no-unnamed-types": true,
+    "@azure-tools/typespec-client-generator-core/no-unnamed-types": false, // Too bad performance https://github.com/Azure/typespec-azure/issues/2803
   },
 } satisfies LinterRuleSet;

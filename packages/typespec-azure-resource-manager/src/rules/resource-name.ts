@@ -7,8 +7,8 @@ import {
 } from "@typespec/compiler";
 import * as http from "@typespec/http";
 
-import { isReadonlyProperty } from "@typespec/openapi";
 import { getArmResources } from "../resource.js";
+import { isReadonlyProperty } from "../utils.js";
 
 /**
  * The resource 'name' field should be marked with 'read' visibility and an @path decorator.
@@ -17,6 +17,7 @@ export const resourceNameRule = createRule({
   name: "resource-name",
   severity: "warning",
   description: "Check the resource name.",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-resource-manager/rules/resource-name",
   messages: {
     default: `The resource 'name' field should be marked with 'read' visibility and an @path decorator.`,
     nameInvalid: "Arm resource name must contain only alphanumeric characters.",
