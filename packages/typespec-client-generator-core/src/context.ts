@@ -6,13 +6,11 @@ import {
   Model,
   ModelProperty,
   Namespace,
-  Operation,
   Program,
   resolvePath,
   Type,
   Union,
 } from "@typespec/compiler";
-import { HttpOperation } from "@typespec/http";
 import { getVersions } from "@typespec/versioning";
 import { stringify } from "yaml";
 import { defaultDecoratorsAllowList } from "./configs.js";
@@ -58,7 +56,6 @@ export function createTCGCContext(program: Program, emitterName?: string): TCGCC
     >(),
     __modelPropertyCache: new Map<ModelProperty, SdkModelPropertyType>(),
     __generatedNames: new Map<Union | Model | TspLiteralType, string>(),
-    __httpOperationCache: new Map<Operation, HttpOperation>(),
     __clientToParameters: new Map(),
     __tspTypeToApiVersions: new Map(),
     __clientToApiVersionClientDefaultValue: new Map(),

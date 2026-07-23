@@ -56,7 +56,6 @@ export interface TCGCContext {
   __referencedTypeCache: Map<Type, SdkModelType | SdkEnumType | SdkUnionType | SdkNullableType>;
   __modelPropertyCache: Map<ModelProperty, SdkModelPropertyType>;
   __generatedNames: Map<Type, string>;
-  __httpOperationCache: Map<Operation, HttpOperation>;
   __clientToParameters: Map<Interface | Namespace, SdkParameter[]>;
   __tspTypeToApiVersions: Map<Type, string[]>;
   __clientToApiVersionClientDefaultValue: Map<Interface | Namespace, string | undefined>;

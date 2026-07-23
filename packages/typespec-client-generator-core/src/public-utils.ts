@@ -636,12 +636,7 @@ export function getHttpOperationWithCache(
   context: TCGCContext,
   operation: Operation,
 ): HttpOperation {
-  if (context.__httpOperationCache?.has(operation)) {
-    return context.__httpOperationCache.get(operation)!;
-  }
-  const httpOperation = ignoreDiagnostics(getHttpOperation(context.program, operation));
-  context.__httpOperationCache!.set(operation, httpOperation);
-  return httpOperation;
+  return ignoreDiagnostics(getHttpOperation(context.program, operation));
 }
 
 /**
