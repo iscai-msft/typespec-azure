@@ -1,7 +1,12 @@
 import { defineLinter } from "@typespec/compiler";
+import { armAgentBaseTypeChildResourcesRule } from "./rules/arm-agent-base-type-child-resources.js";
+import { armAgentBaseTypeLifecycleOperationsRule } from "./rules/arm-agent-base-type-lifecycle-operations.js";
 import { armCommonTypesVersionRule } from "./rules/arm-common-types-version.js";
+import { armCustomResourceNoKey } from "./rules/arm-custom-resource-no-key.js";
 import { armCustomResourceUsageDiscourage } from "./rules/arm-custom-resource-usage-discourage.js";
 import { armDeleteResponseCodesRule } from "./rules/arm-delete-response-codes.js";
+import { armFeatureFileUsageDiscourage } from "./rules/arm-feature-file-usage-discourage.js";
+import { armNoPathCasingConflictsRule } from "./rules/arm-no-path-casing-conflicts.js";
 import { armNoRecordRule } from "./rules/arm-no-record.js";
 import { armPostResponseCodesRule } from "./rules/arm-post-response-codes.js";
 import { armPutResponseCodesRule } from "./rules/arm-put-response-codes.js";
@@ -19,21 +24,29 @@ import { armResourcePathInvalidCharsRule } from "./rules/arm-resource-path-inval
 import { armResourceProvisioningStateRule } from "./rules/arm-resource-provisioning-state-rule.js";
 import { beyondNestingRule } from "./rules/beyond-nesting-levels.js";
 import { coreOperationsRule } from "./rules/core-operations.js";
-import { deleteOperationMissingRule } from "./rules/delete-operation.js";
 import { envelopePropertiesRules } from "./rules/envelope-properties.js";
-import { listBySubscriptionRule } from "./rules/list-operation.js";
+import { improperSubscriptionListOperationRule } from "./rules/improper-subscription-list-operation.js";
 import { lroLocationHeaderRule } from "./rules/lro-location-header.js";
 import { missingXmsIdentifiersRule } from "./rules/missing-x-ms-identifiers.js";
 import { noEmptyModel } from "./rules/no-empty-model.js";
+import { noOverridePropsRule } from "./rules/no-override-props.js";
+import { noReservedResourcePropertyRule } from "./rules/no-reserved-resource-property.js";
+import { deleteOperationMissingRule } from "./rules/no-resource-delete-operation.js";
 import { noResponseBodyRule } from "./rules/no-response-body.js";
 import { operationsInterfaceMissingRule } from "./rules/operations-interface-missing.js";
 import { patchEnvelopePropertiesRules } from "./rules/patch-envelope-properties.js";
 import { resourceNameRule } from "./rules/resource-name.js";
 import { retryAfterRule } from "./rules/retry-after.js";
+import { secretProprule } from "./rules/secret-prop.js";
 import { unsupportedTypeRule } from "./rules/unsupported-type.js";
+import { versionProgressionRule } from "./rules/version-progression.js";
 
 const rules = [
+  armAgentBaseTypeChildResourcesRule,
+  armAgentBaseTypeLifecycleOperationsRule,
   armNoRecordRule,
+  armNoPathCasingConflictsRule,
+  noOverridePropsRule,
   armCommonTypesVersionRule,
   armDeleteResponseCodesRule,
   armPutResponseCodesRule,
@@ -47,14 +60,17 @@ const rules = [
   armResourceOperationsRule,
   armResourcePathInvalidCharsRule,
   armResourceProvisioningStateRule,
+  versionProgressionRule,
+  armCustomResourceNoKey,
   armCustomResourceUsageDiscourage,
+  armFeatureFileUsageDiscourage,
   beyondNestingRule,
   coreOperationsRule,
   deleteOperationMissingRule,
   envelopePropertiesRules,
   interfacesRule,
   armResourceInvalidActionVerbRule,
-  listBySubscriptionRule,
+  improperSubscriptionListOperationRule,
   lroLocationHeaderRule,
   missingXmsIdentifiersRule,
   noResponseBodyRule,
@@ -64,7 +80,9 @@ const rules = [
   resourceNameRule,
   retryAfterRule,
   unsupportedTypeRule,
+  secretProprule,
   noEmptyModel,
+  noReservedResourcePropertyRule,
 ];
 
 export const $linter = defineLinter({

@@ -5,6 +5,7 @@ import {
   DecoratorApplication,
   Enum,
   EnumMember,
+  fileRef,
   Interface,
   isTemplateInstance,
   LinterRuleContext,
@@ -22,8 +23,10 @@ import { SyntaxKind } from "@typespec/compiler/ast";
 
 export const friendlyNameRule = createRule({
   name: "friendly-name",
+  docs: fileRef.fromPackageRoot("src/rules/friendly-name.md"),
   description: "Ensures that @friendlyName is used as intended.",
   severity: "warning",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-core/rules/friendly-name",
   messages: {
     scope: paramMessage`@friendlyName should not decorate ${"kind"}.`,
     template: paramMessage`@friendlyName should decorate template and use template parameter's properties in friendly name.`,

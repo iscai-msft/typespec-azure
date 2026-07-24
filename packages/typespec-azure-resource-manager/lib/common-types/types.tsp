@@ -1,6 +1,5 @@
 using Http;
 using Rest;
-using OpenAPI;
 using Versioning;
 using Azure.Core;
 
@@ -45,7 +44,8 @@ model TrackedResource extends Resource {
 
   /** The geo-location where the resource lives */
   @visibility(Lifecycle.Read, Lifecycle.Create)
-  location: string;
+  @Azure.ResourceManager.CommonTypes.Private.inlineAzureType
+  location: Azure.Core.azureLocation;
 }
 
 /**
@@ -164,7 +164,7 @@ model Operation {
 }
 
 /**
- * Localized display information for and operation.
+ * Localized display information for an operation.
  */
 model OperationDisplay {
   /** 
@@ -298,7 +298,7 @@ model ErrorAdditionalInfo {
 
   /** The additional info. */
   @visibility(Lifecycle.Read)
-  info?: {};
+  info?: unknown;
 }
 
 /**
@@ -344,6 +344,7 @@ union createdByType {
   string,
 }
 
+/** Resource Identity Type */
 union ResourceIdentityType {
   SystemAssigned: "SystemAssigned",
 }
@@ -367,6 +368,7 @@ model Identity {
   type?: ResourceIdentityType;
 }
 
+/** Properties of a KeyVault */
 model KeyVaultProperties {
   /** Key vault uri to access the encryption key. */
   keyIdentifier?: string;
@@ -473,6 +475,13 @@ model LocationData {
 
 /**
  * The default api-version parameter type.
+ *
+ * @example
+ * ```typespec
+ * model Employee is TrackedResource<EmployeeProperties> {
+ *  ...ResourceNameParameter<Employee>;
+ * }
+ * ```
  */
 model ApiVersionParameter {
   /** The API version to use for this operation. */
@@ -493,12 +502,23 @@ model OperationIdParameter {
 
 /**
  * The default location parameter type.
+ *
+ * @example
+ * ```typespec
+ * op employee is ArmProviderActionSync<
+ *  Request = Employee,
+ *  Response = Employee,
+ *  Scope = SubscriptionActionScope,
+ *  Parameters = LocationParameter
+ * >;
+ * ```
  */
 model LocationParameter {
   /** The name of Azure region. */
   @path
   @minLength(1)
   @segment("locations")
+  @Azure.ResourceManager.CommonTypes.Private.inlineAzureType
   location: string;
 }
 

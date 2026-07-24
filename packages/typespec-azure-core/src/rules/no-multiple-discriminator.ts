@@ -2,14 +2,17 @@ import {
   Discriminator,
   Model,
   createRule,
+  fileRef,
   getDiscriminator,
   paramMessage,
 } from "@typespec/compiler";
 
 export const noMultipleDiscriminatorRule = createRule({
   name: "no-multiple-discriminator",
+  docs: fileRef.fromPackageRoot("src/rules/no-multiple-discriminator.md"),
   description: "Classes should have at most one discriminator.",
   severity: "warning",
+  url: "https://azure.github.io/typespec-azure/docs/libraries/azure-core/rules/no-multiple-discriminator",
   messages: {
     default: paramMessage`Class hierarchy for '${"name"}' should only have, at most, one discriminator, but found: ${"values"}.`,
   },
