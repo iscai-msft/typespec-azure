@@ -41,6 +41,7 @@ export function createSdkPackage<TServiceOperation extends SdkServiceOperation>(
     licenseInfo: getLicenseInfo(context),
     metadata: {
       apiVersion: context.apiVersion === "all" ? "all" : versions[versions.length - 1],
+      isPreview: computeIsPreview(context, versions),
     },
   };
   organizeNamespaces(sdkPackage);
@@ -139,4 +140,11 @@ function populateApiVersionInformation(context: TCGCContext): void {
       );
     }
   }
+}
+
+function computeIsPreview(context: TCGCContext, versions: string[]): boolean | undefined {
+  if (versions.length === 0) {
+    return undefined;
+  }
+  return versions.some((v) => context.previewStringRegex.test(v));
 }

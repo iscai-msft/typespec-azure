@@ -1222,3 +1222,67 @@ it("multiple operation groups", async () => {
   a = aOps.find((x) => x.name === "a");
   ok(a);
 });
+
+it("isPreview is false for stable versions", async () => {
+  const runnerWithVersion = await createSdkTestRunner({
+    emitterName: "@azure-tools/typespec-python",
+  });
+
+  await runnerWithVersion.compile(`
+    @service
+    @versioned(Versions)
+    namespace TestService;
+    enum Versions {
+      v1,
+      v2,
+      v3,
+    }
+    op test(): void;
+  `);
+
+  const sdkPackage = runnerWithVersion.context.sdkPackage;
+  strictEqual(sdkPackage.metadata.isPreview, false);
+});
+
+it("isPreview is undefined for unversioned service", async () => {
+  await runner.compile(`
+    @service
+    namespace TestService;
+    op test(): void;
+  `);
+
+  const sdkPackage = runner.context.sdkPackage;
+  strictEqual(sdkPackage.metadata.apiVersion, undefined);
+  strictEqual(sdkPackage.metadata.isPreview, undefined);
+});
+
+it("isPreview is true for service with preview suffix version", async () => {
+  await runner.compile(`
+    @service
+    @versioned(Versions)
+    namespace TestService;
+    enum Versions {
+      v2024_10_01_preview: "2024-10-01-preview",
+    }
+    op test(): void;
+  `);
+
+  const sdkPackage = runner.context.sdkPackage;
+  strictEqual(sdkPackage.metadata.isPreview, true);
+});
+
+it("isPreview is true for service with mixed stable and preview versions", async () => {
+  await runner.compile(`
+    @service
+    @versioned(Versions)
+    namespace TestService;
+    enum Versions {
+      v2024_10_01: "2024-10-01",
+      v2024_11_01_preview: "2024-11-01-preview",
+    }
+    op test(): void;
+  `);
+
+  const sdkPackage = runner.context.sdkPackage;
+  strictEqual(sdkPackage.metadata.isPreview, true);
+});
