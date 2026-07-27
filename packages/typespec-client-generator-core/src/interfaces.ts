@@ -879,6 +879,13 @@ export interface SdkPackage<TServiceOperation extends SdkServiceOperation> {
      * If a string, the package is versioned with the specified version.
      */
     apiVersion?: string;
+    /**
+     * Whether the package targets any preview API versions.
+     * `true` if any targeted API version is a preview version (matches the preview string regex).
+     * `false` if all versions are stable.
+     * `undefined` if no versioning is present.
+     */
+    isPreview?: boolean;
   };
 }
 
