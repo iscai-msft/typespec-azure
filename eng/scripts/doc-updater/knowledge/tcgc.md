@@ -292,3 +292,26 @@ namespace (@clientNamespace), naming (@clientName), overload, structure (@client
 ## Diagnostic Messages Externalized (July 2026)
 
 - Diagnostic message definitions were moved out of `src/lib.ts` into individual `src/diagnostics/<name>.md` files (loaded at build). Purely an authoring refactor; reference docs regenerate the same content. No user-facing doc action.
+
+## `wireType` on SdkBuiltInType (Aug 2026)
+
+- `SdkBuiltInType` gained an optional `wireType?: SdkBuiltInType` (`src/interfaces.ts`). It holds the type a value is serialized as on the wire when `@encode` specifies a target type (e.g. `@encode(string)` on an integer, or `@encode("int32", int32)`). `name`/`kind` keep describing the client-facing type.
+- Set in `addEncodeInfo` (`src/types.ts`). The encoding-target logic now also applies to `string` and `url` kinds (previously only int/boolean), so string-encoded-as-int32 etc. is supported. When an explicit encoding name exists, `encode` keeps that name; otherwise `encode` falls back to the wire type's kind. `wireType` is always set when `@encode` has a target type.
+- Documented in guideline.md "Built-in Types" bullet. Emitter type-graph metadata — no Spector spec needed. Tests: `test/types/built-in.test.ts`, `test/types/array.test.ts`.
+
+## C# Naming Linter Rules Added (Aug 2026)
+
+- Two new C#-scoped rules in the `best-practices:csharp` ruleset: `csharp-model-suffix` and `csharp-use-standard-acronyms`. Rule sources live in `src/rules/csharp-model-suffix.{ts,md}` and `src/rules/csharp-use-standard-acronyms.{ts,md}`.
+- `csharp-model-suffix`: model names should use `Config` (not `Options`, except client options), `Content` (not `Request`), `Result` (not `Response`). Resolves the C# name via `getLibraryName(ctx, model, "csharp")` so it respects `@clientName`. Offers a codefix that augments `@clientName("<suggestion>", "csharp")`.
+- `csharp-use-standard-acronyms`: enforces standard acronym casing (currently `IP`, `DB`, `OS`) on models, enums, and model properties; also respects `@clientName`; same codefix pattern.
+- `reference/linter.md` already lists both rules (regen was run in the source commits). The `.md` files under `src/rules/` are the source for the auto-generated `../rules/<name>.md` reference pages. Rules are documented via reference docs — no howto ClientTabs needed.
+
+## client-default-value-type-mismatch Diagnostic (Aug 2026)
+
+- `@clientDefaultValue` (Legacy) now validates that the value type matches the property type via an `onTargetFinish` hook in `$clientDefaultValue` (`src/decorators.ts`). Emits `client-default-value-type-mismatch` when e.g. a string default is applied to a numeric property.
+- When `@alternateType` is present (and not an external type), the default is validated against the alternate type instead — so `@clientDefaultValue("10")` + `@alternateType(string)` on an `int32` produces no warning.
+- Diagnostic message source: `src/diagnostics/client-default-value-type-mismatch.md`. Suppressible; suppressed mismatches still apply the value.
+
+## @operationGroup Doc Comment (Aug 2026)
+
+- The `@operationGroup` doc comment in `lib/decorators.tsp` no longer uses a leading `@deprecated` JSDoc tag (it was rendering awkwardly); deprecation is now stated in prose ("Deprecated: use `@client` instead."). Behavior unchanged — still deprecated.
