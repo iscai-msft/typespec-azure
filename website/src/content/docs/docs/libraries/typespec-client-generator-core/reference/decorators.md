@@ -766,6 +766,10 @@ model MyModel {
 Whether you want to generate an operation as a convenient method.
 When applied to a namespace or interface, it affects all operations within that scope unless explicitly overridden.
 
+:::note
+`@convenientAPI` is only meaningful for the `java` and `csharp` emitters. You should always provide a `scope` argument of `"java"`, `"csharp"`, or both (e.g. `"java, csharp"`). Omitting the scope or using any other language scope will trigger a [`decorator-requires-scope`](@azure-tools/typespec-client-generator-core/decorator-requires-scope) warning.
+:::
+
 ```typespec
 @Azure.ClientGenerator.Core.convenientAPI(flag?: valueof boolean, scope?: valueof string)
 ```
@@ -784,27 +788,27 @@ The target operation, namespace, or interface.
 
 #### Examples
 
-##### Apply to a single operation
+##### Apply to a single operation (Java only)
 
 ```typespec
-@convenientAPI(false)
+@convenientAPI(false, "java")
 op test: void;
 ```
 
-##### Apply to all operations in an interface
+##### Apply to all operations in an interface (C# only)
 
 ```typespec
-@convenientAPI(false)
+@convenientAPI(false, "csharp")
 interface MyOperations {
   test1(): void;
   test2(): void;
 }
 ```
 
-##### Apply to all operations in a namespace
+##### Apply to all operations in a namespace (Java and C#)
 
 ```typespec
-@convenientAPI(false)
+@convenientAPI(false, "java, csharp")
 namespace MyService {
   op test1(): void;
   op test2(): void;
@@ -988,6 +992,10 @@ model MyServiceClientOptions {
 Whether you want to generate an operation as a protocol method.
 When applied to a namespace or interface, it affects all operations within that scope unless explicitly overridden.
 
+:::note
+`@protocolAPI` is only meaningful for the `java` and `csharp` emitters. You should always provide a `scope` argument of `"java"`, `"csharp"`, or both (e.g. `"java, csharp"`). Omitting the scope or using any other language scope will trigger a [`decorator-requires-scope`](@azure-tools/typespec-client-generator-core/decorator-requires-scope) warning.
+:::
+
 ```typespec
 @Azure.ClientGenerator.Core.protocolAPI(flag?: valueof boolean, scope?: valueof string)
 ```
@@ -1006,27 +1014,27 @@ The target operation, namespace, or interface.
 
 #### Examples
 
-##### Apply to a single operation
+##### Apply to a single operation (Java only)
 
 ```typespec
-@protocolAPI(false)
+@protocolAPI(false, "java")
 op test: void;
 ```
 
-##### Apply to all operations in an interface
+##### Apply to all operations in an interface (C# only)
 
 ```typespec
-@protocolAPI(false)
+@protocolAPI(false, "csharp")
 interface MyOperations {
   test1(): void;
   test2(): void;
 }
 ```
 
-##### Apply to all operations in a namespace
+##### Apply to all operations in a namespace (Java and C#)
 
 ```typespec
-@protocolAPI(false)
+@protocolAPI(false, "java, csharp")
 namespace MyService {
   op test1(): void;
   op test2(): void;
