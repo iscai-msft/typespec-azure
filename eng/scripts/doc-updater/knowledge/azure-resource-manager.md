@@ -124,3 +124,14 @@ The library provides an experimental **Agent** base type in `lib/base-types/agen
 - How-to guide added: `website/src/content/docs/docs/howtos/ARM/agent-base-type.mdx`.
 - The ARM howtos sidebar is auto-generated from the directory (`current-sidebar.ts` → `autogenerate` on `howtos`), so new how-to files need no manual sidebar registration.
 - Reference docs (`reference/*.md`) for these lib additions were already regenerated in-commit; no `regen-docs` diff was needed for this batch.
+
+## Relationship Base Type (Experimental)
+
+The library provides an experimental **Relationship** base type in `lib/base-types/relationship.tsp` (namespaces `Azure.ResourceManager.BaseTypes` and `Azure.ResourceManager.BaseTypes.Relationships`). Key facts:
+
+- A relationship models a link between a **source** scope and a **target** entity and is an **extension resource**. `Relationship<Properties = RelationshipProperties>` is an `ExtensionResource` template that applies `@azureBaseType(#{ baseType: BaseType.Relationship, version: "2026-04-01" })` automatically. As with the Agent base type, using it in a provider namespace emits `basetypes-experimental`, so user specs must `#suppress`.
+- `RelationshipProperties<ProvisioningState extends string = ResourceProvisioningState>` contributes: `baseTypes` (read-only, ARM-managed), `sourceId`, `sourceTenant`, `targetId`, `targetTenant` (writable), and `provisioningState` (read-only). The single template parameter customizes the provisioning-state union.
+- Operations use the `Extension.*` templates (`Extension.Read`, `Extension.CreateOrReplaceAsync`, `Extension.CustomPatchAsync`, `Extension.DeleteWithoutOkAsync`, `Extension.ListByTarget`, `Extension.ScopeParameter`) parameterized by a scope constrained to `Azure.ResourceManager.Foundations.SimpleResource`. Routes at `{scope}/providers/<ns>/<segment>/{name}`.
+- Linting rule `use-relationship-required-properties` (registered in `src/linter.ts`): resources marked `@azureBaseType` for the Relationship base type must be extension resources with the required Relationship schema.
+- Canonical sample: `packages/samples/specs/resource-manager/resource-types/relationship/main.tsp` (the `DependencyOf` example).
+- How-to guide added: `website/src/content/docs/docs/howtos/ARM/relationship-base-type.mdx`.
