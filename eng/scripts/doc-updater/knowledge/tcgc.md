@@ -292,3 +292,24 @@ namespace (@clientNamespace), naming (@clientName), overload, structure (@client
 ## Diagnostic Messages Externalized (July 2026)
 
 - Diagnostic message definitions were moved out of `src/lib.ts` into individual `src/diagnostics/<name>.md` files (loaded at build). Purely an authoring refactor; reference docs regenerate the same content. No user-facing doc action.
+
+## SdkBuiltInType.wireType (Aug 2026)
+
+- `SdkBuiltInType` gained `wireType?: SdkBuiltInType` (`src/interfaces.ts`). Set by `addEncodeInfo` in `src/types.ts` when `@encode` specifies an `encodedAs` type. `kind` keeps the client-facing type; `wireType` is the type serialized on the wire.
+- `@encode` on built-in types now supported for `string` and `url` kinds too (previously only int/boolean). E.g. `@encode(string) i: int32` → `encode: "string"`, `wireType.kind: "string"`; `@encode("abc", int32) value: string` → `encode: "abc"`, `wireType.kind: "int32"`.
+- Precedence: if a custom encoding name is given (`@encode("abc", int32)`), `encode` holds that name; otherwise `encode` falls back to `wireType.kind`. `wireType` is `undefined` when no `encodedAs` type is specified.
+- Documented in guideline.md "Built-in Types" bullet. Tests: `test/types/built-in.test.ts`. Emitter-consumed metadata — no Spector spec.
+
+## client-default-value-type-mismatch diagnostic (Aug 2026)
+
+- New warning raised by `$clientDefaultValue` (`src/decorators.ts`, via `onTargetFinish`) when the `@clientDefaultValue` value type doesn't match the target property/parameter type. When `@alternateType` is present, validation is against the alternate type. Message defined in `src/diagnostics/client-default-value-type-mismatch.md`.
+- Suppressible; suppressed mismatches still apply the default to generated SDKs. Documented as a `:::caution` in `08types.mdx` clientDefaultValue section. Diagnostic-only — no Spector spec.
+
+## New C# linter rules (Aug 2026)
+
+- Two rules added to `src/linter.ts` (both in `all` and `best-practices:csharp` rulesets): `csharp-model-suffix` (recommended model name suffixes: Config/Content/etc.) and `csharp-use-standard-acronyms` (standard acronym casing). Rule docs in `src/rules/*.md`.
+- `reference/linter.md` already lists both rows at checkout (regen already committed with the source PR) — do NOT re-add. Lint rules need no Spector coverage.
+
+## @operationGroup doc comment reformat (Aug 2026)
+
+- The `@deprecated` line in the `@operationGroup` doc comment (`lib/decorators.tsp`) was moved to a plain "Deprecated: use `@client` instead" sentence. `reference/decorators.md` already reflects this at checkout — no regen needed.
