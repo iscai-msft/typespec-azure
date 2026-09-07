@@ -246,6 +246,10 @@ You can find the complete sample of Extension Resources below.
 
 <ExampleRef path="resource-manager/resource-types/specific-extension" collapsed />
 
+For the standardized experimental Relationship extension resource, use the
+[`Relationship` base type](./relationship-base-type.mdx) instead of defining the base-type contract
+manually.
+
 ### Child Resource
 
 Child resources usually use the `ProxyResource<TProperties/>` as their base resource type, where `TProperties` is the properties model for the rp-specific properties of the resource. Here is an example:
@@ -524,6 +528,22 @@ Finally, when your _rp-specific property bag_ contains an array of complex prope
 - ARM resources must be fully loaded in memory, so there are limits to the size of arrays in the properties of a resource. If your array is not strictly bounded, you should consider modeling the array property as a [child resource](#child-resource)
 - Updating the contents of arrays can be difficult, and result in data loss under simultaneous updates, especially as Json-Merge-Patch is not widely supported in ARM update operations. If users will frequently need to update the contents of arrays, you should consider modeling as a [child resource](#child-resource).
 
+### Billing Data
+
+Billing Data provides a standard description of a resource's billing state, including a reference
+to a product in the Marketplace Catalog. It is strongly recommended for Resource Providers with
+prepaid billing (where a customer is charged _before_ the product is provisioned/fulfilled) to use
+this pattern, allowing customers to interact with such resources through central experiences.
+
+Unlike the envelope properties below, `BillingDataProperty` belongs in the resource-specific
+properties model. Its `BillingData` schema is defined in ARM common types v6.
+
+```typespec
+model EmployeeProperties {
+  ...BillingDataProperty;
+}
+```
+
 ## Adding Optional Standard Envelope Properties
 
 In addition to the resource-specific property bag, a resource may configure on or more standard ARM features through the use of standard properties in the _ARM Envelope_. Standard features configured in the envelope include:
@@ -535,18 +555,6 @@ In addition to the resource-specific property bag, a resource may configure on o
 - **ResourceKind**: A standard mechanism for specifying a type of user experience in the portal.
 - **ManagedBy**: Indicating that this resource is managed by another Azure resource.
 - **ExtendedLocation**: Enabling deployment to custom locations such as Azure Arc-connected environments.
-- **Billing Data**: A standard mechanism for specifying billing properties for prepaid resources.
-
-### Billing Data
-
-Billing Data provides a standard description of resource's billing state, including a reference to a product in the Marketplace Catalog. It is strongly recommended for Resource Providers with prepaid billing (where a customer is charged _before_ the product is provisioned/fulfilled) to utilize this pattern, allowing customers to interact with such resources through central experiences.
-
-```typespec
-model Employee is TrackedResource<EmployeeProperties> {
-  ...ResourceNameParameter<Employee>;
-  ...BillingDataProperty;
-}
-```
 
 ### Managed Identity
 

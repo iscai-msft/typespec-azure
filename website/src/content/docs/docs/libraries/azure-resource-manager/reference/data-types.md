@@ -3469,7 +3469,7 @@ union Azure.ResourceManager.CommonTypes.BillingState
 | Name     | Type         | Description                               |
 | -------- | ------------ | ----------------------------------------- |
 | Pending  | `"Pending"`  | Resource's billing has not yet started.   |
-| Active   | `"Active"`   | Resource's billing is activate.           |
+| Active   | `"Active"`   | Resource's billing is active.             |
 | Warned   | `"Warned"`   | Resource's billing is in a warning state. |
 | Inactive | `"Inactive"` | Resource's billing is inactive.           |
 

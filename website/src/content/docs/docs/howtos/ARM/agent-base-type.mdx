@@ -127,6 +127,12 @@ model ApplianceResponse is AgentResponse<ContosoResponseProperties, ContosoAppli
 }
 ```
 
+Both `ConversationProperties` and `ResponseProperties` include a required `input: InputItem`
+property on create. `InputItem.type` selects a message, function call, function-call output, or
+compaction item. Add the fields for that item type—for example, a message uses `content`, whose
+value is an open `Record<unknown>`. Service-assigned fields such as `id`, `role`, and `status` are
+read-only.
+
 Both child resources require a full create, read, update, and delete lifecycle. Omitting any of
 these operations triggers the
 [`arm-agent-base-type-lifecycle-operations`](/docs/libraries/azure-resource-manager/rules/arm-agent-base-type-lifecycle-operations)
@@ -152,14 +158,18 @@ interface ApplianceConversations {
 ## Applying `@azureBaseType` directly
 
 The `Agent` template applies `@azureBaseType` for you. If you need to declare base-type conformance
-on a properties model directly, apply the decorator with a `BaseTypeInfo` value. It may be applied
+on a resource model directly, apply the decorator with a `BaseTypeInfo` value. It may be applied
 multiple times to declare conformance to multiple base types; duplicate entries are ignored:
 
 ```typespec
-@azureBaseType(#{ baseType: "Agent", version: "2024-06-01" })
-model MyAgentProperties {
-  ...AgentPropertiesPlatform<MyDefinition>;
+model MyAgentProperties is AgentPropertiesPlatform<ContosoPlatformDefinition> {
   ...DefaultProvisioningStateProperty;
+}
+
+#suppress "@azure-tools/typespec-azure-resource-manager/basetypes-experimental" "Experimental BaseTypes"
+@azureBaseType(#{ baseType: BaseType.Agent, version: "2026-04-01" })
+model MyAgent is TrackedResource<MyAgentProperties> {
+  ...ResourceNameParameter<MyAgent>;
 }
 ```
 
