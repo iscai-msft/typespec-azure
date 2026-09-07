@@ -1844,6 +1844,8 @@ When applied, the method parameters come from the override operation while the u
 
 :::caution
 The override operation must preserve every parameter that is realized as a path parameter in the original operation's HTTP route, keeping its `@path` decorator. Dropping such a parameter — or redeclaring it without `@path` — reports an `override-parameters-mismatch` error, because the underlying route still requires that value. To relocate a parameter instead of dropping it, use [`@clientLocation`](#using-clientlocation-to-control-parameter-placement).
+
+The override operation's response type must also be compatible with the original operation's response type. An incompatible response type reports an `override-response-mismatch` error. To intentionally replace the response type, use [`replaceResponseWithVoid`](#replaceresponsewithvoid) or [`replaceResponseWithBytes`](#replaceresponsewithbytes), which report an informational `override-response-replacement` diagnostic that can be suppressed when the replacement is expected.
 :::
 
 ### Simple parameter customization
@@ -2224,6 +2226,34 @@ func (client *MyServiceClient) MyOp(ctx context.Context, c bool, a string, b int
 
 </ClientTabItem>
 </ClientTabs>
+
+#### `replaceResponseWithVoid`
+
+Replace the method response type of an operation with `void`, discarding the client method return value while preserving the HTTP response metadata used for the wire protocol. Use this when the runtime response body should no longer be surfaced to callers of the generated client method, for example when a "delete" operation returns a body today but should return nothing to the SDK consumer:
+
+```typespec
+extern fn replaceResponseWithVoid(operation: Reflection.Operation): Reflection.Operation;
+```
+
+```typespec title="client.tsp"
+#suppress "experimental-feature" "using replaceResponseWithVoid"
+alias DeleteResponse = replaceResponseWithVoid(MyService.delete);
+@@override(MyService.delete, DeleteResponse);
+```
+
+#### `replaceResponseWithBytes`
+
+Replace the method response type of an operation with the raw bytes of the HTTP response body, preserving the HTTP response metadata used for the wire protocol. Use this when callers of the generated client method should receive the unparsed response body instead of the modeled response type:
+
+```typespec
+extern fn replaceResponseWithBytes(operation: Reflection.Operation): Reflection.Operation;
+```
+
+```typespec title="client.tsp"
+#suppress "experimental-feature" "using replaceResponseWithBytes"
+alias DownloadResponse = replaceResponseWithBytes(MyService.download);
+@@override(MyService.download, DownloadResponse);
+```
 
 ### Chaining transformations
 
