@@ -2225,6 +2225,145 @@ func (client *MyServiceClient) MyOp(ctx context.Context, c bool, a string, b int
 </ClientTabItem>
 </ClientTabs>
 
+#### `replaceResponseWithVoid`
+
+Replace the method response type of an operation with `void`, discarding the client method return value while preserving the HTTP response metadata used for the wire protocol. Use this when the runtime response body should no longer be surfaced to callers of the generated client method, for example when a "delete" operation returns a body today but should return nothing to the SDK consumer.
+
+```typespec
+extern fn replaceResponseWithVoid(operation: Reflection.Operation): Reflection.Operation;
+```
+
+<ClientTabs>
+<ClientTabItem lang="typespec">
+
+```typespec title="client.tsp"
+@service
+namespace MyService;
+
+model Widget {
+  name: string;
+}
+
+@post op create(): Widget;
+
+#suppress "experimental-feature" "using replaceResponseWithVoid"
+alias CustomizedCreate = replaceResponseWithVoid(MyService.create);
+#suppress "@azure-tools/typespec-client-generator-core/override-response-replacement" "intentional response replacement"
+@@override(MyService.create, CustomizedCreate);
+```
+
+</ClientTabItem>
+<ClientTabItem lang="python">
+
+```python
+# The response body is no longer surfaced to the caller
+def create(self) -> None:
+    ...
+```
+
+</ClientTabItem>
+<ClientTabItem lang="csharp">
+
+```csharp
+// The response body is no longer surfaced to the caller
+public virtual Response Create(CancellationToken cancellationToken = default)
+```
+
+</ClientTabItem>
+<ClientTabItem lang="typescript">
+
+```typescript
+// The response body is no longer surfaced to the caller
+export async function create(): Promise<void>;
+```
+
+</ClientTabItem>
+<ClientTabItem lang="java">
+
+```java
+// The response body is no longer surfaced to the caller
+public void create();
+```
+
+</ClientTabItem>
+<ClientTabItem lang="go">
+
+```go
+// NOT_SUPPORTED
+```
+
+</ClientTabItem>
+</ClientTabs>
+
+#### `replaceResponseWithBytes`
+
+Replace the method response type of an operation with the raw bytes of the HTTP response body, preserving the HTTP response metadata used for the wire protocol. Use this when callers of the generated client method should receive the unparsed response body instead of the modeled response type.
+
+```typespec
+extern fn replaceResponseWithBytes(operation: Reflection.Operation): Reflection.Operation;
+```
+
+<ClientTabs>
+<ClientTabItem lang="typespec">
+
+```typespec title="client.tsp"
+@service
+namespace MyService;
+
+model Metadata {
+  name: string;
+}
+
+@get op download(): Metadata;
+
+#suppress "experimental-feature" "using replaceResponseWithBytes"
+#suppress "@azure-tools/typespec-client-generator-core/override-response-replacement" "intentional response replacement"
+@@override(MyService.download, replaceResponseWithBytes(MyService.download));
+```
+
+</ClientTabItem>
+<ClientTabItem lang="python">
+
+```python
+# The caller now receives the raw response bytes
+def download(self) -> bytes:
+    ...
+```
+
+</ClientTabItem>
+<ClientTabItem lang="csharp">
+
+```csharp
+// The caller now receives the raw response bytes
+public virtual Response<BinaryData> Download(CancellationToken cancellationToken = default)
+```
+
+</ClientTabItem>
+<ClientTabItem lang="typescript">
+
+```typescript
+// The caller now receives the raw response bytes
+export async function download(): Promise<Uint8Array>;
+```
+
+</ClientTabItem>
+<ClientTabItem lang="java">
+
+```java
+// The caller now receives the raw response bytes
+public byte[] download();
+```
+
+</ClientTabItem>
+<ClientTabItem lang="go">
+
+```go
+// NOT_SUPPORTED
+```
+
+</ClientTabItem>
+</ClientTabs>
+
 ### Chaining transformations
 
 Transformation functions can be chained together. Each function returns a new operation that can be passed to the next transformation:
