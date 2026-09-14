@@ -332,6 +332,8 @@ TCGC infers the body parameter type from TypeSpec HTTP lib type [`HttpOperationB
 
 TCGC creates the `Content-Type` header parameter for any operation with body parameter if it doesn't exist, and creates the `Accept` header parameter for any operation with response that contains body. TCGC also creates corresponding method parameters for the operation's upper layer method for each case.
 
+For a single content type, the synthesized parameter is normally a constant. The exception is a request whose body kind is `file` and whose only content type is `*/*`, which is the TypeSpec HTTP library's marker for an unconstrained `File`. TCGC models that synthesized `Content-Type` method and HTTP header parameter as an optional string with `clientDefaultValue: "application/octet-stream"` so callers can override the media type. This exception applies only to requests; an unconstrained `File` response still has a constant `Accept` value of `*/*`.
+
 For request bodies with multiple content types, the `Content-Type` parameter is modeled as an enum with one value per content type. For responses with multiple content types, the `Accept` header parameter is modeled as a single constant whose value is a comma-joined string of all response content types. Structured content types (JSON, XML, `text/plain`) are sorted before unstructured ones. For example, if a response can return `image/png` or `application/json`, the `Accept` constant value is `"application/json, image/png"`.
 
 TCGC uses several ways to find an HTTP operation's parameter's corresponding method parameter or model property:

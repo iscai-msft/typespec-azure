@@ -169,6 +169,9 @@ namespace (@clientNamespace), naming (@clientName), overload, structure (@client
 - Multiple response content types: single constant with comma-joined string (structured types first).
 - Constants and enums get proper generated names via the naming context path (e.g., `DownloadFileMultipleContentTypesAccept`).
 - For file bodies with multiple content types, TCGC reuses the File model's `contentType` property's union type so that the synthesized `contentType` header parameter and the File model's property reference the same `SdkEnumType` instance.
+- The TypeSpec HTTP library uses `*/*` as the content-type marker for an unconstrained `File`. When that is the only content type on a request with body kind `file`, TCGC exposes the synthesized `contentType` method/header parameter as an optional string with `clientDefaultValue: "application/octet-stream"` instead of a `*/*` constant.
+- The unconstrained-file exception is request-only. Explicit file upload content types remain constants, multiple file upload content types remain enums, and an unconstrained file download still synthesizes a constant `Accept: */*`.
+- The shared HTTP Spector `type/file` scenarios cover unconstrained request and response file bodies as well as explicit and multiple content types; Azure Spector does not need duplicate scenarios for this baseline HTTP behavior.
 
 ## Example Matching (June 2026)
 
