@@ -371,7 +371,7 @@ model Widget {
   name: string;
   color: string;
 }
-@armResourceOperations(MyResource)
+@armResourceOperations
 interface MyResourceOperations {
   // ResourceListResult<T> produces a Pageable list of T
   listWidgets is ArmResourceListActionSync<MyResource, ResourceListResult<Widget>>;
@@ -403,7 +403,7 @@ model Widget {
   name: string;
   color: string;
 }
-@armResourceOperations(MyResource)
+@armResourceOperations
 interface MyResourceOperations {
   // ResourceListResult<T> produces a Pageable list of T
   listWidgets is ArmResourceListActionAsync<MyResource, ResourceListResult<Widget>>;

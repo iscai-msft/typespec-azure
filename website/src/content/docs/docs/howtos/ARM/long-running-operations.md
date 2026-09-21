@@ -25,8 +25,8 @@ of the operation. It is important that this value matches what the operation act
 
 ## CreateOrUpdate (PUT)
 
-The `ArmResourceCreateOrReplaceAsync` and `ArmResourceCreateOrUpdateAsync` templates use
-`ArmAsyncOperationHeader` by default with the resource as the final result.
+The `ArmResourceCreateOrReplaceAsync` template uses `ArmAsyncOperationHeader` by default with the
+resource as the final result.
 
 ### Default
 
