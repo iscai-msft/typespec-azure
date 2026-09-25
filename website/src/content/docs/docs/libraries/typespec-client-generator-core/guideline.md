@@ -162,6 +162,8 @@ The initialization parameter can be either [`SdkEndpointParameter`](../reference
 
 **SdkMethodParameter** is a normal client-level parameter that can be used in some of the methods belonging to the client. For type details, refer to the next section.
 
+`SdkClientType.authentication` exposes the service-level [`Authentication`](https://typespec.io/docs/libraries/http/reference/js-api/interfaces/authentication/) declared with `@typespec/http`, preserving OR alternatives through `Authentication.options` and AND requirements through each option's `schemes`. This lets emitters distinguish `NoAuth` and combined authentication requirements without changing `SdkCredentialParameter`'s existing behavior, which always produces a required credential parameter for any declared authentication, including `NoAuth`-only and `NoAuth | credential` services.
+
 ### Method
 
 Emitters get all methods belonging to a client with `SdkClientType.methods`. An [`SdkServiceMethod`](../reference/js-api/type-aliases/sdkservicemethod/) represents a client's method.
