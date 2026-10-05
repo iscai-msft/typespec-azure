@@ -1,0 +1,111 @@
+---
+title: Relationship Base Type
+description: Defining an ARM relationship between a source resource and a target
+---
+
+:::caution
+The Relationship base type is **experimental**. Its shape may change in future versions of the
+`@azure-tools/typespec-azure-resource-manager` library. The `Relationship` template applies
+`@azureBaseType`, which emits the `basetypes-experimental` warning in a provider namespace. You
+must explicitly suppress that warning while the feature is experimental.
+:::
+
+A _Relationship_ is an ARM extension resource that describes a connection from a source resource
+to a target. The library provides `RelationshipProperties` for the required property bag and
+`Relationship` for the extension resource. Both are in the
+`Azure.ResourceManager.BaseTypes.Relationships` namespace:
+
+```typespec
+using Azure.ResourceManager.BaseTypes.Relationships;
+```
+
+## Define the relationship properties
+
+Derive your property bag from `RelationshipProperties`. It supplies these required properties:
+
+- `baseTypes`, the read-only ARM base-type descriptor
+- `sourceId` and `sourceTenant`, which identify the relationship source
+- `targetId` and `targetTenant`, which identify the relationship target
+- `provisioningState`, a read-only property whose default type is `ResourceProvisioningState`
+
+Add only the properties specific to your relationship:
+
+```typespec
+model DependencyOfProperties is RelationshipProperties {
+  /** A human-readable relationship description. */
+  description?: string;
+}
+```
+
+For an asynchronous lifecycle, pass an LRO status union as the `ProvisioningState` template
+argument:
+
+```typespec
+@Azure.Core.lroStatus
+union DependencyOfProvisioningState {
+  ResourceProvisioningState,
+  Accepted: "Accepted",
+  Provisioning: "Provisioning",
+  Deleting: "Deleting",
+  string,
+}
+
+model DependencyOfProperties
+  is RelationshipProperties<ProvisioningState = DependencyOfProvisioningState> {
+  /** A human-readable relationship description. */
+  description?: string;
+}
+```
+
+## Define the relationship resource
+
+Derive the resource from `Relationship<Properties>`. This template creates an `ExtensionResource`
+and applies the Relationship base-type contract version `2026-04-01`. Add the standard resource
+name spread and suppress the experimental diagnostic:
+
+```typespec
+#suppress "@azure-tools/typespec-azure-resource-manager/basetypes-experimental" "Experimental BaseTypes"
+model DependencyOf is Relationship<DependencyOfProperties> {
+  ...ResourceNameParameter<
+    Resource = DependencyOf,
+    KeyName = "relationshipName",
+    SegmentName = "dependencyOf",
+    NamePattern = "^[a-zA-Z0-9_.-]{1,64}$"
+  >;
+}
+```
+
+The `use-relationship-required-properties` rule verifies that a resource marked as a Relationship
+is an extension resource and includes `sourceId`, `sourceTenant`, `targetId`, `targetTenant`, and
+`provisioningState`.
+
+## Define operations over the source scope
+
+Use the extension-resource operation templates so the source resource is the route scope. The
+following interface supports any ARM resource as the relationship source:
+
+```typespec
+interface DependencyOfOps<Scope extends Azure.ResourceManager.Foundations.SimpleResource> {
+  get is Extension.Read<Scope, DependencyOf>;
+  create is Extension.CreateOrReplaceAsync<Scope, DependencyOf>;
+  update is Extension.CustomPatchAsync<
+    Scope,
+    DependencyOf,
+    Azure.ResourceManager.Foundations.ResourceUpdateModel<DependencyOf, DependencyOfProperties>
+  >;
+  delete is Extension.DeleteWithoutOkAsync<Scope, DependencyOf>;
+  list is Extension.ListByTarget<Scope, DependencyOf>;
+}
+
+@armResourceOperations
+interface DependencyOfRelationships extends DependencyOfOps<Extension.ScopeParameter> {}
+```
+
+This produces relationship instance routes under:
+
+```text
+{scope}/providers/{providerNamespace}/{relationshipType}/{relationshipName}
+```
+
+For a complete working specification, see the
+[Relationship Base Type sample](https://github.com/Azure/typespec-azure/tree/main/packages/samples/specs/resource-manager/resource-types/relationship).
