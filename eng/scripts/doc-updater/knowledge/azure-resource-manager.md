@@ -124,3 +124,17 @@ The library provides an experimental **Agent** base type in `lib/base-types/agen
 - How-to guide added: `website/src/content/docs/docs/howtos/ARM/agent-base-type.mdx`.
 - The ARM howtos sidebar is auto-generated from the directory (`current-sidebar.ts` → `autogenerate` on `howtos`), so new how-to files need no manual sidebar registration.
 - Reference docs (`reference/*.md`) for these lib additions were already regenerated in-commit; no `regen-docs` diff was needed for this batch.
+
+## Rule Renames (use-* rules)
+
+The `core-operations` rule was renamed to `use-interface`. Two rules were added: `use-api-version` and `use-operation-decorator`. When auditing docs, ensure no reference to the old `core-operations` name remains and that every rule slug matches a registered rule name.
+
+## Rule Reference Link Slugs
+
+Rule reference links in the how-to guides point to `docs/libraries/azure-resource-manager/rules/<rule-name>/`, where `<rule-name>` must exactly match the **registered** rule name (including any `arm-`/`arm-resource-` prefix). A common defect is link text using the correct prefixed name while the URL slug drops the prefix (e.g. text `arm-put-operation-response-codes` but URL `rules/put-operation-response-codes)`), producing dead links. `rpc-guidelines-coverage.md` had several of these. Note that some links in these files point to rules owned by other libraries (e.g. `key-visibility-required`, `no-enum`, `non-breaking-versioning`, `operation-missing-api-version`) — those are intentionally un-prefixed.
+
+## Relationship & BillingData (Experimental)
+
+- `Relationship<Properties extends RelationshipProperties>` (`lib/base-types/relationship.tsp`, namespace `Azure.ResourceManager.BaseTypes.Relationships`) is an `ExtensionResource` that applies `@azureBaseType(#{ baseType: BaseType.Relationship, version: ... })` automatically. `RelationshipProperties<ProvisioningState>` carries `baseTypes`, `sourceId`/`sourceTenant`, `targetId`/`targetTenant`, `provisioningState`. New rule: `use-relationship-required-properties`.
+- `BillingData` (`lib/common-types/billing-data.tsp`, `@added(Versions.v6)`) is a common-type model for resource billing metadata.
+- Both are experimental; do not add new getstarted content for them. Reference docs are auto-generated.
