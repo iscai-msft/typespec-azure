@@ -461,7 +461,7 @@ model AvailabilityZonesProperty {
  *
  * ```typespec
  * model FooProperties {
- *   ...BillingDataProperty,
+ *   ...BillingDataProperty;
  * }
  * ```
  */

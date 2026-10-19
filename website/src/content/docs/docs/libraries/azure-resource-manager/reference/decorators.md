@@ -577,7 +577,7 @@ This allows sharing Azure Resource Manager resource types across specifications
 
 ### `@azureBaseType` {#@Azure.ResourceManager.BaseTypes.azureBaseType}
 
-`@azureBaseType` marks an Azure Resource Manager resource properties model as implementing
+`@azureBaseType` marks an Azure Resource Manager resource model as implementing
 a base type. Base types define structured constraints including required and
 optional properties that conforming resources must implement.
 
