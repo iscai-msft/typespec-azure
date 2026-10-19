@@ -497,7 +497,7 @@ scalar NetworkInterfaceId
   ]>;
 ```
 
-The `NetworkInterfaceId example shows how to allow multiple resource types in a reference.
+The `NetworkInterfaceId` example shows how to allow multiple resource types in a reference.
 
 ### Property Visibility and Other Constraints
 
@@ -524,9 +524,28 @@ Finally, when your _rp-specific property bag_ contains an array of complex prope
 - ARM resources must be fully loaded in memory, so there are limits to the size of arrays in the properties of a resource. If your array is not strictly bounded, you should consider modeling the array property as a [child resource](#child-resource)
 - Updating the contents of arrays can be difficult, and result in data loss under simultaneous updates, especially as Json-Merge-Patch is not widely supported in ARM update operations. If users will frequently need to update the contents of arrays, you should consider modeling as a [child resource](#child-resource).
 
+### Billing Data
+
+Billing Data provides a standard description of a resource's billing state, including a reference
+to a product in the Marketplace Catalog. It is strongly recommended for Resource Providers with
+prepaid billing (where a customer is charged _before_ the product is provisioned or fulfilled) to
+use this pattern, allowing customers to interact with such resources through central experiences.
+
+Unlike ARM envelope properties, `BillingDataProperty` is spread into the resource-specific
+property bag:
+
+```typespec
+model EmployeeProperties {
+  ...BillingDataProperty;
+}
+```
+
+`BillingData` was added in ARM common types v6. Set the service version's
+`@armCommonTypesVersion` to `Azure.ResourceManager.CommonTypes.Versions.v6` or later when using it.
+
 ## Adding Optional Standard Envelope Properties
 
-In addition to the resource-specific property bag, a resource may configure on or more standard ARM features through the use of standard properties in the _ARM Envelope_. Standard features configured in the envelope include:
+In addition to the resource-specific property bag, a resource may configure one or more standard ARM features through the use of standard properties in the _ARM Envelope_. Standard features configured in the envelope include:
 
 - **Managed Identity**: Associating a managed identity with the resource to authorize actions taken by this resource on other resources.
 - **SKU**: A standard mechanism for configuring levels of service for a resource.
@@ -535,18 +554,6 @@ In addition to the resource-specific property bag, a resource may configure on o
 - **ResourceKind**: A standard mechanism for specifying a type of user experience in the portal.
 - **ManagedBy**: Indicating that this resource is managed by another Azure resource.
 - **ExtendedLocation**: Enabling deployment to custom locations such as Azure Arc-connected environments.
-- **Billing Data**: A standard mechanism for specifying billing properties for prepaid resources.
-
-### Billing Data
-
-Billing Data provides a standard description of resource's billing state, including a reference to a product in the Marketplace Catalog. It is strongly recommended for Resource Providers with prepaid billing (where a customer is charged _before_ the product is provisioned/fulfilled) to utilize this pattern, allowing customers to interact with such resources through central experiences.
-
-```typespec
-model Employee is TrackedResource<EmployeeProperties> {
-  ...ResourceNameParameter<Employee>;
-  ...BillingDataProperty;
-}
-```
 
 ### Managed Identity
 

@@ -124,3 +124,35 @@ The library provides an experimental **Agent** base type in `lib/base-types/agen
 - How-to guide added: `website/src/content/docs/docs/howtos/ARM/agent-base-type.mdx`.
 - The ARM howtos sidebar is auto-generated from the directory (`current-sidebar.ts` → `autogenerate` on `howtos`), so new how-to files need no manual sidebar registration.
 - Reference docs (`reference/*.md`) for these lib additions were already regenerated in-commit; no `regen-docs` diff was needed for this batch.
+
+## Relationship Base Type (Experimental)
+
+- `Relationship<Properties>` is an extension-resource template in
+  `Azure.ResourceManager.BaseTypes.Relationships`. It applies the Relationship base type contract
+  automatically.
+- Relationship property bags derive from `RelationshipProperties<ProvisioningState>`, which
+  supplies `baseTypes`, `sourceId`, `sourceTenant`, `targetId`, `targetTenant`, and
+  `provisioningState`.
+- Use the `Extension.*` operation templates for relationship resources. `Extension.ScopeParameter`
+  supports any target scope; use a narrower target model when appropriate.
+- Applying an experimental base type in a provider namespace requires suppressing the
+  `basetypes-experimental` warning.
+
+## Billing Data
+
+- `BillingDataProperty` belongs in the resource-specific properties model, not in the ARM resource
+  envelope.
+- `BillingData` is available in ARM common types v6 and later. A service using it must select v6 or
+  later with `@armCommonTypesVersion`.
+- TypeSpec spread statements in doc examples end with a semicolon.
+
+## Base Type Contract Documentation
+
+- When showing `@azureBaseType` directly, apply it to the ARM resource model rather than its
+  property bag.
+- Prefer `BaseType.Agent` or `BaseType.Relationship` over string literals.
+- Keep explicit contract versions synchronized with the corresponding `@azureBaseType` application
+  in the library template.
+- Both `ConversationProperties` and `ResponseProperties` require `input: InputItem`. `InputItem`
+  uses structured `Record<unknown>` content and arguments; `id`, `role`, and `status` are
+  service-assigned.
