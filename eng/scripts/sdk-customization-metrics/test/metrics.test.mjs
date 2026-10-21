@@ -36,6 +36,13 @@ test("customization navigation rejects boilerplate, generated code and formattin
     null,
   );
   assert.ok(codeNavigation("python", python, "def customize(value):\n    return value + 1\n"));
+  assert.ok(
+    codeNavigation(
+      "python",
+      python,
+      "class Client:\n    def __init__(\n        self,\n        **kwargs,\n    ) -> None:\n        interval = kwargs.pop('polling_interval', 1)\n",
+    ),
+  );
   assert.equal(
     codeNavigation("python", python, "# automatically generated\ndef custom():\n    return 1\n"),
     null,

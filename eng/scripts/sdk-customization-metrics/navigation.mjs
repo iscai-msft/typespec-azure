@@ -37,7 +37,7 @@ export function codeNavigation(language, path, text, baseline) {
   if (baseline !== undefined && comparable(text) === comparable(baseline)) return null;
   const pythonCode = code.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g, "");
   const hasPythonBody =
-    /^\s*(?:async\s+)?def\s+\w+[^\n]*:\s*\n(?:[ \t]*\n)*[ \t]+(?!pass\b|return\s*(?:None)?\s*$)\S/m.test(
+    /^[ \t]*(?:async\s+)?def\s+\w+\([\s\S]*?\)(?:[ \t]*->[^\n:]+)?[ \t]*:[ \t]*\n(?:[ \t]*\n)*[ \t]+(?!pass\b|return[ \t]*(?:None)?[ \t]*$)\S/m.test(
       pythonCode,
     );
   const substantive =
