@@ -44,6 +44,15 @@ finding.key = findingKey(scan, finding);
 scan.analysis.status = "complete";
 scan.analysis.proposals = [finding];
 scan.analysis.decisions = [{ key: finding.key, status: "accepted", reason: "Synthetic reviewer" }];
+scan.navigation = [
+  {
+    path: `${target.root}/custom/Fixture.java`,
+    startLine: 1,
+    endLine: 4,
+    provenance: "Synthetic customization entry point",
+    contentHash: scan.evidence[0].contentHash,
+  },
+];
 scan.coverage.skipped.push({
   path: `${target.root}/custom/Not captured #1.java`,
   reason: "File-count limit",
@@ -90,8 +99,13 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(url);
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
-  assert.equal(await page.locator(".metric-card").count(), 5);
-  assert.match(await page.locator("#coverage-title").innerText(), /Source inventory/);
+  assert.equal(await page.locator(".metric-card").count(), 3);
+  assert.match(await page.locator("#coverage-title").innerText(), /Collection diagnostics/);
+  assert.equal(await page.locator("#diagnostics").getAttribute("open"), null);
+  assert.equal(await page.locator(".code-link-card").count(), 1);
+  assert.match(await page.locator(".code-link-card").innerText(), /Candidate; AI review pending/);
+  assert.match(await page.locator(".code-link-card a").getAttribute("href"), /#L1-L4$/);
+  await page.locator("#coverage-title").click();
   assert.match(await page.locator(".notice").last().innerText(), /not collection failures/);
   await page.locator(".package-card > summary").click();
   await page.getByText("Outside the file-count budget (1)", { exact: true }).click();
@@ -105,6 +119,8 @@ try {
   await page.getByText("Captured source files (1)", { exact: true }).click();
   assert.equal(await page.locator(".package-card table a").count(), 2);
   await page.getByRole("button", { name: "Show Java LRO customizations" }).click();
+  assert.equal(await page.locator(".code-link-card").count(), 0);
+  await page.locator(".reviewed-results > summary").click();
   assert.equal(await page.locator("article").count(), 1);
   assert.match(page.url(), /language=java/);
   assert.equal(new URL(page.url()).pathname, `${prefix}/`);
@@ -149,7 +165,8 @@ try {
     await route.fulfill({ json: data });
   });
   await page.reload();
-  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  await page.locator("#load-status[role=alert]").waitFor();
+  await page.locator("#coverage-title").click();
   await page.locator(".package-card > summary").click();
   assert.match(await page.locator(".package-card").innerText(), /Collection failed/);
   assert.match(

@@ -69,6 +69,48 @@ export function coverageGroups(skipped) {
   return [...groups.entries()];
 }
 
+export function filterCodeLinks(
+  packages,
+  { language = "", category = "", status = "", search = "", accepted = false } = {},
+) {
+  if (category || status || accepted) return [];
+  const tokens = search.toLowerCase().split(/\s+/).filter(Boolean);
+  return packages
+    .filter(
+      (item) =>
+        !item.excluded &&
+        item.coverage.status !== "failed" &&
+        (!language || item.language === language),
+    )
+    .flatMap((item) =>
+      (item.customizationLinks ?? []).map((link) => ({
+        ...link,
+        package: item.package,
+        language: item.language,
+        repo: item.repo,
+        commit: item.commit,
+      })),
+    )
+    .filter((item) =>
+      tokens.every((token) =>
+        `${item.language} ${item.package} ${item.path} ${item.provenance}`
+          .toLowerCase()
+          .includes(token),
+      ),
+    );
+}
+
+function renderCodeLink(item) {
+  const row = element("p", undefined, "code-link-row");
+  row.append(
+    externalLink(
+      `${fileUrl(item.repo, item.commit, item.path)}#L${item.startLine}-L${item.endLine}`,
+      item.path.split("/").slice(-3).join("/"),
+    ),
+  );
+  return row;
+}
+
 function sourceLink(snippet) {
   const url = new URL(snippet.sourceUrl);
   if (
@@ -244,11 +286,11 @@ export async function start() {
     }
     const summary = data.summary;
     const cards = [
-      ["Packages scanned", summary.packages, "Configured starter inventory"],
+      ["Libraries in scope", summary.packages, "Configured starter libraries"],
       [
-        "Source files captured",
-        data.packages.reduce((sum, item) => sum + item.coverage.capturedFiles, 0),
-        "Bounded, commit-pinned evidence",
+        "Customization code links",
+        filterCodeLinks(data.packages).length,
+        "Content-checked candidates; not reviewed findings",
       ],
       [
         "Accepted findings",
@@ -257,8 +299,6 @@ export async function start() {
           ? "Analysis incomplete; not an absence claim"
           : "AI-reviewed or human override",
       ],
-      ["Awaiting analysis", summary.missingAnalysis, "Packages without a completed assessment"],
-      ["Collection failures", summary.failedScans, "Errors, not scan-budget exclusions"],
     ];
     byId("metric-cards").replaceChildren(
       ...cards.map(([label, value, note]) => {
@@ -275,6 +315,10 @@ export async function start() {
       `${summary.acceptedCustomizations} accepted customizations in ${summary.packagesWithCustomizations}/${summary.packages} configured packages. ${summary.unresolvedFindings} unresolved findings; ${summary.rejectedFindings} rejected findings; ${summary.excludedPackages} excluded packages; ${summary.failedScans} failed scans; ${summary.missingAnalysis} packages with missing or failed analysis.`;
     byId("provenance").textContent =
       `Exported ${data.generatedAt}. ${summary.fixtureScansExcluded} fixture scans excluded. Human overrides take precedence; stale overrides require revalidation.`;
+    if (summary.failedScans) {
+      loadStatus.textContent = `${summary.failedScans} libraries have collection errors. See collection diagnostics; results may be incomplete.`;
+      loadStatus.setAttribute("role", "alert");
+    }
     for (const [id, values] of [
       ["language", ["python", "dotnet", "javascript", "java", "go"]],
       ["category", ["LRO", "Paging", "Serialization", "Authentication", "Convenience", "Other"]],
@@ -295,6 +339,31 @@ export async function start() {
       for (const [key, value] of Object.entries(filters)) if (value) query.set(key, String(value));
       history.replaceState(null, "", `${location.pathname}${query.size ? `?${query}` : ""}`);
       byId("findings").replaceChildren(...selected.map(renderFinding));
+      const codeLinks = filterCodeLinks(data.packages, filters);
+      const libraries = new Map();
+      for (const item of codeLinks) {
+        const key = `${item.language}:${item.package}`;
+        if (!libraries.has(key)) libraries.set(key, []);
+        libraries.get(key).push(item);
+      }
+      byId("code-links").replaceChildren(
+        ...[...libraries.values()].map((items) => {
+          const item = items[0];
+          const card = element("div", undefined, "code-link-card");
+          card.append(
+            element("span", item.language, "language-tag"),
+            element("h3", item.package),
+            element("p", `${item.provenance} · Candidate; AI review pending`, "muted"),
+            ...items.map(renderCodeLink),
+          );
+          return card;
+        }),
+      );
+      byId("code-link-status").textContent = codeLinks.length
+        ? `${codeLinks.length} customization entry points. Categories are not inferred from filenames or generated pollers.`
+        : filters.category || filters.status || filters.accepted
+          ? "Unreviewed code links have no substantiated category or review status. Clear these filters to browse candidates."
+          : "No content-checked customization entry points match. Discovery is incomplete; this is not proof of absence.";
       byId("result-count").textContent = selected.length
         ? `${selected.length} individual findings shown.`
         : "No findings match these filters. Check coverage and analysis states below; this does not establish absence.";
@@ -304,12 +373,12 @@ export async function start() {
           element(
             "h3",
             summary.missingAnalysis
-              ? "Source collected. Analysis is still pending."
+              ? "No reviewed classifications yet."
               : "No findings match your filters.",
           ),
           element(
             "p",
-            "Browse captured and uncaptured files below, or adjust your filters. A limited scan does not establish absence.",
+            "Use the customization code links above to inspect candidates. A limited scan does not establish absence.",
           ),
         );
       const packages = data.packages.filter(
@@ -335,7 +404,7 @@ export async function start() {
       update();
     });
     update();
-    loadStatus.textContent = "Metrics loaded.";
+    if (!summary.failedScans) loadStatus.textContent = "Metrics loaded.";
   } catch (error) {
     loadStatus.textContent = `Unable to display metrics: ${error.message}`;
     loadStatus.setAttribute("role", "alert");

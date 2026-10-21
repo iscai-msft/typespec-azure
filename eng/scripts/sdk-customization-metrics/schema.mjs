@@ -94,30 +94,42 @@ export const evidenceSchema = object({
   kind: choice("handwritten-marker", "generated", "unknown"),
   sourceUrl: str({ pattern: "^https://github\\.com/Azure/azure-sdk-for-" }),
 });
-export const scanSchema = object({
-  schemaVersion: { type: "integer", const: 1 },
-  id: str({ pattern: "^[a-zA-Z0-9-]+$" }),
-  observedAt: str({ pattern: "^\\d{4}-\\d{2}-\\d{2}T" }),
-  identity: str(),
-  target: targetSchema,
-  commit: { type: "string", pattern: "^(?:[a-f0-9]{40})?$" },
-  provenance: object({
-    origin: choice("public-github", "fixture"),
-    collectorVersion: str(),
-  }),
-  coverage: object({
-    status: choice("partial", "failed"),
-    discoveredFiles: integer(),
-    eligibleFiles: integer(),
-    capturedFiles: integer(),
-    skipped: list(object({ path, reason: str() })),
-    errors: list(str()),
-    note: str(),
-  }),
-  evidence: list(evidenceSchema),
-  generationContext: list(object({ path, text: str(), contentHash: hash, sourceUrl: str() })),
-  analysis: analysisSchema,
-});
+export const scanSchema = object(
+  {
+    schemaVersion: { type: "integer", const: 1 },
+    id: str({ pattern: "^[a-zA-Z0-9-]+$" }),
+    observedAt: str({ pattern: "^\\d{4}-\\d{2}-\\d{2}T" }),
+    identity: str(),
+    target: targetSchema,
+    commit: { type: "string", pattern: "^(?:[a-f0-9]{40})?$" },
+    provenance: object({
+      origin: choice("public-github", "fixture"),
+      collectorVersion: str(),
+    }),
+    coverage: object({
+      status: choice("partial", "failed"),
+      discoveredFiles: integer(),
+      eligibleFiles: integer(),
+      capturedFiles: integer(),
+      skipped: list(object({ path, reason: str() })),
+      errors: list(str()),
+      note: str(),
+    }),
+    evidence: list(evidenceSchema),
+    generationContext: list(object({ path, text: str(), contentHash: hash, sourceUrl: str() })),
+    analysis: analysisSchema,
+    navigation: list(
+      object({
+        path,
+        startLine: integer(1),
+        endLine: integer(1),
+        provenance: str(),
+        contentHash: hash,
+      }),
+    ),
+  },
+  ["navigation"],
+);
 export const overrideRequestSchema = object(
   {
     identity: str(),

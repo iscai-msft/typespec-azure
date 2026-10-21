@@ -40,7 +40,21 @@ commit-pinned GitHub links, AI assessment, and override/revalidation status.
 Coverage, errors, exclusions, missing analysis, and limitations remain visible
 even when no findings match.
 
-The overview separates collection failures from expected scan-budget exclusions.
+The main view shows direct commit/range links to content-checked customization entry
+points, separately from reviewed findings. Deterministic candidates include substantive
+Python patches, Java customization scripts, C# non-generated source, JavaScript overlays
+and Go custom files. Empty patch scaffolding and generated headers are excluded; JavaScript
+generated counterparts are compared ignoring formatting/leading union bars and SDK
+user-agent version updates. Candidates have no inferred semantic category and never count
+as accepted findings. Category/review filters omit unclassified candidates, including
+Java+LRO; an AI or human assessment is still required for that semantic query.
+
+Navigation discovery reads up to 100 entry-point files (1 MB each, 8 MB total including
+overlay baselines), independently of the smaller AI evidence capture budget. Content is
+checked before linking; navigation records persist path/range/provenance/content hash,
+not additional full source copies. Limits and real errors remain in diagnostics.
+
+Collapsed collection diagnostics separate failures from expected scan-budget exclusions.
 Package cards group uncaptured paths by budget (file count, per-file size, total
 bytes) instead of presenting each as a failure. Both captured and uncaptured
 source files link to the exact scanned GitHub commit; uncaptured links are an

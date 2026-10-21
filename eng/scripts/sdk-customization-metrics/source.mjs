@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { codeNavigation, entryPoint } from "./navigation.mjs";
 import { identity, scanSchema, validate } from "./schema.mjs";
 
-export const COLLECTOR_VERSION = "1";
+export const COLLECTOR_VERSION = "2";
 export const digest = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
@@ -204,6 +205,55 @@ export class GitHubSource {
           path: `${target.root}/${file.path}`,
         }));
       scan.coverage.discoveredFiles = files.length;
+      scan.navigation = [];
+      let navigationBytes = 0;
+      const navigationFiles = files.filter(
+        (file) =>
+          entryPoint(target.language, file.path) && ["100644", "100755"].includes(file.mode),
+      );
+      const readBlob = async (file) => {
+        const blob = await this.get(target.repo, `git/blobs/${file.sha}`);
+        if (blob.encoding !== "base64") throw new Error(`Unexpected blob encoding: ${file.path}`);
+        const content = Buffer.from(blob.content, "base64");
+        if (content.length !== file.size) throw new Error(`Blob size mismatch: ${file.path}`);
+        return new TextDecoder("utf-8", { fatal: true }).decode(content);
+      };
+      for (const file of navigationFiles.slice(0, 100)) {
+        if (file.size > 1000000 || navigationBytes + file.size > 8000000) {
+          scan.coverage.skipped.push({
+            path: file.path,
+            reason: "Customization navigation safety limit; content not checked",
+          });
+          continue;
+        }
+        const text = await readBlob(file);
+        navigationBytes += file.size;
+        let baseline;
+        if (target.language === "javascript") {
+          const generated = files.find(
+            (item) =>
+              item.path === file.path.replace(`${target.root}/src/`, `${target.root}/generated/`),
+          );
+          if (generated) {
+            if (generated.size > 1000000 || navigationBytes + generated.size > 8000000) {
+              scan.coverage.skipped.push({
+                path: file.path,
+                reason: "Overlay baseline safety limit; content not compared",
+              });
+              continue;
+            }
+            baseline = await readBlob(generated);
+            navigationBytes += generated.size;
+          }
+        }
+        const candidate = codeNavigation(target.language, file.path, text, baseline);
+        if (candidate) scan.navigation.push({ ...candidate, contentHash: digest(text) });
+      }
+      for (const file of navigationFiles.slice(100))
+        scan.coverage.skipped.push({
+          path: file.path,
+          reason: "Customization navigation file limit; content not checked",
+        });
       // Choose files before fetching, so limits also bound network work.
       const selected = [];
       let total = 0;

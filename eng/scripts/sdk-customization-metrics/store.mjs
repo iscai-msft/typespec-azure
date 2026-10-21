@@ -26,6 +26,25 @@ export function validateScan(scan) {
   validate(scanSchema, scan);
   if (scan.identity !== identity(scan.target)) throw new Error("Scan identity mismatch");
   if (!Number.isFinite(Date.parse(scan.observedAt))) throw new Error("Invalid scan timestamp");
+  const navigationPaths = new Set();
+  for (const link of scan.navigation ?? []) {
+    if (
+      !scan.commit ||
+      !link.path.startsWith(`${scan.target.root}/`) ||
+      link.endLine < link.startLine ||
+      navigationPaths.has(link.path)
+    ) {
+      throw new Error("Invalid customization navigation location");
+    }
+    navigationPaths.add(link.path);
+    const evidence = scan.evidence.find((item) => item.path === link.path);
+    if (
+      evidence &&
+      (evidence.contentHash !== link.contentHash || evidence.endLine !== link.endLine)
+    ) {
+      throw new Error("Customization navigation evidence mismatch");
+    }
+  }
   const ids = new Set();
   for (const evidence of [...scan.evidence, ...scan.generationContext]) {
     if (!evidence.path.startsWith(`${scan.target.root}/`))
@@ -377,6 +396,7 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         startLine,
         endLine,
       })),
+      customizationLinks: scan.navigation ?? [],
       analysisStatus: scan.analysis.status,
       analysisErrors: scan.analysis.errors,
       limitations: scan.analysis.limitations,

@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { analyze, checkAnalysis, findingKey, ModelClient } from "../analysis.mjs";
 import { importLegacy, parseTsv } from "../legacy.mjs";
+import { codeNavigation, entryPoint } from "../navigation.mjs";
 import { publishSite } from "../publish.mjs";
 import { analystSchema, identity, reviewerSchema, scanSchema, validate } from "../schema.mjs";
 import { capture, classify, digest, GitHubSource, newScan } from "../source.mjs";
@@ -17,7 +18,83 @@ import {
   readState,
   validateScan,
 } from "../store.mjs";
-import { coverageGroups, fileUrl, filterFindings } from "../web/app.mjs";
+import { coverageGroups, fileUrl, filterCodeLinks, filterFindings } from "../web/app.mjs";
+
+test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
+  const python = "sdk/lib/_patch.py";
+  assert.equal(
+    codeNavigation(
+      "python",
+      python,
+      '# license\n__all__ = []\ndef patch_sdk():\n    """Do not remove."""\n',
+    ),
+    null,
+  );
+  assert.equal(codeNavigation("python", python, "def patch_sdk():\n    pass\n"), null);
+  assert.equal(
+    codeNavigation("python", python, 'def unused():\n    """Placeholder."""\n    pass\n'),
+    null,
+  );
+  assert.ok(codeNavigation("python", python, "def customize(value):\n    return value + 1\n"));
+  assert.equal(
+    codeNavigation("python", python, "# automatically generated\ndef custom():\n    return 1\n"),
+    null,
+  );
+  assert.equal(entryPoint("dotnet", "sdk/lib/src/Generated/Client.cs"), "");
+  assert.equal(entryPoint("go", "sdk/lib/custom_test.go"), "");
+  assert.equal(
+    codeNavigation("java", "sdk/lib/customization/Main.java", "class Main { void customize() {} }"),
+    null,
+  );
+  assert.ok(
+    codeNavigation(
+      "java",
+      "sdk/lib/customization/Main.java",
+      'class Main { void customize() { method.replaceBody("return 1;"); } }',
+    ),
+  );
+  assert.equal(
+    codeNavigation(
+      "javascript",
+      "sdk/lib/src/polling.ts",
+      "export type R = A | B;",
+      "export type R =\n | A\n | B;",
+    ),
+    null,
+  );
+  assert.equal(
+    codeNavigation(
+      "javascript",
+      "sdk/lib/src/client.ts",
+      'export const agent = "azsdk-js-example/1.2.0";',
+      'export const agent = "azsdk-js-example/1.1.0";',
+    ),
+    null,
+  );
+  assert.ok(
+    codeNavigation(
+      "javascript",
+      "sdk/lib/src/utils.ts",
+      "export function convert(value) { return value.buffer; }",
+    ),
+  );
+  const packages = [
+    {
+      language: "java",
+      package: "example",
+      repo: target.repo,
+      commit: "a".repeat(40),
+      coverage: { status: "partial" },
+      customizationLinks: [
+        { path: "customization/Main.java", provenance: "Java customization script" },
+      ],
+    },
+  ];
+  assert.equal(filterCodeLinks(packages, { language: "java" }).length, 1);
+  assert.equal(filterCodeLinks(packages, { category: "LRO" }).length, 0);
+  assert.equal(filterCodeLinks(packages, { accepted: true }).length, 0);
+  assert.equal(filterCodeLinks([{ ...packages[0], excluded: true }]).length, 0);
+});
 
 // Synthetic unit fixtures are never used as dashboard/demo metrics.
 const target = {
@@ -174,6 +251,7 @@ test("bounded extraction records skipped sources and never claims complete cover
 
 test("GitHub extraction pins commit and blobs; generated source stays classified", async () => {
   const sha = "a".repeat(40);
+  const largeCustomization = `class Customize { void customize() { method.replaceBody("return 1;"); } }\n/*${"x".repeat(20000)}*/`;
   const responses = new Map([
     ["", { private: false, default_branch: "main" }],
     ["commits/main", { sha, commit: { tree: { sha: "root" } } }],
@@ -185,6 +263,13 @@ test("GitHub extraction pins commit and blobs; generated source stays classified
       {
         tree: [
           {
+            path: "customization/src/Customize.java",
+            type: "blob",
+            mode: "100644",
+            sha: "large-custom",
+            size: Buffer.byteLength(largeCustomization),
+          },
+          {
             path: "src/main/java/custom/Fixture.java",
             type: "blob",
             mode: "100644",
@@ -195,6 +280,10 @@ test("GitHub extraction pins commit and blobs; generated source stays classified
       },
     ],
     ["git/blobs/blob", { encoding: "base64", content: Buffer.from(sourceText).toString("base64") }],
+    [
+      "git/blobs/large-custom",
+      { encoding: "base64", content: Buffer.from(largeCustomization).toString("base64") },
+    ],
   ]);
   const calls = [];
   const source = new GitHubSource({
@@ -214,6 +303,14 @@ test("GitHub extraction pins commit and blobs; generated source stays classified
   assert.equal(scan.evidence[0].text, sourceText);
   assert.ok(calls.every((call) => call.options.redirect === "error"));
   assert.equal(scan.analysis.status, "missing");
+  assert.equal(scan.navigation.length, 1);
+  assert.match(scan.navigation[0].path, /Customize.java$/);
+  assert.equal(scan.navigation[0].contentHash, digest(largeCustomization));
+  assert.ok(
+    scan.coverage.skipped.some(
+      (item) => item.path.endsWith("Customize.java") && item.reason === "File-size limit",
+    ),
+  );
 });
 
 test("private repos, HTTP failures, and truncated discovery persist failed scan states", async () => {
