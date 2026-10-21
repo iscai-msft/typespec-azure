@@ -17,7 +17,7 @@ import {
   readState,
   validateScan,
 } from "../store.mjs";
-import { filterFindings } from "../web/app.mjs";
+import { coverageGroups, fileUrl, filterFindings } from "../web/app.mjs";
 
 // Synthetic unit fixtures are never used as dashboard/demo metrics.
 const target = {
@@ -720,6 +720,36 @@ test("Pages integration refuses dashboard-only artifacts, empty state, and fixtu
   await assert.rejects(() => publishSite(state, website), /public source records/);
   await save(state, fixture());
   await assert.rejects(() => publishSite(state, website), /public source records/);
+});
+
+test("source inventory URLs encode path segments, pin commits, and reject unsafe locations", () => {
+  const commit = "a".repeat(40);
+  assert.equal(
+    fileUrl(target.repo, commit, "sdk/a b/C#%.java"),
+    `https://github.com/${target.repo}/blob/${commit}/sdk/a%20b/C%23%25.java`,
+  );
+  assert.equal(
+    fileUrl(target.repo, commit, target.root, true),
+    `https://github.com/${target.repo}/tree/${commit}/${target.root}`,
+  );
+  for (const path of ["../secret", "/outside", "sdk/../secret", "sdk\\secret", "sdk//a"]) {
+    assert.throws(() => fileUrl(target.repo, commit, path), /Invalid/);
+  }
+  assert.throws(() => fileUrl("attacker/repo", commit, "a.java"), /Invalid/);
+  assert.throws(() => fileUrl(target.repo, "main", "a.java"), /Invalid/);
+  const scan = fixture({ origin: "public-github" });
+  const dataset = effectiveDataset([scan], []);
+  assert.equal(dataset.packages[0].sourceFiles[0].path, sourcePath);
+  assert.equal(dataset.packages[0].sourceFiles[0].kind, "handwritten-marker");
+  assert.equal("text" in dataset.packages[0].sourceFiles[0], false);
+  const skipped = [
+    { path: "a", reason: "File-count limit" },
+    { path: "b", reason: "File-count limit" },
+    { path: "c", reason: "File-size limit" },
+  ];
+  assert.equal(coverageGroups(skipped)[0][1].length, 2);
+  assert.equal(coverageGroups(skipped).length, 2);
+  assert.equal(dataset.summary.failedScans, 0);
 });
 
 test("browser filters implement Java + LRO search, statuses and countability", () => {

@@ -371,6 +371,12 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
       observedAt: scan.observedAt,
       origin: scan.provenance.origin,
       coverage: scan.coverage,
+      sourceFiles: scan.evidence.map(({ path, kind, startLine, endLine }) => ({
+        path,
+        kind,
+        startLine,
+        endLine,
+      })),
       analysisStatus: scan.analysis.status,
       analysisErrors: scan.analysis.errors,
       limitations: scan.analysis.limitations,

@@ -40,6 +40,15 @@ commit-pinned GitHub links, AI assessment, and override/revalidation status.
 Coverage, errors, exclusions, missing analysis, and limitations remain visible
 even when no findings match.
 
+The overview separates collection failures from expected scan-budget exclusions.
+Package cards group uncaptured paths by budget (file count, per-file size, total
+bytes) instead of presenting each as a failure. Both captured and uncaptured
+source files link to the exact scanned GitHub commit; uncaptured links are an
+inspection aid, not a claim that their contents were extracted or analyzed.
+The language filter also narrows package inventory. Category/review/text filters
+apply to individual findings. Public JSON includes a lightweight `sourceFiles`
+inventory for captured evidence; the underlying immutable scan schema is unchanged.
+
 `--state PATH` and `--out PATH` select different storage/output directories.
 `collect --targets FILE` accepts an array with the same shape as `targets.json`.
 No cloning or execution of SDK code occurs.

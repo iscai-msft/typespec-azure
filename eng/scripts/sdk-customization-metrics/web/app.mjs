@@ -32,6 +32,43 @@ function element(tag, text, className) {
   return node;
 }
 
+const repositories = new Set([
+  "Azure/azure-sdk-for-python",
+  "Azure/azure-sdk-for-net",
+  "Azure/azure-sdk-for-js",
+  "Azure/azure-sdk-for-java",
+  "Azure/azure-sdk-for-go",
+]);
+export function fileUrl(repo, commit, path, tree = false) {
+  if (
+    !repositories.has(repo) ||
+    !/^[a-f0-9]{40}$/.test(commit) ||
+    !path ||
+    path.startsWith("/") ||
+    path.includes("\\") ||
+    path.split("/").some((part) => !part || part === "." || part === "..")
+  ) {
+    throw new Error("Invalid public source location");
+  }
+  return `https://github.com/${repo}/${tree ? "tree" : "blob"}/${commit}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+function externalLink(url, label) {
+  const link = element("a", label);
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.setAttribute("aria-label", `${label} (opens in a new tab)`);
+  return link;
+}
+export function coverageGroups(skipped) {
+  const groups = new Map();
+  for (const item of skipped) {
+    if (!groups.has(item.reason)) groups.set(item.reason, []);
+    groups.get(item.reason).push(item);
+  }
+  return [...groups.entries()];
+}
+
 function sourceLink(snippet) {
   const url = new URL(snippet.sourceUrl);
   if (
@@ -41,10 +78,100 @@ function sourceLink(snippet) {
   ) {
     throw new Error("Invalid source URL in metrics data");
   }
-  const link = element("a", `${snippet.path}:${snippet.startLine}-${snippet.endLine}`);
-  link.href = url.href;
-  link.rel = "noreferrer";
-  return link;
+  return externalLink(url.href, `${snippet.path}:${snippet.startLine}-${snippet.endLine}`);
+}
+
+function renderPackage(item) {
+  const details = element("details", undefined, "package-card");
+  const summary = element("summary");
+  summary.append(
+    element("span", item.language, "language-tag"),
+    element("strong", item.package),
+    element(
+      "span",
+      item.coverage.status === "failed" ? "Collection failed" : "Partial inventory",
+      item.coverage.status === "failed" ? "badge warning" : "badge",
+    ),
+  );
+  details.append(summary);
+  const body = element("div", undefined, "package-body");
+  body.append(
+    element(
+      "p",
+      `${item.coverage.capturedFiles} of ${item.coverage.eligibleFiles} eligible source files captured · ${item.coverage.discoveredFiles} files discovered · Module v${item.moduleMajor}`,
+      "package-stats",
+    ),
+    element(
+      "p",
+      `Analysis: ${item.analysisStatus === "missing" ? "Not run" : item.analysisStatus}${item.excluded ? " · Excluded by human" : ""}`,
+    ),
+  );
+  if (item.commit)
+    body.append(
+      externalLink(
+        fileUrl(item.repo, item.commit, item.root, true),
+        `Browse package at ${item.commit.slice(0, 7)}`,
+      ),
+    );
+  body.append(
+    element("p", `Scanned ${new Date(item.observedAt).toLocaleString()}`, "muted"),
+    element("p", item.coverage.note, "muted"),
+  );
+  if (item.packageOverride)
+    body.append(
+      element(
+        "p",
+        `Human override (${item.overrideStatus}): ${item.packageOverride.reason}`,
+        "override",
+      ),
+    );
+  for (const message of [...item.coverage.errors, ...item.analysisErrors]) {
+    body.append(element("p", `Error: ${message}`, "warning"));
+  }
+  for (const message of item.limitations) body.append(element("p", message, "muted"));
+  const inventory = (title, files, captured) => {
+    const group = element("details", undefined, "file-group");
+    group.append(element("summary", `${title} (${files.length})`));
+    const table = element("table");
+    const head = element("thead");
+    const headings = element("tr");
+    for (const text of ["Source file", captured ? "Provenance" : "Coverage"])
+      headings.append(element("th", text));
+    head.append(headings);
+    table.append(head);
+    const rows = element("tbody");
+    for (const file of files) {
+      const row = element("tr");
+      const cell = element("td");
+      const label = file.path.startsWith(`${item.root}/`)
+        ? file.path.slice(item.root.length + 1)
+        : file.path;
+      if (item.commit) cell.append(externalLink(fileUrl(item.repo, item.commit, file.path), label));
+      else cell.textContent = label;
+      row.append(cell, element("td", captured ? file.kind : "Not captured"));
+      rows.append(row);
+    }
+    table.append(rows);
+    const scroll = element("div", undefined, "table-scroll");
+    scroll.append(table);
+    group.append(scroll);
+    return group;
+  };
+  if (item.sourceFiles?.length)
+    body.append(inventory("Captured source files", item.sourceFiles, true));
+  for (const [reason, files] of coverageGroups(item.coverage.skipped)) {
+    const title =
+      reason === "File-count limit"
+        ? "Outside the file-count budget"
+        : reason === "File-size limit"
+          ? "Above the per-file size budget"
+          : reason === "Total-byte limit"
+            ? "Outside the total-byte budget"
+            : reason;
+    body.append(inventory(title, files, false));
+  }
+  details.append(body);
+  return details;
 }
 
 function renderFinding(item) {
@@ -116,6 +243,34 @@ export async function start() {
       throw new Error("Unsupported metrics data schema");
     }
     const summary = data.summary;
+    const cards = [
+      ["Packages scanned", summary.packages, "Configured starter inventory"],
+      [
+        "Source files captured",
+        data.packages.reduce((sum, item) => sum + item.coverage.capturedFiles, 0),
+        "Bounded, commit-pinned evidence",
+      ],
+      [
+        "Accepted findings",
+        summary.acceptedCustomizations,
+        summary.missingAnalysis
+          ? "Analysis incomplete; not an absence claim"
+          : "AI-reviewed or human override",
+      ],
+      ["Awaiting analysis", summary.missingAnalysis, "Packages without a completed assessment"],
+      ["Collection failures", summary.failedScans, "Errors, not scan-budget exclusions"],
+    ];
+    byId("metric-cards").replaceChildren(
+      ...cards.map(([label, value, note]) => {
+        const card = element("div", undefined, "metric-card");
+        card.append(
+          element("span", label, "metric-label"),
+          element("strong", String(value), "metric-value"),
+          element("span", note, "metric-note"),
+        );
+        return card;
+      }),
+    );
     byId("summary").textContent =
       `${summary.acceptedCustomizations} accepted customizations in ${summary.packagesWithCustomizations}/${summary.packages} configured packages. ${summary.unresolvedFindings} unresolved findings; ${summary.rejectedFindings} rejected findings; ${summary.excludedPackages} excluded packages; ${summary.failedScans} failed scans; ${summary.missingAnalysis} packages with missing or failed analysis.`;
     byId("provenance").textContent =
@@ -143,9 +298,34 @@ export async function start() {
       byId("result-count").textContent = selected.length
         ? `${selected.length} individual findings shown.`
         : "No findings match these filters. Check coverage and analysis states below; this does not establish absence.";
+      byId("findings").classList.toggle("empty-state", selected.length === 0);
+      if (!selected.length)
+        byId("findings").append(
+          element(
+            "h3",
+            summary.missingAnalysis
+              ? "Source collected. Analysis is still pending."
+              : "No findings match your filters.",
+          ),
+          element(
+            "p",
+            "Browse captured and uncaptured files below, or adjust your filters. A limited scan does not establish absence.",
+          ),
+        );
+      const packages = data.packages.filter(
+        (item) => !filters.language || item.language === filters.language,
+      );
+      byId("packages").replaceChildren(...packages.map(renderPackage));
+      byId("package-count").textContent =
+        `${packages.length} packages shown. Language filter applies to this inventory; category and review filters apply to findings only.`;
     };
     byId("filters").addEventListener("submit", (event) => event.preventDefault());
     byId("filters").addEventListener("input", update);
+    byId("clear-filters").addEventListener("click", () => {
+      for (const id of ["language", "category", "status", "search"]) byId(id).value = "";
+      byId("accepted").checked = false;
+      update();
+    });
     byId("java-lro").addEventListener("click", () => {
       byId("language").value = "java";
       byId("category").value = "LRO";
@@ -154,41 +334,6 @@ export async function start() {
       byId("accepted").checked = true;
       update();
     });
-    for (const item of data.packages) {
-      const details = element("details");
-      details.append(
-        element(
-          "summary",
-          `${item.package} (${item.language}, module v${item.moduleMajor}): ${item.coverage.status}, analysis ${item.analysisStatus}${item.excluded ? ", excluded by human" : ""}`,
-        ),
-      );
-      details.append(
-        element(
-          "p",
-          `Observed ${item.observedAt} at ${item.commit || "unresolved commit"}. ${item.coverage.capturedFiles}/${item.coverage.eligibleFiles} eligible source files captured; ${item.coverage.discoveredFiles} files discovered. Override: ${item.overrideStatus}.`,
-        ),
-        element("p", item.coverage.note),
-      );
-      if (item.packageOverride) {
-        details.append(
-          element(
-            "p",
-            `Human package override ${item.packageOverride.id} (${item.packageOverride.action}): ${item.packageOverride.reason}`,
-            "override",
-          ),
-        );
-      }
-      for (const message of [
-        ...item.coverage.errors,
-        ...item.analysisErrors,
-        ...item.limitations,
-      ]) {
-        details.append(element("p", message, "warning"));
-      }
-      for (const skipped of item.coverage.skipped)
-        details.append(element("p", `${skipped.path}: ${skipped.reason}`));
-      byId("packages").append(details);
-    }
     update();
     loadStatus.textContent = "Metrics loaded.";
   } catch (error) {

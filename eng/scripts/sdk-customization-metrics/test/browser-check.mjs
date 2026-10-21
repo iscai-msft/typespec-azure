@@ -44,6 +44,10 @@ finding.key = findingKey(scan, finding);
 scan.analysis.status = "complete";
 scan.analysis.proposals = [finding];
 scan.analysis.decisions = [{ key: finding.key, status: "accepted", reason: "Synthetic reviewer" }];
+scan.coverage.skipped.push({
+  path: `${target.root}/custom/Not captured #1.java`,
+  reason: "File-count limit",
+});
 const state = join(directory, "state");
 const site = join(directory, "site");
 await append(join(state, "records"), scan);
@@ -86,6 +90,20 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(url);
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.equal(await page.locator(".metric-card").count(), 5);
+  assert.match(await page.locator("#coverage-title").innerText(), /Source inventory/);
+  assert.match(await page.locator(".notice").last().innerText(), /not collection failures/);
+  await page.locator(".package-card > summary").click();
+  await page.getByText("Outside the file-count budget (1)", { exact: true }).click();
+  const excluded = page.getByRole("link", { name: /Not captured #1.java/ });
+  assert.match(
+    await excluded.getAttribute("href"),
+    /\/blob\/a{40}\/sdk\/synthetic\/browser-test-only\/custom\/Not%20captured%20%231.java$/,
+  );
+  assert.equal(await excluded.getAttribute("target"), "_blank");
+  assert.equal(await excluded.getAttribute("rel"), "noopener noreferrer");
+  await page.getByText("Captured source files (1)", { exact: true }).click();
+  assert.equal(await page.locator(".package-card table a").count(), 2);
   await page.getByRole("button", { name: "Show Java LRO customizations" }).click();
   assert.equal(await page.locator("article").count(), 1);
   assert.match(page.url(), /language=java/);
@@ -96,6 +114,8 @@ try {
   );
   await page.locator("#language").selectOption("go");
   assert.equal(await page.locator("article").count(), 0);
+  assert.equal(await page.locator(".package-card").count(), 0);
+  assert.match(await page.locator(".empty-state").innerText(), /does not establish absence/);
   await page.locator("#language").selectOption("java");
   await page.locator("#status").selectOption("inconclusive");
   assert.equal(await page.locator("article").count(), 0);
@@ -114,6 +134,29 @@ try {
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: /SQLite database/ }).click();
   assert.equal((await download).suggestedFilename(), "metrics.sqlite");
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  assert.equal(await page.locator("#language").inputValue(), "");
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    true,
+  );
+  await page.route("**/metrics.json", async (route) => {
+    const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
+    data.packages[0].coverage.status = "failed";
+    data.packages[0].coverage.errors.push("Synthetic GitHub collection error");
+    data.summary.failedScans = 1;
+    await route.fulfill({ json: data });
+  });
+  await page.reload();
+  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  await page.locator(".package-card > summary").click();
+  assert.match(await page.locator(".package-card").innerText(), /Collection failed/);
+  assert.match(
+    await page.locator(".package-card .warning").last().innerText(),
+    /Synthetic GitHub collection error/,
+  );
+  await page.unroute("**/metrics.json");
   failData = true;
   await page.reload();
   await page.locator("#load-status[role=alert]").waitFor();
