@@ -13,6 +13,9 @@ import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.ts";
 import { append, createOverride, exportData, readState, validateScan } from "./store.ts";
 import { exportTracker } from "./tracker.ts";
 import { ExchangeClient, reviewScans } from "./review.ts";
+import { FileReviewStore, parseReviewers } from "./reviews.ts";
+import { applyReviews, fetchReviews } from "./apply-reviews.ts";
+import { createReviewServer } from "./server.ts";
 import {
   GitRepository,
   discoverAll,
@@ -56,11 +59,19 @@ export async function main(args: string[] = process.argv.slice(2)) {
       input: { type: "string" },
       db: { type: "string" },
       sql: { type: "string" },
+      reviews: { type: "string" },
+      "reviews-dir": { type: "string" },
+      reviewers: { type: "string", default: "*" },
+      "dev-user": { type: "string" },
+      site: { type: "string" },
+      port: { type: "string", default: "4280" },
+      "review-api": { type: "string" },
+      "review-site": { type: "string" },
     },
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   switch (positionals[0]) {
@@ -269,6 +280,10 @@ export async function main(args: string[] = process.argv.slice(2)) {
       const dataset = await publishSite(state, resolve(values.out), {
         ...(values.tracker ? { tracker: resolve(values.tracker) } : {}),
         inventory: resolve(values.inventory),
+        config: {
+          ...(values["review-api"] ? { reviewApi: values["review-api"] } : {}),
+          ...(values["review-site"] ? { reviewSite: values["review-site"] } : {}),
+        },
         ...(values["history-state"]
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),
@@ -280,6 +295,36 @@ export async function main(args: string[] = process.argv.slice(2)) {
       if (!values.input) throw new Error("--input override-request.json required");
       console.log(JSON.stringify(await createOverride(state, await readJson(values.input))));
       break;
+    case "apply-reviews": {
+      // --reviews: the review API URL (https://…/api/reviews) or a {reviews: [...]} JSON file.
+      if (!values.reviews) throw new Error("--reviews URL_OR_FILE required");
+      const result = await applyReviews(state, await fetchReviews(values.reviews));
+      console.log(JSON.stringify(result));
+      break;
+    }
+    case "serve": {
+      // Local review site: serves a publish output folder and stores reviews in a folder.
+      if (!values.site) throw new Error("--site PUBLISHED_SITE_DIRECTORY required");
+      const store = new FileReviewStore(
+        values["reviews-dir"]
+          ? resolve(values["reviews-dir"])
+          : new URL("./.local/reviews", import.meta.url).pathname,
+      );
+      const server = createReviewServer({
+        siteDirectory: resolve(values.site),
+        store,
+        reviewers: parseReviewers(values.reviewers),
+        ...(values["dev-user"] ? { devUser: values["dev-user"] } : {}),
+      });
+      const port = Number(values.port);
+      server.listen(port, "127.0.0.1", () =>
+        console.error(
+          `Serving ${values.site} on http://127.0.0.1:${port}/ (reviews: ${store.directory})`,
+        ),
+      );
+      await new Promise(() => {});
+      break;
+    }
     case "import-legacy":
       if (!values.input) throw new Error("--input tracker-packages.tsv required");
       console.log(JSON.stringify(await importLegacy(values.input, state)));

@@ -52,6 +52,15 @@ import {
   validateScan,
 } from "../store.ts";
 import type { Repository } from "../discover.ts";
+import { applyReviews } from "../apply-reviews.ts";
+import {
+  canReview,
+  FileReviewStore,
+  handleReviews,
+  parseReview,
+  parseReviewers,
+} from "../reviews.ts";
+import { createReviewServer } from "../server.ts";
 import type { AiConfig } from "../analysis.ts";
 import type { SelectedView } from "../web/data.ts";
 import { coverageGroups, fileUrl, filterCodeLinks, filterFindings } from "../web/app.ts";
@@ -2122,4 +2131,125 @@ test("reducible patterns recur across services and are not service-specific", ()
   assert.equal(isDormant({} as LibraryRow, now), false);
   assert.equal(byId["service-quirk"].status, "service-specific");
   assert.equal(byId.ignored, undefined);
+});
+
+const reviewer = { id: "1", name: "Reviewer@Example.com", provider: "aad" };
+
+test("review API: reviewers sign in, send same-origin JSON, and reviews are checked for shape", async (t) => {
+  const store = new FileReviewStore(await directory(t));
+  const reviewers = parseReviewers(" reviewer@example.com, other@example.com ");
+  assert.deepEqual(reviewers, ["reviewer@example.com", "other@example.com"]);
+  assert.equal(canReview(reviewer, reviewers), true);
+  assert.equal(canReview(reviewer, parseReviewers("")), false, "no list means nobody");
+  assert.equal(canReview(reviewer, ["*"]), true);
+  assert.equal(canReview(null, ["*"]), false);
+  const post = (body: unknown, extra: Record<string, unknown> = {}) =>
+    handleReviews(
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        principal: reviewer,
+        contentType: "application/json",
+        origin: "https://metrics.example",
+        host: "metrics.example",
+        ...extra,
+      },
+      { store, reviewers },
+    );
+  const confirm = {
+    request: { identity: "python:x:module-v1", action: "confirm", key: "k", reason: "Looks right" },
+  };
+  assert.equal((await post(confirm, { principal: null })).status, 401);
+  assert.equal(
+    (await post(confirm, { principal: { ...reviewer, name: "stranger@example.com" } })).status,
+    403,
+  );
+  assert.equal((await post(confirm, { origin: "https://evil.example" })).status, 403);
+  assert.equal((await post(confirm, { contentType: "text/plain" })).status, 415);
+  for (const request of [
+    { ...confirm.request, reason: "" },
+    { ...confirm.request, action: "delete" },
+    { ...confirm.request, key: undefined },
+    { ...confirm.request, action: "correct" },
+    { ...confirm.request, action: "exclude" },
+  ]) {
+    assert.equal((await post({ request })).status, 400, JSON.stringify(request));
+  }
+  const created = await post(confirm);
+  assert.equal(created.status, 201);
+  const listed = (await handleReviews({ method: "GET", principal: null }, { store, reviewers }))
+    .body as { reviews: Record<string, unknown>[] };
+  assert.equal(listed.reviews.length, 1);
+  assert.equal(listed.reviews[0].reviewer, undefined, "reviewer names are not published");
+  assert.deepEqual(listed.reviews[0].request, confirm.request);
+  assert.throws(() =>
+    parseReview({ request: { ...confirm.request, reason: "x".repeat(2001) } }, reviewer),
+  );
+});
+
+test("applying web reviews uses the review id, is idempotent, and logs failures", async (t) => {
+  const state = await directory(t);
+  const scan = reviewed(fixture({ origin: "public-github" }));
+  await save(state, scan);
+  const key = scan.analysis.proposals[0].key;
+  const review = (id: string, request: Record<string, unknown>, at: string) => ({
+    id,
+    submittedAt: at,
+    request: { identity: scan.identity, reason: "Web review", ...request } as never,
+  });
+  const reviews = [
+    review(
+      "00000000-0000-4000-8000-000000000002",
+      { action: "reject", key: "missing" },
+      "2026-10-02T00:00:00.000Z",
+    ),
+    review(
+      "00000000-0000-4000-8000-000000000001",
+      { action: "confirm", key },
+      "2026-10-01T00:00:00.000Z",
+    ),
+  ];
+  const first = await applyReviews(state, reviews);
+  assert.deepEqual(first.applied, ["00000000-0000-4000-8000-000000000001"]);
+  assert.deepEqual(first.failed, ["00000000-0000-4000-8000-000000000002"]);
+  const history = await readState(state);
+  assert.equal(history.overrides[0].id, "00000000-0000-4000-8000-000000000001");
+  const dataset = effectiveDataset(history.scans, history.overrides);
+  assert.equal(dataset.findings[0].status, "human-confirmed");
+  assert.equal(dataset.findings[0].counted, true);
+  const log = JSON.parse(await readFile(join(state, "review-log.json"), "utf8"));
+  assert.match(log["00000000-0000-4000-8000-000000000002"].error, /does not exist/);
+  const again = await applyReviews(state, reviews);
+  assert.deepEqual(again, { applied: [], failed: [], skipped: 2 });
+  await assert.rejects(() =>
+    applyReviews(state, [
+      review("../escape", { action: "confirm", key }, "2026-10-03T00:00:00.000Z"),
+    ]),
+  );
+});
+
+test("review server trusts sign-in headers only when told to, and serves only the site folder", async (t) => {
+  const site = await directory(t);
+  await writeFile(join(site, "index.html"), "<p>site</p>");
+  const store = new FileReviewStore(await directory(t));
+  const listen = async (options: { trustAuthHeaders?: boolean }) => {
+    const server = createReviewServer({ siteDirectory: site, store, reviewers: ["*"], ...options });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    t.after(() => server.close());
+    const { port } = server.address() as { port: number };
+    return `http://127.0.0.1:${port}`;
+  };
+  const headers = {
+    "x-ms-client-principal-name": "someone@example.com",
+    "x-ms-client-principal-id": "abc",
+  };
+  const untrusted = await listen({});
+  const me = await (await fetch(`${untrusted}/api/me`, { headers })).json();
+  assert.equal(me.signedIn, false, "spoofed headers are ignored without App Service sign-in");
+  const trusted = await listen({ trustAuthHeaders: true });
+  const signedIn = await (await fetch(`${trusted}/api/me`, { headers })).json();
+  assert.deepEqual(signedIn, { signedIn: true, name: "someone@example.com", reviewer: true });
+  assert.equal(await (await fetch(`${trusted}/`)).text(), "<p>site</p>");
+  assert.equal((await fetch(`${trusted}/%2e%2e/%2e%2e/etc/passwd`)).status, 404);
+  assert.equal((await fetch(`${trusted}/.auth/login/aad`)).status, 404, "no fake sign-in in Azure");
 });

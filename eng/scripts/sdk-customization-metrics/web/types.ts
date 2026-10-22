@@ -130,7 +130,7 @@ export interface Scan {
 
 export interface OverrideRequest {
   identity: string;
-  action: "correct" | "reject" | "add" | "exclude" | "include";
+  action: "confirm" | "correct" | "reject" | "add" | "exclude" | "include";
   key?: string;
   reason: string;
   finding?: Finding;
@@ -198,7 +198,7 @@ export interface PackageRecord extends Target {
   observedAt: string;
   origin: string;
   coverage: Coverage;
-  sourceFiles?: { path: string; kind: string; startLine: number; endLine: number }[];
+  sourceFiles?: { id?: string; path: string; kind: string; startLine: number; endLine: number }[];
   navigationRecorded?: boolean;
   customizationLinks: CustomizationLink[];
   analysisStatus: Analysis["status"];

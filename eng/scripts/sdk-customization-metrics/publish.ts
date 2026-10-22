@@ -1,8 +1,13 @@
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { exportData, readState } from "./store.ts";
 import { exportInventory } from "./discover.ts";
 import { exportTracker } from "./tracker.ts";
+import { readReviewLog } from "./apply-reviews.ts";
+import type { SiteConfig } from "./web/human-review.ts";
+
+// Where the page sends reviews (see web/human-review.ts).
+export type { SiteConfig };
 
 export async function publishSite(
   stateDirectory: string,
@@ -13,6 +18,7 @@ export async function publishSite(
     includeFixtures?: boolean;
     historyStateDirectory?: string;
     runGapMinutes?: number;
+    config?: SiteConfig;
   } = {},
 ) {
   const root = resolve(websiteDirectory);
@@ -31,6 +37,12 @@ export async function publishSite(
   // The manual tracker is published only when explicitly passed (owner-approved data).
   if (options.tracker) await exportTracker(options.tracker, output);
   if (options.inventory) await exportInventory(options.inventory, output);
+  // Outcomes of applied web reviews (applied, or failed with the reason) for the page.
+  await writeFile(
+    join(output, "review-log.json"),
+    JSON.stringify(await readReviewLog(stateDirectory)),
+  );
+  await writeFile(join(output, "config.json"), JSON.stringify(options.config ?? {}));
   if (!(await readFile(join(root, "index.html"))).equals(homepage)) {
     throw new Error("Existing website homepage changed while adding the dashboard");
   }

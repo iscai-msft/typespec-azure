@@ -1,310 +1,114 @@
 # SDK customization metrics: project context
 
-Handoff for another AI or contributor. Updated October 22, 2026; implementation
-baseline `76e510e1fdffc5ab5248f3964fc69278e0fb400a`. Read [README.md](./README.md)
-for detailed commands and contracts. This file provides context, not authorization
-to deploy, spend money, or change repository settings.
+Handoff for another AI or contributor. Updated October 22, 2026. Read
+[README.md](./README.md) for commands and contracts. This file gives context; it is not
+authorization to deploy, spend money, call AI providers, or change repository settings.
 
-## October 22 update: tracker-driven overview
+## Goal
 
-The dashboard was redesigned to follow the reference layout (KPI cards, filters,
-two-column breakdown/trend charts, library explorer) and can now be driven by the
-user's manual library tracker CSV (206 data-plane libraries, Yes/No + what was
-customized). `tracker.mjs` validates and normalizes it; `export --tracker` writes
-`tracker.json`. Tracker rows join scans by repository path. The SQL section was
-replaced by a dropdown query builder. On October 22 the owner approved publishing the
-tracker: it is checked in at `tracker/dataplane-tracker.csv` and the Pages workflow
-passes `--tracker`. Tracker answers are manual survey notes, not reviewed findings.
+Measure handwritten customizations in TypeSpec-generated Azure SDKs across Python, Java,
+.NET, JavaScript and Go, and find **reducible customizations**: recurring patterns a
+generator or TypeSpec feature could produce, so new libraries stop repeating them. The
+dashboard flows overview → trends → library → individual customization, uses dropdowns
+(no SQL box), and is both readable at a glance and precise when drilled into.
 
-## Locations and strict boundaries
+## Locations and boundaries
 
-- Source: [iscai-msft/typespec-azure, sdk-customization-metrics branch](https://github.com/iscai-msft/typespec-azure/tree/sdk-customization-metrics/eng/scripts/sdk-customization-metrics).
-- Dashboard: https://iscai-msft.github.io/typespec-azure/sdk-customization-metrics/
-- Public exports: [metrics.json](https://iscai-msft.github.io/typespec-azure/sdk-customization-metrics/metrics.json)
-  and [metrics.sqlite](https://iscai-msft.github.io/typespec-azure/sdk-customization-metrics/metrics.sqlite).
-- UX inspiration, read-only: https://orange-pebble-01bfc3d1e.6.azurestaticapps.net/
+- Source: `iscai-msft/typespec-azure`, branch `sdk-customization-metrics`, folder
+  `eng/scripts/sdk-customization-metrics`.
+- Dashboard (GitHub Pages, read-only): https://iscai-msft.github.io/typespec-azure/sdk-customization-metrics/
+- Layout reference, read-only: https://orange-pebble-01bfc3d1e.6.azurestaticapps.net/
 
-**Never modify, push to, configure, or deploy the official
-Azure/typespec-azure repository or azure.github.io.** Do not modify the reference
-site either. All approved publication is confined to the personal fork above.
-The implementation branch was based on upstream main at
-`726862b537be9fdb24d7e6a4ca868eb9104025dd`; do not reset/rebase existing work to
-recreate that base.
+**Never modify, push to, configure or deploy the official Azure/typespec-azure repository
+or azure.github.io, and do not modify the reference site.** Push only to the fork branch.
+Do not enable schedules, choose or call an AI provider, incur model costs, create cloud
+resources or change settings without the owner's explicit approval. The weekly workflow
+and the Azure deployment are off until the owner sets repository variables.
 
-The local checkout may have `origin` pointing to the official Azure repository.
-Inspect remotes and use an explicit fork URL if a push is authorized:
+The long-term plan is to move this to Azure/typespec-azure (site on its Pages, database
+backend, one weekly job pulling from the language repos). That move needs the owner's
+go-ahead and that repository's normal review.
 
-```sh
-git push https://github.com/iscai-msft/typespec-azure.git HEAD:refs/heads/sdk-customization-metrics
-```
+## Data sources
 
-Do not enable schedules, select/call an AI provider, incur model costs, create
-cloud infrastructure, or change settings/protections without authorization.
-Private legacy workbook rows/notes are **unverified hints**, not findings. Only the
-owner-approved tracker CSV (see the October 22 update) is published; never send
-tracker or workbook content to a model.
+| Source     | What it is                                                                                                              | Where                                                  |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Inventory  | Every library with a `tsp-location.yaml` in the five SDK repos, with plane, spec folder, latest release and last change | `inventory/libraries.json` (`discover`)                |
+| Tracker    | The owner's manual survey of 206 data-plane libraries (customized yes/no, what). Approved for publication               | `tracker/dataplane-tracker.csv`                        |
+| Scans      | Append-only, commit-pinned evidence per library plus AI analysis                                                        | `state/records/*.json` (`collect`, `review`)           |
+| Overrides  | Human decisions bound to exact evidence text                                                                            | `state/overrides/*.json` (`override`, `apply-reviews`) |
+| Guidelines | Per-language rules for what counts as handwritten, the categories, the reducible definition, and a pattern catalog      | `guidelines/` (published at `guidelines.html`)         |
 
-## Goal and product priorities
+Inventory today: 1,334 libraries (221 data plane, 1,038 management, 75 .NET
+provisioning). Management plane is detected from "mgmt"/"management" in the package name;
+the service name is the spec project from `tsp-location.yaml` (85 data-plane services).
 
-Track SDK customization trends, query individual customization instances, and
-drill down into the actual customized code. A target query is: "Show Java
-libraries with LRO customizations," including exact code, subtype and explanation.
+## Pipeline
 
-The intended flow is portfolio overview -> trends -> library explorer ->
-customization instance -> pinned evidence. The user wants **links to customized
-code**, not a dashboard of captured files and extraction budgets. General source
-inventories and budget exclusions belong in collapsed diagnostics; real failures
-must remain accessible and cannot masquerade as successful absence.
+1. **Discover** (`discover.ts`): blob-less shallow clones; finds `tsp-location.yaml`,
+   assigns plane and service, records tree hashes so later runs only touch changed
+   folders. Adding a language is one entry in `web/languages.ts`.
+2. **Collect** (`source.ts`, `navigation.ts`): reads each changed library at a pinned
+   commit; finds handwritten entry points by the language guidelines (Python `_patch.py`
+   and code outside `*generated` folders, Java code without `@Generated` and
+   customization scripts, .NET non-generated `src/*.cs`, JS overlays, Go non-`zz_`
+   files); captures prioritized evidence within a ~40 KB review budget.
+3. **AI review** (`analysis.ts`, `review.ts`): an analyst proposes findings
+   (category, pattern, generator-addressable) citing evidence lines; an independent
+   reviewer accepts, revises, rejects or marks each inconclusive, and can add
+   omissions. Providers: any OpenAI-compatible endpoint by config (GitHub Models example
+   provided), or a file exchange answered outside the tool.
+4. **Human review** (`reviews.ts`, `server.ts`, `apply-reviews.ts`, `web/human-review.ts`):
+   reviewers confirm, reject, correct or add findings on the site; reviews are stored by
+   the API and applied to `state/overrides` by the weekly job.
+5. **Publish** (`publish.ts`, `store.ts`): `dashboard.json` (page data), lazy
+   `diagnostics.json`, full `metrics.json`/`metrics.sqlite` downloads, guidelines, and
+   the page modules (TypeScript with types stripped).
 
-Keep semantic customization instances distinct from source files, generated
-behavior, source-line counts, and hypothetical customization debt. Service labels
-use the terminal package service name: currently `documentintelligence` and
-`azopenai`, not `ai` or `ai.documentintelligence`.
+## Reducible customizations
 
-## Actual current status
+A pattern (canonical id from `guidelines/patterns.json`) is **reducible** when it recurs
+in at least two services, at least one of those libraries is active (released or changed
+in the last 365 days), and at most half its instances are judged service-specific.
+Other statuses: **spec-candidate** (one service, several languages: fix in the spec),
+**dormant** (only in libraries untouched for a year; "stable" means not touched in a
+while, not GA), **one-off**, **service-specific**, **unknown**. Defined in
+`guidelines/SKILL.md`; computed in `web/data.ts` (`reduciblePatterns`).
 
-The latest verified deployment has five starter libraries and 22 content-checked
-candidate entry-point links:
+## Status (October 22, 2026)
 
-| Language   | Package                                             | Candidate links |
-| ---------- | --------------------------------------------------- | --------------- |
-| .NET       | `Azure.AI.DocumentIntelligence`                     | 14              |
-| Java       | `azure-ai-documentintelligence`                     | 1               |
-| JavaScript | `@azure-rest/ai-document-intelligence`              | 1               |
-| Python     | `azure-ai-documentintelligence`                     | 4               |
-| Go         | `github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai` | 2               |
+- Code is TypeScript (erasable syntax only; Node runs it directly; strict `tsconfig.json`;
+  CI type-checks). Unit tests: 50. Browser smoke test: `test/browser-check.ts`.
+- Pilot AI review of 22 data-plane libraries (in-session, no provider costs): 135
+  accepted findings, 8 rejected, 8 inconclusive. After normalizing services: 12
+  reducible patterns, 3 spec-candidates, 3 service-specific, 1 dormant, 16 one-off. Top
+  reducible: options-unpacking convenience overloads, typed wrappers over protocol
+  methods, auth audience/scope options, alternative model constructors, hiding generated
+  surface. Review coverage is about 10% of data-plane libraries.
+- **Held for the owner:** reviewing the remaining ~200 data-plane libraries (cost
+  decision: roughly 65–75k tokens per library for analyst plus reviewer).
+- Human review works end to end locally (`cli.ts serve`). Azure hosting is written
+  (`azure/main.bicep`, deploy workflow) but not deployed; it needs the owner's one-time
+  setup (README, "Hosting with human review").
+- `state/` is about 57 MB in git. Before moving upstream it should move to a data branch
+  or blob storage, with the database holding reviews.
 
-These are **file entry points, not 22 accepted customization instances**.
-Examples are the Java customization script, substantive Python sync/async
-patches, JavaScript `src/utils.ts`, Go `custom_errors.go`/`custom_models.go`, and
-C# non-generated handwritten-source candidates.
+## Open questions
 
-**No actual AI provider/model is configured, no model calls have been made, and
-there are zero accepted real semantic classifications. All five latest packages
-are unassessed. Zero accepted findings does not mean no customizations.**
-
-Java+LRO querying is implemented but correctly returns no accepted classifications
-yet. Real trends show insufficient comparable assessed history rather than
-fabricated values. The checked-in ledger contains ten public scans; the last
-verified export derived ten durable effective-state observations. Deployment
-refreshes public sources, so source revisions and counts can change.
-
-## Architecture and entities
-
-Runtime: Node 26, built-in `node:sqlite`, dependency-free collector runtime, and
-vanilla HTML/CSS/browser ES modules. No hosted database, chat backend, browser API
-secret, or new infrastructure.
-
-Data flow:
-
-1. Confirm allowlisted GitHub repositories are public.
-2. Resolve default-branch commits, walk configured package trees, reject truncated
-   discovery and download immutable blobs. Never execute fetched source.
-3. Extract bounded source/context evidence and independently discover
-   content-checked customization navigation links.
-4. Optionally run a structured analyst and separate-context reviewer, only after
-   explicit provider/source/budget configuration.
-5. Apply evidence-bound human overrides.
-6. Export effective JSON, SQLite, temporal observations and static assets.
-
-Source of truth is immutable versioned JSON:
-
-- `STATE/records/`: scans with identity, target, commit, timestamp, coverage,
-  evidence, generation context, navigation and analysis.
-- `STATE/overrides/`: timestamped human requests, finding snapshots and evidence
-  bindings. Never rewrite/delete history.
-- Stable identity: `language:canonical-package:module-vN`; preserve Go module
-  majors separately.
-- Evidence: path, exact text, line ranges, content SHA-256, provenance and
-  commit-pinned source URL.
-- Findings: category/subtype, explanation, affected symbols, evidence references,
-  reviewer decision and optional explicitly unmeasured root-cause hypothesis.
-
-`schema.mjs` declares closed scan v1/override/model schemas and validates a small,
-explicit JSON Schema vocabulary. `store.mjs` adds semantic checks for hashes,
-identities, URLs, ranges, coverage and review integrity. SQLite and public
-`metrics.json` are derived read models, not editable authoritative ledgers.
-
-## Evidence, candidates and judgments
-
-- Captured evidence is not automatically a customization.
-- A generated LRO poller alone is not handwritten customization.
-- Navigation candidates are deterministic, content-checked entry points, not
-  accepted semantic findings. They have no inferred category/subtype.
-- Analyst proposals require a fresh, independent reviewer conversation receiving
-  original evidence/proposals, not the analyst's conversation.
-- Accepted/revised decisions are labeled **AI-reviewed**, never "verified."
-- Reviewer omissions remain inconclusive, not self-approved.
-- Human actions: `correct`, `reject`, `add`, `exclude`, `include`.
-- Human overrides take precedence while their relevant evidence remains valid.
-  Unrelated changes preserve validity; changed/missing/ambiguous bound evidence
-  preserves history but marks `needs-revalidation`, exposes current assessment,
-  and does not silently carry forward the old accepted judgment.
-- Rejected, inconclusive, stale and excluded findings do not count as accepted.
-
-Cache keys include evidence/context, coverage, collector/schema/prompt/model and
-endpoint/settings versions, not merely repository commit.
-
-The model adapter requires an explicitly approved matching HTTPS endpoint,
-public-source approval, model IDs, token and request/input/output budgets.
-Fetched source/comments are untrusted data, never instructions to the model.
-The adapter is execution wiring, not a tested endorsement of any live provider.
-
-## Discovery scope and limitations
-
-`targets.json` configures only the five starter roots above across the public
-Python/.NET/JavaScript/Java/Go Azure SDK repositories. This is not an exhaustive
-SDK inventory or proof of absence within a package.
-
-AI evidence defaults: 20 combined source/context files, 16 KB per file, 100 KB per
-package. Budget exclusions are partial coverage, not collection failures.
-
-Independent navigation reads up to 100 candidate entry-point files, 1 MB each,
-8 MB total including JavaScript baseline comparisons. This avoids the smaller
-capture budget hiding the large Java customization script and Python operation
-patches. It persists location/provenance/content hash, not additional full text.
-
-Current navigation heuristics:
-
-- Python: substantive `_patch.py` bodies, excluding empty scaffolding.
-- Java: scripts with recognized customization operations.
-- C#: non-generated source, excluding generated/stub/assembly scaffolding.
-- JavaScript: source overlays compared against generated counterparts when
-  available; ignore formatting/leading union bars and user-agent version changes.
-- Go: substantive `custom*.go`, excluding tests/generated headers.
-
-These heuristics can miss patterns or include handwritten code that is not a
-semantic customization. Keep candidate labels honest. Encoded GitHub links are
-pinned to scanned commits/ranges; untrusted content renders as text, not HTML.
-
-## Dashboard, queries and history
-
-`web/data.mjs` provides shared selection for overview, breakdown, explorer and
-code results. Controls include language, service, library, category, review
-status, acceptance, AND-matched text (subtype/symbol/captured code), and observation.
-Unclassified candidates are omitted by semantic category/review filters.
-
-Clickable breakdowns group accepted instances or candidates by
-language/service/category. Library rows sort and narrow the shared scope.
-Instance detail exposes pinned links, actual captured snippets/previews when
-available, explanation, review/override provenance and assessment versions.
-No missing snippet or candidate explanation is invented.
-
-Shareable URL parameters preserve filters, observation, instance, sorting,
-breakdown measure/group, history start date and fixed cohort. This is structured
-querying, **not natural-language AI chat**.
-
-SQLite includes `packages`, `findings`, `scans`, `evidence`, `overrides`,
-`observations`, `observation_findings` and `accepted_customizations` view:
-
-```sql
-SELECT package, module_major, subtype, explanation, snippets_json
-FROM accepted_customizations
-WHERE language = 'java' AND category = 'LRO';
-
-SELECT o.observed_at, f.identity, f.category, f.status
-FROM observation_findings f
-JOIN observations o ON o.id = f.observation_id
-WHERE f.counted = 1 AND f.category = 'LRO'
-ORDER BY o.observed_at;
-```
-
-`effectiveObservations` replays persisted scan `observedAt` and override
-`createdAt` events in UTC. Later judgments do not rewrite earlier effective
-states. Consecutive duplicate/commit-only refresh states collapse. Assessment,
-evidence, coverage and version changes remain observable. Additive export fields
-`historyVersion: 1` and `observations` do not rewrite immutable scan records.
-
-History defaults to the fixed intersection of libraries in the selected range;
-available-inventory mode reports added/removed package coverage. Unassessed
-scopes show N/A. A visual trend requires at least two assessed observations with
-consistent cohort/version metadata. Counts are effective judgments, not
-necessarily code additions/removals; no source-line/debt trend is inferred.
-
-## Workflows and persistence
-
-- `.github/workflows/sdk-customization-metrics-pages.yml`: guarded to
-  `iscai-msft/typespec-azure`; pushes on `sdk-customization-metrics` publish the
-  existing dashboard-only personal-fork site. It makes a public no-AI refresh.
-- Before refresh, Pages snapshots persisted state and passes `--history-state`
-  to publication. Temporary refreshes stay in raw downloads but not the durable
-  observation series. The history snapshot must be an immutable subset of the
-  exported state; redeploys do not accumulate ephemeral scan history.
-- `.github/workflows/sdk-customization-metrics.yml`: tests and weekly/manual
-  collector definitions. **Scheduled collection remains gated off** via
-  `SDK_METRICS_ENABLED`; AI additionally requires explicit enablement/config.
-  When configured, collection can append history to a dedicated data branch.
-- Fork Pages uses workflow deployment; its inherited docs deployment is disabled
-  to prevent overwriting the dashboard. Do not re-enable it or alter protections.
-- Official Azure website/workflow/settings are untouched.
-
-## Important files
-
-All non-workflow paths below are relative to this directory:
-
-| Path                                             | Purpose                                                            |
-| ------------------------------------------------ | ------------------------------------------------------------------ |
-| `README.md`, `targets.json`                      | Usage, contracts, configured public inventory                      |
-| `schema.mjs`                                     | Versioned schemas and stable identities                            |
-| `source.mjs`, `navigation.mjs`                   | Commit-pinned extraction and candidate discovery                   |
-| `analysis.mjs`, `ai.example.json`                | Structured analyst/reviewer integration, disabled example          |
-| `store.mjs`                                      | Effective judgments, overrides, history, validation, SQLite/export |
-| `cli.mjs`, `publish.mjs`                         | Execution commands and isolated site assembly                      |
-| `legacy.mjs`                                     | Private, unverified legacy import; not publication input           |
-| `web/data.mjs`                                   | Shared selectors, service names, aggregates, cohorts               |
-| `web/app.mjs`, `web/index.html`, `web/style.css` | Static UI and deep links                                           |
-| `state/records/`                                 | Persisted real public scans                                        |
-| `test/metrics.test.mjs`                          | Unit/integration tests                                             |
-| `test/browser-check.mjs`                         | Local-only synthetic Chromium regression                           |
+- Guideline owners per language (placeholders in `guidelines/*.md`).
+- JavaScript detection is a heuristic; confirm with the JS specialists.
+- Sign-in tenant for reviewers: an app registration in the Microsoft tenant is likely
+  needed so corporate accounts can sign in.
 
 ## Run and validate
 
-From repository root, follow repository instructions and use mise-managed tools:
-
-```sh
-mise --version
-# For a fresh checkout, trust/install pinned tools as needed:
-mise trust
-mise install
-
-mise exec -- node --test eng/scripts/sdk-customization-metrics/test/*.test.mjs
-# Requires existing Playwright dependency and Chromium installation:
-mise exec -- node eng/scripts/sdk-customization-metrics/test/browser-check.mjs
-
-# Offline export from tracked public state, without collection or model calls:
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs export \
-  --state eng/scripts/sdk-customization-metrics/state \
-  --out eng/scripts/sdk-customization-metrics/.local/review-site
-mise exec -- python -m http.server 8000 \
-  --directory eng/scripts/sdk-customization-metrics/.local/review-site
+```bash
+cd eng/scripts/sdk-customization-metrics
+node --test test/*.test.ts                      # Node 26; on Node 22 add
+                                                # --experimental-strip-types --experimental-sqlite
+npx tsc -p tsconfig.json                        # with typescript 7.0.2 and @types/node
+node cli.ts publish --state state --tracker tracker/dataplane-tracker.csv --out SITE
+(cd azure && npm ci && npm run typecheck && npm run build)
 ```
 
-Open `http://localhost:8000` and stop the server when finished. Run
-`mise exec -- pnpm format && mise exec -- pnpm lint` before committing.
-
-Latest code validation: 28 Node tests, synthetic Chromium regression,
-format/lint, and live desktop/mobile checks passed. Coverage includes evidence
-integrity, generated-only rejection, model guards, override revalidation,
-privacy, history/cohorts/timestamps, query/deep-link consistency, service options
-and ephemeral-refresh exclusion. Synthetic fixtures are never deployed by
-default. Passing tests do not prove exhaustive correctness.
-
-## Focused next work and review questions
-
-1. Independently inspect selector/history correctness: consistent scopes, stale
-   overrides, duplicate suppression, temporal provenance and cohort changes.
-2. Evaluate navigation false positives/omissions against actual public code,
-   especially C# handwritten-source candidates and JavaScript normalization.
-3. Expand the public target inventory deliberately; expose coverage expansion
-   separately from customization growth. Do not publish private workbook hints.
-4. With separate approval, choose a sanctioned provider/model and validate the
-   actual analyst/reviewer integration. Obtain real reviewed semantic instances
-   before claiming Java+LRO classifications or meaningful customization trends.
-5. With separate configuration approval, enable durable incremental collection;
-   do not present temporary Pages refreshes as a persistent weekly history.
-6. Review UX/accessibility and query/deep-link empty/error states while preserving
-   direct customization-code links as the main product.
-
-Report reproducible bugs with file/line references or exact UI steps. Separate
-measured facts from interpretations and future suggestions. Do not fabricate
-metrics to fill empty charts or turn incomplete analysis into absence.
+Always pass `--state state` locally; the default is the scratch folder `.local/state`.

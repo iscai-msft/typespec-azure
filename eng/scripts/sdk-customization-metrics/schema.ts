@@ -1,5 +1,6 @@
 import type { Target } from "./web/types.ts";
 import { LANGUAGES } from "./web/languages.ts";
+import { CATEGORIES, LEGACY_CATEGORIES } from "./web/vocabulary.ts";
 
 // JSON-schema nodes are dynamic by design (closed vocabulary, validated at runtime).
 // biome-ignore lint/suspicious/noExplicitAny: dynamic JSON-schema validation internals
@@ -25,26 +26,7 @@ const text: Schema = { type: "string" };
 export const REPOSITORIES = Object.fromEntries(
   LANGUAGES.map((language) => [language.id, language.repo]),
 );
-// The canonical categories from guidelines/SKILL.md. Earlier short names (LRO, Paging,
-// Authentication, Convenience) are still accepted so older records stay valid.
-export const CATEGORIES = [
-  "LRO / polling",
-  "Pagination",
-  "Serialization",
-  "Auth",
-  "Convenience methods",
-  "Retry / error handling",
-  "Model overrides",
-  "Multiple content types",
-  "Multipart",
-  "SSE / streaming",
-  "Crypto / signing",
-  "Byte range",
-  "Tracing / telemetry",
-  "Hand-written client",
-  "Other",
-];
-const LEGACY_CATEGORIES = ["LRO", "Paging", "Authentication", "Convenience"];
+export { CATEGORIES } from "./web/vocabulary.ts";
 export const targetSchema = object(
   {
     language: choice(...Object.keys(REPOSITORIES)),
@@ -171,7 +153,7 @@ export const scanSchema = object(
 export const overrideRequestSchema = object(
   {
     identity: str(),
-    action: choice("correct", "reject", "add", "exclude", "include"),
+    action: choice("confirm", "correct", "reject", "add", "exclude", "include"),
     key: str(),
     reason: str(),
     finding: findingSchema,
