@@ -20,6 +20,10 @@ on:
         description: Run explicitly configured analyst and independent reviewer (requires AI enablement)
         type: boolean
         default: false
+      reviews_only:
+        description: Only apply human reviews from the hosted site (skip discovery and scanning)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -46,6 +50,12 @@ jobs:
             eng/scripts/sdk-customization-metrics/node_modules
           "$RUNNER_TEMP/tsc/node_modules/.bin/tsc" -p eng/scripts/sdk-customization-metrics/tsconfig.json
       - run: node --test eng/scripts/sdk-customization-metrics/test/*.test.ts
+      - name: Type-check and bundle the hosted review server
+        working-directory: eng/scripts/sdk-customization-metrics/azure
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
 
   collect:
     needs: test
@@ -73,22 +83,25 @@ jobs:
         with:
           node-version: "26"
       - name: Cache SDK repository clones (blob-less, so small)
+        if: ${{ !inputs.reviews_only }}
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ${{ runner.temp }}/sdk-repos
           key: sdk-repos-${{ github.run_id }}
           restore-keys: sdk-repos-
       - name: Discover TypeSpec libraries (new, removed and changed)
+        if: ${{ !inputs.reviews_only }}
         run: node "$TOOL/cli.ts" discover --repos-dir "$RUNNER_TEMP/sdk-repos"
       - name: Scan libraries whose folder changed
         id: collect
+        if: ${{ !inputs.reviews_only }}
         continue-on-error: true
         run: |
           node "$TOOL/cli.ts" collect --state "$TOOL/state" --from-inventory --plane data \
             --reader git --skip-unchanged --repos-dir "$RUNNER_TEMP/sdk-repos"
       - name: AI-review new and changed libraries (only when enabled)
         id: review
-        if: vars.SDK_METRICS_AI_ENABLED == 'true'
+        if: vars.SDK_METRICS_AI_ENABLED == 'true' && !inputs.reviews_only
         continue-on-error: true
         env:
           AI_CONFIG: ${{ vars.SDK_METRICS_AI_CONFIG_JSON }}
@@ -98,15 +111,26 @@ jobs:
           printf '%s' "$AI_CONFIG" > "$RUNNER_TEMP/metrics-ai.json"
           node "$TOOL/cli.ts" review --state "$TOOL/state" --plane data \
             --ai-config "$RUNNER_TEMP/metrics-ai.json"
+      - name: Apply human reviews submitted on the hosted site (only when configured)
+        id: reviews
+        if: vars.SDK_METRICS_REVIEW_SITE != ''
+        continue-on-error: true
+        env:
+          REVIEW_SITE: ${{ vars.SDK_METRICS_REVIEW_SITE }}
+        run: |
+          node "$TOOL/cli.ts" apply-reviews --state "$TOOL/state" \
+            --reviews "${REVIEW_SITE%/}/api/reviews"
       - name: Validate
         run: node "$TOOL/cli.ts" validate --state "$TOOL/state"
       - name: Commit inventory and append-only scan history
         run: |
           git add -- "$TOOL/inventory" "$TOOL/state/records"
+          if [ -d "$TOOL/state/overrides" ]; then git add -- "$TOOL/state/overrides"; fi
+          if [ -f "$TOOL/state/review-log.json" ]; then git add -- "$TOOL/state/review-log.json"; fi
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Weekly SDK customization scan ${GITHUB_RUN_ID}"
+            git commit -m "SDK customization metrics update ${GITHUB_RUN_ID}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Republish the dashboard
@@ -115,8 +139,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run sdk-customization-metrics-pages.yml --ref "$GITHUB_REF_NAME"
+      - name: Redeploy the hosted review site (only when enabled)
+        if: vars.SDK_METRICS_AZURE_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run sdk-customization-metrics-azure.yml --ref "$GITHUB_REF_NAME"
       - name: Report scan or review failures after preserving results
-        if: steps.collect.outcome == 'failure' || steps.review.outcome == 'failure'
+        if: >-
+          steps.collect.outcome == 'failure' || steps.review.outcome == 'failure' ||
+          steps.reviews.outcome == 'failure'
         run: |
           echo "::error::Some scans or reviews failed; results that succeeded were committed"
           exit 1

@@ -12,6 +12,7 @@ import {
   trackerBreakdown,
 } from "./data.ts";
 import { LANGUAGES, PLANES } from "./languages.ts";
+import { findingReview, libraryReview, loadReviewState, type ReviewState } from "./human-review.ts";
 import type {
   CandidateLink,
   Dataset,
@@ -45,6 +46,10 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 // Form controls whose id is only known at runtime (filters, presets).
 const control = (id: string) => byId<HTMLInputElement | HTMLSelectElement>(id);
+
+// Human review: loaded once at start; rerender redraws the page after a review is submitted.
+let reviewState: ReviewState | null = null;
+let rerender = () => {};
 
 // The filter form: one string per control, plus the "accepted" checkbox.
 type FormFilters = Required<
@@ -296,6 +301,7 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
     details.append(summary, sourceLink(snippet), pre);
     article.append(details);
   }
+  if (reviewState) article.append(findingReview(item, reviewState, rerender));
   return article;
 }
 
@@ -522,6 +528,7 @@ export async function start() {
     );
     if (catalogResponse?.ok) catalog = await catalogResponse.json();
     const resolvePattern = patternResolver(catalog);
+    reviewState = await loadReviewState(catalog.patterns.map((item) => item.id));
     const allLibraries = mergeLibraries(tracker, data.packages, inventory);
     const languages = LANGUAGES.map((language) => language.id);
     for (const plane of PLANES) {
@@ -606,6 +613,7 @@ export async function start() {
     let codeScope = "";
     let codeLimit = 10;
     const expandedLibraries = new Set();
+    rerender = () => update();
     const update = () => {
       const filters = Object.fromEntries(
         fields.map((id) => [id, control(id).value]),
@@ -1340,6 +1348,8 @@ export async function start() {
             : "Not scanned yet — add it to targets.json to get pinned code links",
         );
         card.append(facts);
+        if (selectedLibrary.scan && reviewState)
+          card.append(libraryReview(selectedLibrary.scan, reviewState, rerender));
         detailHost.append(card);
       }
 

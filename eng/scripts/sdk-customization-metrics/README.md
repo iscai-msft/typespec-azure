@@ -391,7 +391,9 @@ or fabricated values.
 
 ## Append a human override
 
-Use `override --input request.json --state PATH`. Obtain identity, finding key,
+Reviewers normally do this on the hosted site (see "Review on the website" below); the
+site sends the same request. From the command line, use
+`override --input request.json --state PATH`. Obtain identity, finding key,
 and evidence IDs/ranges from the relevant scan/effective records. For example,
 reject a false positive:
 
@@ -408,6 +410,7 @@ Actions:
 
 | Action    | Request fields                                       | Effective behavior                                     |
 | --------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| `confirm` | `identity`, existing `key`, `reason`                 | Mark the finding human-confirmed (counted)             |
 | `correct` | `identity`, existing `key`, `reason`, full `finding` | Replace AI classification/evidence                     |
 | `reject`  | `identity`, existing `key`, `reason`                 | Suppress the finding from counts                       |
 | `add`     | `identity`, `reason`, full `finding`                 | Add an evidence-backed missed finding                  |
@@ -416,8 +419,8 @@ Actions:
 
 A full finding has `key`, `category`, `subtype`, `explanation`,
 `handwrittenRationale`, `symbols`, and `evidence: [{id, startLine, endLine}]`.
-Categories are `LRO`, `Paging`, `Serialization`, `Authentication`, `Convenience`,
-and `Other`. Optional `rootCauseHypothesis` is an explicitly unmeasured causal
+Categories are the canonical list in `guidelines/SKILL.md` (`web/vocabulary.ts`); the
+older short names (`LRO`, `Paging`, `Authentication`, `Convenience`) are still accepted. Optional `rootCauseHypothesis` is an explicitly unmeasured causal
 interpretation, separate from factual observations and measured source snippets.
 Addition keys are calculated from sorted evidence paths/symbols;
 corrections preserve the original identity. A correction/rejection can supersede
@@ -436,6 +439,132 @@ captured source evidence; changed package evidence requires revalidation.
 Reasons and judgments in the public ledger are public data: do not add private
 workbook notes or credentials. Review overrides as normal version-controlled
 maintenance changes. Do not edit/delete historical scans or override files.
+
+## Review on the website
+
+When the dashboard is served with a review API, each reviewed finding has **Confirm**,
+**Reject** and **Correct…** buttons, and the library panel has **Add a missed
+customization…** and **Exclude from metrics…**. Every review needs a reason.
+
+1. The page posts the override request to `/api/reviews`. The API (`reviews.ts`,
+   `server.ts`) accepts it only from a signed-in reviewer on the reviewer list, as
+   same-origin JSON, and checks its shape. It stores the review with the reviewer's
+   sign-in name (kept for auditing in the review store; never published).
+2. The review shows as **Pending** on the page.
+3. `cli.ts apply-reviews --reviews https://SITE/api/reviews` (run by the weekly workflow,
+   or on demand with its "reviews_only" input) applies new reviews oldest first through
+   the same checks as `override`. A review keeps its id as the override id, so applying
+   twice does nothing. Outcomes go to `state/review-log.json`; a review that fails (for
+   example, its evidence changed) shows on the page as **Failed** with the reason.
+4. The workflow commits the overrides and log and republishes, and the review shows as
+   **Applied**, with the finding's status `human-confirmed`, `human-override` or
+   `human-rejected`.
+
+Try it locally (no Azure; reviews are stored as files and everyone is signed in):
+
+```bash
+TOOL=eng/scripts/sdk-customization-metrics
+SITE=$TOOL/.local/review-site   # git-ignored
+rm -rf $SITE && mkdir -p $SITE && cp $TOOL/web/fork-index.html $SITE/index.html
+node $TOOL/cli.ts publish --state $TOOL/state --tracker $TOOL/tracker/dataplane-tracker.csv \
+  --out $SITE --review-api /api
+node $TOOL/cli.ts serve --site $SITE --dev-user you@example.com
+# open http://127.0.0.1:4280/sdk-customization-metrics/ and review; then, in another shell:
+node $TOOL/cli.ts apply-reviews --state $TOOL/state --reviews http://127.0.0.1:4280/api/reviews
+```
+
+`publish --review-site URL` instead makes a read-only copy (such as GitHub Pages) link to
+the review site. Without either flag reviewing is hidden.
+
+## Hosting with human review (Azure)
+
+`azure/main.bicep` creates, in one resource group:
+
+| Resource                         | Purpose                                                          |
+| -------------------------------- | ---------------------------------------------------------------- |
+| App Service (Linux, Node 22, B1) | Serves the dashboard and `/api/reviews` (`azure/main.ts`)        |
+| App Service sign-in (Entra ID)   | Identifies reviewers; visitors can still read without signing in |
+| Managed identity                 | The app's only credential for the database                       |
+| Cosmos DB for NoSQL (serverless) | The `reviews` container; key access is disabled                  |
+
+Expected cost is about the B1 plan (roughly US$13 a month); serverless Cosmos DB at this
+volume is cents. The site package is the published site plus one bundled file
+(`npm run build` in `azure/`). The workflow
+`.github/workflows/sdk-customization-metrics-azure.yml` builds and deploys it with GitHub
+OIDC (no stored passwords or keys); it runs only when started by hand or by the weekly
+workflow, and only when `SDK_METRICS_AZURE_ENABLED` is `true`.
+
+Why App Service rather than Static Web Apps: the API needs a managed identity (Microsoft
+subscriptions often block database keys), Static Web Apps' built-in functions cannot use
+one, and its linked-backend option does not document support for current Functions plans.
+One small Node server that also runs locally (`cli.ts serve`) keeps both paths the same.
+
+### One-time setup (TME subscription)
+
+Run these yourself (Azure CLI, signed in to the TME tenant). They create the resource
+group, an identity for GitHub Actions with Contributor on that group only, and its trust
+for this repository's `sdk-metrics-azure` environment.
+
+```bash
+SUB=4d042dc6-fe17-4698-a23f-ec6a8d1e98f4
+TENANT=70a036f6-8e4d-4615-bad6-149c02e7720d
+RG=rg-sdk-customization-metrics
+LOCATION=westus2
+REPO=iscai-msft/typespec-azure
+
+az login --tenant $TENANT
+az account set --subscription $SUB
+az group create --name $RG --location $LOCATION
+az identity create --resource-group $RG --name id-sdk-metrics-github
+CLIENT_ID=$(az identity show -g $RG -n id-sdk-metrics-github --query clientId -o tsv)
+PRINCIPAL_ID=$(az identity show -g $RG -n id-sdk-metrics-github --query principalId -o tsv)
+az role assignment create --assignee-object-id $PRINCIPAL_ID \
+  --assignee-principal-type ServicePrincipal --role Contributor \
+  --scope /subscriptions/$SUB/resourceGroups/$RG
+az identity federated-credential create --resource-group $RG \
+  --identity-name id-sdk-metrics-github --name github-sdk-metrics-azure \
+  --issuer https://token.actions.githubusercontent.com \
+  --subject repo:$REPO:environment:sdk-metrics-azure \
+  --audiences api://AzureADTokenExchange
+
+gh variable set AZURE_CLIENT_ID --body "$CLIENT_ID" --repo $REPO
+gh variable set AZURE_TENANT_ID --body "$TENANT" --repo $REPO
+gh variable set AZURE_SUBSCRIPTION_ID --body "$SUB" --repo $REPO
+gh variable set SDK_METRICS_AZURE_RESOURCE_GROUP --body "$RG" --repo $REPO
+gh variable set SDK_METRICS_REVIEWERS --body "you@microsoft.com,teammate@microsoft.com" --repo $REPO
+gh variable set SDK_METRICS_AZURE_ENABLED --body true --repo $REPO
+```
+
+Then:
+
+1. **Create the resources.** Run "Deploy SDK customization metrics to Azure" with
+   **deploy_infrastructure** checked. The site comes up read-only (no sign-in yet). Its
+   log shows `siteUrl` and `signInRedirectUri`.
+2. **Add sign-in.** Create an app registration in the tenant your reviewers sign in with
+   (for Microsoft employees that is the Microsoft tenant, which may need your org's usual
+   app-registration process; a TME registration only admits TME accounts):
+
+   ```bash
+   az ad app create --display-name "SDK customization metrics" \
+     --sign-in-audience AzureADMyOrg --enable-id-token-issuance true \
+     --web-redirect-uris "<signInRedirectUri from step 1>" --query appId -o tsv
+   gh variable set SDK_METRICS_AUTH_CLIENT_ID --body "<appId>" --repo $REPO
+   gh variable set SDK_METRICS_AUTH_TENANT_ID --body "<reviewers' tenant id>" --repo $REPO
+   ```
+
+   Run the deploy workflow again with **deploy_infrastructure** checked.
+
+3. **Connect the weekly job and Pages.** Set
+   `gh variable set SDK_METRICS_REVIEW_SITE --body "<siteUrl>" --repo $REPO`. The weekly
+   workflow then applies reviews from it, and the Pages copy links to it.
+
+`SDK_METRICS_REVIEWERS` is a comma-separated list of sign-in names (usually email
+addresses) or `*` for anyone who can sign in; empty means nobody can submit. Changing it
+takes effect on the next infrastructure deployment (or edit the app setting directly).
+
+If the TME subscription is deleted, recreate everything with the steps above; the
+reviews already applied are in git (`state/overrides`), so only reviews still pending are
+lost.
 
 ## Optional private legacy import
 

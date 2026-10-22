@@ -417,7 +417,11 @@ export function effectiveDataset(
         };
       } else {
         effective = {
-          ...row(scan, relocated, "human-override"),
+          ...row(
+            scan,
+            relocated,
+            request.action === "confirm" ? "human-confirmed" : "human-override",
+          ),
           aiStatus: existing?.aiStatus ?? "not-proposed",
           aiAssessment: existing?.aiAssessment ?? {
             status: "not-proposed",
@@ -455,7 +459,8 @@ export function effectiveDataset(
       observedAt: scan.observedAt,
       origin: scan.provenance.origin,
       coverage: scan.coverage,
-      sourceFiles: scan.evidence.map(({ path, kind, startLine, endLine }) => ({
+      sourceFiles: scan.evidence.map(({ id, path, kind, startLine, endLine }) => ({
+        id,
         path,
         kind,
         startLine,
@@ -525,9 +530,15 @@ export function effectiveDataset(
   };
 }
 
+export interface OverrideOptions {
+  // Imported web reviews keep their review id, so importing again is a no-op.
+  id?: string;
+}
+
 export async function createOverride(
   directory: string,
   request: OverrideRequest,
+  options: OverrideOptions = {},
 ): Promise<Override> {
   validate(overrideRequestSchema, request);
   const { scans, overrides } = await readState(directory);
@@ -544,11 +555,11 @@ export async function createOverride(
       throw new Error("Package exclusion requires evidence and no finding/key");
   } else {
     if (request.action !== "add" && !existing)
-      throw new Error("Correction/rejection target does not exist");
+      throw new Error("Confirmation/correction/rejection target does not exist");
     if (["add", "correct"].includes(request.action) && !request.finding)
       throw new Error("Finding required");
-    if (request.action === "reject" && request.finding)
-      throw new Error("Rejection must not supply replacement finding");
+    if (["confirm", "reject"].includes(request.action) && request.finding)
+      throw new Error("Confirmation/rejection must not supply replacement finding");
     if (request.finding) {
       checkFinding(scan, request.finding, { accepted: true });
       if (request.action === "add") {
@@ -573,7 +584,7 @@ export async function createOverride(
   const lastTime = Math.max(0, ...overrides.map((item) => Date.parse(item.createdAt)));
   const override: Override = {
     schemaVersion: 1,
-    id: randomUUID(),
+    id: options.id ?? randomUUID(),
     createdAt: new Date(Math.max(Date.now(), lastTime + 1)).toISOString(),
     scanId: scan.id,
     request: structuredClone(request),
@@ -748,7 +759,7 @@ export async function exportData(
     );
   }
   // The page's modules are TypeScript; browsers get them with types stripped.
-  for (const name of ["app", "data", "languages"]) {
+  for (const name of ["app", "data", "languages", "vocabulary", "human-review"]) {
     const source = await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8");
     await writeFile(join(outputDirectory, `${name}.js`), browserModule(source));
   }
