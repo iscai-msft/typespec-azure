@@ -230,7 +230,20 @@ export function findingCategory(canonical) {
   return Object.entries(findingCategories).find(([, name]) => name === canonical)?.[0] ?? canonical;
 }
 
-// Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
+// Language-agnostic service: the TypeSpec project a library is generated from, taken from its
+// tsp-location.yaml directory (specification/ai/DocumentIntelligence -> ai/DocumentIntelligence).
+// Every language's SDK for the same spec gets the same service name.
+export function specService(directory) {
+  if (!directory) return "";
+  return directory
+    .split("/")
+    .filter(
+      (part) => part && !["specification", "data-plane", "resource-manager", "src"].includes(part),
+    )
+    .join("/");
+}
+
+// Fallback for libraries without a spec location. Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
 export function folderService(item) {
   const parts = (item.root ?? "").split("/").filter(Boolean);
   if (item.language === "go" && parts.length > 3) return parts.at(-2).toLowerCase();
@@ -258,7 +271,7 @@ export function mergeLibraries(tracker, packages, inventory = null) {
       id: scan?.identity ?? `library:${key}`,
       language: source.language,
       package: packageName,
-      service: survey?.service ?? folderService(source),
+      service: specService(found?.spec?.directory) || survey?.service || folderService(source),
       repo: source.repo,
       root: source.root,
       plane: found?.plane ?? planeOf(source.language, packageName, source.root),

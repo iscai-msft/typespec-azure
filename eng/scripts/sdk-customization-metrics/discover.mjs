@@ -131,6 +131,29 @@ export function parseTspLocation(text) {
   };
 }
 
+// Release history from a package's CHANGELOG.md ("## 1.0.0 (2024-12-16)"). A library is
+// stable once it has shipped a dated, non-prerelease 1.x+ version; the version in source is
+// often the next unreleased beta, so it is not used.
+export function releaseInfo(changelog) {
+  if (typeof changelog !== "string") return null;
+  const releases = [
+    ...changelog.matchAll(
+      /^##\s+v?(\d+\.\d+\.\d+(?:[-.]?[A-Za-z][\w.]*)?)\s+\((\d{4}-\d{2}-\d{2})\)/gm,
+    ),
+  ].map((match) => ({ version: match[1], date: match[2] }));
+  const stable = releases.filter(
+    (release) =>
+      /^\d+\.\d+\.\d+$/.test(release.version) && Number(release.version.split(".")[0]) >= 1,
+  );
+  return {
+    latest: releases[0]?.version ?? "",
+    latestDate: releases[0]?.date ?? "",
+    firstStable: stable.at(-1)?.version ?? "",
+    firstStableDate: stable.at(-1)?.date ?? "",
+    stable: stable.length > 0,
+  };
+}
+
 function manifestMatcher(language) {
   return language.manifests.map((manifest) => {
     const pattern = manifest
@@ -209,6 +232,7 @@ export async function discoverLanguage(language, repository, commit, { sdkRoot =
   for (const [root, locations] of roots) {
     reads.push(...locations.map((path) => blobs.get(path)));
     if (language.packageName !== "directory") reads.push(blobs.get(manifestOf(root)));
+    if (blobs.has(`${root}/CHANGELOG.md`)) reads.push(blobs.get(`${root}/CHANGELOG.md`));
   }
   const texts = await repository.read(reads);
   const libraries = [];
@@ -233,6 +257,8 @@ export async function discoverLanguage(language, repository, commit, { sdkRoot =
       treeSha: trees.get(root) ?? "",
       spec: parseTspLocation(texts.get(blobs.get(primary)) ?? ""),
       tspLocations: locations.map((path) => path.slice(root.length + 1)).sort(),
+      // null when the package has no CHANGELOG.md.
+      release: releaseInfo(texts.get(blobs.get(`${root}/CHANGELOG.md`))),
     });
   }
   return { libraries, warnings };

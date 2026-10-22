@@ -451,7 +451,9 @@ export async function start() {
       "Serialization",
       "Other",
     ];
-    const services = [...new Set(allLibraries.map((item) => item.service))].sort();
+    const services = [...new Set(allLibraries.map((item) => item.service))].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
     for (const id of ["language", "q-language"])
       for (const value of languages) {
         const option = element("option", languageLabel(value));
