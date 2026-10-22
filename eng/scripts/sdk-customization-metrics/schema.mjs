@@ -28,13 +28,18 @@ export const CATEGORIES = [
   "Convenience",
   "Other",
 ];
-export const targetSchema = object({
-  language: choice(...Object.keys(REPOSITORIES)),
-  package: str(),
-  moduleMajor: integer(1),
-  repo: choice(...Object.values(REPOSITORIES)),
-  root: path,
-});
+export const targetSchema = object(
+  {
+    language: choice(...Object.keys(REPOSITORIES)),
+    package: str(),
+    moduleMajor: integer(1),
+    repo: choice(...Object.values(REPOSITORIES)),
+    root: path,
+    // Only set when two folders publish the same package (sdk/keyvault and sdk/keyvault-v2).
+    variant: str({ pattern: "^[A-Za-z0-9._-]+$" }),
+  },
+  ["variant"],
+);
 export const findingSchema = object(
   {
     key: str(),
@@ -101,10 +106,17 @@ export const scanSchema = object(
     identity: str(),
     target: targetSchema,
     commit: { type: "string", pattern: "^(?:[a-f0-9]{40})?$" },
-    provenance: object({
-      origin: choice("public-github", "fixture"),
-      collectorVersion: str(),
-    }),
+    provenance: object(
+      {
+        origin: choice("public-github", "fixture"),
+        collectorVersion: str(),
+        // Git tree hash of the package folder; lets later runs skip unchanged libraries.
+        packageTree: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        // How the source was read: the GitHub REST API or a git clone.
+        reader: choice("github-api", "git"),
+      },
+      ["packageTree", "reader"],
+    ),
     coverage: object({
       status: choice("partial", "failed"),
       discoveredFiles: integer(),
@@ -228,5 +240,6 @@ export function identity(target) {
   if (target.language === "go" && target.moduleMajor !== goMajor) {
     throw new Error("Go module major must match the module path");
   }
-  return `${target.language}:${canonicalPackageName(target.language, target.package)}:module-v${target.moduleMajor}`;
+  const base = `${target.language}:${canonicalPackageName(target.language, target.package)}:module-v${target.moduleMajor}`;
+  return target.variant ? `${base}:${target.variant}` : base;
 }

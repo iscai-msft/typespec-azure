@@ -87,10 +87,12 @@ const server = createServer(async (request, response) => {
     "/languages.mjs": ["languages.mjs", "text/javascript"],
     "/style.css": ["style.css", "text/css"],
     "/metrics.json": ["metrics.json", "application/json"],
+    "/dashboard.json": ["dashboard.json", "application/json"],
+    "/diagnostics.json": ["diagnostics.json", "application/json"],
     "/metrics.sqlite": ["metrics.sqlite", "application/octet-stream"],
   };
   const entry = files[path];
-  if (!entry || (failData && path === "/metrics.json")) {
+  if (!entry || (failData && ["/metrics.json", "/dashboard.json"].includes(path))) {
     response.writeHead(404).end();
     return;
   }
@@ -227,7 +229,7 @@ try {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     true,
   );
-  await page.route("**/metrics.json", async (route) => {
+  await page.route(/\/(metrics|dashboard)\.json$/, async (route) => {
     const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
     data.packages[0].package = "azure-ai-documentintelligence";
     data.packages.push({
@@ -254,7 +256,7 @@ try {
   await page.locator("#service").selectOption("ai");
   assert.match(await page.locator("#library-rows").innerText(), /azopenai\/v2/);
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await page.unroute("**/metrics.json");
+  await page.unroute(/\/(metrics|dashboard)\.json$/);
   // Tracker mode: survey rows join the scan by repository path; unscanned rows stay visible.
   const tracker = normalizeTracker(
     [
@@ -327,7 +329,7 @@ try {
   assert.equal(await page.locator("#plane").inputValue(), "data");
   await page.unroute("**/inventory.json");
   await page.unroute("**/tracker.json");
-  await page.route("**/metrics.json", async (route) => {
+  await page.route(/\/(metrics|dashboard)\.json$/, async (route) => {
     const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
     data.packages[0].coverage.status = "failed";
     data.packages[0].coverage.errors.push("Synthetic GitHub collection error");
@@ -343,7 +345,7 @@ try {
     await page.locator(".package-card .warning").last().innerText(),
     /Synthetic GitHub collection error/,
   );
-  await page.unroute("**/metrics.json");
+  await page.unroute(/\/(metrics|dashboard)\.json$/);
   failData = true;
   await page.reload();
   await page.locator("#load-status[role=alert]").waitFor();

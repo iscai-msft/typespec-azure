@@ -8,10 +8,17 @@ import { ModelClient, analyze } from "./analysis.mjs";
 import { importLegacy } from "./legacy.mjs";
 import { publishSite } from "./publish.mjs";
 import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./schema.mjs";
-import { GitHubSource } from "./source.mjs";
+import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.mjs";
 import { append, createOverride, exportData, readState, validateScan } from "./store.mjs";
 import { exportTracker } from "./tracker.mjs";
-import { discoverAll, exportInventory, readInventory, writeInventory } from "./discover.mjs";
+import {
+  GitRepository,
+  discoverAll,
+  inventoryTargets,
+  exportInventory,
+  readInventory,
+  writeInventory,
+} from "./discover.mjs";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 export async function main(args = process.argv.slice(2)) {
@@ -28,6 +35,11 @@ export async function main(args = process.argv.slice(2)) {
         type: "string",
         default: "eng/scripts/sdk-customization-metrics/.local/repos",
       },
+      "from-inventory": { type: "boolean", default: false },
+      plane: { type: "string", default: "data" },
+      reader: { type: "string", default: "github-api" },
+      "skip-unchanged": { type: "boolean", default: false },
+      limit: { type: "string" },
       inventory: {
         type: "string",
         default: new URL("./inventory/libraries.json", import.meta.url).pathname,
@@ -46,17 +58,66 @@ export async function main(args = process.argv.slice(2)) {
   const state = resolve(values.state);
   switch (positionals[0]) {
     case "collect": {
-      const targets = await readJson(values.targets);
+      // Targets: the configured starter list, or every discovered library in one plane.
+      let targets;
+      if (values["from-inventory"]) {
+        const inventory = await readInventory(resolve(values.inventory));
+        if (!inventory) throw new Error("No inventory; run discover first");
+        targets = inventoryTargets(
+          inventory.libraries.filter(
+            (item) => values.plane === "all" || item.plane === values.plane,
+          ),
+        );
+      } else targets = await readJson(values.targets);
+      if (values.limit) targets = targets.slice(0, Number(values.limit));
       validate({ type: "array", items: targetSchema, minItems: 1 }, targets);
       if (new Set(targets.map(identity)).size !== targets.length)
         throw new Error("Duplicate target identity");
       if (values.analyze !== Boolean(values["ai-config"]))
         throw new Error("--analyze and --ai-config must be supplied together");
       const client = values.analyze ? new ModelClient(await readJson(values["ai-config"])) : null;
-      const source = new GitHubSource();
+      if (!["github-api", "git"].includes(values.reader))
+        throw new Error("--reader must be github-api or git");
+      const repositories = new Map();
+      const source =
+        values.reader === "git"
+          ? new GitSource({
+              repositoryFor: (repo) => {
+                if (!repositories.has(repo))
+                  repositories.set(
+                    repo,
+                    new GitRepository(
+                      repo,
+                      join(resolve(values["repos-dir"]), repo.replace("/", "__")),
+                    ),
+                  );
+                return repositories.get(repo);
+              },
+            })
+          : new GitHubSource();
       const { scans: history } = await readState(state);
+      // The latest successful scan per library, to skip folders that have not changed.
+      const latest = new Map();
+      for (const scan of history)
+        if (
+          scan.coverage.status !== "failed" &&
+          (!latest.has(scan.identity) || latest.get(scan.identity).observedAt < scan.observedAt)
+        )
+          latest.set(scan.identity, scan);
       let failures = 0;
-      for (const target of targets) {
+      let skipped = 0;
+      for (const [index, target] of targets.entries()) {
+        if (values["skip-unchanged"] && source.packageTree) {
+          const previous = latest.get(identity(target));
+          const tree = await source.packageTree(target);
+          if (
+            previous?.provenance.packageTree === tree &&
+            previous.provenance.collectorVersion === COLLECTOR_VERSION
+          ) {
+            skipped++;
+            continue;
+          }
+        }
         const scan = await source.collect(target);
         if (client) await analyze(scan, client, join(state, "cache"), history);
         validateScan(scan);
@@ -68,6 +129,7 @@ export async function main(args = process.argv.slice(2)) {
         if (failed) failures++;
         console.log(
           JSON.stringify({
+            progress: `${index + 1}/${targets.length}`,
             identity: scan.identity,
             scanId: scan.id,
             commit: scan.commit,
@@ -78,6 +140,7 @@ export async function main(args = process.argv.slice(2)) {
           }),
         );
       }
+      console.log(JSON.stringify({ scanned: targets.length - skipped, skipped, failures }));
       // Preserve and export every failed scan before reporting a failed job.
       if (failures) process.exitCode = 1;
       break;
