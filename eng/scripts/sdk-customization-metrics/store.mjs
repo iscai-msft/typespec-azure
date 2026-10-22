@@ -634,7 +634,7 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
   }
   await rename(temporary, join(outputDirectory, "metrics.sqlite"));
   await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(dataset, null, 2)}\n`);
-  for (const name of ["index.html", "app.mjs", "style.css", "data.mjs"]) {
+  for (const name of ["index.html", "app.mjs", "style.css", "data.mjs", "languages.mjs"]) {
     await copyFile(
       fileURLToPath(new URL(`./web/${name}`, import.meta.url)),
       join(outputDirectory, name),

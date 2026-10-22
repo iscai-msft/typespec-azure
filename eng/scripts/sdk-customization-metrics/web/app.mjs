@@ -10,6 +10,7 @@ import {
   selectView,
   trackerBreakdown,
 } from "./data.mjs";
+import { LANGUAGES, PLANES } from "./languages.mjs";
 export { filterCodeLinks, filterFindings } from "./data.mjs";
 
 function element(tag, text, className) {
@@ -19,13 +20,7 @@ function element(tag, text, className) {
   return node;
 }
 
-const repositories = new Set([
-  "Azure/azure-sdk-for-python",
-  "Azure/azure-sdk-for-net",
-  "Azure/azure-sdk-for-js",
-  "Azure/azure-sdk-for-java",
-  "Azure/azure-sdk-for-go",
-]);
+const repositories = new Set(LANGUAGES.map((language) => language.repo));
 export function fileUrl(repo, commit, path, tree = false) {
   if (
     !repositories.has(repo) ||
@@ -418,8 +413,26 @@ export async function start() {
         throw new Error("Unsupported tracker data schema");
       tracker = candidate;
     }
-    const allLibraries = mergeLibraries(tracker, data.packages);
-    const languages = ["dotnet", "go", "java", "javascript", "python"];
+    // The library inventory (every tsp-location.yaml) is optional too.
+    let inventory = null;
+    const inventoryResponse = await fetch("./inventory.json", { cache: "no-store" }).catch(
+      () => null,
+    );
+    if (inventoryResponse?.ok) {
+      const candidate = await inventoryResponse.json();
+      if (candidate.inventoryVersion !== 1 || !Array.isArray(candidate.libraries))
+        throw new Error("Unsupported inventory data schema");
+      inventory = candidate;
+    }
+    const allLibraries = mergeLibraries(tracker, data.packages, inventory);
+    const languages = LANGUAGES.map((language) => language.id);
+    for (const plane of PLANES) {
+      const option = element("option", plane.label);
+      option.value = plane.id;
+      byId("plane").append(option);
+    }
+    const defaultPlane = inventory ? "data" : "";
+    if (!inventory) byId("plane").closest("label").hidden = true;
     const categories = tracker?.categories ?? [
       "Auth",
       "Convenience methods",
@@ -463,6 +476,7 @@ export async function start() {
 
     const params = new URLSearchParams(location.search);
     const fields = [
+      "plane",
       "language",
       "category",
       "status",
@@ -475,6 +489,7 @@ export async function start() {
     for (const id of ["from", "group", "measure"])
       if (params.has(id)) byId(id).value = params.get(id);
     for (const id of fields) byId(id).value = params.get(id) ?? "";
+    byId("plane").value = params.has("plane") ? params.get("plane") : defaultPlane;
     // Older links used short finding categories (?category=LRO).
     if (params.get("category") && !byId("category").value)
       byId("category").value = canonicalCategory(params.get("category"));
@@ -492,7 +507,7 @@ export async function start() {
       const snapshot =
         data.observations?.find((item) => item.observedAt === filters.observation) ?? data;
       // Libraries come from the tracker (always current) joined to the selected scan observation.
-      const libraries = mergeLibraries(tracker, snapshot.packages);
+      const libraries = mergeLibraries(tracker, snapshot.packages, inventory);
       const rows = filterLibraries(libraries, snapshot.findings, filters);
       const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
       const scanFilters = {
@@ -522,6 +537,7 @@ export async function start() {
 
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(filters)) if (value) query.set(key, String(value));
+      if (!filters.plane && defaultPlane) query.set("plane", "");
       for (const id of ["from", "group", "measure"])
         if (byId(id).value) query.set(id, byId(id).value);
       if (!byId("fixed").checked) query.set("fixed", "false");
@@ -580,7 +596,9 @@ export async function start() {
           kpi(
             "Customized libraries",
             percent(customized.length, tracked.length),
-            `${number.format(customized.length)} of ${number.format(tracked.length)} tracked libraries`,
+            tracked.length
+              ? `${number.format(customized.length)} of ${number.format(tracked.length)} tracked libraries`
+              : "None of these libraries are in the tracker yet",
             "featured",
           ),
           kpi(
@@ -661,6 +679,7 @@ export async function start() {
       const table = keys.map((key) => ({
         key,
         libraries: portfolio.get(key)?.libraries ?? 0,
+        tracked: portfolio.get(key)?.tracked ?? 0,
         customized: portfolio.get(key)?.customized ?? 0,
         candidates: scannedGroups.get(key)?.candidates ?? 0,
         accepted: scannedGroups.get(key)?.accepted ?? 0,
@@ -670,7 +689,9 @@ export async function start() {
         measure === "share"
           ? group === "category"
             ? row.libraries / Math.max(1, totalTracked)
-            : row.customized / Math.max(1, row.libraries)
+            : row.tracked
+              ? row.customized / row.tracked
+              : -1
           : measure === "libraries"
             ? row.libraries
             : row[measure];
@@ -679,12 +700,14 @@ export async function start() {
           valueOf(b) - valueOf(a) || b.libraries - a.libraries || a.key.localeCompare(b.key),
       );
       const stacked = (measure === "share" || measure === "libraries") && group !== "category";
+      const anyUntracked = table.some((row) => row.libraries > row.tracked);
       const legend = byId("breakdown-legend");
       legend.replaceChildren(
         ...(stacked
           ? [
               element("span", "Has customizations", "key key-custom"),
               element("span", "Fully generated", "key key-generated"),
+              ...(anyUntracked ? [element("span", "Not in tracker", "key key-untracked")] : []),
             ]
           : [
               element(
@@ -718,17 +741,24 @@ export async function start() {
           const track = element("span", undefined, "bar-track");
           let text;
           if (stacked) {
-            const customWidth = measure === "share" ? valueOf(row) : row.customized / scaleMax;
-            const generatedWidth =
-              measure === "share" ? 1 - valueOf(row) : (row.libraries - row.customized) / scaleMax;
-            const custom = element("span", undefined, "bar-fill fill-custom");
-            custom.style.setProperty("--size", `${customWidth * 100}%`);
-            const generated = element("span", undefined, "bar-fill fill-generated");
-            generated.style.setProperty("--size", `${generatedWidth * 100}%`);
-            track.append(custom, generated);
+            // Segments are shares of all libraries in the group (share) or counts (libraries).
+            const scale = measure === "share" ? row.libraries || 1 : scaleMax;
+            const segments = [
+              ["fill-custom", row.customized],
+              ["fill-generated", row.tracked - row.customized],
+              ["fill-untracked", row.libraries - row.tracked],
+            ];
+            for (const [className, count] of segments) {
+              if (!count) continue;
+              const fill = element("span", undefined, `bar-fill ${className}`);
+              fill.style.setProperty("--size", `${(count / scale) * 100}%`);
+              track.append(fill);
+            }
             text =
               measure === "share"
-                ? percent(row.customized, row.libraries)
+                ? row.tracked
+                  ? percent(row.customized, row.tracked)
+                  : "Not tracked"
                 : `${row.customized} / ${row.libraries}`;
           } else {
             const fill = element(
@@ -788,7 +818,9 @@ export async function start() {
               "td",
               group === "category"
                 ? percent(row.libraries, totalTracked)
-                : percent(row.customized, row.libraries),
+                : row.tracked
+                  ? percent(row.customized, row.tracked)
+                  : "N/A",
               "num",
             ),
             element("td", row.candidates ? number.format(row.candidates) : "—", "num"),
@@ -977,6 +1009,27 @@ export async function start() {
             `${selectedLibrary.repo}/${selectedLibrary.root}`,
           ),
         );
+        const plane = PLANES.find((item) => item.id === selectedLibrary.plane);
+        fact("Plane", plane?.label ?? selectedLibrary.plane);
+        if (selectedLibrary.spec?.directory) {
+          const specRepo = /^Azure\/[A-Za-z0-9._-]+$/.test(selectedLibrary.spec.repo)
+            ? selectedLibrary.spec.repo
+            : "Azure/azure-rest-api-specs";
+          const ref = /^[a-f0-9]{40}$/.test(selectedLibrary.spec.commit)
+            ? selectedLibrary.spec.commit
+            : "main";
+          fact(
+            "TypeSpec",
+            externalLink(
+              `https://github.com/${specRepo}/tree/${ref}/${selectedLibrary.spec.directory
+                .split("/")
+                .map(encodeURIComponent)
+                .join("/")}`,
+              selectedLibrary.spec.directory,
+            ),
+          );
+        } else if (selectedLibrary.typespec === false)
+          fact("TypeSpec", "No tsp-location.yaml found — not generated from TypeSpec today");
         if (selectedLibrary.tracker) {
           fact(
             "Customized (tracker)",
@@ -1238,6 +1291,7 @@ export async function start() {
       });
     const reset = () => {
       for (const id of [...fields, "from"]) byId(id).value = "";
+      byId("plane").value = defaultPlane;
       byId("accepted").checked = false;
       instance = "";
     };

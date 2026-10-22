@@ -1,6 +1,7 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { exportData, readState } from "./store.mjs";
+import { exportInventory } from "./discover.mjs";
 import { exportTracker } from "./tracker.mjs";
 
 export async function publishSite(stateDirectory, websiteDirectory, options = {}) {
@@ -19,6 +20,7 @@ export async function publishSite(stateDirectory, websiteDirectory, options = {}
   if (!dataset.packages.length) throw new Error("Publication has no public packages");
   // The manual tracker is published only when explicitly passed (owner-approved data).
   if (options.tracker) await exportTracker(options.tracker, output);
+  if (options.inventory) await exportInventory(options.inventory, output);
   if (!(await readFile(join(root, "index.html"))).equals(homepage)) {
     throw new Error("Existing website homepage changed while adding the dashboard");
   }

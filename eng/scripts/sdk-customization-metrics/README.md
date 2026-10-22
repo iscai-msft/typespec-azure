@@ -178,6 +178,44 @@ keyed by evidence/context hashes, coverage, extractor/schema/prompt versions,
 both model identifiers, endpoint, and output settings, **not the commit alone**.
 Unchanged evidence on a new commit reuses review without new calls.
 
+## Library discovery
+
+`discover` finds every TypeSpec-generated library in the configured SDK repositories by
+its `tsp-location.yaml`, and writes `inventory/libraries.json`:
+
+```sh
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs discover
+```
+
+It uses shallow, blob-less git clones (cached under `.local/repos`), so listing a whole
+repository is one fetch and only manifests and `tsp-location.yaml` files are downloaded.
+There are no GitHub API calls and no rate limits; all five repositories take about 15
+seconds.
+
+For each `tsp-location.yaml` outside test/sample/template folders, the package root is the
+nearest folder that has the language's manifest (and, where configured, matches
+`sdk/<service>/<package>`). Vendored sub-clients inside a package (for example
+`azure-ai-ml`'s `_restclient` specs) are recorded under that package's `tspLocations`.
+Each library records its package name, plane, spec location, and the git tree hash of its
+folder. Rerunning reports `added`, `removed`, and `changed` libraries (folder hash
+differs), which is what the weekly job uses to rescan only what changed.
+
+Planes: `management` when the package matches the language's management pattern
+(`azure-mgmt-*`, `azure-resourcemanager-*`, `Azure.ResourceManager.*`, `@azure/arm-*`,
+Go `sdk/resourcemanager/...`) or has `mgmt`/`management` as a separate word in its name;
+`provisioning` for .NET `Azure.Provisioning.*`; otherwise `data`. The dashboard defaults
+to the data plane and has a Plane selector in the header. The inventory is public
+repository data and is always published with the site when present.
+
+### Adding a language
+
+Add one entry to `web/languages.mjs`: id, label, repository, source file extensions,
+package manifests (`*` matches one path segment), how to read the package name
+(`directory`, `package.json`, or `go.mod`), an optional package-root pattern, and plane
+patterns. Discovery, the scan schema, file filters, dashboard filters and labels all read
+this list. For better code links, add the language's customization entry-point heuristic
+to `navigation.mjs`; without one, scans still capture source but list no entry points.
+
 ## Manual library tracker (opt-in)
 
 The overview, breakdown and library explorer can be driven by a manually maintained

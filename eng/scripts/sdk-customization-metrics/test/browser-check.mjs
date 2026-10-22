@@ -84,6 +84,7 @@ const server = createServer(async (request, response) => {
     "/": ["index.html", "text/html"],
     "/app.mjs": ["app.mjs", "text/javascript"],
     "/data.mjs": ["data.mjs", "text/javascript"],
+    "/languages.mjs": ["languages.mjs", "text/javascript"],
     "/style.css": ["style.css", "text/css"],
     "/metrics.json": ["metrics.json", "application/json"],
     "/metrics.sqlite": ["metrics.sqlite", "application/octet-stream"],
@@ -233,6 +234,8 @@ try {
       ...data.packages[0],
       identity: "go:synthetic-service-test",
       language: "go",
+      repo: "Azure/azure-sdk-for-go",
+      root: "sdk/ai/azopenai",
       package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai/v2",
       customizationLinks: [],
     });
@@ -240,14 +243,15 @@ try {
   });
   await page.reload();
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  // Services are repository folder names (sdk/<service>/...), matching the tracker.
   assert.deepEqual(await page.locator("#service option").allTextContents(), [
     "All services",
-    "azopenai",
-    "documentintelligence",
+    "ai",
+    "synthetic",
   ]);
-  await page.locator("#service").selectOption("documentintelligence");
+  await page.locator("#service").selectOption("synthetic");
   assert.equal(await page.locator("#library-rows tr").count(), 1);
-  await page.locator("#service").selectOption("azopenai");
+  await page.locator("#service").selectOption("ai");
   assert.match(await page.locator("#library-rows").innerText(), /azopenai\/v2/);
   await page.getByRole("button", { name: "Clear filters" }).click();
   await page.unroute("**/metrics.json");
@@ -291,6 +295,37 @@ try {
   assert.equal(await page.locator("#language").inputValue(), "python");
   assert.equal(await page.locator("#library-rows tr").count(), 1);
   await page.getByRole("button", { name: "Clear filters" }).click();
+  // Inventory mode: every discovered library gets a row; the plane filter defaults to data.
+  assert.equal(await page.locator("#plane").isVisible(), false);
+  await page.route("**/inventory.json", (route) =>
+    route.fulfill({
+      json: {
+        inventoryVersion: 1,
+        libraries: [
+          {
+            language: "java",
+            package: "azure-resourcemanager-synthetic",
+            moduleMajor: 1,
+            repo: target.repo,
+            root: "sdk/synthetic/azure-resourcemanager-synthetic",
+            plane: "management",
+            spec: { directory: "specification/synthetic", commit: "", repo: "" },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(url);
+  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.equal(await page.locator("#plane").inputValue(), "data");
+  assert.equal(await page.locator("#library-rows tr").count(), 3);
+  await page.locator("#plane").selectOption("management");
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  await page.locator("#library-rows button.library-select").first().click();
+  assert.match(await page.locator("#library-detail").innerText(), /specification\/synthetic/);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  assert.equal(await page.locator("#plane").inputValue(), "data");
+  await page.unroute("**/inventory.json");
   await page.unroute("**/tracker.json");
   await page.route("**/metrics.json", async (route) => {
     const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
