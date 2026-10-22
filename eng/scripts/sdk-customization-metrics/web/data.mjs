@@ -2,32 +2,25 @@ export function serviceOf(item) {
   const name = item.package?.replace(/^@azure-rest\//i, "");
   if (name) {
     if (/^Azure\./i.test(name)) {
-      return name
-        .replace(/^Azure\./i, "")
-        .split(".")
-        .map((part) => part.toLowerCase())
-        .join(".");
+      return name.split(".").at(-1).toLowerCase();
     }
     if (/^azure-/i.test(name)) {
       const parts = name
         .replace(/^azure-/i, "")
         .toLowerCase()
         .split("-");
-      return parts[0] === "ai" ? `ai.${parts.slice(1).join("")}` : parts.join(".");
+      return parts[0] === "ai" ? parts.slice(1).join("") : parts.at(-1);
     }
     if (/^ai-/i.test(name)) {
       const parts = name.toLowerCase().split("-");
-      return `ai.${parts.slice(1).join("")}`;
+      return parts.slice(1).join("");
     }
     if (/^github\.com\/azure\/azure-sdk-for-go\//i.test(name)) {
-      const parts = name.split("/");
-      const sdk = parts.indexOf("sdk");
-      return sdk >= 0
-        ? parts
-            .slice(sdk + 1, -1)
-            .join(".")
-            .toLowerCase() || parts.at(-1).toLowerCase()
-        : "unspecified";
+      return name
+        .replace(/\/v\d+$/, "")
+        .split("/")
+        .at(-1)
+        .toLowerCase();
     }
   }
   const root = item.root?.split("/").filter(Boolean) ?? [];

@@ -214,6 +214,31 @@ try {
   );
   await page.route("**/metrics.json", async (route) => {
     const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
+    data.packages[0].package = "azure-ai-documentintelligence";
+    data.packages.push({
+      ...data.packages[0],
+      identity: "go:synthetic-service-test",
+      language: "go",
+      package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai/v2",
+      customizationLinks: [],
+    });
+    await route.fulfill({ json: data });
+  });
+  await page.reload();
+  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.deepEqual(await page.locator("#service option").allTextContents(), [
+    "All services",
+    "azopenai",
+    "documentintelligence",
+  ]);
+  await page.locator("#service").selectOption("documentintelligence");
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  await page.locator("#service").selectOption("azopenai");
+  assert.match(await page.locator("#library-rows").innerText(), /azopenai\/v2/);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await page.unroute("**/metrics.json");
+  await page.route("**/metrics.json", async (route) => {
+    const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
     data.packages[0].coverage.status = "failed";
     data.packages[0].coverage.errors.push("Synthetic GitHub collection error");
     data.summary.failedScans = 1;

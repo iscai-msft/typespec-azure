@@ -105,14 +105,21 @@ test("customization navigation rejects boilerplate, generated code and formattin
   assert.equal(filterCodeLinks([{ ...packages[0], excluded: true }]).length, 0);
 });
 
-test("service grouping normalizes the full package service name across ecosystem conventions", () => {
-  assert.equal(serviceOf({ package: "Azure.AI.DocumentIntelligence" }), "ai.documentintelligence");
-  assert.equal(serviceOf({ package: "azure-ai-documentintelligence" }), "ai.documentintelligence");
+test("service grouping uses terminal service names without the AI namespace", () => {
+  assert.equal(serviceOf({ package: "Azure.AI.DocumentIntelligence" }), "documentintelligence");
+  assert.equal(serviceOf({ package: "azure-ai-documentintelligence" }), "documentintelligence");
   assert.equal(
     serviceOf({ package: "@azure-rest/ai-document-intelligence" }),
-    "ai.documentintelligence",
+    "documentintelligence",
   );
-  assert.equal(serviceOf({ package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai" }), "ai");
+  assert.equal(
+    serviceOf({ package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai" }),
+    "azopenai",
+  );
+  assert.equal(
+    serviceOf({ package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai/v2" }),
+    "azopenai",
+  );
   assert.equal(serviceOf({ root: "sdk/documentintelligence/example" }), "documentintelligence");
   assert.equal(serviceOf({ package: "unknown", root: "sdk/unknown/example" }), "unknown");
   const snapshot = {
@@ -144,7 +151,8 @@ test("service grouping normalizes the full package service name across ecosystem
     ],
     findings: [],
   };
-  assert.equal(selectView(snapshot, { service: "ai.documentintelligence" }).scope.length, 2);
+  assert.equal(selectView(snapshot, { service: "documentintelligence" }).scope.length, 2);
+  assert.equal(selectView(snapshot, { service: "azopenai" }).scope.length, 1);
   assert.deepEqual(
     breakdown(
       {
@@ -155,8 +163,8 @@ test("service grouping normalizes the full package service name across ecosystem
       "candidates",
     ),
     [
-      ["ai.documentintelligence", 2],
-      ["ai", 1],
+      ["documentintelligence", 2],
+      ["azopenai", 1],
     ],
   );
 });

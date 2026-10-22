@@ -401,7 +401,7 @@ export async function start() {
         }),
       );
       byId("scope-note").textContent =
-        `${filters.observation ? `As of ${filters.observation}` : `Latest per-library records; exported ${data.generatedAt}`} (UTC). Counts, code links and library rows share these filters. Candidates are file entry points, not semantic customization instances. Service comes from the SDK path.`;
+        `${filters.observation ? `As of ${filters.observation}` : `Latest per-library records; exported ${data.generatedAt}`} (UTC). Counts, code links and library rows share these filters. Candidates are file entry points, not semantic customization instances. Service uses the terminal package service name.`;
       const drilldown = (group, value) => {
         if (group === "category" && value === "Unclassified candidate") return;
         byId(group).value = value;

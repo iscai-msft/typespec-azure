@@ -184,8 +184,9 @@ The static dashboard has one shared language/service/library/category/review/tex
 selector for its overview, clickable breakdowns, sortable library explorer, and
 code/instance drilldowns. Service is normalized from the package identity across
 ecosystem conventions: `Azure.AI.DocumentIntelligence` and
-`azure-ai-documentintelligence` both map to `ai.documentintelligence`; the Go SDK
-directory maps to `ai`. This is not an inferred AI finding taxonomy. Candidate file
+`azure-ai-documentintelligence` both map to `documentintelligence`; the Go
+`sdk/ai/azopenai` module maps to `azopenai` (excluding any `/vN` major suffix).
+Services use the terminal service name, without the `ai` namespace. This is not an inferred AI finding taxonomy. Candidate file
 entry points are a separate measure from accepted
 semantic customization instances. Neither source line counts nor file counts measure
 customization debt. Text search AND-matches tokens across supported fields; it is not
