@@ -202,9 +202,11 @@ keep their own row.
 
 The tracker is a person's survey, not reviewed evidence: the dashboard labels it as
 such, keeps reviewed findings separate ("Only counted customizations"), and never
-turns tracker categories into classifications of individual files. Publication
-(`publish`) never includes it; the Pages workflow does not pass `--tracker`. Without
-`tracker.json` the dashboard falls back to scan-only measures.
+turns tracker categories into classifications of individual files. `publish` includes
+it only when `--tracker` is passed. The owner approved publishing the checked-in
+`tracker/dataplane-tracker.csv`, so the personal-fork Pages workflow passes it. Without
+`tracker.json` the dashboard falls back to scan-only measures. To update the public
+tracker, replace that CSV (export the workbook sheet as CSV UTF-8) and push.
 
 ## Explore the portfolio, history, and individual code
 

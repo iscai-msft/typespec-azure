@@ -84,7 +84,7 @@ export async function main(args = process.argv.slice(2)) {
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),
       });
-      // The manual tracker is opt-in: it is only published when explicitly passed.
+      // The manual tracker is opt-in: it is only exported when explicitly passed.
       if (values.tracker) {
         const tracker = await exportTracker(resolve(values.tracker), resolve(values.out));
         console.log(JSON.stringify({ trackerLibraries: tracker.libraries.length }));
@@ -96,6 +96,7 @@ export async function main(args = process.argv.slice(2)) {
       if (!args.includes("--out"))
         throw new Error("publish requires --out WEBSITE_BUILD_DIRECTORY");
       const dataset = await publishSite(state, resolve(values.out), {
+        ...(values.tracker ? { tracker: resolve(values.tracker) } : {}),
         ...(values["history-state"]
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),
