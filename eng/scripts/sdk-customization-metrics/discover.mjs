@@ -70,9 +70,17 @@ export class GitRepository {
       .filter(Boolean)
       .map((line) => {
         const [meta, path] = line.split("\t");
-        const [, type, sha] = meta.split(" ");
-        return { type, sha, path };
+        const [mode, type, sha] = meta.split(" ");
+        return { mode, type, sha, path };
       });
+  }
+  // Tree hash of a folder at a commit, or "" if it does not exist.
+  async treeSha(commit, path) {
+    try {
+      return (await this.git(["rev-parse", "--verify", "--quiet", `${commit}:${path}`])).trim();
+    } catch {
+      return "";
+    }
   }
   // Text of the given blobs, fetched in one round trip when missing locally.
   async read(shas) {
@@ -274,6 +282,24 @@ export async function discoverAll({
   };
   inventory.changes = inventoryChanges(previous, inventory);
   return inventory;
+}
+
+// Collection targets for inventory libraries. Libraries that share a package name get a
+// variant (their service folder) so each keeps its own identity and history.
+export function inventoryTargets(libraries) {
+  const count = new Map();
+  const key = (item) => `${item.language}:${item.package.toLowerCase()}:${item.moduleMajor}`;
+  for (const item of libraries) count.set(key(item), (count.get(key(item)) ?? 0) + 1);
+  return libraries.map(({ language, package: name, moduleMajor, repo, root }) => ({
+    language,
+    package: name,
+    moduleMajor,
+    repo,
+    root,
+    ...(count.get(key({ language, package: name, moduleMajor })) > 1
+      ? { variant: root.split("/").slice(1, -1).join(".") }
+      : {}),
+  }));
 }
 
 export async function readInventory(path) {

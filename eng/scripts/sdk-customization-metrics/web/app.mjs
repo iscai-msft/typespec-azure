@@ -141,6 +141,14 @@ function renderPackage(item) {
   };
   if (item.sourceFiles?.length)
     body.append(inventory("Captured source files", item.sourceFiles, true));
+  if (item.coverage.skippedCount && !item.coverage.skipped.length)
+    body.append(
+      element(
+        "p",
+        `${item.coverage.skippedCount} files outside the scan budgets. The file list is kept for the latest scan only.`,
+        "muted",
+      ),
+    );
   for (const [reason, files] of coverageGroups(item.coverage.skipped)) {
     const title =
       reason === "File-count limit"
@@ -393,7 +401,9 @@ export async function start() {
   const byId = (id) => document.getElementById(id);
   const loadStatus = byId("load-status");
   try {
-    const response = await fetch("./metrics.json", { cache: "no-store" });
+    // dashboard.json is the page's lighter copy of metrics.json (no per-file inventories).
+    let response = await fetch("./dashboard.json", { cache: "no-store" }).catch(() => null);
+    if (!response?.ok) response = await fetch("./metrics.json", { cache: "no-store" });
     if (!response.ok) throw new Error(`Metrics download failed: HTTP ${response.status}`);
     const data = await response.json();
     if (
@@ -501,6 +511,9 @@ export async function start() {
       ? params.get("descending") === "true"
       : sort === "customized";
 
+    let codeScope = "";
+    let codeLimit = 10;
+    const expandedLibraries = new Set();
     const update = () => {
       const filters = Object.fromEntries(fields.map((id) => [id, byId(id).value]));
       filters.accepted = byId("accepted").checked;
@@ -1056,8 +1069,18 @@ export async function start() {
         if (!byLibrary.has(item.identity)) byLibrary.set(item.identity, []);
         byLibrary.get(item.identity).push(item);
       }
+      // Long lists page: 10 libraries at a time, 8 files per library until expanded.
+      const scopeKey = JSON.stringify(filters);
+      if (scopeKey !== codeScope) {
+        codeScope = scopeKey;
+        codeLimit = 10;
+        expandedLibraries.clear();
+      }
+      const groups = [...byLibrary.values()].sort(
+        (a, b) => b.length - a.length || a[0].package.localeCompare(b[0].package),
+      );
       byId("code-links").replaceChildren(
-        ...[...byLibrary.values()].map((items) => {
+        ...groups.slice(0, filters.library ? groups.length : codeLimit).map((items) => {
           const item = items[0];
           const pkg = snapshot.packages.find((entry) => entry.identity === item.identity);
           const card = element("article", undefined, "code-link-card");
@@ -1086,15 +1109,48 @@ export async function start() {
             );
           card.append(meta);
           const list = element("ul", undefined, "code-link-list");
+          const showAll =
+            filters.library ||
+            expandedLibraries.has(item.identity) ||
+            items.findIndex((link) => instance === `candidate:${link.identity}:${link.path}`) >= 8;
           list.append(
-            ...items.map((link) =>
-              renderCodeLink(link, inspect, instance === `candidate:${link.identity}:${link.path}`),
-            ),
+            ...items
+              .slice(0, showAll ? items.length : 8)
+              .map((link) =>
+                renderCodeLink(
+                  link,
+                  inspect,
+                  instance === `candidate:${link.identity}:${link.path}`,
+                ),
+              ),
           );
           card.append(list);
+          if (!showAll && items.length > 8) {
+            const more = element("button", `Show all ${items.length} files`, "secondary small");
+            more.type = "button";
+            more.addEventListener("click", () => {
+              expandedLibraries.add(item.identity);
+              update();
+            });
+            card.append(more);
+          }
           return card;
         }),
       );
+      if (!filters.library && groups.length > codeLimit) {
+        const more = element(
+          "button",
+          `Show more libraries (${groups.length - codeLimit} remaining)`,
+          "secondary",
+        );
+        more.type = "button";
+        more.className = "secondary show-more";
+        more.addEventListener("click", () => {
+          codeLimit += 10;
+          update();
+        });
+        byId("code-links").append(more);
+      }
       const unscanned = rows.filter((row) => !row.scan).length;
       byId("code-link-status").textContent = codeLinks.length
         ? `${codeLinks.length} handwritten customization files in ${byLibrary.size} scanned ${byLibrary.size === 1 ? "library" : "libraries"}, pinned to the scanned commit.${libraryLevel ? ` They belong to libraries tagged “${filters.category}”; individual files are not classified yet.` : ""}${unscanned ? ` ${number.format(unscanned)} matching libraries are not scanned yet.` : ""}`
@@ -1266,15 +1322,37 @@ export async function start() {
         `${view.scope.length} scanned libraries in scope; ${view.accepted.length} accepted matching instances; ${view.unassessed.length} unassessed libraries; ${failures.length} collection/assessment errors. Excluded or stale findings never count.`;
       byId("provenance").textContent =
         `Observation ${filters.observation || "latest available"}; schema ${snapshot.schemaVersion}, history v${data.historyVersion ?? 0}. Export ${data.generatedAt}.${tracker ? ` Tracker ${tracker.source}, SHA-256 ${tracker.sourceSha256.slice(0, 12)}.` : ""} Human overrides apply as of the observation timestamp, not retroactively.`;
+      // Package cards (with file inventories) render only while diagnostics are open.
+      const withFiles = (item) => {
+        const files = diagnostics?.packages?.[item.identity];
+        if (!files || files.scanId !== item.scanId) return item;
+        return {
+          ...item,
+          sourceFiles: files.sourceFiles,
+          coverage: { ...item.coverage, skipped: files.skipped },
+        };
+      };
       byId("packages").replaceChildren(
-        ...[
-          ...new Map([...view.scope, ...failures].map((item) => [item.identity, item])).values(),
-        ].map(renderPackage),
+        ...(byId("diagnostics").open
+          ? [
+              ...new Map(
+                [...view.scope, ...failures].map((item) => [item.identity, item]),
+              ).values(),
+            ].map((item) => renderPackage(withFiles(item)))
+          : []),
       );
       byId("package-count").textContent =
         `${view.scope.length} scanned libraries. Technical inventory is not a customization count.`;
     };
 
+    let diagnostics = null;
+    byId("diagnostics").addEventListener("toggle", async () => {
+      if (byId("diagnostics").open && !diagnostics) {
+        const loaded = await fetch("./diagnostics.json", { cache: "no-store" }).catch(() => null);
+        diagnostics = loaded?.ok ? await loaded.json() : { packages: {} };
+      }
+      update();
+    });
     const controls = [...fields, "accepted", "from", "fixed", "group", "measure"];
     for (const id of controls)
       byId(id).addEventListener(id === "search" || id === "from" ? "input" : "change", () => {

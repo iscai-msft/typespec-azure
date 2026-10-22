@@ -634,6 +634,35 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
   }
   await rename(temporary, join(outputDirectory, "metrics.sqlite"));
   await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(dataset, null, 2)}\n`);
+  // The page loads a lighter copy: per-file inventories go to diagnostics.json, which is only
+  // fetched when someone opens collection diagnostics. metrics.json stays the complete record.
+  const light = (item) => ({
+    ...item,
+    sourceFiles: undefined,
+    coverage: { ...item.coverage, skipped: [], skippedCount: item.coverage.skipped.length },
+  });
+  await writeFile(
+    join(outputDirectory, "dashboard.json"),
+    `${JSON.stringify({
+      ...dataset,
+      packages: dataset.packages.map(light),
+      observations: dataset.observations.map((observation) => ({
+        ...observation,
+        packages: observation.packages.map(light),
+      })),
+    })}\n`,
+  );
+  await writeFile(
+    join(outputDirectory, "diagnostics.json"),
+    `${JSON.stringify({
+      packages: Object.fromEntries(
+        dataset.packages.map((item) => [
+          item.identity,
+          { scanId: item.scanId, sourceFiles: item.sourceFiles, skipped: item.coverage.skipped },
+        ]),
+      ),
+    })}\n`,
+  );
   for (const name of ["index.html", "app.mjs", "style.css", "data.mjs", "languages.mjs"]) {
     await copyFile(
       fileURLToPath(new URL(`./web/${name}`, import.meta.url)),
@@ -658,9 +687,16 @@ export function effectiveObservations(scans, overrides, options = {}) {
       ].map((time) => new Date(time).toISOString()),
     ),
   ].sort();
+  // One observation per collection run: events closer than the gap (a run scanning hundreds of
+  // libraries over minutes) are evaluated once, at the run's last event.
+  const gap = (options.runGapMinutes ?? 360) * 60000;
+  const runEnds = times.filter(
+    (time, index) =>
+      index === times.length - 1 || Date.parse(times[index + 1]) - Date.parse(time) > gap,
+  );
   const observations = [];
   let previous;
-  for (const time of times) {
+  for (const time of runEnds) {
     const available = publicScans.filter((scan) => Date.parse(scan.observedAt) <= Date.parse(time));
     const availableIds = new Set(available.map((scan) => scan.id));
     const snapshot = effectiveDataset(
@@ -703,7 +739,19 @@ export function effectiveObservations(scans, overrides, options = {}) {
       })),
     });
     if (fingerprint === previous) continue;
-    observations.push({ id: digest(`${time}:${fingerprint}`), observedAt: time, ...snapshot });
+    observations.push({
+      id: digest(`${time}:${fingerprint}`),
+      observedAt: time,
+      ...snapshot,
+      // History keeps what trends and as-of views need; file inventories and code previews
+      // stay in the current state only, so the export grows linearly with runs.
+      packages: snapshot.packages.map(({ sourceFiles: _files, ...item }) => ({
+        ...item,
+        customizationLinks: item.customizationLinks.map(
+          ({ preview: _preview, previewEndLine: _end, ...link }) => link,
+        ),
+      })),
+    });
     previous = fingerprint;
   }
   return observations;

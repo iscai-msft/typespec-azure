@@ -156,6 +156,79 @@ export function capture(
   return scan;
 }
 
+// Shared by every reader: given the package's files ({ path, sha, size, mode }) and a way to
+// read one, find customization entry points and capture bounded evidence into the scan.
+export async function scanFiles(scan, files, readBlob, limits = {}) {
+  const target = scan.target;
+  scan.coverage.discoveredFiles = files.length;
+  scan.navigation = [];
+  let navigationBytes = 0;
+  const navigationFiles = files.filter(
+    (file) => entryPoint(target.language, file.path) && ["100644", "100755"].includes(file.mode),
+  );
+  for (const file of navigationFiles.slice(0, 100)) {
+    if (file.size > 1000000 || navigationBytes + file.size > 8000000) {
+      scan.coverage.skipped.push({
+        path: file.path,
+        reason: "Customization navigation safety limit; content not checked",
+      });
+      continue;
+    }
+    const text = await readBlob(file);
+    navigationBytes += file.size;
+    let baseline;
+    if (target.language === "javascript") {
+      const generated = files.find(
+        (item) =>
+          item.path === file.path.replace(`${target.root}/src/`, `${target.root}/generated/`),
+      );
+      if (generated) {
+        if (generated.size > 1000000 || navigationBytes + generated.size > 8000000) {
+          scan.coverage.skipped.push({
+            path: file.path,
+            reason: "Overlay baseline safety limit; content not compared",
+          });
+          continue;
+        }
+        baseline = await readBlob(generated);
+        navigationBytes += generated.size;
+      }
+    }
+    const candidate = codeNavigation(target.language, file.path, text, baseline);
+    if (candidate) scan.navigation.push({ ...candidate, contentHash: digest(text) });
+  }
+  for (const file of navigationFiles.slice(100))
+    scan.coverage.skipped.push({
+      path: file.path,
+      reason: "Customization navigation file limit; content not checked",
+    });
+  // Choose files before fetching, so limits also bound network work.
+  const selected = [];
+  let total = 0;
+  const maxFiles = limits.maxFiles ?? 20;
+  const maxFileBytes = limits.maxFileBytes ?? 16000;
+  const maxTotalBytes = limits.maxTotalBytes ?? 100000;
+  for (const file of files.sort(fileOrder)) {
+    if (!eligible(target, file.path) && !isContext(file.path)) continue;
+    if (!["100644", "100755"].includes(file.mode)) continue;
+    if (
+      file.size > maxFileBytes ||
+      selected.length >= maxFiles ||
+      total + file.size > maxTotalBytes
+    )
+      continue;
+    selected.push({ ...file, text: await readBlob(file) });
+    total += file.size;
+  }
+  const byPath = new Map(selected.map((file) => [file.path, file]));
+  capture(
+    scan,
+    files.map((file) => byPath.get(file.path) ?? file),
+    limits,
+  );
+  if (!scan.evidence.length) scan.coverage.errors.push("No eligible source evidence captured");
+}
+
 export class GitHubSource {
   constructor({ token = process.env.GITHUB_TOKEN, fetcher = fetch } = {}) {
     this.token = token;
@@ -189,6 +262,7 @@ export class GitHubSource {
       );
       if (!/^[a-f0-9]{40}$/.test(commit.sha)) throw new Error("Invalid commit SHA");
       scan.commit = commit.sha;
+      scan.provenance.reader = "github-api";
       let treeSha = commit.commit.tree.sha;
       for (const segment of target.root.split("/")) {
         const tree = await this.get(target.repo, `git/trees/${treeSha}`);
@@ -197,6 +271,7 @@ export class GitHubSource {
         if (!entry) throw new Error(`Package root missing: ${target.root}`);
         treeSha = entry.sha;
       }
+      if (/^[a-f0-9]{40}$/.test(treeSha)) scan.provenance.packageTree = treeSha;
       const tree = await this.get(target.repo, `git/trees/${treeSha}?recursive=1`);
       if (tree.truncated) throw new Error("Truncated package tree; discovery incomplete");
       const files = tree.tree
@@ -205,13 +280,6 @@ export class GitHubSource {
           ...file,
           path: `${target.root}/${file.path}`,
         }));
-      scan.coverage.discoveredFiles = files.length;
-      scan.navigation = [];
-      let navigationBytes = 0;
-      const navigationFiles = files.filter(
-        (file) =>
-          entryPoint(target.language, file.path) && ["100644", "100755"].includes(file.mode),
-      );
       const readBlob = async (file) => {
         const blob = await this.get(target.repo, `git/blobs/${file.sha}`);
         if (blob.encoding !== "base64") throw new Error(`Unexpected blob encoding: ${file.path}`);
@@ -219,71 +287,66 @@ export class GitHubSource {
         if (content.length !== file.size) throw new Error(`Blob size mismatch: ${file.path}`);
         return new TextDecoder("utf-8", { fatal: true }).decode(content);
       };
-      for (const file of navigationFiles.slice(0, 100)) {
-        if (file.size > 1000000 || navigationBytes + file.size > 8000000) {
-          scan.coverage.skipped.push({
-            path: file.path,
-            reason: "Customization navigation safety limit; content not checked",
-          });
-          continue;
-        }
-        const text = await readBlob(file);
-        navigationBytes += file.size;
-        let baseline;
-        if (target.language === "javascript") {
-          const generated = files.find(
-            (item) =>
-              item.path === file.path.replace(`${target.root}/src/`, `${target.root}/generated/`),
-          );
-          if (generated) {
-            if (generated.size > 1000000 || navigationBytes + generated.size > 8000000) {
-              scan.coverage.skipped.push({
-                path: file.path,
-                reason: "Overlay baseline safety limit; content not compared",
-              });
-              continue;
-            }
-            baseline = await readBlob(generated);
-            navigationBytes += generated.size;
-          }
-        }
-        const candidate = codeNavigation(target.language, file.path, text, baseline);
-        if (candidate) scan.navigation.push({ ...candidate, contentHash: digest(text) });
-      }
-      for (const file of navigationFiles.slice(100))
-        scan.coverage.skipped.push({
-          path: file.path,
-          reason: "Customization navigation file limit; content not checked",
-        });
-      // Choose files before fetching, so limits also bound network work.
-      const selected = [];
-      let total = 0;
-      const maxFiles = limits.maxFiles ?? 20;
-      const maxFileBytes = limits.maxFileBytes ?? 16000;
-      const maxTotalBytes = limits.maxTotalBytes ?? 100000;
-      for (const file of files.sort(fileOrder)) {
-        if (!eligible(target, file.path) && !isContext(file.path)) continue;
-        if (!["100644", "100755"].includes(file.mode)) continue;
-        if (
-          file.size > maxFileBytes ||
-          selected.length >= maxFiles ||
-          total + file.size > maxTotalBytes
-        )
-          continue;
-        const blob = await this.get(target.repo, `git/blobs/${file.sha}`);
-        if (blob.encoding !== "base64") throw new Error(`Unexpected blob encoding: ${file.path}`);
-        const content = Buffer.from(blob.content, "base64");
-        if (content.length !== file.size) throw new Error(`Blob size mismatch: ${file.path}`);
-        selected.push({ ...file, text: new TextDecoder("utf-8", { fatal: true }).decode(content) });
-        total += file.size;
-      }
-      const byPath = new Map(selected.map((file) => [file.path, file]));
-      capture(
-        scan,
-        files.map((file) => byPath.get(file.path) ?? file),
-        limits,
+      await scanFiles(scan, files, readBlob, limits);
+    } catch (error) {
+      scan.coverage.status = "failed";
+      scan.coverage.errors.push(error.message);
+    }
+    validate(scanSchema, scan);
+    return scan;
+  }
+}
+
+// Reads packages from shallow, blob-less git clones (see discover.mjs). One clone per
+// repository is synced once per run; only the files a scan may read are downloaded.
+export class GitSource {
+  constructor({ repositoryFor }) {
+    this.repositoryFor = repositoryFor;
+    this.commits = new Map();
+  }
+  async commitOf(repo) {
+    if (!this.commits.has(repo)) this.commits.set(repo, this.repositoryFor(repo).sync());
+    return this.commits.get(repo);
+  }
+  // The package folder's tree hash at the synced commit, or "" when the folder is gone.
+  async packageTree(target) {
+    const commit = await this.commitOf(target.repo);
+    return this.repositoryFor(target.repo).treeSha(commit, target.root);
+  }
+  async collect(target, limits = {}) {
+    const scan = newScan(target);
+    scan.provenance.reader = "git";
+    try {
+      const repository = this.repositoryFor(target.repo);
+      scan.commit = await this.commitOf(target.repo);
+      if (!/^[a-f0-9]{40}$/.test(scan.commit)) throw new Error("Invalid commit SHA");
+      const tree = await repository.treeSha(scan.commit, target.root);
+      if (!tree) throw new Error(`Package root missing: ${target.root}`);
+      scan.provenance.packageTree = tree;
+      const blobs = (await repository.entries(scan.commit, target.root)).filter(
+        (entry) => entry.type === "blob",
       );
-      if (!scan.evidence.length) scan.coverage.errors.push("No eligible source evidence captured");
+      // Download only what the scan can read: source, context files and entry points
+      // (JavaScript overlays also compare against their generated counterparts).
+      const wanted = blobs.filter(
+        (entry) =>
+          ["100644", "100755"].includes(entry.mode) &&
+          (eligible(target, entry.path) ||
+            isContext(entry.path) ||
+            entryPoint(target.language, entry.path)),
+      );
+      const texts = await repository.read(wanted.map((entry) => entry.sha));
+      const files = blobs.map((entry) => ({
+        path: entry.path,
+        sha: entry.sha,
+        mode: entry.mode,
+        size: texts.has(entry.sha) ? Buffer.byteLength(texts.get(entry.sha)) : 0,
+      }));
+      const readBlob = async (file) => {
+        if (!texts.has(file.sha)) throw new Error(`Blob not downloaded: ${file.path}`);
+        return texts.get(file.sha);
+      };
+      await scanFiles(scan, files, readBlob, limits);
     } catch (error) {
       scan.coverage.status = "failed";
       scan.coverage.errors.push(error.message);

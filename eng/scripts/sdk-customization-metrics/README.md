@@ -207,6 +207,31 @@ Go `sdk/resourcemanager/...`) or has `mgmt`/`management` as a separate word in i
 to the data plane and has a Plane selector in the header. The inventory is public
 repository data and is always published with the site when present.
 
+### Scanning discovered libraries
+
+```sh
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs collect \
+  --from-inventory --plane data --reader git --skip-unchanged
+```
+
+- `--from-inventory --plane data|management|provisioning|all` scans inventory libraries
+  instead of `targets.json`.
+- `--reader git` reads packages from the same blob-less clones as discovery and downloads
+  only source, context and entry-point files (tests and samples are never fetched). The
+  default `github-api` reader is kept for compatibility.
+- `--skip-unchanged` skips a library when its folder's git tree hash and the collector
+  version match its latest successful scan, so weekly runs rescan only what changed.
+- `--limit N` scans the first N targets (for trials).
+
+Scans record `provenance.packageTree` and `provenance.reader`. When two folders publish the
+same package (Java `sdk/keyvault` and `sdk/keyvault-v2`), each gets a `variant` (its service
+folder) in its identity, for example `java:azure-security-keyvault-keys:module-v1:keyvault-v2`.
+
+History records one observation per collection run: scan and override events less than
+six hours apart are evaluated once, at the run's last event (`runGapMinutes`). Past
+observations omit captured-file inventories and code previews; the current state keeps
+them, so the export grows linearly with runs rather than with libraries × runs.
+
 ### Adding a language
 
 Add one entry to `web/languages.mjs`: id, label, repository, source file extensions,
