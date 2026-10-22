@@ -396,6 +396,8 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         startLine,
         endLine,
       })),
+      // Older scans predate entry-point discovery; an empty list there is "not measured", not zero.
+      navigationRecorded: Array.isArray(scan.navigation),
       customizationLinks: (scan.navigation ?? []).map((item) => {
         const evidence = scan.evidence.find((source) => source.path === item.path);
         return {

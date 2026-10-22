@@ -1,4 +1,15 @@
-import { breakdown, historyRows, selectView, serviceOf } from "./data.mjs";
+import {
+  canonicalCategory,
+  filterCodeLinks,
+  filterFindings,
+  filterLibraries,
+  findingCategory,
+  historyRows,
+  languageLabel,
+  mergeLibraries,
+  selectView,
+  trackerBreakdown,
+} from "./data.mjs";
 export { filterCodeLinks, filterFindings } from "./data.mjs";
 
 function element(tag, text, className) {
@@ -43,22 +54,6 @@ export function coverageGroups(skipped) {
     groups.get(item.reason).push(item);
   }
   return [...groups.entries()];
-}
-
-function renderCodeLink(item, inspect) {
-  const row = element("p", undefined, "code-link-row");
-  row.append(
-    externalLink(
-      `${fileUrl(item.repo, item.commit, item.path)}#L${item.startLine}-L${item.endLine}`,
-      item.path.split("/").slice(-3).join("/"),
-    ),
-  );
-  const button = element("button", "Inspect candidate", "secondary");
-  button.type = "button";
-  button.setAttribute("aria-label", `Inspect candidate ${item.package}: ${item.path}`);
-  button.addEventListener("click", () => inspect(`candidate:${item.identity}:${item.path}`));
-  row.append(button);
-  return row;
 }
 
 function sourceLink(snippet) {
@@ -230,6 +225,175 @@ function renderFinding(item, inspect) {
   return article;
 }
 
+const SVG = "http://www.w3.org/2000/svg";
+function svg(tag, attributes = {}, text) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+const number = new Intl.NumberFormat("en-US");
+const percent = (part, whole) => (whole ? `${((part / whole) * 100).toFixed(1)}%` : "N/A");
+function formatDate(value) {
+  return `${value.slice(0, 10)} ${value.slice(11, 16)}`;
+}
+function niceMax(value) {
+  if (value <= 4) return 4;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const step = [1, 2, 2.5, 5, 10].find((item) => item * magnitude * 4 >= value) * magnitude;
+  return step * 4;
+}
+
+export function renderTrendChart(rows, { showCandidates = true } = {}) {
+  const width = 640;
+  const height = 240;
+  const left = 44;
+  const right = 16;
+  const top = 14;
+  const bottom = 34;
+  const series = [
+    {
+      key: "candidates",
+      label: "Entry points",
+      className: "series-candidates",
+      show: showCandidates,
+    },
+    { key: "accepted", label: "Reviewed customizations", className: "series-accepted", show: true },
+  ].filter((item) => item.show);
+  const values = rows
+    .flatMap((row) => series.map((item) => row[item.key]))
+    .filter((value) => value !== null);
+  const chart = svg("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": values.length
+      ? `History of ${series.map((item) => item.label.toLowerCase()).join(" and ")} across ${rows.length} observations`
+      : "No measured history for this scope",
+    class: "trend-svg",
+  });
+  const max = niceMax(Math.max(1, ...values));
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const x = (index) =>
+    left + (rows.length < 2 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
+  const y = (value) => top + plotHeight - (value / max) * plotHeight;
+  for (let tick = 0; tick <= 4; tick++) {
+    const value = (max / 4) * tick;
+    chart.append(
+      svg("line", { x1: left, x2: width - right, y1: y(value), y2: y(value), class: "grid" }),
+      svg(
+        "text",
+        { x: left - 8, y: y(value) + 4, class: "axis-label", "text-anchor": "end" },
+        number.format(value),
+      ),
+    );
+  }
+  const labelIndexes = [0, rows.length - 1].filter(
+    (index, position, all) => index >= 0 && all.indexOf(index) === position,
+  );
+  for (const index of labelIndexes) {
+    chart.append(
+      svg(
+        "text",
+        {
+          x: x(index),
+          y: height - 10,
+          class: "axis-label",
+          "text-anchor": rows.length < 2 ? "middle" : index === 0 ? "start" : "end",
+        },
+        formatDate(rows[index].observedAt),
+      ),
+    );
+  }
+  for (const item of series) {
+    // Missing measurements break the line; they are never drawn as zero.
+    let path = "";
+    rows.forEach((row, index) => {
+      const value = row[item.key];
+      if (value === null) return;
+      const previous = index > 0 ? rows[index - 1][item.key] : null;
+      path += `${previous === null ? "M" : "L"}${x(index).toFixed(1)},${y(value).toFixed(1)}`;
+    });
+    if (path) chart.append(svg("path", { d: path, class: `line ${item.className}` }));
+    rows.forEach((row, index) => {
+      const value = row[item.key];
+      if (value === null) return;
+      const point = svg("circle", {
+        cx: x(index),
+        cy: y(value),
+        r: 4,
+        class: `point ${item.className}`,
+      });
+      point.append(svg("title", {}, `${formatDate(row.observedAt)} UTC · ${item.label}: ${value}`));
+      chart.append(point);
+    });
+  }
+  if (!values.length) {
+    chart.append(
+      svg(
+        "text",
+        {
+          x: left + plotWidth / 2,
+          y: top + plotHeight / 2,
+          class: "empty-label",
+          "text-anchor": "middle",
+        },
+        "No measured values in this range",
+      ),
+    );
+  }
+  return chart;
+}
+
+function kpi(label, value, note, variant = "") {
+  const card = element("article", undefined, `kpi metric-card ${variant}`.trim());
+  card.append(
+    element("span", label, "metric-label"),
+    element("strong", value, `metric-value${value.length > 9 ? " metric-value-text" : ""}`),
+    element("span", note, "metric-note"),
+  );
+  return card;
+}
+
+function renderCodeLink(item, inspect, selected) {
+  const row = element("li", undefined, `code-link-row${selected ? " selected" : ""}`);
+  const file = element("div", undefined, "code-file");
+  const parts = item.path.split("/");
+  file.append(
+    externalLink(
+      `${fileUrl(item.repo, item.commit, item.path)}#L${item.startLine}-L${item.endLine}`,
+      parts.at(-1),
+    ),
+    element(
+      "span",
+      `${parts.slice(-4, -1).join("/")} · lines ${item.startLine}–${item.endLine}`,
+      "code-path",
+    ),
+  );
+  const button = element("button", selected ? "Showing" : "Preview code", "secondary small");
+  button.type = "button";
+  button.setAttribute("aria-label", `Preview code ${item.package}: ${item.path}`);
+  button.setAttribute("aria-pressed", String(Boolean(selected)));
+  button.addEventListener("click", () => inspect(`candidate:${item.identity}:${item.path}`));
+  row.append(file, button);
+  return row;
+}
+
+function chips(categories, onPick) {
+  const list = element("span", undefined, "chip-list");
+  for (const category of categories) {
+    const chip = element("button", category, "tag");
+    chip.type = "button";
+    chip.setAttribute("aria-label", `Filter by ${category}`);
+    chip.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onPick(category);
+    });
+    list.append(chip);
+  }
+  return list;
+}
+
 export async function start() {
   const byId = (id) => document.getElementById(id);
   const loadStatus = byId("load-status");
@@ -245,24 +409,58 @@ export async function start() {
     ) {
       throw new Error("Unsupported metrics data schema");
     }
-    for (const [id, values] of [
-      ["language", ["python", "dotnet", "javascript", "java", "go"]],
-      ["category", ["LRO", "Paging", "Serialization", "Authentication", "Convenience", "Other"]],
-    ]) {
-      for (const value of values.sort()) byId(id).append(element("option", value));
+    // The manual tracker is optional; without it the dashboard shows scanned libraries only.
+    let tracker = null;
+    const trackerResponse = await fetch("./tracker.json", { cache: "no-store" }).catch(() => null);
+    if (trackerResponse?.ok) {
+      const candidate = await trackerResponse.json();
+      if (candidate.trackerVersion !== 1 || !Array.isArray(candidate.libraries))
+        throw new Error("Unsupported tracker data schema");
+      tracker = candidate;
     }
-    for (const service of [...new Set(data.packages.map(serviceOf))].sort())
-      byId("service").append(element("option", service));
-    for (const item of data.packages) {
-      const option = element("option", `${item.language} · ${item.package} · v${item.moduleMajor}`);
-      option.value = item.identity;
+    const allLibraries = mergeLibraries(tracker, data.packages);
+    const languages = ["dotnet", "go", "java", "javascript", "python"];
+    const categories = tracker?.categories ?? [
+      "Auth",
+      "Convenience methods",
+      "LRO / polling",
+      "Pagination",
+      "Serialization",
+      "Other",
+    ];
+    const services = [...new Set(allLibraries.map((item) => item.service))].sort();
+    for (const id of ["language", "q-language"])
+      for (const value of languages) {
+        const option = element("option", languageLabel(value));
+        option.value = value;
+        byId(id).append(option);
+      }
+    for (const id of ["category", "q-category"])
+      for (const value of categories) byId(id).append(element("option", value));
+    for (const id of ["service", "q-service"])
+      for (const value of services) byId(id).append(element("option", value));
+    for (const item of [...allLibraries].sort(
+      (a, b) => a.language.localeCompare(b.language) || a.package.localeCompare(b.package),
+    )) {
+      const option = element("option", `${languageLabel(item.language)} · ${item.package}`);
+      option.value = item.id;
       byId("library").append(option);
     }
     for (const observation of [...(data.observations ?? [])].reverse()) {
-      const option = element("option", `${observation.observedAt} · ${observation.id.slice(0, 7)}`);
+      const option = element(
+        "option",
+        `${formatDate(observation.observedAt)} UTC · ${observation.id.slice(0, 7)}`,
+      );
       option.value = observation.observedAt;
       byId("observation").append(option);
     }
+    if (!tracker) {
+      byId("customized").closest("label").hidden = true;
+      byId("measure").value = "candidates";
+      for (const option of byId("measure").options)
+        option.hidden = option.value === "share" || option.value === "libraries";
+    }
+
     const params = new URLSearchParams(location.search);
     const fields = [
       "language",
@@ -272,21 +470,44 @@ export async function start() {
       "service",
       "library",
       "observation",
+      "customized",
     ];
-    for (const id of [...fields, "from", "group", "measure"])
+    for (const id of ["from", "group", "measure"])
       if (params.has(id)) byId(id).value = params.get(id);
     for (const id of fields) byId(id).value = params.get(id) ?? "";
+    // Older links used short finding categories (?category=LRO).
+    if (params.get("category") && !byId("category").value)
+      byId("category").value = canonicalCategory(params.get("category"));
     byId("accepted").checked = params.get("accepted") === "true";
     byId("fixed").checked = params.get("fixed") !== "false";
     let instance = params.get("instance") ?? "";
-    let sort = params.get("sort") ?? "package";
-    let descending = params.get("descending") === "true";
+    let sort = params.get("sort") ?? (tracker ? "customized" : "package");
+    let descending = params.has("descending")
+      ? params.get("descending") === "true"
+      : sort === "customized";
+
     const update = () => {
       const filters = Object.fromEntries(fields.map((id) => [id, byId(id).value]));
       filters.accepted = byId("accepted").checked;
       const snapshot =
         data.observations?.find((item) => item.observedAt === filters.observation) ?? data;
-      const view = selectView(snapshot, filters);
+      // Libraries come from the tracker (always current) joined to the selected scan observation.
+      const libraries = mergeLibraries(tracker, snapshot.packages);
+      const rows = filterLibraries(libraries, snapshot.findings, filters);
+      const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const scanFilters = {
+        language: filters.language,
+        category: filters.category ? findingCategory(filters.category) : "",
+        status: filters.status,
+        accepted: filters.accepted,
+        identities,
+      };
+      const view = selectView(snapshot, scanFilters);
+      const findings = filterFindings(view.findings, { search: filters.search });
+      // Code links belong to matching libraries; they are files, not classified instances.
+      const codeLinks = filterCodeLinks(view.scope, { language: filters.language });
+      const semantic = Boolean(filters.status || filters.accepted);
+      const libraryLevel = Boolean(filters.category);
       const failures = view.scope.filter(
         (item) =>
           item.coverage.status === "failed" ||
@@ -297,11 +518,8 @@ export async function start() {
         ? `${failures.length} libraries have collection or assessment errors. Open collection diagnostics; results are incomplete.`
         : "Metrics loaded.";
       loadStatus.setAttribute("role", failures.length ? "alert" : "status");
-      byId("summary").textContent =
-        `${view.scope.length} libraries in structural scope; ${view.accepted.length} accepted matching instances; ${view.unassessed.length} unassessed libraries; ${failures.length} collection/assessment errors. Excluded or stale findings never count.`;
-      byId("provenance").textContent =
-        `Observation ${filters.observation || "latest available"}; schema ${snapshot.schemaVersion}, history v${data.historyVersion ?? 0}. Export ${data.generatedAt}. Human overrides apply as of the observation timestamp, not retroactively.`;
-      const selected = view.findings;
+      loadStatus.className = failures.length ? "status alert" : "status visually-hidden";
+
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(filters)) if (value) query.set(key, String(value));
       for (const id of ["from", "group", "measure"])
@@ -309,136 +527,296 @@ export async function start() {
       if (!byId("fixed").checked) query.set("fixed", "false");
       if (instance) query.set("instance", instance);
       query.set("sort", sort);
-      if (descending) query.set("descending", "true");
+      query.set("descending", String(descending));
       history.replaceState(null, "", `${location.pathname}${query.size ? `?${query}` : ""}`);
+
+      byId("q-language").value = filters.language;
+      byId("q-service").value = filters.service;
+      byId("q-category").value = filters.category;
+      byId("q-review").value = filters.accepted ? "counted" : "";
+
       const inspect = (id) => {
         instance = id;
         update();
-        byId("instance-detail").focus();
+        byId("instance-detail").focus({ preventScroll: true });
+        if (matchMedia("(max-width: 900px)").matches)
+          byId("instance-detail").scrollIntoView({ block: "start" });
       };
-      byId("findings").replaceChildren(...selected.map((item) => renderFinding(item, inspect)));
-      document.querySelector(".reviewed-results").open =
-        selected.length > 0 ||
-        Boolean(filters.category || filters.status || filters.search || filters.accepted);
-      const codeLinks = view.candidates;
-      const libraries = new Map();
-      for (const item of codeLinks) {
-        const key = `${item.language}:${item.package}`;
-        if (!libraries.has(key)) libraries.set(key, []);
-        libraries.get(key).push(item);
-      }
-      byId("code-links").replaceChildren(
-        ...[...libraries.values()].map((items) => {
-          const item = items[0];
-          const card = element("div", undefined, "code-link-card");
-          card.append(
-            element("span", item.language, "language-tag"),
-            element("h3", item.package),
-            element("p", `${item.provenance} · Candidate; AI review pending`, "muted"),
-            ...items.map((link) => renderCodeLink(link, inspect)),
-          );
-          return card;
-        }),
-      );
-      byId("code-link-status").textContent = codeLinks.length
-        ? `${codeLinks.length} customization entry points. Categories are not inferred from filenames or generated pollers.`
-        : filters.category || filters.status || filters.accepted
-          ? "Unreviewed code links have no substantiated category or review status. Clear these filters to browse candidates."
-          : "No content-checked customization entry points match. Discovery is incomplete; this is not proof of absence.";
-      byId("result-count").textContent = selected.length
-        ? `${selected.length} individual findings shown.`
-        : "No findings match these filters. Check coverage and analysis states below; this does not establish absence.";
-      byId("findings").classList.toggle("empty-state", selected.length === 0);
-      if (!selected.length)
-        byId("findings").append(
-          element(
-            "h3",
-            view.unassessed.length
-              ? "No reviewed classifications yet."
-              : "No findings match your filters.",
-          ),
-          element(
-            "p",
-            "Use the customization code links above to inspect candidates. A limited scan does not establish absence.",
-          ),
-        );
-      const packages = view.packages;
-      byId("packages").replaceChildren(
-        ...[
-          ...new Map([...packages, ...failures].map((item) => [item.identity, item])).values(),
-        ].map(renderPackage),
-      );
-      byId("package-count").textContent =
-        `${packages.length} matching libraries. Technical inventory is not a customization count.`;
-      const metrics = [
-        [
-          "Libraries in scope",
-          view.packages.length,
-          `${view.scope.length} libraries in structural scope; ${view.assessed.length} assessed, ${view.unassessed.length} unassessed, ${view.scope.filter((item) => item.excluded).length} excluded`,
-        ],
-        [
-          "Candidate code entry points",
-          codeLinks.length,
-          "Unclassified; never counted as accepted instances",
-        ],
-        [
-          "Accepted instances",
-          view.accepted.length,
-          view.unassessed.length
-            ? "Known accepted only; incomplete assessment, not an absence claim"
-            : "Effective AI-reviewed or valid human override",
-        ],
-      ];
-      byId("metric-cards").replaceChildren(
-        ...metrics.map(([label, value, note]) => {
-          const card = element("div", undefined, "metric-card");
-          card.append(
-            element("span", label, "metric-label"),
-            element("strong", String(value), "metric-value"),
-            element("span", note, "metric-note"),
-          );
-          return card;
-        }),
-      );
-      byId("scope-note").textContent =
-        `${filters.observation ? `As of ${filters.observation}` : `Latest per-library records; exported ${data.generatedAt}`} (UTC). Counts, code links and library rows share these filters. Candidates are file entry points, not semantic customization instances. Service uses the terminal package service name.`;
-      const drilldown = (group, value) => {
-        if (group === "category" && value === "Unclassified candidate") return;
-        byId(group).value = value;
+      const pickCategory = (category) => {
+        byId("category").value = category;
+        byId("library").value = "";
         instance = "";
         update();
       };
-      const groups = breakdown(view, byId("group").value, byId("measure").value);
+
+      // Overview
+      const tracked = rows.filter((row) => row.tracker);
+      const customized = tracked.filter((row) => row.tracker.customized);
+      const repos = new Set(rows.map((row) => row.repo));
+      const scanned = rows.filter((row) => row.scan);
+      const latest = scanned
+        .map((row) => row.scan.observedAt)
+        .sort()
+        .at(-1);
+      byId("observation-meta").textContent = [
+        `${number.format(rows.length)} ${rows.length === 1 ? "library" : "libraries"} across ${repos.size} Azure SDK ${repos.size === 1 ? "repository" : "repositories"}`,
+        tracker
+          ? `Manual tracker: ${number.format(tracker.libraries.length)} libraries (${tracker.source})`
+          : "No manual tracker loaded",
+        `${scanned.length} with scanned code${filters.observation ? ` as of ${formatDate(filters.observation)} UTC` : latest ? `, latest ${formatDate(latest)} UTC` : ""}`,
+      ].join(" | ");
+      const reviewable = view.scope.filter((item) => !item.excluded).length;
+      if (tracker) {
+        const counts = new Map();
+        for (const row of customized)
+          for (const category of row.tracker.categories)
+            counts.set(category, (counts.get(category) ?? 0) + 1);
+        const [top, topCount] = [...counts].sort(
+          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+        )[0] ?? ["N/A", 0];
+        const services = new Set(rows.map((row) => row.service)).size;
+        const langs = new Set(rows.map((row) => row.language)).size;
+        byId("metric-cards").replaceChildren(
+          kpi(
+            "Customized libraries",
+            percent(customized.length, tracked.length),
+            `${number.format(customized.length)} of ${number.format(tracked.length)} tracked libraries`,
+            "featured",
+          ),
+          kpi(
+            "Libraries in view",
+            number.format(rows.length),
+            `${services} ${services === 1 ? "service" : "services"} · ${langs} ${langs === 1 ? "language" : "languages"}`,
+          ),
+          kpi(
+            filters.category ? "Selected category" : "Most common customization",
+            filters.category || top,
+            filters.category
+              ? `${number.format(customized.length)} ${customized.length === 1 ? "library" : "libraries"} · ${percent(customized.length, tracked.length)}`
+              : `${number.format(topCount)} ${topCount === 1 ? "library" : "libraries"} · ${percent(topCount, tracked.length)} of tracked`,
+          ),
+          kpi(
+            "Fully generated",
+            number.format(tracked.length - customized.length),
+            `${percent(tracked.length - customized.length, tracked.length)} need no handwritten code`,
+            "generated",
+          ),
+        );
+      } else {
+        byId("metric-cards").replaceChildren(
+          kpi(
+            "Customization entry points",
+            semantic ? "—" : number.format(codeLinks.length),
+            `${new Set(codeLinks.map((item) => item.identity)).size} of ${view.scope.length} libraries have handwritten customization files`,
+            "featured",
+          ),
+          kpi(
+            "Reviewed customizations",
+            view.assessed.length || view.accepted.length
+              ? number.format(view.accepted.length)
+              : "N/A",
+            `${view.unassessed.length} libraries awaiting review`,
+          ),
+          kpi("Libraries in view", number.format(rows.length), `${repos.size} repositories`),
+          kpi(
+            "Review coverage",
+            percent(view.assessed.length, reviewable),
+            `${view.assessed.length} of ${reviewable} libraries assessed`,
+            "generated",
+          ),
+        );
+      }
+
+      // Breakdown
+      const group = byId("group").value;
+      const measure = byId("measure").value;
+      const label = (key) => (group === "language" ? languageLabel(key) : key);
+      const portfolio = new Map(trackerBreakdown(rows, group).map((row) => [row.key, row]));
+      // Scanned measures follow the same group keys as the tracker (its service names win).
+      const scannedGroups = new Map();
+      const addScanned = (key, field, amount = 1) => {
+        if (!scannedGroups.has(key)) scannedGroups.set(key, { candidates: 0, accepted: 0 });
+        scannedGroups.get(key)[field] += amount;
+      };
+      const rowByIdentity = new Map(
+        rows.filter((row) => row.scan).map((row) => [row.scan.identity, row]),
+      );
+      const keyFor = (identity, fallback) => {
+        const row = rowByIdentity.get(identity);
+        return group === "service"
+          ? (row?.service ?? fallback.service)
+          : (row?.language ?? fallback.language);
+      };
+      for (const link of codeLinks)
+        addScanned(
+          group === "category" ? "Unclassified candidate" : keyFor(link.identity, link),
+          "candidates",
+        );
+      for (const item of findings.filter((finding) => finding.counted))
+        addScanned(
+          group === "category" ? canonicalCategory(item.category) : keyFor(item.identity, item),
+          "accepted",
+        );
+      const keys = [...new Set([...portfolio.keys(), ...scannedGroups.keys()])];
+      const table = keys.map((key) => ({
+        key,
+        libraries: portfolio.get(key)?.libraries ?? 0,
+        customized: portfolio.get(key)?.customized ?? 0,
+        candidates: scannedGroups.get(key)?.candidates ?? 0,
+        accepted: scannedGroups.get(key)?.accepted ?? 0,
+      }));
+      const totalTracked = tracked.length;
+      const valueOf = (row) =>
+        measure === "share"
+          ? group === "category"
+            ? row.libraries / Math.max(1, totalTracked)
+            : row.customized / Math.max(1, row.libraries)
+          : measure === "libraries"
+            ? row.libraries
+            : row[measure];
+      table.sort(
+        (a, b) =>
+          valueOf(b) - valueOf(a) || b.libraries - a.libraries || a.key.localeCompare(b.key),
+      );
+      const stacked = (measure === "share" || measure === "libraries") && group !== "category";
+      const legend = byId("breakdown-legend");
+      legend.replaceChildren(
+        ...(stacked
+          ? [
+              element("span", "Has customizations", "key key-custom"),
+              element("span", "Fully generated", "key key-generated"),
+            ]
+          : [
+              element(
+                "span",
+                measure === "candidates"
+                  ? "Code entry points (scanned libraries only)"
+                  : measure === "accepted"
+                    ? "Reviewed customizations"
+                    : measure === "share"
+                      ? "Share of tracked libraries in view"
+                      : "Libraries with this customization",
+                `key ${measure === "candidates" ? "key-candidates" : "key-custom"}`,
+              ),
+            ]),
+      );
+      const plotted = table.filter((row) =>
+        measure === "share" || measure === "libraries" ? row.libraries > 0 : valueOf(row) > 0,
+      );
+      const scaleMax =
+        measure === "share"
+          ? 1
+          : Math.max(1, ...plotted.map((row) => (stacked ? row.libraries : valueOf(row))));
+      byId("breakdown").classList.toggle("percent-scale", measure === "share");
       byId("breakdown").replaceChildren(
-        ...groups.map(([name, value]) => {
-          const button = element("button", `${name} · ${value}`, "aggregate");
+        ...plotted.map((row) => {
+          const button = element("button", undefined, "bar-row");
           button.type = "button";
-          if (name === "Unclassified candidate") button.disabled = true;
-          button.addEventListener("click", () => drilldown(byId("group").value, name));
+          button.dataset.value = row.key;
+          const unclassified = row.key === "Unclassified candidate";
+          if (unclassified) button.disabled = true;
+          const track = element("span", undefined, "bar-track");
+          let text;
+          if (stacked) {
+            const customWidth = measure === "share" ? valueOf(row) : row.customized / scaleMax;
+            const generatedWidth =
+              measure === "share" ? 1 - valueOf(row) : (row.libraries - row.customized) / scaleMax;
+            const custom = element("span", undefined, "bar-fill fill-custom");
+            custom.style.setProperty("--size", `${customWidth * 100}%`);
+            const generated = element("span", undefined, "bar-fill fill-generated");
+            generated.style.setProperty("--size", `${generatedWidth * 100}%`);
+            track.append(custom, generated);
+            text =
+              measure === "share"
+                ? percent(row.customized, row.libraries)
+                : `${row.customized} / ${row.libraries}`;
+          } else {
+            const fill = element(
+              "span",
+              undefined,
+              `bar-fill ${measure === "candidates" ? "fill-candidates" : "fill-custom"}`,
+            );
+            fill.style.setProperty("--size", `${(valueOf(row) / scaleMax) * 100}%`);
+            track.append(fill);
+            text =
+              measure === "share"
+                ? percent(row.libraries, totalTracked)
+                : number.format(valueOf(row));
+          }
+          button.setAttribute(
+            "aria-label",
+            `${label(row.key)}: ${text}${unclassified ? "" : ". Filter to this group"}`,
+          );
+          button.append(
+            element("span", label(row.key), "bar-label"),
+            track,
+            element("span", text, "bar-value"),
+          );
+          button.addEventListener("click", () => {
+            byId(group).value = row.key;
+            byId("library").value = "";
+            instance = "";
+            update();
+          });
           return button;
         }),
       );
-      if (!groups.length)
+      if (!plotted.length)
         byId("breakdown").append(
           element(
             "p",
-            "No matching measured values. Choose candidate entry points to browse unclassified code; missing assessment is not zero customizations.",
-            "muted",
+            measure === "accepted"
+              ? view.assessed.length
+                ? "No reviewed customizations match these filters."
+                : "No library has been through AI/human review yet, so there are no reviewed instances to chart. The tracker and code entry points still show where customizations are."
+              : measure === "candidates"
+                ? "None of the matching libraries have scanned code yet. Discovery is incomplete; this is not proof of absence."
+                : "No tracked libraries match these filters.",
+            "empty-chart",
           ),
         );
-      const libraryRows = view.packages
-        .map((item) => ({
-          ...item,
-          service: serviceOf(item),
-          accepted: view.accepted.filter((finding) => finding.identity === item.identity).length,
-          candidates: codeLinks.filter((link) => link.identity === item.identity).length,
+      byId("breakdown-group-heading").textContent =
+        group === "category" ? "Category" : group === "service" ? "Service" : "Language";
+      byId("breakdown-rows").replaceChildren(
+        ...table.map((row) => {
+          const tr = element("tr");
+          tr.append(
+            element("td", label(row.key)),
+            element("td", number.format(row.libraries), "num"),
+            element("td", group === "category" ? "—" : number.format(row.customized), "num"),
+            element(
+              "td",
+              group === "category"
+                ? percent(row.libraries, totalTracked)
+                : percent(row.customized, row.libraries),
+              "num",
+            ),
+            element("td", row.candidates ? number.format(row.candidates) : "—", "num"),
+          );
+          return tr;
+        }),
+      );
+
+      // Library explorer
+      const accepted = findings.filter((item) => item.counted);
+      const libraryRows = rows
+        .map((row) => ({
+          ...row,
+          customized: row.tracker ? (row.tracker.customized ? 1 : 0) : -1,
+          accepted: row.scan
+            ? accepted.filter((item) => item.identity === row.scan.identity).length
+            : -1,
+          candidates: row.scan ? (row.scan.customizationLinks?.length ?? 0) : -1,
+          reviewed: Boolean(
+            row.scan && view.assessed.some((item) => item.identity === row.scan.identity),
+          ),
         }))
         .sort((a, b) => {
           const left = a[sort] ?? a.package;
           const right = b[sort] ?? b.package;
           return (
             (typeof left === "number" ? left - right : String(left).localeCompare(String(right))) *
-              (descending ? -1 : 1) || a.identity.localeCompare(b.identity)
+              (descending ? -1 : 1) || a.package.localeCompare(b.package)
           );
         });
       for (const button of document.querySelectorAll("[data-sort]"))
@@ -446,67 +824,356 @@ export async function start() {
           "aria-sort",
           button.dataset.sort === sort ? (descending ? "descending" : "ascending") : "none",
         );
+      byId("library-count").textContent =
+        `${number.format(libraryRows.length)} matching ${libraryRows.length === 1 ? "library" : "libraries"}. Select one for its details and code.`;
+      const chooseLibrary = (id) => {
+        byId("library").value = id;
+        instance = "";
+        update();
+        byId("code-title").scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      const emptyNote = byId("library-empty");
+      emptyNote.replaceChildren();
+      emptyNote.hidden = libraryRows.length > 0;
+      if (!libraryRows.length) {
+        // Reviewed findings are still sparse; offer the tracker answer instead of a blank table.
+        const relaxed = filters.accepted
+          ? filterLibraries(libraries, snapshot.findings, { ...filters, accepted: false })
+          : [];
+        emptyNote.append(
+          element(
+            "p",
+            filters.accepted
+              ? "No libraries have reviewed (counted) customizations that match yet."
+              : "No libraries match these filters.",
+          ),
+        );
+        if (relaxed.length) {
+          const show = element(
+            "button",
+            `Show the ${relaxed.length} tracked ${relaxed.length === 1 ? "library" : "libraries"} instead`,
+          );
+          show.type = "button";
+          show.addEventListener("click", () => {
+            byId("accepted").checked = false;
+            update();
+          });
+          emptyNote.append(
+            element(
+              "p",
+              `The manual tracker lists ${relaxed.length} matching ${relaxed.length === 1 ? "library" : "libraries"}${filters.category ? ` tagged “${filters.category}”` : ""}.`,
+              "muted",
+            ),
+            show,
+          );
+        }
+      }
       byId("library-rows").replaceChildren(
         ...libraryRows.map((item) => {
           const row = element("tr");
+          if (item.id === filters.library) row.className = "selected";
           const name = element("td");
-          const button = element(
-            "button",
-            `${item.package} · v${item.moduleMajor}`,
-            "library-select",
-          );
+          const button = element("button", item.package, "library-link library-select");
           button.type = "button";
-          button.addEventListener("click", () => {
-            byId("library").value = item.identity;
-            instance = "";
-            update();
-          });
+          button.addEventListener("click", () => chooseLibrary(item.id));
           name.append(button);
+          const status = element("td");
+          status.append(
+            item.tracker
+              ? element(
+                  "span",
+                  item.tracker.customized ? "Yes" : "No",
+                  `pill ${item.tracker.customized ? "pill-custom" : "pill-generated"}`,
+                )
+              : element("span", "Not tracked", "pill pill-muted"),
+          );
+          const what = element("td", undefined, "what-cell");
+          if (item.tracker?.categories.length)
+            what.append(chips(item.tracker.categories, pickCategory));
+          else if (item.tracker) what.append(element("span", item.tracker.details || "—", "muted"));
+          else what.append(element("span", "—", "muted"));
+          const code = element("td", undefined, "num");
+          if (item.scan) {
+            const link = element(
+              "button",
+              `${item.candidates} ${item.candidates === 1 ? "file" : "files"}`,
+              "library-link",
+            );
+            link.type = "button";
+            link.setAttribute(
+              "aria-label",
+              `${item.package}: ${item.candidates} customization files`,
+            );
+            link.addEventListener("click", () => chooseLibrary(item.id));
+            code.append(link);
+          } else code.append(element("span", "Not scanned", "muted"));
           row.append(
             name,
-            element("td", item.language),
+            element("td", languageLabel(item.language)),
             element("td", item.service),
+            status,
+            what,
+            code,
             element(
               "td",
-              view.assessed.some((assessment) => assessment.identity === item.identity)
-                ? String(item.accepted)
-                : item.accepted
-                  ? `${item.accepted} known · incomplete`
-                  : "Not assessed",
-            ),
-            element("td", String(item.candidates)),
-            element(
-              "td",
-              item.excluded
-                ? "Excluded"
-                : view.assessed.some((assessment) => assessment.identity === item.identity)
-                  ? "Assessed (bounded)"
-                  : "Not assessed / unavailable",
+              !item.scan
+                ? "—"
+                : item.reviewed
+                  ? String(item.accepted)
+                  : item.accepted > 0
+                    ? `${item.accepted} (partial)`
+                    : "N/A",
+              "num",
             ),
           );
           return row;
         }),
       );
-      const rows = historyRows(
+
+      // Library detail
+      const selectedLibrary = filters.library
+        ? rows.find((row) => row.id === filters.library)
+        : null;
+      const detailHost = byId("library-detail");
+      detailHost.replaceChildren();
+      if (selectedLibrary) {
+        const card = element("article", undefined, "library-card");
+        const head = element("div", undefined, "code-card-head");
+        head.append(
+          element(
+            "span",
+            languageLabel(selectedLibrary.language),
+            `language-tag lang-${selectedLibrary.language}`,
+          ),
+          element("h3", selectedLibrary.package),
+          element("span", selectedLibrary.service, "muted"),
+        );
+        const close = element("button", "Show all libraries", "secondary small");
+        close.type = "button";
+        close.addEventListener("click", () => {
+          byId("library").value = "";
+          instance = "";
+          update();
+        });
+        head.append(close);
+        card.append(head);
+        const facts = element("dl", undefined, "facts");
+        const fact = (term, value) => {
+          const wrap = element("div");
+          wrap.append(element("dt", term));
+          const dd = element("dd");
+          if (typeof value === "string") dd.textContent = value;
+          else dd.append(value);
+          wrap.append(dd);
+          facts.append(wrap);
+        };
+        fact(
+          "Source",
+          externalLink(
+            `https://github.com/${selectedLibrary.repo}/tree/main/${selectedLibrary.root
+              .split("/")
+              .map(encodeURIComponent)
+              .join("/")}`,
+            `${selectedLibrary.repo}/${selectedLibrary.root}`,
+          ),
+        );
+        if (selectedLibrary.tracker) {
+          fact(
+            "Customized (tracker)",
+            selectedLibrary.tracker.customized ? "Yes" : "No — fully generated",
+          );
+          if (selectedLibrary.tracker.categories.length)
+            fact("Categories", chips(selectedLibrary.tracker.categories, pickCategory));
+          fact("What was customized", selectedLibrary.tracker.details || "—");
+          if (selectedLibrary.tracker.notes) fact("Notes", selectedLibrary.tracker.notes);
+        } else fact("Tracker", "Not in the manual tracker");
+        fact(
+          "Code scan",
+          selectedLibrary.scan
+            ? `${selectedLibrary.scan.customizationLinks?.length ?? 0} entry points at ${selectedLibrary.scan.commit.slice(0, 7)} · ${formatDate(selectedLibrary.scan.observedAt)} UTC`
+            : "Not scanned yet — add it to targets.json to get pinned code links",
+        );
+        card.append(facts);
+        detailHost.append(card);
+      }
+
+      // Customization code
+      const byLibrary = new Map();
+      for (const item of codeLinks) {
+        if (!byLibrary.has(item.identity)) byLibrary.set(item.identity, []);
+        byLibrary.get(item.identity).push(item);
+      }
+      byId("code-links").replaceChildren(
+        ...[...byLibrary.values()].map((items) => {
+          const item = items[0];
+          const pkg = snapshot.packages.find((entry) => entry.identity === item.identity);
+          const card = element("article", undefined, "code-link-card");
+          const head = element("div", undefined, "code-card-head");
+          head.append(
+            element("span", languageLabel(item.language), `language-tag lang-${item.language}`),
+            element("h3", item.package),
+            element(
+              "span",
+              `${items.length} ${items.length === 1 ? "entry point" : "entry points"}`,
+              "muted",
+            ),
+          );
+          card.append(head);
+          const meta = element(
+            "p",
+            `${item.provenance} · Candidate; AI review pending · `,
+            "muted card-meta",
+          );
+          if (pkg?.commit)
+            meta.append(
+              externalLink(
+                fileUrl(pkg.repo, pkg.commit, pkg.root, true),
+                `browse at ${pkg.commit.slice(0, 7)}`,
+              ),
+            );
+          card.append(meta);
+          const list = element("ul", undefined, "code-link-list");
+          list.append(
+            ...items.map((link) =>
+              renderCodeLink(link, inspect, instance === `candidate:${link.identity}:${link.path}`),
+            ),
+          );
+          card.append(list);
+          return card;
+        }),
+      );
+      const unscanned = rows.filter((row) => !row.scan).length;
+      byId("code-link-status").textContent = codeLinks.length
+        ? `${codeLinks.length} handwritten customization files in ${byLibrary.size} scanned ${byLibrary.size === 1 ? "library" : "libraries"}, pinned to the scanned commit.${libraryLevel ? ` They belong to libraries tagged “${filters.category}”; individual files are not classified yet.` : ""}${unscanned ? ` ${number.format(unscanned)} matching libraries are not scanned yet.` : ""}`
+        : selectedLibrary && !selectedLibrary.scan
+          ? "This library has not been scanned yet, so there are no pinned code links. Use the source link above."
+          : `No scanned customization files match.${unscanned ? ` ${number.format(unscanned)} matching libraries are not scanned yet.` : ""} Discovery is incomplete; this is not proof of absence.`;
+
+      byId("findings").replaceChildren(...findings.map((item) => renderFinding(item, inspect)));
+      document.querySelector(".reviewed-results").open =
+        findings.length > 0 || Boolean(filters.status || filters.accepted);
+      byId("result-count").textContent = `(${findings.length})`;
+      byId("findings").classList.toggle("empty-state", findings.length === 0);
+      if (!findings.length)
+        byId("findings").append(
+          element(
+            "h3",
+            view.unassessed.length
+              ? "No reviewed customizations yet."
+              : "No customizations match your filters.",
+          ),
+          element(
+            "p",
+            "Use the tracker and code links above. Review is bounded, so an empty result does not establish absence.",
+          ),
+        );
+
+      // Instance detail
+      const detail = byId("instance-detail");
+      detail.replaceChildren();
+      const finding = instance && findings.find((item) => item.id === instance);
+      const candidate =
+        instance &&
+        codeLinks.find((item) => `candidate:${item.identity}:${item.path}` === instance);
+      detail.classList.toggle("placeholder", !instance);
+      detail.hidden = !codeLinks.length && !instance;
+      detail.append(element("h3", "Instance detail"));
+      if (!instance) {
+        detail.append(element("p", "Select “Preview code” on a file to read it here.", "muted"));
+      } else if (finding) {
+        detail.append(renderFinding(finding));
+        const item = snapshot.packages.find((pkg) => pkg.identity === finding.identity);
+        detail.append(
+          element(
+            "p",
+            `Scan ${item.scanId} · ${item.observedAt} · revision ${item.commit}`,
+            "muted",
+          ),
+          element("p", `Assessment version: ${JSON.stringify(item.assessmentVersion)}`, "muted"),
+        );
+      } else if (candidate) {
+        detail.append(
+          element(
+            "p",
+            `${languageLabel(candidate.language)} · ${candidate.package}`,
+            "detail-eyebrow",
+          ),
+          externalLink(
+            `${fileUrl(candidate.repo, candidate.commit, candidate.path)}#L${candidate.startLine}-L${candidate.endLine}`,
+            `${candidate.path.split("/").slice(-3).join("/")} (lines ${candidate.startLine}–${candidate.endLine})`,
+          ),
+          element(
+            "p",
+            `${candidate.provenance}. Content checked; category, subtype and explanation are not assessed yet.`,
+          ),
+        );
+        if (candidate.preview) {
+          const pre = element("pre", undefined, "code-preview");
+          pre.append(element("code", candidate.preview));
+          detail.append(
+            element(
+              "p",
+              `Captured preview: lines 1–${candidate.previewEndLine}. Open GitHub for the complete entry point.`,
+              "muted",
+            ),
+            pre,
+          );
+        } else
+          detail.append(
+            element("p", "No preview was captured for this file; open it on GitHub.", "muted"),
+          );
+        detail.append(
+          element("p", `Evidence SHA-256 ${candidate.contentHash.slice(0, 16)}…`, "muted hash"),
+        );
+      } else
+        detail.append(
+          element(
+            "p",
+            "This instance is outside the current observation or filter scope. Clear filters or choose its observation.",
+          ),
+        );
+
+      // History (scan observations; the tracker is a single snapshot)
+      const historyFilters = {
+        ...scanFilters,
+        observation: filters.observation,
+        identities: tracker ? identities : undefined,
+      };
+      const observationRows = historyRows(
         data.observations ?? [],
-        filters,
+        historyFilters,
         byId("fixed").checked,
         byId("from").value,
       );
-      const comparable = rows.filter((row) => row.accepted !== null);
+      const comparable = observationRows.filter((row) => row.accepted !== null);
       const sameVersion = new Set(comparable.map((row) => row.version)).size <= 1;
-      byId("history-status").textContent =
+      const showCandidates = !semantic && !filters.category;
+      const measured = observationRows.filter((row) => row.candidates !== null).length;
+      byId("history-status").textContent = [
+        `${observationRows.length} scan observations${byId("fixed").checked ? " · fixed cohort" : ""}.`,
+        tracker ? "The manual tracker is a single snapshot, so history comes from code scans." : "",
+        showCandidates && measured < observationRows.length
+          ? `${observationRows.length - measured} early scans predate entry-point discovery and are gaps, not zeros.`
+          : "",
         comparable.length < 2
-          ? "Insufficient comparable assessed history. Unassessed observations are shown as N/A, not zero; no customization trend is inferred."
+          ? "Reviewed customizations stay N/A until libraries are assessed."
           : !sameVersion
-            ? "Assessment versions or cohort changed. Values are shown separately; no continuous trend is inferred."
-            : "Comparable assessed observations. Changes reflect effective assessments, not necessarily code additions or removals.";
+            ? "Assessment versions or cohort changed; no continuous trend is inferred."
+            : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       byId("history-rows").replaceChildren(
-        ...rows.map((row) => {
+        ...[...observationRows].reverse().map((row) => {
           const tr = element("tr");
           const date = element("td");
-          const button = element("button", row.observedAt, "library-select");
+          const button = element(
+            "button",
+            formatDate(row.observedAt),
+            "library-link library-select",
+          );
           button.type = "button";
+          button.setAttribute("aria-label", `Show observation ${row.observedAt}`);
           button.addEventListener("click", () => {
             byId("observation").value = row.observedAt;
             instance = "";
@@ -515,119 +1182,106 @@ export async function start() {
           date.append(button);
           tr.append(
             date,
-            element("td", String(row.libraries)),
-            element("td", String(row.assessed)),
-            element("td", row.accepted === null ? "N/A — not assessed" : String(row.accepted)),
-            element("td", `+${row.added} / −${row.removed}`),
+            element("td", String(row.libraries), "num"),
+            element(
+              "td",
+              !showCandidates || row.candidates === null ? "N/A" : String(row.candidates),
+              "num",
+            ),
+            element(
+              "td",
+              row.accepted === null ? "N/A — not assessed" : String(row.accepted),
+              "num",
+            ),
+            element("td", `+${row.added} / −${row.removed}`, "num"),
           );
           return tr;
         }),
       );
       byId("trend-chart").replaceChildren(
-        ...(comparable.length >= 2 && sameVersion
-          ? comparable.map((row) => {
-              const bar = element("div", undefined, "trend-point");
-              bar.append(
-                element("span", row.observedAt.slice(0, 10)),
-                element("strong", `${row.accepted} accepted instances`),
-              );
-              const meter = element("meter");
-              meter.min = 0;
-              meter.max = Math.max(1, ...comparable.map((item) => item.accepted));
-              meter.value = row.accepted;
-              meter.setAttribute(
-                "aria-label",
-                `${row.observedAt}: ${row.accepted} accepted instances`,
-              );
-              bar.append(meter);
-              return bar;
-            })
-          : []),
+        renderTrendChart(
+          observationRows.map((row) => ({
+            ...row,
+            accepted: comparable.length >= 2 && sameVersion ? row.accepted : null,
+          })),
+          { showCandidates },
+        ),
       );
-      const detail = byId("instance-detail");
-      detail.replaceChildren();
-      if (instance) {
-        const finding = selected.find((item) => item.id === instance);
-        const candidate = codeLinks.find(
-          (item) => `candidate:${item.identity}:${item.path}` === instance,
-        );
-        detail.append(element("h3", "Instance detail"));
-        if (finding) {
-          detail.append(renderFinding(finding));
-          const item = snapshot.packages.find((pkg) => pkg.identity === finding.identity);
-          detail.append(
-            element(
-              "p",
-              `Scan ${item.scanId} · ${item.observedAt} · revision ${item.commit}`,
-              "muted",
-            ),
-            element("p", `Assessment version: ${JSON.stringify(item.assessmentVersion)}`, "muted"),
-          );
-        } else if (candidate) {
-          detail.append(
-            renderCodeLink(candidate, inspect),
-            element(
-              "p",
-              `${candidate.provenance}. Content checked; category, subtype and semantic explanation are not assessed. Entry-point discovery is not an independent AI-reviewed semantic instance; see reviewed instances for judgments.`,
-            ),
-            element(
-              "p",
-              `Evidence SHA-256 ${candidate.contentHash}. Full content is available at the pinned GitHub range; no snippet is invented.`,
-              "muted",
-            ),
-          );
-          if (candidate.preview) {
-            const pre = element("pre");
-            pre.append(element("code", candidate.preview));
-            detail.append(
-              element(
-                "p",
-                `Captured preview: lines 1–${candidate.previewEndLine}. Open GitHub for the complete entry point.`,
-                "muted",
-              ),
-              pre,
-            );
-          }
-        } else
-          detail.append(
-            element(
-              "p",
-              "This instance is outside the current observation or filter scope. Clear filters or choose its observation.",
-            ),
-          );
-      }
+
+      // Diagnostics
+      byId("summary").textContent =
+        `${view.scope.length} scanned libraries in scope; ${view.accepted.length} accepted matching instances; ${view.unassessed.length} unassessed libraries; ${failures.length} collection/assessment errors. Excluded or stale findings never count.`;
+      byId("provenance").textContent =
+        `Observation ${filters.observation || "latest available"}; schema ${snapshot.schemaVersion}, history v${data.historyVersion ?? 0}. Export ${data.generatedAt}.${tracker ? ` Tracker ${tracker.source}, SHA-256 ${tracker.sourceSha256.slice(0, 12)}.` : ""} Human overrides apply as of the observation timestamp, not retroactively.`;
+      byId("packages").replaceChildren(
+        ...[
+          ...new Map([...view.scope, ...failures].map((item) => [item.identity, item])).values(),
+        ].map(renderPackage),
+      );
+      byId("package-count").textContent =
+        `${view.scope.length} scanned libraries. Technical inventory is not a customization count.`;
     };
+
+    const controls = [...fields, "accepted", "from", "fixed", "group", "measure"];
+    for (const id of controls)
+      byId(id).addEventListener(id === "search" || id === "from" ? "input" : "change", () => {
+        if (fields.includes(id) || id === "accepted") instance = "";
+        update();
+      });
     byId("filters").addEventListener("submit", (event) => event.preventDefault());
-    byId("filters").addEventListener("input", update);
-    for (const id of ["from", "fixed", "group", "measure"])
-      byId(id).addEventListener("input", update);
     for (const button of document.querySelectorAll("[data-sort]"))
       button.addEventListener("click", () => {
-        descending = sort === button.dataset.sort ? !descending : false;
+        const numeric = ["candidates", "accepted", "customized"].includes(button.dataset.sort);
+        descending = sort === button.dataset.sort ? !descending : numeric;
         sort = button.dataset.sort;
         update();
       });
-    byId("clear-filters").addEventListener("click", () => {
+    const reset = () => {
       for (const id of [...fields, "from"]) byId(id).value = "";
       byId("accepted").checked = false;
       instance = "";
+    };
+    const jump = (id) => byId(id).scrollIntoView({ behavior: "smooth", block: "start" });
+    byId("clear-filters").addEventListener("click", () => {
+      reset();
       update();
+    });
+    byId("query").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const values = {
+        language: byId("q-language").value,
+        service: byId("q-service").value,
+        category: byId("q-category").value,
+        counted: byId("q-review").value === "counted",
+      };
+      reset();
+      byId("language").value = values.language;
+      byId("service").value = values.service;
+      byId("category").value = values.category;
+      byId("accepted").checked = values.counted;
+      update();
+      jump("explorer-title");
     });
     byId("java-lro").addEventListener("click", () => {
+      reset();
       byId("language").value = "java";
-      byId("category").value = "LRO";
-      byId("status").value = "";
-      byId("search").value = "";
-      byId("service").value = "";
-      byId("library").value = "";
-      instance = "";
-      byId("accepted").checked = true;
+      byId("category").value = "LRO / polling";
       update();
+      jump("explorer-title");
     });
+    for (const button of document.querySelectorAll("[data-preset]"))
+      button.addEventListener("click", () => {
+        reset();
+        for (const [key, value] of new URLSearchParams(button.dataset.preset))
+          byId(key).value = value;
+        update();
+        jump(button.dataset.preset.includes("group=") ? "summary-title" : "explorer-title");
+      });
     update();
   } catch (error) {
     loadStatus.textContent = `Unable to display metrics: ${error.message}`;
     loadStatus.setAttribute("role", "alert");
+    loadStatus.className = "status alert";
   }
 }
 

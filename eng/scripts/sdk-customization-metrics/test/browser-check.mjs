@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 import { findingKey } from "../analysis.mjs";
 import { capture, newScan } from "../source.mjs";
 import { append, exportData } from "../store.mjs";
+import { normalizeTracker } from "../tracker.mjs";
 
 // Local-only synthetic browser fixture. Never publish this export.
 const directory = await mkdtemp(join(tmpdir(), "sdk-metrics-browser-"));
@@ -117,12 +118,14 @@ try {
     "All services",
     "synthetic",
   ]);
-  assert.equal(await page.locator(".metric-card").count(), 3);
+  // Without a tracker the overview falls back to scan-only measures.
+  assert.equal(await page.locator(".metric-card").count(), 4);
+  assert.equal(await page.locator("#customized").isVisible(), false);
   assert.match(await page.locator("#coverage-title").innerText(), /Collection diagnostics/);
   assert.equal(await page.locator("#diagnostics").getAttribute("open"), null);
   assert.equal(await page.locator(".code-link-card").count(), 1);
   assert.match(await page.locator(".code-link-card").innerText(), /Candidate; AI review pending/);
-  assert.match(await page.locator(".code-link-card a").getAttribute("href"), /#L1-L4$/);
+  assert.match(await page.locator(".code-link-row a").getAttribute("href"), /#L1-L4$/);
   await page.locator("#coverage-title").click();
   assert.match(await page.locator(".notice").last().innerText(), /not collection failures/);
   await page.locator(".package-card > summary").click();
@@ -137,59 +140,70 @@ try {
   await page.getByText("Captured source files (1)", { exact: true }).click();
   assert.equal(await page.locator(".package-card table a").count(), 2);
   await page.getByRole("button", { name: "Show Java LRO customizations" }).click();
-  assert.equal(await page.locator(".code-link-card").count(), 0);
-  assert.deepEqual(await page.locator(".metric-value").allTextContents(), ["1", "0", "1"]);
+  assert.equal(await page.locator("#category").inputValue(), "LRO / polling");
+  // The library matches through its reviewed LRO finding; its files are listed as unclassified.
+  assert.equal(await page.locator(".code-link-card").count(), 1);
+  assert.match(await page.locator("#code-link-status").innerText(), /not classified yet/);
+  assert.deepEqual(await page.locator(".metric-value").allTextContents(), [
+    "1",
+    "1",
+    "1",
+    "100.0%",
+  ]);
   assert.equal(await page.locator("#library-rows tr").count(), 1);
   assert.equal(await page.locator(".reviewed-results").getAttribute("open"), "");
-  assert.equal(await page.locator("article").count(), 1);
+  assert.equal(await page.locator("#findings article").count(), 1);
   assert.match(page.url(), /language=java/);
   assert.equal(new URL(page.url()).pathname, `${prefix}/`);
   assert.match(
-    await page.locator("article").innerText(),
+    await page.locator("#findings article").innerText(),
     /Root-cause hypothesis \(not a measured fact\)/,
   );
   await page.locator("#language").selectOption("go");
-  assert.equal(await page.locator("article").count(), 0);
+  assert.equal(await page.locator("#findings article").count(), 0);
   assert.equal(await page.locator(".package-card").count(), 0);
-  assert.match(await page.locator(".empty-state").innerText(), /does not establish absence/);
+  assert.match(await page.locator("#findings").textContent(), /does not establish absence/);
+  assert.match(await page.locator("#library-empty").innerText(), /No libraries match/);
   await page.locator("#language").selectOption("java");
   await page.locator("#status").selectOption("inconclusive");
-  assert.equal(await page.locator("article").count(), 0);
+  assert.equal(await page.locator("#findings article").count(), 0);
   await page.locator("#status").selectOption("AI-reviewed");
-  assert.equal(await page.locator("article").count(), 1);
-  await page.locator("article details").first().locator("summary").click();
-  assert.match(await page.locator("article pre").innerText(), /<script>/);
+  assert.equal(await page.locator("#findings article").count(), 1);
+  await page.locator("#findings article details").first().locator("summary").click();
+  assert.match(await page.locator("#findings article pre").innerText(), /<script>/);
   assert.equal(await page.locator("article script").count(), 0);
   assert.equal(await page.evaluate(() => window.injected), undefined);
-  assert.match(await page.locator("article a").getAttribute("href"), /\/blob\/a{40}\//);
+  assert.match(await page.locator("#findings article a").getAttribute("href"), /\/blob\/a{40}\//);
   await page.locator("#search").fill("no-match");
-  assert.equal(await page.locator("article").count(), 0);
-  assert.match(await page.locator("#result-count").innerText(), /does not establish absence/);
+  assert.equal(await page.locator("#findings article").count(), 0);
+  assert.equal(await page.locator("#result-count").innerText(), "(0)");
   await page.locator("#search").fill("customPoll");
-  assert.equal(await page.locator("article").count(), 1);
+  assert.equal(await page.locator("#findings article").count(), 1);
   const download = page.waitForEvent("download");
-  await page.getByRole("link", { name: /SQLite database/ }).click();
+  await page.getByRole("link", { name: /metrics\.sqlite/ }).click();
   assert.equal((await download).suggestedFilename(), "metrics.sqlite");
   await page.getByRole("button", { name: "Clear filters" }).click();
   assert.equal(await page.locator("#language").inputValue(), "");
   assert.equal(await page.locator("#history-rows tr").count(), 3);
-  assert.equal(await page.locator(".trend-point").count(), 2);
-  assert.match(await page.locator("#history-rows tr").first().innerText(), /N\/A/);
+  assert.equal(await page.locator(".trend-svg .point.series-accepted").count(), 2);
+  assert.equal(await page.locator(".trend-svg .point.series-candidates").count(), 3);
+  assert.match(await page.locator("#history-rows tr").last().innerText(), /N\/A/);
   await page.locator("#observation").selectOption(initial.observedAt);
   assert.equal(await page.locator("#findings article").count(), 0);
-  assert.equal(await page.locator("#code-links a").count(), 1);
-  assert.match(await page.locator("#history-status").innerText(), /Insufficient/);
+  assert.equal(await page.locator(".code-link-row a").count(), 1);
+  assert.match(await page.locator("#history-status").innerText(), /stay N\/A/);
   await page.locator("#observation").selectOption("");
-  await page.locator("#breakdown button").filter({ hasText: "java" }).click();
+  await page.locator('#breakdown button[data-value="java"]').click();
   assert.equal(await page.locator("#language").inputValue(), "java");
   await page.locator("#library-rows button").first().click();
   assert.equal(await page.locator("#library").inputValue(), scan.identity);
-  assert.match(await page.locator("#metric-cards").innerText(), /Accepted instances/);
-  await page.locator("#code-links button").first().click();
-  assert.match(
-    await page.locator("#instance-detail").innerText(),
-    /not an independent AI-reviewed/,
-  );
+  assert.match(await page.locator("#library-detail").innerText(), /Not in the manual tracker/);
+  assert.match(await page.locator("#metric-cards").innerText(), /Reviewed customizations/);
+  await page
+    .getByRole("button", { name: /^Preview code/ })
+    .first()
+    .click();
+  assert.match(await page.locator("#instance-detail").innerText(), /not assessed yet/);
   assert.match(page.url(), /instance=candidate/);
   await page.reload();
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
@@ -202,7 +216,7 @@ try {
   await page.locator('[data-sort="accepted"]').click();
   assert.equal(
     await page.locator('[data-sort="accepted"]').locator("..").getAttribute("aria-sort"),
-    "ascending",
+    "descending",
   );
   await page.locator("#from").fill("2026-10-03");
   assert.equal(await page.locator("#history-rows tr").count(), 1);
@@ -237,6 +251,47 @@ try {
   assert.match(await page.locator("#library-rows").innerText(), /azopenai\/v2/);
   await page.getByRole("button", { name: "Clear filters" }).click();
   await page.unroute("**/metrics.json");
+  // Tracker mode: survey rows join the scan by repository path; unscanned rows stay visible.
+  const tracker = normalizeTracker(
+    [
+      "Service,Language,Package,Repo Link,Has Customization?,What Was Customized,Notes",
+      `synthetic,Java,${target.package},https://github.com/${target.repo}/tree/main/${target.root},Yes,LRO/polling,Synthetic tracker note`,
+      "other,Python,azure-synthetic-generated,https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/other/azure-synthetic-generated,No,fully generated,",
+      "paged,Go,azpaged,https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/paged/azpaged,Yes,pagination,",
+    ].join("\n"),
+  );
+  await page.route("**/tracker.json", (route) => route.fulfill({ json: tracker }));
+  await page.reload();
+  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.equal(await page.locator("#customized").isVisible(), true);
+  assert.deepEqual((await page.locator(".metric-value").allTextContents()).slice(0, 2), [
+    "66.7%",
+    "3",
+  ]);
+  assert.equal(await page.locator("#library-rows tr").count(), 3);
+  await page.locator("#customized").selectOption("no");
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  assert.match(await page.locator("#library-rows").innerText(), /Not scanned/);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await page.locator("#category").selectOption("Pagination");
+  await page.locator("#accepted").check();
+  assert.equal(await page.locator("#library-rows tr").count(), 0);
+  await page.getByRole("button", { name: "Show the 1 tracked library instead" }).click();
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  assert.equal(await page.locator("#accepted").isChecked(), false);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await page.getByRole("button", { name: "Filter by LRO / polling" }).first().click();
+  assert.equal(await page.locator("#category").inputValue(), "LRO / polling");
+  await page.locator("#library-rows button.library-select").first().click();
+  assert.match(await page.locator("#library-detail").innerText(), /Synthetic tracker note/);
+  assert.equal(await page.locator("#q-category").inputValue(), "LRO / polling");
+  await page.locator("#q-language").selectOption("python");
+  await page.locator("#q-category").selectOption("");
+  await page.locator("#query").getByRole("button", { name: "Show results" }).click();
+  assert.equal(await page.locator("#language").inputValue(), "python");
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await page.unroute("**/tracker.json");
   await page.route("**/metrics.json", async (route) => {
     const data = JSON.parse(await readFile(join(site, "metrics.json"), "utf8"));
     data.packages[0].coverage.status = "failed";
@@ -260,7 +315,7 @@ try {
   assert.match(await page.locator("#load-status").innerText(), /HTTP 404/);
   assert.deepEqual(pageErrors, []);
   process.stdout.write(
-    "Browser smoke passed: Java/LRO filters, snippets, escaping, downloads, and explicit data failure.\n",
+    "Browser smoke passed: Java/LRO filters, tracker join, snippets, escaping, downloads, and explicit data failure.\n",
   );
 } finally {
   if (browser) await browser.close();

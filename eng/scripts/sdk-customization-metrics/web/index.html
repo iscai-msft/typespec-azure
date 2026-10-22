@@ -7,36 +7,45 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"
     />
-    <title>SDK customization metrics</title>
+    <title>Azure SDK Customization Metrics</title>
     <link rel="stylesheet" href="./style.css" />
     <script type="module" src="./app.mjs"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to dashboard</a>
-    <header>
-      <nav aria-label="Dashboard sections">
-        <span class="brand">SDK INSIGHTS</span><a href="#summary-title">Overview</a
-        ><a href="#trend-title">Trends</a><a href="#explorer-title">Libraries</a
-        ><a href="#filter-title">Code</a><a href="#query-title">Query</a>
-      </nav>
-      <p class="eyebrow">CUSTOMIZATION OBSERVATORY · PERSONAL FORK PREVIEW</p>
-      <h1>SDK customization metrics</h1>
-      <p class="lead">Explore the code behind SDK customizations.</p>
-      <p class="header-note">
-        Public source evidence, transparent coverage, and reviewable findings across five SDK
-        ecosystems.
-      </p>
+    <header class="page-header">
+      <div class="header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">SDK</span>
+          <div class="brand-copy">
+            <h1>Azure SDK Customization Metrics</h1>
+            <p>Handwritten customizations across the Azure SDK languages</p>
+          </div>
+        </div>
+        <nav aria-label="Dashboard sections">
+          <a href="#overview-title">Overview</a><a href="#trend-title">Trends</a
+          ><a href="#explorer-title">Libraries</a><a href="#code-title">Code</a
+          ><a href="#query-title">Find</a>
+        </nav>
+        <label class="repository-filter"
+          >Language
+          <select id="language">
+            <option value="">All languages</option>
+          </select></label
+        >
+      </div>
     </header>
     <main id="main">
-      <p id="load-status" role="status">Loading metrics...</p>
-      <section aria-labelledby="scope-title">
-        <h2 id="scope-title">Explore customizations</h2>
-        <p class="muted">
-          One shared scope for the overview, breakdown, library explorer and code. Service is the
-          terminal SDK service name (for example, documentintelligence or azopenai), not an AI
-          finding category.
-        </p>
-        <form id="filters">
+      <p id="load-status" class="status" role="status">Loading metrics...</p>
+
+      <section class="panel overview" aria-labelledby="overview-title">
+        <div class="section-header">
+          <h2 id="overview-title">Customization overview</h2>
+          <p>How many libraries carry handwritten customizations, and what kind.</p>
+          <p id="observation-meta" class="observation-meta"></p>
+        </div>
+        <div id="metric-cards" class="kpis"></div>
+        <form id="filters" class="filters">
           <label
             >Observation<select id="observation">
               <option value="">Latest available</option>
@@ -53,146 +62,262 @@
             </select></label
           >
           <label
-            >Language
-            <select id="language">
-              <option value="">All languages</option>
-            </select></label
-          >
-          <label
-            >Category
-            <select id="category">
+            >Category<select id="category">
               <option value="">All categories</option>
             </select></label
           >
-          <label>
-            Review status
-            <select id="status">
-              <option value="">All statuses</option>
-              <option>AI-reviewed</option>
-              <option>human-override</option>
-              <option>inconclusive</option>
-              <option>rejected</option>
-              <option>human-rejected</option>
-              <option>needs-revalidation</option>
-              <option>excluded</option>
-            </select>
-          </label>
-          <label class="search-field"
-            >Search symbols, subtype or code
-            <input
-              id="search"
-              type="search"
-              placeholder="Try polling, serialization, or a symbol..."
+          <label
+            >Customized<select id="customized">
+              <option value="">Any</option>
+              <option value="yes">Has customizations</option>
+              <option value="no">Fully generated</option>
+            </select></label
+          >
+          <label class="search-label"
+            >Search<input id="search" type="search" placeholder="polling, _patch.py, a note..."
           /></label>
-          <label class="checkbox-label"
-            ><input id="accepted" type="checkbox" /> Only headline-counted findings</label
-          >
-          <button type="button" id="java-lro">Show Java LRO customizations</button>
-          <button type="button" id="clear-filters" class="secondary">Clear filters</button>
         </form>
-      </section>
-      <section aria-labelledby="summary-title">
-        <h2 id="summary-title">Portfolio overview</h2>
-        <div id="metric-cards" class="metric-grid"></div>
-        <p id="scope-note" class="muted" aria-live="polite"></p>
-        <div class="toolbar">
-          <label
-            >Break down by<select id="group">
-              <option value="language">Language</option>
-              <option value="service">Service</option>
-              <option value="category">Category</option>
-            </select></label
+        <div class="overview-notes">
+          <label class="checkbox"
+            ><input id="accepted" type="checkbox" form="filters" /> Only counted
+            customizations</label
           >
-          <label
-            >Measure<select id="measure">
-              <option value="accepted">Accepted customization instances</option>
-              <option value="candidates" selected>Candidate code entry points</option>
-            </select></label
-          >
-        </div>
-        <div id="breakdown" class="breakdown" aria-label="Clickable customization breakdown"></div>
-      </section>
-      <section aria-labelledby="trend-title">
-        <h2 id="trend-title">Customization trends</h2>
-        <div class="toolbar">
-          <label>History since (UTC)<input id="from" type="date" /></label>
-          <label class="checkbox-label"
-            ><input id="fixed" type="checkbox" checked /> Fixed library cohort</label
-          >
-        </div>
-        <p class="muted">
-          As-of effective assessments at recorded scan/override events, not cumulative scans or file
-          counts. Duplicate scans are collapsed. Fixed cohort uses the intersection of libraries in
-          this range; added/removed columns describe available inventory. Category, status and text
-          filters apply to findings, never fabricate classifications.
-        </p>
-        <p id="history-status" role="status"></p>
-        <div id="trend-chart" aria-label="Assessed customization history"></div>
-        <div
-          class="table-scroll"
-          role="region"
-          aria-label="Observation history, scroll horizontally"
-          tabindex="0"
-        >
-          <table id="history-table">
-            <caption>
-              Observation and coverage history (UTC)
-            </caption>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Libraries</th>
-                <th>Assessed</th>
-                <th>Accepted instances</th>
-                <th>Added / removed</th>
-              </tr>
-            </thead>
-            <tbody id="history-rows"></tbody>
-          </table>
+          <div class="note-actions">
+            <button type="button" id="clear-filters" class="secondary">Clear filters</button>
+            <details class="measurement-note">
+              <summary>What is counted?</summary>
+              <p>
+                <strong>Entry points</strong> are handwritten customization files found
+                deterministically (Python <code>_patch.py</code>, Java customization scripts, C#
+                non-generated source, JavaScript overlays, Go <code>custom*.go</code>). They link to
+                the exact code but are not yet classified.
+              </p>
+              <p>
+                <strong>Customizations</strong> are individual, reviewed instances with a category
+                (LRO, paging, …), explanation and pinned evidence. A library that has not been
+                assessed shows N/A, never zero.
+              </p>
+            </details>
+          </div>
         </div>
       </section>
-      <section aria-labelledby="explorer-title">
-        <h2 id="explorer-title">Library explorer</h2>
-        <p class="muted">
-          Sort columns or choose a library to narrow every view and inspect its code. “Not assessed”
-          is not zero customizations.
-        </p>
-        <div
-          class="table-scroll"
-          role="region"
-          aria-label="Library explorer, scroll horizontally"
-          tabindex="0"
-        >
+
+      <div class="chart-grid">
+        <section class="panel chart-panel" aria-labelledby="summary-title">
+          <div class="section-header">
+            <h2 id="summary-title">Where customizations live</h2>
+            <p>Select a bar to narrow every view to that group.</p>
+          </div>
+          <div class="chart-controls">
+            <label
+              >Group by<select id="group">
+                <option value="language">Language</option>
+                <option value="service">Service</option>
+                <option value="category">Category</option>
+              </select></label
+            >
+            <label
+              >Measure<select id="measure">
+                <option value="share" selected>Share of libraries (%)</option>
+                <option value="libraries">Library counts</option>
+                <option value="candidates">Code entry points (scanned)</option>
+                <option value="accepted">Reviewed customizations</option>
+              </select></label
+            >
+          </div>
+          <div id="breakdown-legend" class="legend" aria-hidden="true"></div>
+          <div id="breakdown" class="bar-chart" aria-label="Customization breakdown"></div>
+          <div class="table-scroll">
+            <table class="small-table">
+              <caption class="visually-hidden">
+                Breakdown values
+              </caption>
+              <thead>
+                <tr>
+                  <th id="breakdown-group-heading">Group</th>
+                  <th class="num">Libraries</th>
+                  <th class="num">Customized</th>
+                  <th class="num">Share</th>
+                  <th class="num">Entry points</th>
+                </tr>
+              </thead>
+              <tbody id="breakdown-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel chart-panel" aria-labelledby="trend-title">
+          <div class="section-header">
+            <h2 id="trend-title">Change over time</h2>
+            <p id="history-status" role="status"></p>
+          </div>
+          <div class="chart-controls">
+            <label>History since (UTC)<input id="from" type="date" /></label>
+            <label class="checkbox"
+              ><input id="fixed" type="checkbox" checked /> Fixed library cohort</label
+            >
+          </div>
+          <div class="legend" aria-hidden="true">
+            <span class="key key-candidates">Entry points</span
+            ><span class="key key-accepted">Customizations</span>
+          </div>
+          <div id="trend-chart" class="chart-container"></div>
+          <div class="table-scroll history-scroll" tabindex="0" role="region" aria-label="History">
+            <table id="history-table" class="small-table">
+              <caption class="visually-hidden">
+                Observation history (UTC)
+              </caption>
+              <thead>
+                <tr>
+                  <th>Date (UTC)</th>
+                  <th class="num">Libraries</th>
+                  <th class="num">Entry points</th>
+                  <th class="num">Customizations</th>
+                  <th class="num">Added / removed</th>
+                </tr>
+              </thead>
+              <tbody id="history-rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel library-panel" aria-labelledby="explorer-title">
+        <div class="section-header">
+          <h2 id="explorer-title">Library explorer</h2>
+          <p id="library-count">Select a library to see its customization code.</p>
+        </div>
+        <div class="table-scroll" role="region" aria-label="Library explorer" tabindex="0">
           <table id="library-table">
-            <caption>
-              Libraries in the shared filter scope
+            <caption class="visually-hidden">
+              Libraries in the current filters
             </caption>
             <thead>
               <tr>
-                <th><button data-sort="package" type="button">Library</button></th>
-                <th><button data-sort="language" type="button">Language</button></th>
-                <th><button data-sort="service" type="button">Service</button></th>
-                <th><button data-sort="accepted" type="button">Accepted</button></th>
-                <th><button data-sort="candidates" type="button">Candidates</button></th>
-                <th>Assessment</th>
+                <th>
+                  <button class="sort-button" data-sort="package" type="button">Library</button>
+                </th>
+                <th>
+                  <button class="sort-button" data-sort="language" type="button">Language</button>
+                </th>
+                <th>
+                  <button class="sort-button" data-sort="service" type="button">Service</button>
+                </th>
+                <th>
+                  <button class="sort-button" data-sort="customized" type="button">
+                    Customized
+                  </button>
+                </th>
+                <th>What was customized</th>
+                <th class="num">
+                  <button class="sort-button" data-sort="candidates" type="button">Code</button>
+                </th>
+                <th class="num">
+                  <button class="sort-button" data-sort="accepted" type="button">Reviewed</button>
+                </th>
               </tr>
             </thead>
             <tbody id="library-rows"></tbody>
           </table>
         </div>
+        <div id="library-empty" class="empty-state" role="status" hidden></div>
       </section>
-      <section aria-labelledby="filter-title">
-        <h2 id="filter-title">Customization code &amp; instances</h2>
-        <p id="code-link-status" class="muted" aria-live="polite"></p>
-        <div id="code-links"></div>
+
+      <section class="panel code-panel" aria-labelledby="code-title">
+        <div class="section-header">
+          <h2 id="code-title">Library detail &amp; code</h2>
+          <p id="code-link-status" aria-live="polite"></p>
+        </div>
+        <div id="library-detail"></div>
+        <div class="code-layout">
+          <div id="code-links" class="code-list"></div>
+          <div id="instance-detail" class="instance-detail" tabindex="-1" aria-live="polite"></div>
+        </div>
         <details class="reviewed-results">
-          <summary>Reviewed classifications</summary>
-          <p id="result-count" aria-live="polite"></p>
+          <summary>Reviewed customizations <span id="result-count"></span></summary>
+          <div class="reviewed-controls">
+            <label
+              >Review status<select id="status">
+                <option value="">All statuses</option>
+                <option>AI-reviewed</option>
+                <option>human-override</option>
+                <option>inconclusive</option>
+                <option>rejected</option>
+                <option>human-rejected</option>
+                <option>needs-revalidation</option>
+                <option>excluded</option>
+              </select></label
+            >
+          </div>
           <div id="findings"></div>
         </details>
-        <div id="instance-detail" tabindex="-1" aria-live="polite"></div>
       </section>
-      <section aria-labelledby="coverage-title">
+
+      <section class="panel query-panel" aria-labelledby="query-title">
+        <div class="section-header">
+          <h2 id="query-title">Find customizations</h2>
+          <p>Build a question from the dropdowns. Results appear in the views above.</p>
+        </div>
+        <form id="query" class="query-sentence">
+          <span>Show</span>
+          <label
+            ><span class="visually-hidden">Language</span
+            ><select id="q-language">
+              <option value="">all</option>
+            </select></label
+          >
+          <span>libraries in</span>
+          <label
+            ><span class="visually-hidden">Service</span
+            ><select id="q-service">
+              <option value="">every service</option>
+            </select></label
+          >
+          <span>with</span>
+          <label
+            ><span class="visually-hidden">Category</span
+            ><select id="q-category">
+              <option value="">any</option>
+            </select></label
+          >
+          <span>customizations, counting</span>
+          <label
+            ><span class="visually-hidden">Evidence</span
+            ><select id="q-review">
+              <option value="">tracker and reviewed findings</option>
+              <option value="counted">reviewed findings only</option>
+            </select></label
+          >
+          <button type="submit">Show results</button>
+        </form>
+        <div class="presets" aria-label="Common questions">
+          <span>Common questions:</span>
+          <button type="button" id="java-lro" class="chip">Show Java LRO customizations</button>
+          <button type="button" class="chip" data-preset="category=Pagination">
+            Paging customizations
+          </button>
+          <button type="button" class="chip" data-preset="customized=no">
+            Fully generated libraries
+          </button>
+          <button
+            type="button"
+            class="chip"
+            data-preset="category=SSE+%2F+streaming&amp;group=language"
+          >
+            Streaming by language
+          </button>
+          <button type="button" class="chip" data-preset="group=service&amp;measure=libraries">
+            Compare services
+          </button>
+        </div>
+        <p class="muted">
+          Every view's state is in the URL, so you can share exactly what you are looking at. Raw
+          data: <a href="./metrics.json" download>metrics.json</a> ·
+          <a href="./metrics.sqlite" download>metrics.sqlite</a>
+        </p>
+      </section>
+
+      <section class="panel diagnostics-panel" aria-labelledby="coverage-title">
         <details id="diagnostics">
           <summary id="coverage-title">Collection diagnostics &amp; technical details</summary>
           <p id="summary" class="muted"></p>
@@ -207,35 +332,13 @@
           <div id="packages"></div>
         </details>
       </section>
-      <section aria-labelledby="query-title">
-        <h2 id="query-title">Query and download</h2>
-        <p>
-          <a href="./metrics.sqlite" download>SQLite database (includes public scan history)</a>
-          | <a href="./metrics.json" download>Current effective records (JSON)</a>
-        </p>
-        <p>Run this SQL locally with SQLite or the collector's read-only query command:</p>
-        <pre><code>SELECT package, module_major, subtype, explanation, snippets_json
-FROM accepted_customizations
-WHERE language = 'java' AND category = 'LRO'
-ORDER BY package, subtype;</code></pre>
-        <p>
-          No browser API secrets or AI chat backend. Filters and search run entirely in your
-          browser.
-        </p>
-        <p>
-          Structured query: choose language/service/library/category/review status and AND-matched
-          text (including subtype, symbol or captured snippet). Filters, observation, history range
-          and selected instance are shareable in the URL. This is not natural-language AI chat.
-        </p>
-        <details>
-          <summary>Historical SQL example</summary>
-          <pre><code>SELECT o.observed_at, f.identity, f.category, f.status
-FROM observation_findings f
-JOIN observations o ON o.id = f.observation_id
-WHERE f.counted = 1 AND f.category = 'LRO'
-ORDER BY o.observed_at;</code></pre>
-        </details>
-      </section>
     </main>
+    <footer>
+      <span id="footer-source">Public Azure SDK repositories · commit-pinned code links</span>
+      <span
+        >Tracker answers are manual survey notes; code entry points are unreviewed candidates.</span
+      >
+      <span>Missing assessments are N/A, not zero.</span>
+    </footer>
   </body>
 </html>
