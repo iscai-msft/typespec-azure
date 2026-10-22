@@ -1,3 +1,4 @@
+import { exportGuidelines } from "./guidelines.mjs";
 import { randomUUID } from "node:crypto";
 import {
   copyFile,
@@ -40,7 +41,8 @@ export function validateScan(scan) {
     const evidence = scan.evidence.find((item) => item.path === link.path);
     if (
       evidence &&
-      (evidence.contentHash !== link.contentHash || evidence.endLine !== link.endLine)
+      // A link may point at part of a file (Java members), but never past its end.
+      (evidence.contentHash !== link.contentHash || link.endLine > evidence.endLine)
     ) {
       throw new Error("Customization navigation evidence mismatch");
     }
@@ -663,6 +665,7 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
       ),
     })}\n`,
   );
+  await exportGuidelines(outputDirectory);
   for (const name of ["index.html", "app.mjs", "style.css", "data.mjs", "languages.mjs"]) {
     await copyFile(
       fileURLToPath(new URL(`./web/${name}`, import.meta.url)),

@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { codeNavigation, entryPoint } from "./navigation.mjs";
+import { codeNavigation, entryPoint, navigationContext } from "./navigation.mjs";
 import { identity, scanSchema, validate } from "./schema.mjs";
 import { LANGUAGES } from "./web/languages.mjs";
 
-export const COLLECTOR_VERSION = "2";
+export const COLLECTOR_VERSION = "3";
 export const digest = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
@@ -161,13 +161,22 @@ export function capture(
 export async function scanFiles(scan, files, readBlob, limits = {}) {
   const target = scan.target;
   scan.coverage.discoveredFiles = files.length;
+  const context = navigationContext(
+    target.language,
+    files.map((file) => file.path),
+  );
+  // The API reader reads entry points one request at a time, so it keeps tight limits; the
+  // git reader has already downloaded them and can afford to check far more.
+  const maxNavigationFiles = limits.navigationFiles ?? 100;
+  const maxNavigationBytes = limits.navigationBytes ?? 8000000;
   scan.navigation = [];
   let navigationBytes = 0;
   const navigationFiles = files.filter(
-    (file) => entryPoint(target.language, file.path) && ["100644", "100755"].includes(file.mode),
+    (file) =>
+      entryPoint(target.language, file.path, context) && ["100644", "100755"].includes(file.mode),
   );
-  for (const file of navigationFiles.slice(0, 100)) {
-    if (file.size > 1000000 || navigationBytes + file.size > 8000000) {
+  for (const file of navigationFiles.slice(0, maxNavigationFiles)) {
+    if (file.size > 1000000 || navigationBytes + file.size > maxNavigationBytes) {
       scan.coverage.skipped.push({
         path: file.path,
         reason: "Customization navigation safety limit; content not checked",
@@ -183,7 +192,7 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
           item.path === file.path.replace(`${target.root}/src/`, `${target.root}/generated/`),
       );
       if (generated) {
-        if (generated.size > 1000000 || navigationBytes + generated.size > 8000000) {
+        if (generated.size > 1000000 || navigationBytes + generated.size > maxNavigationBytes) {
           scan.coverage.skipped.push({
             path: file.path,
             reason: "Overlay baseline safety limit; content not compared",
@@ -194,10 +203,10 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
         navigationBytes += generated.size;
       }
     }
-    const candidate = codeNavigation(target.language, file.path, text, baseline);
+    const candidate = codeNavigation(target.language, file.path, text, baseline, context);
     if (candidate) scan.navigation.push({ ...candidate, contentHash: digest(text) });
   }
-  for (const file of navigationFiles.slice(100))
+  for (const file of navigationFiles.slice(maxNavigationFiles))
     scan.coverage.skipped.push({
       path: file.path,
       reason: "Customization navigation file limit; content not checked",
@@ -328,12 +337,16 @@ export class GitSource {
       );
       // Download only what the scan can read: source, context files and entry points
       // (JavaScript overlays also compare against their generated counterparts).
+      const context = navigationContext(
+        target.language,
+        blobs.map((entry) => entry.path),
+      );
       const wanted = blobs.filter(
         (entry) =>
           ["100644", "100755"].includes(entry.mode) &&
           (eligible(target, entry.path) ||
             isContext(entry.path) ||
-            entryPoint(target.language, entry.path)),
+            entryPoint(target.language, entry.path, context)),
       );
       const texts = await repository.read(wanted.map((entry) => entry.sha));
       const files = blobs.map((entry) => ({
@@ -346,7 +359,11 @@ export class GitSource {
         if (!texts.has(file.sha)) throw new Error(`Blob not downloaded: ${file.path}`);
         return texts.get(file.sha);
       };
-      await scanFiles(scan, files, readBlob, limits);
+      await scanFiles(scan, files, readBlob, {
+        navigationFiles: 5000,
+        navigationBytes: 500000000,
+        ...limits,
+      });
     } catch (error) {
       scan.coverage.status = "failed";
       scan.coverage.errors.push(error.message);

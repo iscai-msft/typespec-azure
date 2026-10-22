@@ -6,7 +6,12 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { analyze, checkAnalysis, findingKey, ModelClient } from "../analysis.mjs";
 import { importLegacy, parseTsv } from "../legacy.mjs";
-import { codeNavigation, entryPoint } from "../navigation.mjs";
+import {
+  codeNavigation,
+  entryPoint,
+  javaHandwrittenMembers,
+  navigationContext,
+} from "../navigation.mjs";
 import { publishSite } from "../publish.mjs";
 import { analystSchema, identity, reviewerSchema, scanSchema, validate } from "../schema.mjs";
 import { capture, classify, digest, GitHubSource, GitSource, newScan } from "../source.mjs";
@@ -29,10 +34,17 @@ import {
   mergeLibraries,
   selectView,
   serviceOf,
+  specService,
   trackerBreakdown,
 } from "../web/data.mjs";
 import { categorize, normalizeTracker, parseCsv } from "../tracker.mjs";
-import { discoverAll, discoverLanguage, inventoryChanges, inventoryTargets } from "../discover.mjs";
+import {
+  discoverAll,
+  discoverLanguage,
+  inventoryChanges,
+  inventoryTargets,
+  releaseInfo,
+} from "../discover.mjs";
 import { languageById, planeOf } from "../web/languages.mjs";
 
 test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
@@ -525,9 +537,14 @@ test("GitHub extraction pins commit and blobs; generated source stays classified
   assert.equal(scan.evidence[0].text, sourceText);
   assert.ok(calls.every((call) => call.options.redirect === "error"));
   assert.equal(scan.analysis.status, "missing");
-  assert.equal(scan.navigation.length, 1);
-  assert.match(scan.navigation[0].path, /Customize.java$/);
-  assert.equal(scan.navigation[0].contentHash, digest(largeCustomization));
+  // The customization script and the wholly handwritten class are both entry points.
+  assert.equal(scan.navigation.length, 2);
+  const script = scan.navigation.find((item) => /Customize.java$/.test(item.path));
+  assert.equal(script.contentHash, digest(largeCustomization));
+  assert.match(
+    scan.navigation.find((item) => /Fixture.java$/.test(item.path)).provenance,
+    /Java handwritten source/,
+  );
   assert.ok(
     scan.coverage.skipped.some(
       (item) => item.path.endsWith("Customize.java") && item.reason === "File-size limit",
@@ -1533,6 +1550,8 @@ test("library rows join inventory, tracker and scans by path without hiding any 
       ["azure-y", "data", false, true],
     ],
   );
+  // Libraries with a spec location use it as the service; others fall back to the folder.
+  assert.equal(rows[0].service, "x");
   assert.equal(rows[1].service, "x");
   assert.deepEqual(
     filterLibraries(rows, [], { plane: "management" }).map((row) => row.package),
@@ -1659,4 +1678,134 @@ test("history records one observation per collection run and slims past snapshot
     ).length,
     2,
   );
+});
+
+test("services come from the TypeSpec project in tsp-location.yaml", () => {
+  assert.equal(specService("specification/ai/DocumentIntelligence"), "ai/DocumentIntelligence");
+  assert.equal(specService("specification/keyvault/data-plane/Keys"), "keyvault/Keys");
+  assert.equal(
+    specService("specification/ai-foundry/data-plane/Foundry/src/sdk-x"),
+    "ai-foundry/Foundry/sdk-x",
+  );
+  assert.equal(specService(""), "");
+  const library = (language, pkg, repo, root) => ({
+    language,
+    package: pkg,
+    repo,
+    root,
+    plane: "data",
+    spec: { directory: "specification/ai/DocumentIntelligence" },
+  });
+  const rows = mergeLibraries(null, [], {
+    libraries: [
+      library(
+        "python",
+        "azure-ai-documentintelligence",
+        "Azure/azure-sdk-for-python",
+        "sdk/documentintelligence/azure-ai-documentintelligence",
+      ),
+      library(
+        "dotnet",
+        "Azure.AI.DocumentIntelligence",
+        "Azure/azure-sdk-for-net",
+        "sdk/documentintelligence/Azure.AI.DocumentIntelligence",
+      ),
+    ],
+  });
+  assert.deepEqual([...new Set(rows.map((row) => row.service))], ["ai/DocumentIntelligence"]);
+});
+
+test("entry points follow the language guidelines", () => {
+  // Python: _patch.py counts when __all__ exports names; skeletons do not.
+  const patch = "sdk/x/azure-x/azure/x/_patch.py";
+  assert.ok(codeNavigation("python", patch, "from ._client import Client\n__all__ = ['Client']\n"));
+  assert.equal(
+    codeNavigation("python", patch, "__all__: List[str] = []\ndef patch_sdk():\n    pass\n"),
+    null,
+  );
+  // Python: libraries wrapping a *generated folder count the code around it.
+  const paths = [
+    "sdk/cr/azure-cr/azure/cr/_generated/_client.py",
+    "sdk/cr/azure-cr/azure/cr/_container_registry_client.py",
+  ];
+  const context = navigationContext("python", paths);
+  assert.deepEqual(context.generatedFolders, ["sdk/cr/azure-cr/azure/cr/_generated"]);
+  assert.equal(entryPoint("python", paths[0], context), "");
+  assert.equal(entryPoint("python", paths[1], context), "Python code wrapping generated folder");
+  assert.equal(entryPoint("python", paths[1], {}), "");
+  assert.ok(
+    codeNavigation(
+      "python",
+      paths[1],
+      "class ContainerRegistryClient:\n    def list(self):\n        return self._client.list()\n",
+      undefined,
+      context,
+    ),
+  );
+  // Java: members without @Generated in a generated file, with their lines.
+  const java = [
+    "// Code generated by Microsoft (R) TypeSpec Code Generator.",
+    "public final class ImageBoundingBox {",
+    "    @Generated",
+    "    private final int x;",
+    "",
+    "    /**",
+    "     * Get the x property.",
+    "     */",
+    "    @Generated",
+    "    public int getX() {",
+    "        return this.x;",
+    "    }",
+    "",
+    "    @Override",
+    "    public String toString() {",
+    '        return "x=" + x;',
+    "    }",
+    "}",
+  ].join("\n");
+  const model = "sdk/v/azure-v/src/main/java/com/azure/v/models/ImageBoundingBox.java";
+  assert.deepEqual(javaHandwrittenMembers(java), [{ name: "toString", line: 15 }]);
+  const member = codeNavigation("java", model, java);
+  assert.equal(member.startLine, 15);
+  assert.match(member.provenance, /without @Generated: toString/);
+  assert.equal(
+    codeNavigation("java", model, java.replace("    @Override\n", "    @Generated\n")),
+    null,
+  );
+  // Go: any handwritten file, even inside internal/generated; generated headers excluded.
+  const go = "sdk/data/azappconfig/internal/generated/custom_client.go";
+  assert.equal(entryPoint("go", go), "Go custom source");
+  assert.equal(entryPoint("go", "sdk/storage/azblob/blockblob/client.go"), "Go handwritten source");
+  assert.equal(entryPoint("go", "sdk/x/zz_models.go"), "");
+  assert.ok(codeNavigation("go", go, "package generated\n\nfunc (c *Client) Next() {}\n"));
+  assert.equal(
+    codeNavigation(
+      "go",
+      "sdk/x/client.go",
+      "// Code generated by Microsoft (R) AutoRest. DO NOT EDIT.\nfunc A() {}\n",
+    ),
+    null,
+  );
+});
+
+test("stability comes from dated non-prerelease releases in CHANGELOG.md", () => {
+  assert.deepEqual(
+    releaseInfo(
+      "# Release History\n\n## 1.1.0-beta.1 (Unreleased)\n\n## 1.0.0 (2024-12-16)\n\n## 1.0.0-beta.3 (2024-08-14)\n",
+    ),
+    {
+      latest: "1.0.0",
+      latestDate: "2024-12-16",
+      firstStable: "1.0.0",
+      firstStableDate: "2024-12-16",
+      stable: true,
+    },
+  );
+  const preview = releaseInfo(
+    "## 1.2.0b6 (2025-10-24)\n## 1.0.0b1 (2024-01-01)\n## 0.9.0 (2023-01-01)\n",
+  );
+  assert.equal(preview.stable, false);
+  assert.equal(preview.latest, "1.2.0b6");
+  assert.equal(releaseInfo("## v1.5.0 (2026-05-26)\n").stable, true);
+  assert.equal(releaseInfo(undefined), null);
 });
