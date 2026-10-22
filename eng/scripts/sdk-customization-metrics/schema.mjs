@@ -1,3 +1,5 @@
+import { LANGUAGES } from "./web/languages.mjs";
+
 // This closed JSON Schema vocabulary keeps the collector dependency-free.
 // Unknown schema keywords fail closed rather than being silently ignored.
 const str = (extra = {}) => ({ type: "string", minLength: 1, ...extra });
@@ -14,13 +16,10 @@ const hash = str({ pattern: "^[a-f0-9]{64}$" });
 const path = str({ pattern: "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$" });
 const text = { type: "string" };
 
-export const REPOSITORIES = {
-  python: "Azure/azure-sdk-for-python",
-  dotnet: "Azure/azure-sdk-for-net",
-  javascript: "Azure/azure-sdk-for-js",
-  java: "Azure/azure-sdk-for-java",
-  go: "Azure/azure-sdk-for-go",
-};
+// Languages and their repositories come from the shared language list.
+export const REPOSITORIES = Object.fromEntries(
+  LANGUAGES.map((language) => [language.id, language.repo]),
+);
 export const CATEGORIES = [
   "LRO",
   "Paging",

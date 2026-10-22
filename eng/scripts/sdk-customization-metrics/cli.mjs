@@ -11,6 +11,7 @@ import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./
 import { GitHubSource } from "./source.mjs";
 import { append, createOverride, exportData, readState, validateScan } from "./store.mjs";
 import { exportTracker } from "./tracker.mjs";
+import { discoverAll, exportInventory, readInventory, writeInventory } from "./discover.mjs";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 export async function main(args = process.argv.slice(2)) {
@@ -23,6 +24,14 @@ export async function main(args = process.argv.slice(2)) {
       targets: { type: "string", default: new URL("./targets.json", import.meta.url).pathname },
       "history-state": { type: "string" },
       tracker: { type: "string" },
+      "repos-dir": {
+        type: "string",
+        default: "eng/scripts/sdk-customization-metrics/.local/repos",
+      },
+      inventory: {
+        type: "string",
+        default: new URL("./inventory/libraries.json", import.meta.url).pathname,
+      },
       "ai-config": { type: "string" },
       analyze: { type: "boolean", default: false },
       input: { type: "string" },
@@ -32,7 +41,7 @@ export async function main(args = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: collect, validate, export, publish, override, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, validate, export, publish, override, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   switch (positionals[0]) {
@@ -73,6 +82,29 @@ export async function main(args = process.argv.slice(2)) {
       if (failures) process.exitCode = 1;
       break;
     }
+    case "discover": {
+      // Finds every TypeSpec library (tsp-location.yaml) and records what changed since last run.
+      const previous = await readInventory(resolve(values.inventory));
+      const inventory = await discoverAll({
+        reposDirectory: resolve(values["repos-dir"]),
+        previous,
+        log: (message) => console.error(message),
+      });
+      await writeInventory(resolve(values.inventory), inventory);
+      const count = (plane) => inventory.libraries.filter((item) => item.plane === plane).length;
+      console.log(
+        JSON.stringify({
+          libraries: inventory.libraries.length,
+          data: count("data"),
+          management: count("management"),
+          added: inventory.changes.added.length,
+          removed: inventory.changes.removed.length,
+          changed: inventory.changes.changed.length,
+          warnings: inventory.warnings.length,
+        }),
+      );
+      break;
+    }
     case "validate": {
       const { scans, overrides } = await readState(state);
       console.log(JSON.stringify({ scans: scans.length, overrides: overrides.length }));
@@ -85,6 +117,7 @@ export async function main(args = process.argv.slice(2)) {
           : {}),
       });
       // The manual tracker is opt-in: it is only exported when explicitly passed.
+      await exportInventory(resolve(values.inventory), resolve(values.out));
       if (values.tracker) {
         const tracker = await exportTracker(resolve(values.tracker), resolve(values.out));
         console.log(JSON.stringify({ trackerLibraries: tracker.libraries.length }));
@@ -97,6 +130,7 @@ export async function main(args = process.argv.slice(2)) {
         throw new Error("publish requires --out WEBSITE_BUILD_DIRECTORY");
       const dataset = await publishSite(state, resolve(values.out), {
         ...(values.tracker ? { tracker: resolve(values.tracker) } : {}),
+        inventory: resolve(values.inventory),
         ...(values["history-state"]
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),

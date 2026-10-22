@@ -32,6 +32,8 @@ import {
   trackerBreakdown,
 } from "../web/data.mjs";
 import { categorize, normalizeTracker, parseCsv } from "../tracker.mjs";
+import { discoverAll, discoverLanguage, inventoryChanges } from "../discover.mjs";
+import { languageById, planeOf } from "../web/languages.mjs";
 
 test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
   const python = "sdk/lib/_patch.py";
@@ -1197,7 +1199,8 @@ test("tracker rows join scans by repository path and keep scan-only libraries", 
   assert.equal(rows[0].scan, scan);
   assert.equal(rows[0].id, scan.identity);
   assert.equal(rows.at(-1).tracker, null);
-  assert.equal(rows.at(-1).service, "azopenai");
+  // Service names are folder-based, like the tracker's (sdk/<service>/...).
+  assert.equal(rows.at(-1).service, "ai");
 
   const finding = {
     identity: scan.identity,
@@ -1227,8 +1230,21 @@ test("tracker rows join scans by repository path and keep scan-only libraries", 
   const byLanguage = Object.fromEntries(
     trackerBreakdown(rows, "language").map((row) => [row.key, row]),
   );
-  assert.deepEqual(byLanguage.java, { key: "java", libraries: 3, customized: 3, candidates: 1 });
-  assert.deepEqual(byLanguage.go, { key: "go", libraries: 1, customized: 0, candidates: 0 });
+  assert.deepEqual(byLanguage.java, {
+    key: "java",
+    libraries: 3,
+    tracked: 3,
+    customized: 3,
+    candidates: 1,
+  });
+  // The scan-only azopenai module is a Go library without a tracker answer.
+  assert.deepEqual(byLanguage.go, {
+    key: "go",
+    libraries: 2,
+    tracked: 1,
+    customized: 0,
+    candidates: 0,
+  });
   const byCategory = Object.fromEntries(
     trackerBreakdown(rows, "category").map((row) => [row.key, row.libraries]),
   );
@@ -1297,4 +1313,234 @@ test("the checked-in tracker validates and publishes only when passed explicitly
   );
   assert.equal(published.libraries.length, tracker.libraries.length);
   assert.equal(published.sourceSha256, tracker.sourceSha256);
+});
+
+// A fake repository: entries() and read() over an in-memory file map.
+function fakeRepository(files) {
+  const shaOf = (path) => digest(path).slice(0, 40);
+  const trees = new Set();
+  for (const path of Object.keys(files)) {
+    const parts = path.split("/");
+    for (let index = 1; index < parts.length; index++) trees.add(parts.slice(0, index).join("/"));
+  }
+  return {
+    async sync() {
+      return "c".repeat(40);
+    },
+    async entries(_commit, prefix) {
+      return [
+        ...[...trees].map((path) => ({ type: "tree", sha: shaOf(`tree:${path}`), path })),
+        ...Object.keys(files).map((path) => ({ type: "blob", sha: shaOf(path), path })),
+      ].filter((entry) => entry.path === prefix || entry.path.startsWith(`${prefix}/`));
+    },
+    async read(shas) {
+      const texts = new Map();
+      for (const [path, text] of Object.entries(files))
+        if (shas.includes(shaOf(path))) texts.set(shaOf(path), text);
+      return texts;
+    },
+  };
+}
+const tspLocation =
+  "directory: specification/x/X\ncommit: " +
+  "d".repeat(40) +
+  "\nrepo: Azure/azure-rest-api-specs\n";
+
+test("discovery finds tsp-location.yaml packages, resolves roots, names and planes", async () => {
+  const python = languageById.get("python");
+  const files = {
+    "sdk/x/azure-x/pyproject.toml": "",
+    "sdk/x/azure-x/tsp-location.yaml": tspLocation,
+    "sdk/x/azure-mgmt-x/setup.py": "",
+    "sdk/x/azure-mgmt-x/tsp-location.yaml": tspLocation,
+    // Vendored sub-client with its own manifest still belongs to the package above it.
+    "sdk/ml/azure-ai-ml/pyproject.toml": "",
+    "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/pyproject.toml": "",
+    "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/a/tsp-location.yaml": tspLocation,
+    "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/b/tsp-location.yaml": tspLocation,
+    "sdk/core/azure-core/tests/specs/tsp-location.yaml": tspLocation,
+    "sdk/template/azure-template/tsp-location.yaml": tspLocation,
+    "sdk/loose/tsp-location.yaml": tspLocation,
+  };
+  const { libraries, warnings } = await discoverLanguage(
+    python,
+    fakeRepository(files),
+    "c".repeat(40),
+  );
+  assert.deepEqual(
+    libraries.map((item) => [item.root, item.package, item.plane]),
+    [
+      ["sdk/ml/azure-ai-ml", "azure-ai-ml", "data"],
+      ["sdk/x/azure-mgmt-x", "azure-mgmt-x", "management"],
+      ["sdk/x/azure-x", "azure-x", "data"],
+    ],
+  );
+  assert.deepEqual(libraries[0].tspLocations, [
+    "azure/ai/ml/_restclient/a/tsp-location.yaml",
+    "azure/ai/ml/_restclient/b/tsp-location.yaml",
+  ]);
+  assert.equal(libraries[2].spec.directory, "specification/x/X");
+  assert.match(libraries[2].treeSha, /^[a-f0-9]{40}$/);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /sdk\/loose\/tsp-location.yaml is not inside a package/);
+});
+
+test("discovery reads package names from package.json, go.mod and wildcard manifests", async () => {
+  const js = await discoverLanguage(
+    languageById.get("javascript"),
+    fakeRepository({
+      "sdk/x/x-rest/package.json": '{"name":"@azure-rest/x"}',
+      "sdk/x/x-rest/tsp-location.yaml": tspLocation,
+      "sdk/x/arm-x/package.json": '{"name":"@azure/arm-x"}',
+      "sdk/x/arm-x/tsp-location.yaml": tspLocation,
+    }),
+    "c".repeat(40),
+  );
+  assert.deepEqual(
+    js.libraries.map((item) => [item.package, item.plane]),
+    [
+      ["@azure/arm-x", "management"],
+      ["@azure-rest/x", "data"],
+    ],
+  );
+  const go = await discoverLanguage(
+    languageById.get("go"),
+    fakeRepository({
+      "sdk/messaging/eventgrid/aznamespaces/go.mod":
+        "module github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces/v2\n",
+      "sdk/messaging/eventgrid/aznamespaces/tsp-location.yaml": tspLocation,
+      "sdk/resourcemanager/x/armx/go.mod":
+        "module github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/x/armx\n",
+      "sdk/resourcemanager/x/armx/tsp-location.yaml": tspLocation,
+    }),
+    "c".repeat(40),
+  );
+  assert.deepEqual(
+    go.libraries.map((item) => [
+      item.package.split("/").slice(-2).join("/"),
+      item.moduleMajor,
+      item.plane,
+    ]),
+    [
+      ["aznamespaces/v2", 2, "data"],
+      ["x/armx", 1, "management"],
+    ],
+  );
+  const net = await discoverLanguage(
+    languageById.get("dotnet"),
+    fakeRepository({
+      "sdk/x/Azure.X/src/Azure.X.csproj": "",
+      "sdk/x/Azure.X/tsp-location.yaml": tspLocation,
+      "sdk/x/Azure.ResourceManager.X/src/Azure.ResourceManager.X.csproj": "",
+      "sdk/x/Azure.ResourceManager.X/tsp-location.yaml": tspLocation,
+      "sdk/x/Azure.Provisioning.X/src/Azure.Provisioning.X.csproj": "",
+      "sdk/x/Azure.Provisioning.X/tsp-location.yaml": tspLocation,
+    }),
+    "c".repeat(40),
+  );
+  assert.deepEqual(
+    net.libraries.map((item) => [item.package, item.plane]),
+    [
+      ["Azure.Provisioning.X", "provisioning"],
+      ["Azure.ResourceManager.X", "management"],
+      ["Azure.X", "data"],
+    ],
+  );
+});
+
+test("planes use per-language rules plus the mgmt/management word", () => {
+  assert.equal(planeOf("python", "azure-mgmt-compute"), "management");
+  assert.equal(planeOf("java", "azure-resourcemanager-compute"), "management");
+  assert.equal(planeOf("java", "azure-resourcemanager"), "management");
+  assert.equal(planeOf("python", "azure-ai-agents"), "data");
+  assert.equal(planeOf("go", "github.com/x/management/v2"), "management");
+  assert.equal(planeOf("python", "azure-apimanagement-data"), "data");
+  // A service folder named like a plane does not decide it.
+  assert.equal(planeOf("python", "azure-foo", "sdk/management/azure-foo"), "data");
+  assert.equal(planeOf("python", "azure-foo", "sdk/foo/azure-foo/mgmt"), "management");
+});
+
+test("inventory changes report added, removed and changed libraries", async () => {
+  const previous = {
+    libraries: [
+      { repo: "Azure/a", root: "sdk/x/one", treeSha: "1" },
+      { repo: "Azure/a", root: "sdk/x/two", treeSha: "2" },
+    ],
+  };
+  const current = {
+    libraries: [
+      { repo: "Azure/a", root: "sdk/x/one", treeSha: "1b" },
+      { repo: "Azure/a", root: "sdk/x/three", treeSha: "3" },
+    ],
+  };
+  assert.deepEqual(inventoryChanges(previous, current), {
+    added: ["Azure/a:sdk/x/three"],
+    removed: ["Azure/a:sdk/x/two"],
+    changed: ["Azure/a:sdk/x/one"],
+  });
+  const inventory = await discoverAll({
+    languages: [languageById.get("python")],
+    repositoryFor: () =>
+      fakeRepository({
+        "sdk/x/azure-x/pyproject.toml": "",
+        "sdk/x/azure-x/tsp-location.yaml": tspLocation,
+      }),
+  });
+  assert.equal(inventory.libraries.length, 1);
+  assert.deepEqual(inventory.changes.added, ["Azure/azure-sdk-for-python:sdk/x/azure-x"]);
+  assert.equal(inventory.repositories["Azure/azure-sdk-for-python"].commit, "c".repeat(40));
+});
+
+test("library rows join inventory, tracker and scans by path without hiding any source", () => {
+  const inventory = {
+    libraries: [
+      {
+        language: "python",
+        package: "azure-x",
+        repo: "Azure/azure-sdk-for-python",
+        root: "sdk/x/azure-x",
+        plane: "data",
+        spec: { directory: "specification/x" },
+      },
+      {
+        language: "python",
+        package: "azure-mgmt-x",
+        repo: "Azure/azure-sdk-for-python",
+        root: "sdk/x/azure-mgmt-x",
+        plane: "management",
+        spec: null,
+      },
+    ],
+  };
+  const tracker = normalizeTracker(
+    [
+      "Service,Language,Package,Repo Link,Has Customization?,What Was Customized,Notes",
+      "x,Python,azure-x,https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/x/azure-x,Yes,paging,",
+      "y,Python,azure-y,https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/y/azure-y,No,fully generated,",
+    ].join("\n"),
+  );
+  const rows = mergeLibraries(tracker, [], inventory);
+  assert.deepEqual(
+    rows.map((row) => [row.package, row.plane, row.typespec, Boolean(row.tracker)]),
+    [
+      ["azure-x", "data", true, true],
+      ["azure-mgmt-x", "management", true, false],
+      ["azure-y", "data", false, true],
+    ],
+  );
+  assert.equal(rows[1].service, "x");
+  assert.deepEqual(
+    filterLibraries(rows, [], { plane: "management" }).map((row) => row.package),
+    ["azure-mgmt-x"],
+  );
+  assert.deepEqual(filterLibraries(rows, [], { search: "specification/x" }).length, 1);
+  // Untracked libraries count toward totals but never as "fully generated".
+  const [python] = trackerBreakdown(rows, "language");
+  assert.deepEqual(python, {
+    key: "python",
+    libraries: 3,
+    tracked: 2,
+    customized: 1,
+    candidates: 0,
+  });
 });

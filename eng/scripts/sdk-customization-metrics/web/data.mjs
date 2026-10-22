@@ -1,3 +1,4 @@
+import { languageById, planeOf } from "./languages.mjs";
 export function serviceOf(item) {
   const name = item.package?.replace(/^@azure-rest\//i, "");
   if (name) {
@@ -134,15 +135,8 @@ export function breakdown(view, group = "language", measure = "accepted") {
   }
   return [...rows].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
-const languageLabels = {
-  dotnet: ".NET",
-  go: "Go",
-  java: "Java",
-  javascript: "JavaScript",
-  python: "Python",
-};
 export function languageLabel(language) {
-  return languageLabels[language] ?? language;
+  return languageById.get(language)?.label ?? language;
 }
 export function groupKey(group, item, packages) {
   if (group === "service") return serviceOf(packages.get(item.identity) ?? item);
@@ -236,39 +230,45 @@ export function findingCategory(canonical) {
   return Object.entries(findingCategories).find(([, name]) => name === canonical)?.[0] ?? canonical;
 }
 
-// One row per library: the manual tracker row (if any) joined to its latest scan (if any) by
-// repository path. Scan-only libraries keep their own row so no evidence is hidden.
-export function mergeLibraries(tracker, packages) {
-  const byPath = new Map(packages.map((item) => [`${item.repo}:${item.root}`, item]));
-  const used = new Set();
-  const rows = (tracker?.libraries ?? []).map((entry) => {
-    const scan = byPath.get(entry.key) ?? null;
-    if (scan) used.add(scan.identity);
+// Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
+export function folderService(item) {
+  const parts = (item.root ?? "").split("/").filter(Boolean);
+  if (item.language === "go" && parts.length > 3) return parts.at(-2).toLowerCase();
+  return (parts[1] ?? serviceOf(item)).toLowerCase();
+}
+
+// One row per library, keyed by repository path. Sources, joined when present:
+// - inventory: every TypeSpec library (tsp-location.yaml), with its plane;
+// - tracker: the manual survey answer;
+// - scan: the latest code scan (pinned customization entry points, findings).
+// Libraries known to only one source still get a row, so nothing is hidden.
+export function mergeLibraries(tracker, packages, inventory = null) {
+  const keyOf = (item) => `${item.repo}:${item.root}`;
+  const scans = new Map(packages.map((item) => [keyOf(item), item]));
+  const surveys = new Map((tracker?.libraries ?? []).map((item) => [item.key, item]));
+  const discovered = new Map((inventory?.libraries ?? []).map((item) => [keyOf(item), item]));
+  const keys = [...new Set([...discovered.keys(), ...surveys.keys(), ...scans.keys()])];
+  return keys.map((key) => {
+    const found = discovered.get(key) ?? null;
+    const survey = surveys.get(key) ?? null;
+    const scan = scans.get(key) ?? null;
+    const source = found ?? scan ?? survey;
+    const packageName = found?.package ?? scan?.package ?? survey.package;
     return {
-      id: scan?.identity ?? `tracker:${entry.key}`,
-      language: entry.language,
-      package: entry.package,
-      service: entry.service,
-      repo: entry.repo,
-      root: entry.root,
-      tracker: entry,
+      id: scan?.identity ?? `library:${key}`,
+      language: source.language,
+      package: packageName,
+      service: survey?.service ?? folderService(source),
+      repo: source.repo,
+      root: source.root,
+      plane: found?.plane ?? planeOf(source.language, packageName, source.root),
+      // null when no inventory was loaded, so absence is not reported as "not TypeSpec".
+      typespec: inventory ? Boolean(found) : null,
+      spec: found?.spec ?? null,
+      tracker: survey,
       scan,
     };
   });
-  for (const item of packages) {
-    if (used.has(item.identity)) continue;
-    rows.push({
-      id: item.identity,
-      language: item.language,
-      package: item.package,
-      service: serviceOf(item),
-      repo: item.repo,
-      root: item.root,
-      tracker: null,
-      scan: item,
-    });
-  }
-  return rows;
 }
 
 export function filterLibraries(rows, findings, filters = {}) {
@@ -282,6 +282,7 @@ export function filterLibraries(rows, findings, filters = {}) {
     const own = row.scan ? (byIdentity.get(row.scan.identity) ?? []) : [];
     const counted = own.filter((item) => item.counted);
     if (filters.language && row.language !== filters.language) return false;
+    if (filters.plane && row.plane !== filters.plane) return false;
     if (filters.service && row.service !== filters.service) return false;
     if (filters.library && row.id !== filters.library) return false;
     if (filters.customized === "yes" && !row.tracker?.customized) return false;
@@ -301,6 +302,7 @@ export function filterLibraries(rows, findings, filters = {}) {
       row.language,
       row.tracker?.details,
       row.tracker?.notes,
+      row.spec?.directory,
       ...(row.tracker?.categories ?? []),
       ...(row.scan?.customizationLinks ?? []).map((link) => `${link.path} ${link.preview ?? ""}`),
       ...own.map((item) => [item.subtype, item.explanation, ...item.symbols].join(" ")),
@@ -311,18 +313,23 @@ export function filterLibraries(rows, findings, filters = {}) {
   });
 }
 
-// Portfolio aggregates over tracker rows only; scan-only rows have no survey answer.
+// Portfolio aggregates. Every library counts toward `libraries`; only tracker rows have a
+// customized/fully-generated answer, so untracked libraries stay a separate share, never "no".
+// Category groups exist only for tracked libraries (categories come from the tracker).
 export function trackerBreakdown(rows, group = "language") {
   const groups = new Map();
   const add = (key, row) => {
-    if (!groups.has(key)) groups.set(key, { key, libraries: 0, customized: 0, candidates: 0 });
+    if (!groups.has(key))
+      groups.set(key, { key, libraries: 0, tracked: 0, customized: 0, candidates: 0 });
     const entry = groups.get(key);
     entry.libraries += 1;
-    if (row.tracker.customized) entry.customized += 1;
+    if (row.tracker) entry.tracked += 1;
+    if (row.tracker?.customized) entry.customized += 1;
     entry.candidates += row.scan?.customizationLinks?.length ?? 0;
   };
-  for (const row of rows.filter((item) => item.tracker)) {
-    if (group === "category") for (const category of row.tracker.categories) add(category, row);
+  for (const row of rows) {
+    if (group === "category")
+      for (const category of row.tracker?.categories ?? []) add(category, row);
     else add(group === "service" ? row.service : row.language, row);
   }
   return [...groups.values()];

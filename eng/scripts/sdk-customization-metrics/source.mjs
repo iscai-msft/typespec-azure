@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { codeNavigation, entryPoint } from "./navigation.mjs";
 import { identity, scanSchema, validate } from "./schema.mjs";
+import { LANGUAGES } from "./web/languages.mjs";
 
 export const COLLECTOR_VERSION = "2";
 export const digest = (value) =>
@@ -66,13 +67,13 @@ export function classify(path, text) {
   return "unknown";
 }
 
-const extensions = {
-  python: /\.py$/,
-  dotnet: /\.cs$/,
-  javascript: /\.[cm]?[jt]s$/,
-  java: /\.java$/,
-  go: /\.go$/,
-};
+const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const extensions = Object.fromEntries(
+  LANGUAGES.map((language) => [
+    language.id,
+    new RegExp(`(?:${language.sourceExtensions.map(escape).join("|")})$`),
+  ]),
+);
 const contextFiles =
   /(?:^|\/)(?:tsp-location\.yaml|tspconfig\.yaml|readme\.md|autorest\.md|go\.mod|pom\.xml|package\.json|pyproject\.toml|[^/]+\.csproj)$/i;
 const excludedPaths =
