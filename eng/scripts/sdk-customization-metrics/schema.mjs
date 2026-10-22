@@ -20,14 +20,26 @@ const text = { type: "string" };
 export const REPOSITORIES = Object.fromEntries(
   LANGUAGES.map((language) => [language.id, language.repo]),
 );
+// The canonical categories from guidelines/SKILL.md. Earlier short names (LRO, Paging,
+// Authentication, Convenience) are still accepted so older records stay valid.
 export const CATEGORIES = [
-  "LRO",
-  "Paging",
+  "LRO / polling",
+  "Pagination",
   "Serialization",
-  "Authentication",
-  "Convenience",
+  "Auth",
+  "Convenience methods",
+  "Retry / error handling",
+  "Model overrides",
+  "Multiple content types",
+  "Multipart",
+  "SSE / streaming",
+  "Crypto / signing",
+  "Byte range",
+  "Tracing / telemetry",
+  "Hand-written client",
   "Other",
 ];
+const LEGACY_CATEGORIES = ["LRO", "Paging", "Authentication", "Convenience"];
 export const targetSchema = object(
   {
     language: choice(...Object.keys(REPOSITORIES)),
@@ -43,17 +55,22 @@ export const targetSchema = object(
 export const findingSchema = object(
   {
     key: str(),
-    category: choice(...CATEGORIES),
+    category: choice(...CATEGORIES, ...LEGACY_CATEGORIES),
     subtype: str(),
     explanation: str(),
     rootCauseHypothesis: text,
+    // A short kebab-case name for the reusable shape of this customization
+    // (e.g. "auth-audience-option"), shared across libraries that do the same thing.
+    pattern: str({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 60 }),
+    // Could a generator or TypeSpec feature produce this instead of handwritten code?
+    generatorAddressable: choice("yes", "no", "unclear"),
     handwrittenRationale: str(),
     symbols: list(str(), { minItems: 1 }),
     evidence: list(object({ id: str(), startLine: integer(1), endLine: integer(1) }), {
       minItems: 1,
     }),
   },
-  ["rootCauseHypothesis"],
+  ["rootCauseHypothesis", "pattern", "generatorAddressable"],
 );
 export const analystSchema = object({
   findings: list(findingSchema, { maxItems: 100 }),
@@ -88,16 +105,21 @@ export const analysisSchema = object({
   limitations: list(str()),
   errors: list(str()),
 });
-export const evidenceSchema = object({
-  id: str(),
-  path,
-  startLine: integer(1),
-  endLine: integer(1),
-  text: str(),
-  contentHash: hash,
-  kind: choice("handwritten-marker", "generated", "unknown"),
-  sourceUrl: str({ pattern: "^https://github\\.com/Azure/azure-sdk-for-" }),
-});
+export const evidenceSchema = object(
+  {
+    id: str(),
+    path,
+    startLine: integer(1),
+    endLine: integer(1),
+    text: str(),
+    contentHash: hash,
+    kind: choice("handwritten-marker", "generated", "unknown"),
+    sourceUrl: str({ pattern: "^https://github\\.com/Azure/azure-sdk-for-" }),
+    // true when `text` is lines startLine..endLine of the file rather than the whole file.
+    excerpt: { type: "boolean" },
+  },
+  ["excerpt"],
+);
 export const scanSchema = object(
   {
     schemaVersion: { type: "integer", const: 1 },

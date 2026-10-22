@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "54c69ff9-f1f6-47ca-95ae-1f5e6418bb7d",
+  "observedAt": "2026-10-22T20:42:57.515Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/monitor/query/azmetrics"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "61dd16d42cd44f500ccd393286d02f8a9d41e7c4"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 27,
+    "eligibleFiles": 13,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/query/azmetrics/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azmetrics\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"errors\"\n\t\"reflect\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n}\n\n// NewClient creates a client that accesses Azure Monitor metrics data.\n// Client should be used for performing metrics queries on multiple monitored resources in the same region.\n// A credential with authorization at the subscription level is required when using this client.\n//\n// endpoint - The regional endpoint to use, for example https://eastus.metrics.monitor.azure.com.\n// The region should match the region of the requested resources. For global resources, the region should be 'global'.\nfunc NewClient(endpoint string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tif reflect.ValueOf(options.Cloud).IsZero() {\n\t\toptions.Cloud = cloud.AzurePublic\n\t}\n\tc, ok := options.Cloud.Services[ServiceName]\n\tif !ok || c.Audience == \"\" {\n\t\treturn nil, errors.New(\"provided Cloud field is missing Azure Monitor Metrics configuration\")\n\t}\n\n\tauthPolicy := runtime.NewBearerTokenPolicy(credential, []string{c.Audience + \"/.default\"}, nil)\n\tazcoreClient, err := azcore.NewClient(moduleName, version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{endpoint: endpoint, internal: azcoreClient}, nil\n}\n",
+      "contentHash": "859fc2bd379cf0faa2471eed312958b9a6b48bdc075f524b5082347d7c091678",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azmetrics/custom_client.go",
+      "startLine": 1,
+      "endLine": 53,
+      "kind": "unknown",
+      "id": "4b1be419da0e094f592d2c06e45a7ba2ccafbce456bed1aa4e08def1427f9b54"
+    },
+    {
+      "path": "sdk/monitor/query/azmetrics/cloud_config.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azmetrics\n\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\n// Cloud Service Names for Monitor Query Metrics, used to identify the respective cloud.ServiceConfiguration\nconst ServiceName cloud.ServiceName = \"query/azmetrics\"\n\nfunc init() {\n\tcloud.AzureChina.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://metrics.monitor.azure.cn\",\n\t}\n\tcloud.AzureGovernment.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://metrics.monitor.azure.us\",\n\t}\n\tcloud.AzurePublic.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://metrics.monitor.azure.com\",\n\t}\n}\n",
+      "contentHash": "c679b906a35258ab0aac800c70233a24c336242c8a5661444f4e350effc570b0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azmetrics/cloud_config.go",
+      "startLine": 1,
+      "endLine": 21,
+      "kind": "unknown",
+      "id": "cf68b8c74d9475f4a862d69b0a6b2d30144749b3694d9fe085ff486268c7ccef"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/query/azmetrics/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "70e946684acad0136fcca00f0c2578b5e05234ac82fe121f457b16f6f5f32c5c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azmetrics/go.mod"
+    },
+    {
+      "path": "sdk/monitor/query/azmetrics/README.md",
+      "text": "# Azure Monitor Query Metrics client module for Go\n\n* Query metrics (this module): execute read-only queries against [Azure Monitor Metrics][metrics_overview]\n* Query logs ([query/azlogs][azlogs]): execute read-only queries against [Azure Monitor Logs][logs_overview]\n* Upload logs ([ingestion/azlogs][ingestion_azlogs]): send custom logs to [Azure Monitor][azure_monitor_overview] using the [Logs Ingestion API][ingestion_overview]\n\n[Source code][azmetrics_repo] | [Package (pkg.go.dev)][azmetrics_pkg_go] | [REST API documentation][monitor_rest_docs] | [Product documentation][monitor_docs] | [Samples][examples]\n\n## Getting started\n\n### Prerequisites\n\n* [Supported](https://aka.ms/azsdk/go/supported-versions) version of Go - [Install Go](https://go.dev/doc/install)\n* Azure subscription - [Create a free account][azure_sub]\n* The resource URI of an Azure resource (Storage Account, Key Vault, CosmosDB, etc.) that you plan to monitor\n* Regional endpoint when instantiating the client (for example, \"https://westus3.metrics.monitor.azure.com\")\n\n### Install the packages\n\nInstall the `azmetrics` and `azidentity` modules with `go get`:\n\n```bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n\nThe [azidentity][azure_identity] module is used for client authentication.\n\n### Authentication\n\nAn authenticated client object is required to execute a query. The examples demonstrate using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate; however, the client accepts any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\nThe client defaults to the Azure public cloud. For other cloud configurations, see the [cloud][cloud_documentation] package documentation.\n\n#### Create a client\n\nExample [client][example_client]\n\n## Key concepts\n\n[Azure Monitor Metrics][metrics_overview] collects numeric data from monitored resources into a time series database. Metrics are numerical values that are collected at regular intervals and describe some aspect of a system at a particular time. Metrics are lightweight and capable of supporting near real-time scenarios, making them particularly useful for alerting and fast detection of issues.\n\n### Metrics data structure\n\nEach set of metric values is a time series with the following characteristics:\n\n- The time the value was collected\n- The resource associated with the value\n- A namespace that acts like a category for the metric\n- A metric name\n- The value itself\n- Some metrics may have multiple dimensions as described in [multi-dimensional metrics][multi-metrics]. Custom metrics can have up to 10 dimensions.\n\nTo discover the metrics available to query, please reference the [supported metrics documentation][supported_metrics]. The documentation also describes important details like the valid unit, aggregation, and time grain for each metric.\n\n## Examples\n\nGet started with our [examples][examples].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a [Contributor License Agreement (CLA)][cla] declaring that you have the right to, and actually do, grant us the rights to use your contribution.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate\nthe PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to\ndo this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see\nthe [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or\ncomments.\n\n<!-- LINKS -->\n[azlogs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\n[azmetrics_repo]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/monitor/query/azmetrics\n[azmetrics_pkg_go]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics\n[azure_identity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[azure_sub]: https://azure.microsoft.com/free/\n[cloud_documentation]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\n[default_cred_ref]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity#defaultazurecredential\n[examples]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics#pkg-examples\n[example_client]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics#example-NewClient\n[ingestion_azlogs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[logs_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs\n[metrics_overview]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-platform-metrics\n[monitor_docs]: https://learn.microsoft.com/azure/azure-monitor/\n[monitor_rest_docs]: https://learn.microsoft.com/rest/api/monitor/\n[multi-metrics]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-platform-metrics#multi-dimensional-metrics\n[supported_metrics]: https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/metrics-index#metrics-by-resource-provider\n\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n",
+      "contentHash": "1bc665a5fb62dae6f3567e951878ece2ebc7c3c3928a19c424b21131d11ef7e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azmetrics/README.md"
+    },
+    {
+      "path": "sdk/monitor/query/azmetrics/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Query.Metrics\ncommit: 8ba4310e0ebcc4c41ba1ac18ab88563ec99497f9\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "431f4a734027f82811cf5a9a65067278061bbeb6e8b7eb4e0d60c51f443a2069",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azmetrics/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/query/azmetrics/cloud_config.go",
+      "startLine": 1,
+      "endLine": 21,
+      "provenance": "Go handwritten source",
+      "contentHash": "c679b906a35258ab0aac800c70233a24c336242c8a5661444f4e350effc570b0"
+    },
+    {
+      "path": "sdk/monitor/query/azmetrics/custom_client.go",
+      "startLine": 1,
+      "endLine": 53,
+      "provenance": "Go custom source",
+      "contentHash": "859fc2bd379cf0faa2471eed312958b9a6b48bdc075f524b5082347d7c091678"
+    }
+  ]
+}

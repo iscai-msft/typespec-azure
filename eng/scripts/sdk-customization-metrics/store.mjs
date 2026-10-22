@@ -21,7 +21,15 @@ import {
   scanSchema,
   validate,
 } from "./schema.mjs";
-import { classify, digest, lines, sourceLineCount, sourceUrl } from "./source.mjs";
+import {
+  classify,
+  digest,
+  evidenceId,
+  evidenceLines,
+  lines,
+  sourceLineCount,
+  sourceUrl,
+} from "./source.mjs";
 
 export function validateScan(scan) {
   validate(scanSchema, scan);
@@ -38,7 +46,8 @@ export function validateScan(scan) {
       throw new Error("Invalid customization navigation location");
     }
     navigationPaths.add(link.path);
-    const evidence = scan.evidence.find((item) => item.path === link.path);
+    // Only a whole-file capture can be compared with the link's whole-file hash.
+    const evidence = scan.evidence.find((item) => item.path === link.path && !item.excerpt);
     if (
       evidence &&
       // A link may point at part of a file (Java members), but never past its end.
@@ -61,17 +70,21 @@ export function validateScan(scan) {
     if ("id" in evidence) {
       if (evidence.kind !== classify(evidence.path, evidence.text))
         throw new Error("Evidence classification mismatch");
-      if (ids.has(evidence.id) || evidence.id !== digest(evidence.path))
+      if (ids.has(evidence.id) || evidence.id !== evidenceId(evidence))
         throw new Error("Duplicate or invalid evidence ID");
       ids.add(evidence.id);
-      if (evidence.startLine !== 1 || evidence.endLine !== sourceLineCount(evidence.text)) {
+      // Whole files start at line 1; excerpts carry their own line range.
+      if (
+        (!evidence.excerpt && evidence.startLine !== 1) ||
+        evidence.endLine !== evidence.startLine + sourceLineCount(evidence.text) - 1
+      ) {
         throw new Error("Evidence line count mismatch");
       }
     }
   }
   if (
     scan.coverage.capturedFiles !== scan.evidence.length ||
-    scan.coverage.eligibleFiles < scan.evidence.length ||
+    scan.coverage.eligibleFiles < new Set(scan.evidence.map((item) => item.path)).size ||
     scan.coverage.discoveredFiles < scan.coverage.eligibleFiles
   )
     throw new Error("Invalid coverage counts");
@@ -170,9 +183,7 @@ function latestBy(values, key, timestamp) {
 function snippets(scan, finding) {
   return finding.evidence.map((ref) => {
     const evidence = scan.evidence.find((item) => item.id === ref.id);
-    const text = lines(evidence.text)
-      .slice(ref.startLine - 1, ref.endLine)
-      .join("\n");
+    const text = evidenceLines(evidence, ref.startLine, ref.endLine).join("\n");
     return {
       path: evidence.path,
       startLine: ref.startLine,
@@ -202,6 +213,8 @@ function row(scan, finding, status, reviewReason = "") {
     finding,
     category: finding.category,
     subtype: finding.subtype,
+    pattern: finding.pattern ?? "",
+    generatorAddressable: finding.generatorAddressable ?? "unclear",
     explanation: finding.explanation,
     rootCauseHypothesis: finding.rootCauseHypothesis ?? "",
     handwrittenRationale: finding.handwrittenRationale,
@@ -222,8 +235,12 @@ function relocate(scan, finding, bindings, accepted = true) {
   if (bindings.length !== finding.evidence.length) return null;
   const refs = [];
   for (const binding of bindings) {
-    const evidence = scan.evidence.find((item) => item.path === binding.path);
-    if (!evidence) return null;
+    // The bound text must occur exactly once across this file's evidence (whole or excerpts).
+    const matches = scan.evidence.filter(
+      (item) => item.path === binding.path && item.text.includes(binding.text),
+    );
+    if (matches.length !== 1) return null;
+    const evidence = matches[0];
     const start = evidence.text.indexOf(binding.text);
     if (
       start < 0 ||
@@ -233,7 +250,7 @@ function relocate(scan, finding, bindings, accepted = true) {
       return null;
     const end = start + binding.text.length;
     if (end < evidence.text.length && evidence.text[end] !== "\n") return null;
-    const startLine = lines(evidence.text.slice(0, start)).length;
+    const startLine = evidence.startLine + lines(evidence.text.slice(0, start)).length - 1;
     refs.push({ id: evidence.id, startLine, endLine: startLine + lines(binding.text).length - 1 });
   }
   const relocated = { ...finding, evidence: refs };
@@ -401,13 +418,18 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
       // Older scans predate entry-point discovery; an empty list there is "not measured", not zero.
       navigationRecorded: Array.isArray(scan.navigation),
       customizationLinks: (scan.navigation ?? []).map((item) => {
-        const evidence = scan.evidence.find((source) => source.path === item.path);
+        // Prefer the excerpt that starts at the link (Java members), else the file.
+        const evidence =
+          scan.evidence.find(
+            (source) => source.path === item.path && source.startLine === item.startLine,
+          ) ?? scan.evidence.find((source) => source.path === item.path);
         return {
           ...item,
           ...(evidence
             ? {
                 preview: lines(evidence.text).slice(0, 32).join("\n"),
-                previewEndLine: Math.min(32, evidence.endLine),
+                previewStartLine: evidence.startLine,
+                previewEndLine: Math.min(evidence.startLine + 31, evidence.endLine),
               }
             : {}),
         };

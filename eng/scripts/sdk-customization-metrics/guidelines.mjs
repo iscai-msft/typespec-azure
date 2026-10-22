@@ -135,7 +135,10 @@ export async function guidelineVersions() {
 export async function readGuidelines(languageId) {
   const general = await readFile(new URL("SKILL.md", GUIDELINES), "utf8");
   const specific = await readFile(new URL(`${languageId}.md`, GUIDELINES), "utf8").catch(() => "");
-  return { general, specific };
+  const catalog = JSON.parse(
+    await readFile(new URL("patterns.json", GUIDELINES), "utf8").catch(() => '{"patterns":[]}'),
+  );
+  return { general, specific, catalog };
 }
 
 // Writes guidelines.html and guidelines/*.md into the site directory.
@@ -173,6 +176,9 @@ export async function exportGuidelines(outputDirectory, { repository, branch } =
   })}
 </section>`);
   }
+  // The pattern catalog is data for the dashboard and for reviewers.
+  const catalog = await readFile(new URL("patterns.json", GUIDELINES), "utf8").catch(() => null);
+  if (catalog) await writeFile(join(outputDirectory, "guidelines", "patterns.json"), catalog);
   const page = `<!doctype html>
 <html lang="en">
   <head>

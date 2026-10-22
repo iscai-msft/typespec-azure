@@ -3,10 +3,11 @@ import {
   filterCodeLinks,
   filterFindings,
   filterLibraries,
-  findingCategory,
   historyRows,
   languageLabel,
   mergeLibraries,
+  patternResolver,
+  reduciblePatterns,
   selectView,
   trackerBreakdown,
 } from "./data.mjs";
@@ -178,6 +179,15 @@ function renderFinding(item, inspect) {
     ),
     element("p", item.explanation),
     element("p", `Affected symbols: ${item.symbols.join(", ")}`),
+    ...(item.pattern
+      ? [
+          element(
+            "p",
+            `Pattern: ${item.pattern} · generator-addressable: ${item.generatorAddressable ?? "unclear"}`,
+            "muted",
+          ),
+        ]
+      : []),
     element("p", `Handwritten evidence rationale: ${item.handwrittenRationale}`),
     element("p", `AI assessment: ${item.aiStatus}. ${item.reviewReason}`),
   );
@@ -434,6 +444,13 @@ export async function start() {
         throw new Error("Unsupported inventory data schema");
       inventory = candidate;
     }
+    // Pattern catalog (synonyms -> canonical pattern), published with the guidelines.
+    let catalog = { patterns: [] };
+    const catalogResponse = await fetch("./guidelines/patterns.json", { cache: "no-store" }).catch(
+      () => null,
+    );
+    if (catalogResponse?.ok) catalog = await catalogResponse.json();
+    const resolvePattern = patternResolver(catalog);
     const allLibraries = mergeLibraries(tracker, data.packages, inventory);
     const languages = LANGUAGES.map((language) => language.id);
     for (const plane of PLANES) {
@@ -497,6 +514,7 @@ export async function start() {
       "library",
       "observation",
       "customized",
+      "pattern",
     ];
     for (const id of ["from", "group", "measure"])
       if (params.has(id)) byId(id).value = params.get(id);
@@ -508,6 +526,7 @@ export async function start() {
     byId("accepted").checked = params.get("accepted") === "true";
     byId("fixed").checked = params.get("fixed") !== "false";
     let instance = params.get("instance") ?? "";
+    let patternStatus = params.get("patterns") ?? "reducible";
     let sort = params.get("sort") ?? (tracker ? "customized" : "package");
     let descending = params.has("descending")
       ? params.get("descending") === "true"
@@ -523,17 +542,19 @@ export async function start() {
         data.observations?.find((item) => item.observedAt === filters.observation) ?? data;
       // Libraries come from the tracker (always current) joined to the selected scan observation.
       const libraries = mergeLibraries(tracker, snapshot.packages, inventory);
-      const rows = filterLibraries(libraries, snapshot.findings, filters);
+      const rows = filterLibraries(libraries, snapshot.findings, filters, resolvePattern);
       const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
       const scanFilters = {
         language: filters.language,
-        category: filters.category ? findingCategory(filters.category) : "",
+        category: filters.category,
         status: filters.status,
         accepted: filters.accepted,
         identities,
       };
       const view = selectView(snapshot, scanFilters);
-      const findings = filterFindings(view.findings, { search: filters.search });
+      const findings = filterFindings(view.findings, { search: filters.search }).filter(
+        (item) => !filters.pattern || resolvePattern(item.pattern).id === filters.pattern,
+      );
       // Code links belong to matching libraries; they are files, not classified instances.
       const codeLinks = filterCodeLinks(view.scope, { language: filters.language });
       const semantic = Boolean(filters.status || filters.accepted);
@@ -557,6 +578,7 @@ export async function start() {
         if (byId(id).value) query.set(id, byId(id).value);
       if (!byId("fixed").checked) query.set("fixed", "false");
       if (instance) query.set("instance", instance);
+      if (patternStatus !== "reducible") query.set("patterns", patternStatus);
       query.set("sort", sort);
       query.set("descending", String(descending));
       history.replaceState(null, "", `${location.pathname}${query.size ? `?${query}` : ""}`);
@@ -659,6 +681,181 @@ export async function start() {
           ),
         );
       }
+
+      // Reducible customizations: statuses are decided across all libraries in the plane;
+      // the table lists patterns that occur in the libraries matching the other filters.
+      const planeRows = libraries.filter((row) => !filters.plane || row.plane === filters.plane);
+      const planeIds = new Set(planeRows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const patterns = reduciblePatterns(
+        snapshot.findings.filter((item) => planeIds.has(item.identity)),
+        planeRows,
+        catalog,
+      );
+      const inScope = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const scopedPatterns = patterns.filter((pattern) =>
+        snapshot.findings.some(
+          (item) =>
+            item.counted &&
+            inScope.has(item.identity) &&
+            resolvePattern(item.pattern).id === pattern.id,
+        ),
+      );
+      const reducible = scopedPatterns.filter((pattern) => pattern.status === "reducible");
+      const reviewedLibraries = planeRows.filter(
+        (row) => row.scan && row.scan.analysisStatus === "complete",
+      ).length;
+      const scannedLibraries = planeRows.filter((row) => row.scan).length;
+      byId("reducible-kpis").replaceChildren(
+        kpi(
+          "Reducible patterns",
+          reviewedLibraries ? number.format(reducible.length) : "N/A",
+          reviewedLibraries
+            ? `of ${number.format(scopedPatterns.length)} patterns found`
+            : "No libraries reviewed yet",
+          "featured",
+        ),
+        kpi(
+          "Reducible instances",
+          reviewedLibraries
+            ? number.format(reducible.reduce((sum, pattern) => sum + pattern.instances, 0))
+            : "N/A",
+          "Reviewed customizations that follow a reducible pattern",
+        ),
+        kpi(
+          "Active libraries affected",
+          reviewedLibraries
+            ? number.format(
+                new Set(
+                  snapshot.findings
+                    .filter(
+                      (item) =>
+                        item.counted &&
+                        reducible.some((pattern) => pattern.id === resolvePattern(item.pattern).id),
+                    )
+                    .map((item) => item.identity),
+                ).size,
+              )
+            : "N/A",
+          "Libraries that would lose a customization",
+        ),
+        kpi(
+          "Review coverage",
+          percent(reviewedLibraries, scannedLibraries),
+          `${number.format(reviewedLibraries)} of ${number.format(scannedLibraries)} scanned libraries reviewed`,
+          "generated",
+        ),
+      );
+      const statuses = [
+        ["reducible", "Reducible"],
+        ["spec-candidate", "Same service, several languages"],
+        ["dormant", "Dormant only"],
+        ["one-off", "One-off"],
+        ["service-specific", "Service-specific"],
+        ["all", "All patterns"],
+      ];
+      byId("reducible-filters").replaceChildren(
+        ...statuses.map(([id, label]) => {
+          const count =
+            id === "all"
+              ? scopedPatterns.length
+              : scopedPatterns.filter((pattern) => pattern.status === id).length;
+          const chip = element("button", `${label} (${count})`, "chip");
+          chip.type = "button";
+          chip.setAttribute("aria-pressed", String(patternStatus === id));
+          chip.addEventListener("click", () => {
+            patternStatus = id;
+            update();
+          });
+          return chip;
+        }),
+      );
+      const listed = scopedPatterns.filter(
+        (pattern) => patternStatus === "all" || pattern.status === patternStatus,
+      );
+      const statusLabel = Object.fromEntries(statuses);
+      byId("reducible-status").replaceChildren(
+        element(
+          "span",
+          reviewedLibraries
+            ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries. Unreviewed libraries are not counted either way.`
+            : "No library has been AI-reviewed yet, so no patterns are known.",
+        ),
+      );
+      if (filters.pattern) {
+        const clear = element(
+          "button",
+          `Pattern: ${resolvePattern(filters.pattern).name} ✕`,
+          "chip",
+        );
+        clear.type = "button";
+        clear.setAttribute("aria-label", "Clear pattern filter");
+        clear.addEventListener("click", () => {
+          byId("pattern").value = "";
+          update();
+        });
+        byId("reducible-status").append(" ", clear);
+      }
+      byId("reducible-rows").replaceChildren(
+        ...listed.map((pattern) => {
+          const tr = element("tr");
+          if (pattern.id === filters.pattern) tr.className = "selected";
+          const name = element("td");
+          const button = element("button", pattern.name, "library-link library-select");
+          button.type = "button";
+          button.setAttribute("aria-label", `Show libraries with pattern ${pattern.name}`);
+          button.addEventListener("click", () => {
+            byId("pattern").value = pattern.id;
+            byId("library").value = "";
+            instance = "";
+            update();
+            byId("explorer-title").scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+          name.append(button);
+          if (pattern.description)
+            name.append(element("div", pattern.description, "muted pattern-description"));
+          const langs = element("td");
+          langs.append(
+            ...pattern.languages.map((language) =>
+              element("span", languageLabel(language), `language-tag lang-${language}`),
+            ),
+          );
+          const status = element("td");
+          status.append(
+            element(
+              "span",
+              statusLabel[pattern.status] ?? pattern.status,
+              `pill status-${pattern.status}`,
+            ),
+            element("div", pattern.reason, "muted pattern-description"),
+          );
+          tr.append(
+            name,
+            element("td", pattern.category),
+            element("td", String(pattern.services), "num"),
+            langs,
+            element("td", String(pattern.activeLibraries), "num"),
+            element("td", String(pattern.instances), "num"),
+            status,
+          );
+          return tr;
+        }),
+      );
+      if (!listed.length)
+        byId("reducible-rows").append(
+          (() => {
+            const tr = element("tr");
+            const td = element(
+              "td",
+              reviewedLibraries
+                ? "No patterns with this status in the current filters."
+                : "Patterns appear once libraries are AI-reviewed.",
+              "muted",
+            );
+            td.colSpan = 7;
+            tr.append(td);
+            return tr;
+          })(),
+        );
 
       // Breakdown
       const group = byId("group").value;
@@ -1224,7 +1421,7 @@ export async function start() {
           detail.append(
             element(
               "p",
-              `Captured preview: lines 1–${candidate.previewEndLine}. Open GitHub for the complete entry point.`,
+              `Captured preview: lines ${candidate.previewStartLine ?? 1}–${candidate.previewEndLine}. Open GitHub for the complete entry point.`,
               "muted",
             ),
             pre,

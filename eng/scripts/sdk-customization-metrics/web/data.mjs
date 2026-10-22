@@ -35,7 +35,7 @@ export function filterFindings(
   return findings.filter(
     (item) =>
       (!language || item.language === language) &&
-      (!category || item.category === category) &&
+      (!category || canonicalCategory(item.category) === canonicalCategory(category)) &&
       (!status || item.status === status) &&
       (!accepted || item.counted) &&
       tokens.every((token) =>
@@ -235,12 +235,22 @@ export function findingCategory(canonical) {
 // Every language's SDK for the same spec gets the same service name.
 export function specService(directory) {
   if (!directory) return "";
-  return directory
+  const parts = directory
     .split("/")
     .filter(
       (part) => part && !["specification", "data-plane", "resource-manager", "src"].includes(part),
-    )
-    .join("/");
+    );
+  // The same project is spelled differently across languages (monitor/Monitor.Ingestion,
+  // monitor/Azure.Monitor.Ingestion, monitor/data-plane/Ingestion): drop "Azure." and a
+  // repeated group prefix so they all become monitor/Ingestion.
+  if (parts.length >= 2) {
+    const group = parts[0].toLowerCase();
+    parts[parts.length - 1] = parts
+      .at(-1)
+      .replace(/^Azure\./i, "")
+      .replace(new RegExp(`^${group.replace(/[^a-z0-9]/g, "")}\\.`, "i"), "");
+  }
+  return parts.join("/");
 }
 
 // Fallback for libraries without a spec location. Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
@@ -278,13 +288,20 @@ export function mergeLibraries(tracker, packages, inventory = null) {
       // null when no inventory was loaded, so absence is not reported as "not TypeSpec".
       typespec: inventory ? Boolean(found) : null,
       spec: found?.spec ?? null,
+      release: found?.release ?? null,
+      lastChanged: found?.lastChanged ?? null,
       tracker: survey,
       scan,
     };
   });
 }
 
-export function filterLibraries(rows, findings, filters = {}) {
+export function filterLibraries(
+  rows,
+  findings,
+  filters = {},
+  resolvePattern = (name) => ({ id: name }),
+) {
   const tokens = (filters.search ?? "").toLowerCase().split(/\s+/).filter(Boolean);
   const byIdentity = new Map();
   for (const item of findings) {
@@ -308,6 +325,11 @@ export function filterLibraries(rows, findings, filters = {}) {
       return false;
     if (filters.status && !own.some((item) => item.status === filters.status)) return false;
     if (filters.accepted && !counted.length) return false;
+    if (
+      filters.pattern &&
+      !counted.some((item) => resolvePattern(item.pattern).id === filters.pattern)
+    )
+      return false;
     if (!tokens.length) return true;
     const text = [
       row.package,
@@ -346,4 +368,118 @@ export function trackerBreakdown(rows, group = "language") {
     else add(group === "service" ? row.service : row.language, row);
   }
   return [...groups.values()];
+}
+
+// Pattern catalog: canonical patterns with the alias names reviewers have used for them.
+export function patternResolver(catalog) {
+  const byName = new Map();
+  for (const entry of catalog?.patterns ?? []) {
+    byName.set(entry.id, entry);
+    for (const alias of entry.aliases ?? []) byName.set(alias, entry);
+  }
+  return (name) => {
+    const entry = name ? byName.get(name) : null;
+    return entry
+      ? { id: entry.id, name: entry.name ?? entry.id, description: entry.description ?? "" }
+      : { id: name || "unpatterned", name: name || "Unpatterned", description: "" };
+  };
+}
+
+export const REDUCIBLE_RULES = {
+  minServices: 2,
+  // A library is dormant when its latest dated release is older than this.
+  dormantAfterDays: 365,
+  // A pattern stops being reducible when most reviewed instances say no generator could help.
+  maxServiceSpecificShare: 0.5,
+};
+
+// Groups counted findings by pattern and decides which patterns are reducible.
+// `rows` are library rows (service, language, release stability) keyed by scan identity.
+// A library is active if it released within the dormancy window (from its CHANGELOG), or if
+// its folder changed within it (recorded by discovery). Unknown counts as active.
+export function isDormant(row, now = Date.now(), rules = REDUCIBLE_RULES) {
+  const dates = [row.release?.latestDate, row.lastChanged].filter(Boolean).map(Date.parse);
+  if (!dates.length) return false;
+  return now - Math.max(...dates) > rules.dormantAfterDays * 86400000;
+}
+
+export function reduciblePatterns(
+  findings,
+  rows,
+  catalog = null,
+  rules = REDUCIBLE_RULES,
+  now = Date.now(),
+) {
+  const resolve = patternResolver(catalog);
+  const byIdentity = new Map(rows.filter((row) => row.scan).map((row) => [row.scan.identity, row]));
+  const groups = new Map();
+  for (const finding of findings) {
+    if (!finding.counted) continue;
+    const pattern = resolve(finding.pattern);
+    if (!groups.has(pattern.id))
+      groups.set(pattern.id, { ...pattern, instances: [], categories: new Map() });
+    const group = groups.get(pattern.id);
+    group.instances.push(finding);
+    group.categories.set(finding.category, (group.categories.get(finding.category) ?? 0) + 1);
+  }
+  return [...groups.values()]
+    .map((group) => {
+      const libraries = new Set(group.instances.map((item) => item.identity));
+      const rowsFor = [...libraries].map((identity) => byIdentity.get(identity)).filter(Boolean);
+      const services = new Set(rowsFor.map((row) => row.service));
+      const languages = new Set(group.instances.map((item) => item.language));
+      const votes = { yes: 0, no: 0, unclear: 0 };
+      for (const item of group.instances) votes[item.generatorAddressable ?? "unclear"]++;
+      const serviceSpecific = votes.no / group.instances.length > rules.maxServiceSpecificShare;
+      const active = rowsFor.filter((row) => !isDormant(row, now, rules)).length;
+      const unpatterned = group.id === "unpatterned";
+      let status;
+      let reason;
+      if (unpatterned) {
+        status = "unknown";
+        reason = "No pattern recorded";
+      } else if (serviceSpecific) {
+        status = "service-specific";
+        reason = `${votes.no} of ${group.instances.length} reviewed instances are service-specific`;
+      } else if (services.size >= rules.minServices && active > 0) {
+        status = "reducible";
+        reason = `Recurs in ${services.size} services, ${active} active ${active === 1 ? "library" : "libraries"}`;
+      } else if (services.size >= rules.minServices) {
+        status = "dormant";
+        reason = `Recurs in ${services.size} services, but only in dormant libraries`;
+      } else if (languages.size >= 2) {
+        status = "spec-candidate";
+        reason = `One service, repeated in ${languages.size} languages`;
+      } else {
+        status = "one-off";
+        reason =
+          rowsFor.length && rowsFor.every((row) => isDormant(row, now, rules))
+            ? "Only in one dormant library"
+            : "Only in one library";
+      }
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        category: [...group.categories].sort((a, b) => b[1] - a[1])[0][0],
+        instances: group.instances.length,
+        libraries: libraries.size,
+        services: services.size,
+        serviceNames: [...services].sort(),
+        languages: [...languages].sort(),
+        activeLibraries: active,
+        votes,
+        status,
+        reason,
+      };
+    })
+    .sort(
+      (a, b) =>
+        (a.status === "reducible" ? 0 : 1) - (b.status === "reducible" ? 0 : 1) ||
+        b.activeLibraries - a.activeLibraries ||
+        b.services - a.services ||
+        b.libraries - a.libraries ||
+        b.instances - a.instances ||
+        a.name.localeCompare(b.name),
+    );
 }
