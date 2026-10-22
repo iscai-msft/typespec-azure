@@ -20,7 +20,7 @@ import {
   validateScan,
 } from "../store.mjs";
 import { coverageGroups, fileUrl, filterCodeLinks, filterFindings } from "../web/app.mjs";
-import { breakdown, historyRows, selectView } from "../web/data.mjs";
+import { breakdown, historyRows, selectView, serviceOf } from "../web/data.mjs";
 
 test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
   const python = "sdk/lib/_patch.py";
@@ -103,6 +103,62 @@ test("customization navigation rejects boilerplate, generated code and formattin
   assert.equal(filterCodeLinks(packages, { category: "LRO" }).length, 0);
   assert.equal(filterCodeLinks(packages, { accepted: true }).length, 0);
   assert.equal(filterCodeLinks([{ ...packages[0], excluded: true }]).length, 0);
+});
+
+test("service grouping normalizes the full package service name across ecosystem conventions", () => {
+  assert.equal(serviceOf({ package: "Azure.AI.DocumentIntelligence" }), "ai.documentintelligence");
+  assert.equal(serviceOf({ package: "azure-ai-documentintelligence" }), "ai.documentintelligence");
+  assert.equal(
+    serviceOf({ package: "@azure-rest/ai-document-intelligence" }),
+    "ai.documentintelligence",
+  );
+  assert.equal(serviceOf({ package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai" }), "ai");
+  assert.equal(serviceOf({ root: "sdk/documentintelligence/example" }), "documentintelligence");
+  assert.equal(serviceOf({ package: "unknown", root: "sdk/unknown/example" }), "unknown");
+  const snapshot = {
+    packages: [
+      {
+        identity: "dotnet:di",
+        package: "Azure.AI.DocumentIntelligence",
+        root: "sdk/documentintelligence/pkg",
+        language: "dotnet",
+        coverage: { status: "partial" },
+        customizationLinks: [],
+      },
+      {
+        identity: "java:di",
+        package: "azure-ai-documentintelligence",
+        root: "sdk/documentintelligence/pkg",
+        language: "java",
+        coverage: { status: "partial" },
+        customizationLinks: [],
+      },
+      {
+        identity: "go:ai",
+        package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai",
+        root: "sdk/ai/azopenai",
+        language: "go",
+        coverage: { status: "partial" },
+        customizationLinks: [],
+      },
+    ],
+    findings: [],
+  };
+  assert.equal(selectView(snapshot, { service: "ai.documentintelligence" }).scope.length, 2);
+  assert.deepEqual(
+    breakdown(
+      {
+        scope: snapshot.packages,
+        candidates: [{ identity: "dotnet:di" }, { identity: "java:di" }, { identity: "go:ai" }],
+      },
+      "service",
+      "candidates",
+    ),
+    [
+      ["ai.documentintelligence", 2],
+      ["ai", 1],
+    ],
+  );
 });
 
 // Synthetic unit fixtures are never used as dashboard/demo metrics.

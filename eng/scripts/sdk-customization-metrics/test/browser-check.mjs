@@ -113,6 +113,10 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(url);
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.deepEqual(await page.locator("#service option").allTextContents(), [
+    "All services",
+    "synthetic",
+  ]);
   assert.equal(await page.locator(".metric-card").count(), 3);
   assert.match(await page.locator("#coverage-title").innerText(), /Collection diagnostics/);
   assert.equal(await page.locator("#diagnostics").getAttribute("open"), null);

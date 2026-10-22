@@ -1,4 +1,38 @@
-export const serviceOf = (item) => item.root?.split("/")[1] ?? "unspecified";
+export function serviceOf(item) {
+  const name = item.package?.replace(/^@azure-rest\//i, "");
+  if (name) {
+    if (/^Azure\./i.test(name)) {
+      return name
+        .replace(/^Azure\./i, "")
+        .split(".")
+        .map((part) => part.toLowerCase())
+        .join(".");
+    }
+    if (/^azure-/i.test(name)) {
+      const parts = name
+        .replace(/^azure-/i, "")
+        .toLowerCase()
+        .split("-");
+      return parts[0] === "ai" ? `ai.${parts.slice(1).join("")}` : parts.join(".");
+    }
+    if (/^ai-/i.test(name)) {
+      const parts = name.toLowerCase().split("-");
+      return `ai.${parts.slice(1).join("")}`;
+    }
+    if (/^github\.com\/azure\/azure-sdk-for-go\//i.test(name)) {
+      const parts = name.split("/");
+      const sdk = parts.indexOf("sdk");
+      return sdk >= 0
+        ? parts
+            .slice(sdk + 1, -1)
+            .join(".")
+            .toLowerCase() || parts.at(-1).toLowerCase()
+        : "unspecified";
+    }
+  }
+  const root = item.root?.split("/").filter(Boolean) ?? [];
+  return root.length > 2 ? root.slice(1, -1).join(".").toLowerCase() : "unspecified";
+}
 export function filterFindings(
   findings,
   { language = "", category = "", status = "", search = "", accepted = false } = {},
