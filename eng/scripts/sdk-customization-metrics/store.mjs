@@ -158,7 +158,7 @@ export async function readState(directory) {
 function latestBy(values, key, timestamp) {
   const result = new Map();
   for (const value of [...values].sort(
-    (a, b) => a[timestamp].localeCompare(b[timestamp]) || a.id.localeCompare(b.id),
+    (a, b) => Date.parse(a[timestamp]) - Date.parse(b[timestamp]) || a.id.localeCompare(b.id),
   )) {
     result.set(key(value), value);
   }
@@ -396,8 +396,27 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         startLine,
         endLine,
       })),
-      customizationLinks: scan.navigation ?? [],
+      customizationLinks: (scan.navigation ?? []).map((item) => {
+        const evidence = scan.evidence.find((source) => source.path === item.path);
+        return {
+          ...item,
+          ...(evidence
+            ? {
+                preview: lines(evidence.text).slice(0, 32).join("\n"),
+                previewEndLine: Math.min(32, evidence.endLine),
+              }
+            : {}),
+        };
+      }),
       analysisStatus: scan.analysis.status,
+      assessmentVersion: {
+        schema: scan.schemaVersion,
+        collector: scan.provenance.collectorVersion,
+        analystModel: scan.analysis.analystModel,
+        reviewerModel: scan.analysis.reviewerModel,
+        analystPrompt: scan.analysis.analystPromptVersion,
+        reviewerPrompt: scan.analysis.reviewerPromptVersion,
+      },
       analysisErrors: scan.analysis.errors,
       limitations: scan.analysis.limitations,
       excluded,
@@ -494,6 +513,27 @@ export async function createOverride(directory, request) {
 export async function exportData(stateDirectory, outputDirectory, options = {}) {
   const { scans, overrides } = await readState(stateDirectory);
   const dataset = effectiveDataset(scans, overrides, options);
+  dataset.historyVersion = 1;
+  const historical = options.historyStateDirectory
+    ? await readState(options.historyStateDirectory)
+    : { scans, overrides };
+  for (const [history, current] of [
+    [historical.scans, scans],
+    [historical.overrides, overrides],
+  ]) {
+    if (
+      history.some(
+        (record) =>
+          !current.some((item) => item.id === record.id && digest(item) === digest(record)),
+      )
+    ) {
+      throw new Error("Historical state must be an immutable subset of the exported state");
+    }
+  }
+  dataset.observations = effectiveObservations(historical.scans, historical.overrides, options);
+  dataset.historySource = options.historyStateDirectory
+    ? "persisted-state-before-refresh"
+    : "exported-state";
   await mkdir(outputDirectory, { recursive: true });
   const temporary = join(outputDirectory, `.metrics-${randomUUID()}.sqlite`);
   const db = new DatabaseSync(temporary);
@@ -506,9 +546,27 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
       CREATE TABLE findings (id TEXT PRIMARY KEY, identity TEXT NOT NULL, language TEXT NOT NULL, package TEXT NOT NULL, module_major INTEGER NOT NULL, category TEXT NOT NULL, subtype TEXT NOT NULL, status TEXT NOT NULL, counted INTEGER NOT NULL, explanation TEXT NOT NULL, snippets_json TEXT NOT NULL, raw_json TEXT NOT NULL);
       CREATE INDEX finding_filters ON findings(language, category, counted);
       CREATE VIEW accepted_customizations AS SELECT * FROM findings WHERE counted = 1;
+      CREATE TABLE observations (id TEXT PRIMARY KEY, observed_at TEXT NOT NULL, raw_json TEXT NOT NULL);
+      CREATE TABLE observation_findings (observation_id TEXT NOT NULL, identity TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL, counted INTEGER NOT NULL, raw_json TEXT NOT NULL);
       BEGIN;
     `);
     const insertScan = db.prepare("INSERT INTO scans VALUES (?, ?, ?, ?)");
+    const insertObservation = db.prepare("INSERT INTO observations VALUES (?, ?, ?)");
+    const insertHistoricalFinding = db.prepare(
+      "INSERT INTO observation_findings VALUES (?, ?, ?, ?, ?, ?)",
+    );
+    for (const observation of dataset.observations) {
+      insertObservation.run(observation.id, observation.observedAt, JSON.stringify(observation));
+      for (const finding of observation.findings)
+        insertHistoricalFinding.run(
+          observation.id,
+          finding.identity,
+          finding.category,
+          finding.status,
+          Number(finding.counted),
+          JSON.stringify(finding),
+        );
+    }
     const insertEvidence = db.prepare("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)");
     const exportedScans = scans.filter(
       (scan) => options.includeFixtures || scan.provenance.origin !== "fixture",
@@ -574,11 +632,77 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
   }
   await rename(temporary, join(outputDirectory, "metrics.sqlite"));
   await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(dataset, null, 2)}\n`);
-  for (const name of ["index.html", "app.mjs", "style.css"]) {
+  for (const name of ["index.html", "app.mjs", "style.css", "data.mjs"]) {
     await copyFile(
       fileURLToPath(new URL(`./web/${name}`, import.meta.url)),
       join(outputDirectory, name),
     );
   }
+
   return dataset;
+}
+
+export function effectiveObservations(scans, overrides, options = {}) {
+  const publicScans = scans.filter(
+    (scan) => options.includeFixtures || scan.provenance.origin !== "fixture",
+  );
+  const ids = new Set(publicScans.map((scan) => scan.id));
+  const publicOverrides = overrides.filter((item) => ids.has(item.scanId));
+  const times = [
+    ...new Set(
+      [
+        ...publicScans.map((scan) => scan.observedAt),
+        ...publicOverrides.map((item) => item.createdAt),
+      ].map((time) => new Date(time).toISOString()),
+    ),
+  ].sort();
+  const observations = [];
+  let previous;
+  for (const time of times) {
+    const available = publicScans.filter((scan) => Date.parse(scan.observedAt) <= Date.parse(time));
+    const availableIds = new Set(available.map((scan) => scan.id));
+    const snapshot = effectiveDataset(
+      available,
+      publicOverrides.filter(
+        (item) => Date.parse(item.createdAt) <= Date.parse(time) && availableIds.has(item.scanId),
+      ),
+      options,
+    );
+    // Ignore transport revisions and duplicate scans; retain evidence, assessment and coverage transitions.
+    const fingerprint = digest({
+      packages: snapshot.packages.map((item) => ({
+        identity: item.identity,
+        coverage: item.coverage,
+        navigation: item.customizationLinks,
+        analysis: item.analysisStatus,
+        errors: item.analysisErrors,
+        limitations: item.limitations,
+        excluded: item.excluded,
+        override: item.packageOverride,
+        overrideStatus: item.overrideStatus,
+        evidence: available
+          .find((scan) => scan.id === item.scanId)
+          .evidence.map((evidence) => [evidence.path, evidence.contentHash]),
+        versions: item.assessmentVersion,
+        assessment: available.find((scan) => scan.id === item.scanId).analysis,
+      })),
+      findings: snapshot.findings.map((item) => ({
+        identity: item.identity,
+        key: item.key,
+        status: item.status,
+        counted: item.counted,
+        explanation: item.explanation,
+        category: item.category,
+        subtype: item.subtype,
+        snippets: item.snippets.map((snippet) => [snippet.path, snippet.contentHash, snippet.text]),
+        override: item.overrideId,
+        overrideStatus: item.overrideStatus,
+        reason: item.reviewReason,
+      })),
+    });
+    if (fingerprint === previous) continue;
+    observations.push({ id: digest(`${time}:${fingerprint}`), observedAt: time, ...snapshot });
+    previous = fingerprint;
+  }
+  return observations;
 }

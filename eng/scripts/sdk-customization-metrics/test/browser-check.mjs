@@ -18,6 +18,7 @@ const target = {
   root: "sdk/synthetic/browser-test-only",
 };
 const scan = newScan(target, "fixture");
+scan.observedAt = "2026-10-03T00:00:00.000Z";
 scan.commit = "a".repeat(40);
 const text =
   '// Synthetic unit fixture\nclass Fixture {\n  String customPoll = "<script>window.injected = true</script>";\n}\n';
@@ -59,6 +60,18 @@ scan.coverage.skipped.push({
 });
 const state = join(directory, "state");
 const site = join(directory, "site");
+const initial = structuredClone(scan);
+initial.id = "synthetic-unassessed";
+initial.observedAt = "2026-10-01T00:00:00.000Z";
+initial.analysis.status = "missing";
+initial.analysis.proposals = [];
+initial.analysis.decisions = [];
+const prior = structuredClone(scan);
+prior.id = "synthetic-rejected";
+prior.observedAt = "2026-10-02T00:00:00.000Z";
+prior.analysis.decisions[0].status = "rejected";
+await append(join(state, "records"), initial);
+await append(join(state, "records"), prior);
 await append(join(state, "records"), scan);
 await exportData(state, site, { includeFixtures: true });
 let failData = false;
@@ -69,6 +82,7 @@ const server = createServer(async (request, response) => {
   const files = {
     "/": ["index.html", "text/html"],
     "/app.mjs": ["app.mjs", "text/javascript"],
+    "/data.mjs": ["data.mjs", "text/javascript"],
     "/style.css": ["style.css", "text/css"],
     "/metrics.json": ["metrics.json", "application/json"],
     "/metrics.sqlite": ["metrics.sqlite", "application/octet-stream"],
@@ -120,7 +134,9 @@ try {
   assert.equal(await page.locator(".package-card table a").count(), 2);
   await page.getByRole("button", { name: "Show Java LRO customizations" }).click();
   assert.equal(await page.locator(".code-link-card").count(), 0);
-  await page.locator(".reviewed-results > summary").click();
+  assert.deepEqual(await page.locator(".metric-value").allTextContents(), ["1", "0", "1"]);
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  assert.equal(await page.locator(".reviewed-results").getAttribute("open"), "");
   assert.equal(await page.locator("article").count(), 1);
   assert.match(page.url(), /language=java/);
   assert.equal(new URL(page.url()).pathname, `${prefix}/`);
@@ -152,6 +168,41 @@ try {
   assert.equal((await download).suggestedFilename(), "metrics.sqlite");
   await page.getByRole("button", { name: "Clear filters" }).click();
   assert.equal(await page.locator("#language").inputValue(), "");
+  assert.equal(await page.locator("#history-rows tr").count(), 3);
+  assert.equal(await page.locator(".trend-point").count(), 2);
+  assert.match(await page.locator("#history-rows tr").first().innerText(), /N\/A/);
+  await page.locator("#observation").selectOption(initial.observedAt);
+  assert.equal(await page.locator("#findings article").count(), 0);
+  assert.equal(await page.locator("#code-links a").count(), 1);
+  assert.match(await page.locator("#history-status").innerText(), /Insufficient/);
+  await page.locator("#observation").selectOption("");
+  await page.locator("#breakdown button").filter({ hasText: "java" }).click();
+  assert.equal(await page.locator("#language").inputValue(), "java");
+  await page.locator("#library-rows button").first().click();
+  assert.equal(await page.locator("#library").inputValue(), scan.identity);
+  assert.match(await page.locator("#metric-cards").innerText(), /Accepted instances/);
+  await page.locator("#code-links button").first().click();
+  assert.match(
+    await page.locator("#instance-detail").innerText(),
+    /not an independent AI-reviewed/,
+  );
+  assert.match(page.url(), /instance=candidate/);
+  await page.reload();
+  await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
+  assert.match(await page.locator("#instance-detail").innerText(), /Captured preview/);
+  await page.locator("#findings button").filter({ hasText: "Inspect instance" }).click();
+  assert.match(await page.locator("#instance-detail").innerText(), /Synthetic reviewer/);
+  assert.match(await page.locator("#instance-detail").innerText(), /Assessment version/);
+  await page.locator("#service").selectOption("synthetic");
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  await page.locator('[data-sort="accepted"]').click();
+  assert.equal(
+    await page.locator('[data-sort="accepted"]').locator("..").getAttribute("aria-sort"),
+    "ascending",
+  );
+  await page.locator("#from").fill("2026-10-03");
+  assert.equal(await page.locator("#history-rows tr").count(), 1);
+  await page.getByRole("button", { name: "Clear filters" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

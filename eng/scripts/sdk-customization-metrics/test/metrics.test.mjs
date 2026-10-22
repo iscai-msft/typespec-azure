@@ -14,11 +14,13 @@ import {
   append,
   createOverride,
   effectiveDataset,
+  effectiveObservations,
   exportData,
   readState,
   validateScan,
 } from "../store.mjs";
 import { coverageGroups, fileUrl, filterCodeLinks, filterFindings } from "../web/app.mjs";
+import { breakdown, historyRows, selectView } from "../web/data.mjs";
 
 test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
   const python = "sdk/lib/_patch.py";
@@ -152,6 +154,142 @@ function reviewed(scan, status = "accepted") {
   validateScan(scan);
   return scan;
 }
+
+test("historical effective observations deduplicate scans and apply overrides only as of their timestamp", async (t) => {
+  const path = await directory(t);
+  const first = reviewed(fixture({ origin: "public-github" }));
+  await save(path, first);
+  const duplicate = structuredClone(first);
+  duplicate.id = "duplicate-scan";
+  duplicate.observedAt = "2026-10-02T00:00:00.000Z";
+  duplicate.commit = "b".repeat(40);
+  duplicate.evidence[0].sourceUrl = duplicate.evidence[0].sourceUrl.replace(
+    /a{40}/,
+    "b".repeat(40),
+  );
+  validateScan(duplicate);
+  const reject = await createOverride(path, {
+    identity: first.identity,
+    action: "reject",
+    key: first.analysis.proposals[0].key,
+    reason: "Synthetic human correction",
+  });
+  reject.createdAt = "2026-10-03T00:00:00.000Z";
+  const changed = reviewed(
+    fixture({
+      origin: "public-github",
+      date: "2026-10-04T00:00:00.000Z",
+      text: sourceText.replace("waitForFixture()", "differentBehavior()"),
+    }),
+  );
+  const observations = effectiveObservations([first, duplicate, changed], [reject]);
+  assert.equal(observations.length, 3);
+  assert.equal(observations[0].findings[0].counted, true);
+  assert.equal(observations[1].findings[0].status, "human-rejected");
+  assert.ok(observations[2].findings.some((item) => item.status === "needs-revalidation"));
+  assert.equal(observations[1].observedAt, reject.createdAt);
+  assert.equal(observations[0].packages[0].assessmentVersion.schema, 1);
+  const view = selectView(observations[0], {
+    language: "java",
+    service: "fixture",
+    category: "LRO",
+    search: "customPoll",
+    accepted: true,
+  });
+  assert.equal(view.accepted.length, 1);
+  assert.equal(view.packages.length, 1);
+  assert.deepEqual(breakdown(view, "category"), [["LRO", 1]]);
+  assert.equal(selectView(observations[1], { status: "human-rejected" }).accepted.length, 0);
+  const exclusion = {
+    ...reject,
+    id: "exclude-package",
+    createdAt: "2026-10-05T00:00:00.000Z",
+    request: { identity: first.identity, action: "exclude", reason: "Synthetic exclude" },
+    bindings: changed.evidence.map(({ path, text, contentHash }) => ({ path, text, contentHash })),
+  };
+  const last = effectiveObservations([first, changed], [exclusion]).at(-1);
+  assert.equal(selectView(last).accepted.length, 0);
+  assert.equal(selectView(last).candidates.length, 0);
+});
+
+test("history exposes coverage expansion, fixed cohorts, unknown assessments and version boundaries", () => {
+  const first = reviewed(fixture({ origin: "public-github" }));
+  const second = reviewed(
+    fixture({ origin: "public-github", date: "2026-10-03T00:00:00.000Z" }),
+    "rejected",
+  );
+  const other = reviewed(fixture({ origin: "public-github", date: "2026-10-02T00:00:00.000Z" }));
+  other.target = { ...other.target, package: "another-library" };
+  other.identity = identity(other.target);
+  other.analysis.proposals = [proposal(other)];
+  other.analysis.decisions = [
+    { key: other.analysis.proposals[0].key, status: "accepted", reason: "Synthetic" },
+  ];
+  const missing = fixture({ origin: "public-github", date: "2026-10-04T00:00:00.000Z" });
+  const observations = effectiveObservations([first, other, second, missing], []);
+  const fixed = historyRows(observations, {}, true);
+  assert.deepEqual(
+    fixed.map((item) => item.libraries),
+    [1, 1, 1, 1],
+  );
+  assert.deepEqual(
+    fixed.map((item) => item.accepted),
+    [1, 1, 0, null],
+  );
+  const available = historyRows(observations, {}, false);
+  assert.deepEqual(
+    available.map((item) => item.libraries),
+    [1, 2, 2, 2],
+  );
+  assert.equal(available[1].added, 1);
+  assert.equal(available[3].accepted, null);
+  assert.equal(
+    historyRows(observations, { observation: "2026-10-02T00:00:00.000Z" }, true).length,
+    2,
+  );
+  assert.equal(historyRows(observations, {}, true, "2026-10-03").length, 2);
+  assert.equal(historyRows(observations, { library: first.identity }, true)[0].libraries, 1);
+  const failed = structuredClone(observations.at(-1));
+  failed.packages[0].coverage.status = "failed";
+  assert.equal(historyRows([failed], {}, false)[0].accepted, null);
+  const removed = structuredClone(observations[1]);
+  removed.id = "removed-package";
+  removed.observedAt = "2026-10-05T00:00:00.000Z";
+  removed.packages = removed.packages.filter((item) => item.identity === first.identity);
+  assert.equal(historyRows([observations[1], removed], {}, false)[1].removed, 1);
+  const versioned = structuredClone(observations[0]);
+  versioned.packages[0].assessmentVersion.reviewerModel = "new-model-version";
+  assert.notEqual(
+    historyRows([observations[0], versioned])[0].version,
+    historyRows([observations[0], versioned])[1].version,
+  );
+});
+
+test("publication history can exclude transient refreshes and normalizes timestamp offsets", async (t) => {
+  const path = await directory(t);
+  const state = join(path, "state");
+  const history = join(path, "history");
+  const scan = reviewed(fixture({ origin: "public-github", date: "2026-10-01T02:00:00+02:00" }));
+  await save(state, scan);
+  await save(history, scan);
+  const refresh = reviewed(
+    fixture({ origin: "public-github", date: "2026-10-01T00:30:00.000Z" }),
+    "rejected",
+  );
+  await save(state, refresh);
+  const exported = await exportData(state, join(path, "site"), { historyStateDirectory: history });
+  assert.equal(exported.summary.acceptedCustomizations, 0);
+  assert.equal(exported.observations.length, 1);
+  assert.equal(exported.observations[0].observedAt, "2026-10-01T00:00:00.000Z");
+  assert.equal(exported.observations[0].findings[0].counted, true);
+  assert.equal(effectiveDataset([scan, refresh], []).findings[0].status, "rejected");
+  const different = fixture({ origin: "public-github" });
+  await save(history, different);
+  await assert.rejects(
+    () => exportData(state, join(path, "bad-site"), { historyStateDirectory: history }),
+    /immutable subset/,
+  );
+});
 async function directory(t) {
   const path = await mkdtemp(join(tmpdir(), "sdk-metrics-test-"));
   t.after(() => rm(path, { recursive: true, force: true }));
@@ -763,11 +901,23 @@ test("SQLite query returns Java LRO subtype and exact code; export excludes fixt
       "  void customPoll() { waitForFixture(); }",
     );
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM scans").get().count, 1);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM observations").get().count, 1);
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM observation_findings WHERE counted=1 AND category='LRO'",
+        )
+        .get().count,
+      1,
+    );
+    assert.equal(dataset.historyVersion, 1);
+    assert.equal(dataset.observations.length, 1);
     assert.throws(() => db.exec("DELETE FROM scans"), /readonly/);
   } finally {
     db.close();
   }
   assert.doesNotMatch(await readFile(join(out, "metrics.json"), "utf8"), /PRIVATE_SENTINEL/);
+  assert.equal(dataset.observations[0].packages.length, 1);
   assert.match(await readFile(join(out, "index.html"), "utf8"), /Show Java LRO/);
 });
 

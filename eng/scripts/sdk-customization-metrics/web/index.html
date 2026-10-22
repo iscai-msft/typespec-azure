@@ -15,8 +15,9 @@
     <a class="skip-link" href="#main">Skip to dashboard</a>
     <header>
       <nav aria-label="Dashboard sections">
-        <span class="brand">SDK INSIGHTS</span><a href="#filter-title">Customization code</a
-        ><a href="#query-title">Downloads</a>
+        <span class="brand">SDK INSIGHTS</span><a href="#summary-title">Overview</a
+        ><a href="#trend-title">Trends</a><a href="#explorer-title">Libraries</a
+        ><a href="#filter-title">Code</a><a href="#query-title">Query</a>
       </nav>
       <p class="eyebrow">CUSTOMIZATION OBSERVATORY · PERSONAL FORK PREVIEW</p>
       <h1>SDK customization metrics</h1>
@@ -28,17 +29,28 @@
     </header>
     <main id="main">
       <p id="load-status" role="status">Loading metrics...</p>
-      <section aria-labelledby="summary-title">
-        <h2 id="summary-title">Latest measured results</h2>
-        <div id="metric-cards" class="metric-grid"></div>
+      <section aria-labelledby="scope-title">
+        <h2 id="scope-title">Explore customizations</h2>
         <p class="muted">
-          Links below point to content-checked customization entry points, not confirmed semantic
-          findings. Five starter libraries, incomplete discovery, no AI classifications yet.
+          One shared scope for the overview, breakdown, library explorer and code. Service is the
+          repository's SDK directory, not an AI classification.
         </p>
-      </section>
-      <section aria-labelledby="filter-title">
-        <h2 id="filter-title">Find customization code</h2>
         <form id="filters">
+          <label
+            >Observation<select id="observation">
+              <option value="">Latest available</option>
+            </select></label
+          >
+          <label
+            >Service<select id="service">
+              <option value="">All services</option>
+            </select></label
+          >
+          <label
+            >Library<select id="library">
+              <option value="">All libraries</option>
+            </select></label
+          >
           <label
             >Language
             <select id="language">
@@ -77,6 +89,99 @@
           <button type="button" id="java-lro">Show Java LRO customizations</button>
           <button type="button" id="clear-filters" class="secondary">Clear filters</button>
         </form>
+      </section>
+      <section aria-labelledby="summary-title">
+        <h2 id="summary-title">Portfolio overview</h2>
+        <div id="metric-cards" class="metric-grid"></div>
+        <p id="scope-note" class="muted" aria-live="polite"></p>
+        <div class="toolbar">
+          <label
+            >Break down by<select id="group">
+              <option value="language">Language</option>
+              <option value="service">Service</option>
+              <option value="category">Category</option>
+            </select></label
+          >
+          <label
+            >Measure<select id="measure">
+              <option value="accepted">Accepted customization instances</option>
+              <option value="candidates" selected>Candidate code entry points</option>
+            </select></label
+          >
+        </div>
+        <div id="breakdown" class="breakdown" aria-label="Clickable customization breakdown"></div>
+      </section>
+      <section aria-labelledby="trend-title">
+        <h2 id="trend-title">Customization trends</h2>
+        <div class="toolbar">
+          <label>History since (UTC)<input id="from" type="date" /></label>
+          <label class="checkbox-label"
+            ><input id="fixed" type="checkbox" checked /> Fixed library cohort</label
+          >
+        </div>
+        <p class="muted">
+          As-of effective assessments at recorded scan/override events, not cumulative scans or file
+          counts. Duplicate scans are collapsed. Fixed cohort uses the intersection of libraries in
+          this range; added/removed columns describe available inventory. Category, status and text
+          filters apply to findings, never fabricate classifications.
+        </p>
+        <p id="history-status" role="status"></p>
+        <div id="trend-chart" aria-label="Assessed customization history"></div>
+        <div
+          class="table-scroll"
+          role="region"
+          aria-label="Observation history, scroll horizontally"
+          tabindex="0"
+        >
+          <table id="history-table">
+            <caption>
+              Observation and coverage history (UTC)
+            </caption>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Libraries</th>
+                <th>Assessed</th>
+                <th>Accepted instances</th>
+                <th>Added / removed</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section aria-labelledby="explorer-title">
+        <h2 id="explorer-title">Library explorer</h2>
+        <p class="muted">
+          Sort columns or choose a library to narrow every view and inspect its code. “Not assessed”
+          is not zero customizations.
+        </p>
+        <div
+          class="table-scroll"
+          role="region"
+          aria-label="Library explorer, scroll horizontally"
+          tabindex="0"
+        >
+          <table id="library-table">
+            <caption>
+              Libraries in the shared filter scope
+            </caption>
+            <thead>
+              <tr>
+                <th><button data-sort="package" type="button">Library</button></th>
+                <th><button data-sort="language" type="button">Language</button></th>
+                <th><button data-sort="service" type="button">Service</button></th>
+                <th><button data-sort="accepted" type="button">Accepted</button></th>
+                <th><button data-sort="candidates" type="button">Candidates</button></th>
+                <th>Assessment</th>
+              </tr>
+            </thead>
+            <tbody id="library-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section aria-labelledby="filter-title">
+        <h2 id="filter-title">Customization code &amp; instances</h2>
         <p id="code-link-status" class="muted" aria-live="polite"></p>
         <div id="code-links"></div>
         <details class="reviewed-results">
@@ -84,6 +189,7 @@
           <p id="result-count" aria-live="polite"></p>
           <div id="findings"></div>
         </details>
+        <div id="instance-detail" tabindex="-1" aria-live="polite"></div>
       </section>
       <section aria-labelledby="coverage-title">
         <details id="diagnostics">
@@ -115,6 +221,19 @@ ORDER BY package, subtype;</code></pre>
           No browser API secrets or AI chat backend. Filters and search run entirely in your
           browser.
         </p>
+        <p>
+          Structured query: choose language/service/library/category/review status and AND-matched
+          text (including subtype, symbol or captured snippet). Filters, observation, history range
+          and selected instance are shareable in the URL. This is not natural-language AI chat.
+        </p>
+        <details>
+          <summary>Historical SQL example</summary>
+          <pre><code>SELECT o.observed_at, f.identity, f.category, f.status
+FROM observation_findings f
+JOIN observations o ON o.id = f.observation_id
+WHERE f.counted = 1 AND f.category = 'LRO'
+ORDER BY o.observed_at;</code></pre>
+        </details>
       </section>
     </main>
   </body>

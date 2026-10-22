@@ -178,6 +178,66 @@ keyed by evidence/context hashes, coverage, extractor/schema/prompt versions,
 both model identifiers, endpoint, and output settings, **not the commit alone**.
 Unchanged evidence on a new commit reuses review without new calls.
 
+## Explore the portfolio, history, and individual code
+
+The static dashboard has one shared language/service/library/category/review/text
+selector for its overview, clickable breakdowns, sortable library explorer, and
+code/instance drilldowns. Service is the `sdk/<service>/` directory, not an inferred
+business taxonomy. Candidate file entry points are a separate measure from accepted
+semantic customization instances. Neither source line counts nor file counts measure
+customization debt. Text search AND-matches tokens across supported fields; it is not
+natural-language AI. Selecting a library narrows every view. Selecting an instance
+opens pinned evidence, captured snippets (when available), explanation, independent
+review status, override provenance and assessment-version metadata.
+
+URL parameters persist the filters (`language`, `service`, `library`, `category`,
+`status`, `search`, `accepted`), as-of `observation` timestamp, selected `instance`,
+breakdown `group`/`measure`, sorting and history range/cohort. The Java/LRO shortcut
+queries accepted semantic instances only. It cannot classify a generated poller or
+an unreviewed candidate as LRO.
+
+Exports add `historyVersion: 1` and `observations` without changing immutable scan v1
+records. Each observation is the effective state as of a recorded scan's `observedAt`
+or override's `createdAt`; a later override never rewrites an earlier observation.
+Prompt/model/collector/schema versions remain attached to each package assessment.
+Consecutive scans with identical evidence, assessment and coverage are collapsed,
+including commit-only refreshes. Scan/override files remain the append-only source of
+truth; generated history is not a second editable ledger.
+
+Trend history applies the same structural and finding filters through the selected
+observation, with an optional UTC start date. By default it uses the intersection of
+libraries present throughout that range (fixed cohort); turn this off for available
+inventory. Added/removed values describe changes in the available structural scope,
+not customization growth. Incomplete/failed assessments produce **N/A**, not a zero.
+At least two assessed observations with the same cohort and assessment versions are
+required for the visual trend. Version/cohort changes are still tabulated but not
+connected into a trend. Counts reflect effective assessments, not necessarily code
+edits; bounded discovery is never an absence proof.
+
+The download includes SQLite `observations` (timestamped effective JSON) and
+`observation_findings` alongside existing current-state tables/views and raw scan
+history. For example:
+
+```sql
+SELECT o.observed_at, f.identity, f.category, f.status
+FROM observation_findings f
+JOIN observations o ON o.id = f.observation_id
+WHERE f.counted = 1 AND f.category = 'LRO'
+ORDER BY o.observed_at;
+```
+
+History is only as durable as its persisted source records. The disabled-by-default
+collector's data branch preserves observations when explicitly configured; enabling
+it is not part of dashboard deployment. The personal-fork Pages job also performs a
+public no-AI refresh for its current artifact, but does not commit that refresh to
+history. It snapshots persisted state before refreshing and passes `--history-state`
+to publication; ephemeral refresh records remain downloadable raw scans but do not
+enter the dashboard's observation/trend series. This option requires an immutable
+subset of the exported state. Redeployments do not automatically accumulate those scans. The
+checked-in starter history has no completed real assessments, so deployed
+customization trends deliberately remain insufficient rather than showing sample
+or fabricated values.
+
 ## Append a human override
 
 Use `override --input request.json --state PATH`. Obtain identity, finding key,

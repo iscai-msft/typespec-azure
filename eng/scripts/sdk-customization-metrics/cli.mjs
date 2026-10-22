@@ -20,6 +20,7 @@ export async function main(args = process.argv.slice(2)) {
       state: { type: "string", default: "eng/scripts/sdk-customization-metrics/.local/state" },
       out: { type: "string", default: "eng/scripts/sdk-customization-metrics/.local/site" },
       targets: { type: "string", default: new URL("./targets.json", import.meta.url).pathname },
+      "history-state": { type: "string" },
       "ai-config": { type: "string" },
       analyze: { type: "boolean", default: false },
       input: { type: "string" },
@@ -76,14 +77,22 @@ export async function main(args = process.argv.slice(2)) {
       break;
     }
     case "export": {
-      const dataset = await exportData(state, resolve(values.out));
+      const dataset = await exportData(state, resolve(values.out), {
+        ...(values["history-state"]
+          ? { historyStateDirectory: resolve(values["history-state"]) }
+          : {}),
+      });
       console.log(JSON.stringify(dataset.summary));
       break;
     }
     case "publish": {
       if (!args.includes("--out"))
         throw new Error("publish requires --out WEBSITE_BUILD_DIRECTORY");
-      const dataset = await publishSite(state, resolve(values.out));
+      const dataset = await publishSite(state, resolve(values.out), {
+        ...(values["history-state"]
+          ? { historyStateDirectory: resolve(values["history-state"]) }
+          : {}),
+      });
       console.log(JSON.stringify(dataset.summary));
       break;
     }
