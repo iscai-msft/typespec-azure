@@ -1274,3 +1274,27 @@ test("history leaves entry points unmeasured for scans that predate discovery", 
     0,
   );
 });
+
+test("the checked-in tracker validates and publishes only when passed explicitly", async (t) => {
+  const csv = new URL("../tracker/dataplane-tracker.csv", import.meta.url).pathname;
+  const tracker = normalizeTracker(await readFile(csv, "utf8"));
+  assert.ok(tracker.libraries.length > 0);
+  for (const library of tracker.libraries) {
+    assert.ok(
+      !library.customized || library.categories.length,
+      `${library.package} has no category`,
+    );
+  }
+  const directoryPath = await directory(t);
+  const state = join(directoryPath, "state");
+  const website = join(directoryPath, "website");
+  await mkdir(website, { recursive: true });
+  await writeFile(join(website, "index.html"), "<!doctype html><title>Existing website</title>");
+  await save(state, fixture({ origin: "public-github" }));
+  await publishSite(state, website, { tracker: csv });
+  const published = JSON.parse(
+    await readFile(join(website, "sdk-customization-metrics", "tracker.json"), "utf8"),
+  );
+  assert.equal(published.libraries.length, tracker.libraries.length);
+  assert.equal(published.sourceSha256, tracker.sourceSha256);
+});

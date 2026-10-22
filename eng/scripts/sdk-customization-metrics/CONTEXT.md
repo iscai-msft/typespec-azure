@@ -12,8 +12,9 @@ two-column breakdown/trend charts, library explorer) and can now be driven by th
 user's manual library tracker CSV (206 data-plane libraries, Yes/No + what was
 customized). `tracker.mjs` validates and normalizes it; `export --tracker` writes
 `tracker.json`. Tracker rows join scans by repository path. The SQL section was
-replaced by a dropdown query builder. The tracker is **not** published by `publish`
-or the Pages workflow; publishing it requires the owner's explicit decision.
+replaced by a dropdown query builder. On October 22 the owner approved publishing the
+tracker: it is checked in at `tracker/dataplane-tracker.csv` and the Pages workflow
+passes `--tracker`. Tracker answers are manual survey notes, not reviewed findings.
 
 ## Locations and strict boundaries
 
@@ -39,9 +40,9 @@ git push https://github.com/iscai-msft/typespec-azure.git HEAD:refs/heads/sdk-cu
 
 Do not enable schedules, select/call an AI provider, incur model costs, create
 cloud infrastructure, or change settings/protections without authorization.
-Private legacy workbook rows/notes are **unverified hints**, not findings. They
-have never been published or sent to models; do not include them in public data
-or send them to another service.
+Private legacy workbook rows/notes are **unverified hints**, not findings. Only the
+owner-approved tracker CSV (see the October 22 update) is published; never send
+tracker or workbook content to a model.
 
 ## Goal and product priorities
 
