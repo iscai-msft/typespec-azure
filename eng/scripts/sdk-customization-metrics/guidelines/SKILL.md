@@ -64,6 +64,36 @@ best describes its purpose.
 | Hand-written client    | A largely handwritten client layered over generated code                         |
 | Other                  | Anything else; explain it                                                        |
 
+## Reducible customizations
+
+The goal is fewer customizations overall, and new libraries that do not repeat old ones. A
+**reducible customization** is one whose _pattern_ could be removed for many libraries at
+once by a generator or TypeSpec change. It is decided per pattern, across libraries:
+
+1. **Pattern.** Every reviewed instance names the reusable shape of what it does (for
+   example `auth-audience-option` or `model-to-string`), independent of the service.
+   [patterns.json](./patterns.json) is the catalog that merges synonyms; specialists can edit
+   it.
+2. **Recurs across services.** The pattern appears in libraries for at least **two different
+   services** (TypeSpec projects).
+3. **Still being repeated.** At least one library with the pattern is **active**: it released
+   or changed in the last 12 months. Patterns found only in dormant libraries are not flagged,
+   since nobody is touching or copying that code.
+4. **Not service-specific.** Most reviewed instances must not be judged inherently
+   service-specific (`generatorAddressable: no`).
+
+Everything else is shown but not counted as reducible:
+
+| Status                          | Meaning                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| Reducible                       | Meets all four rules                                                       |
+| Same service, several languages | One service, repeated in two or more languages: a spec-level fix candidate |
+| Dormant only                    | Recurs across services, but only in dormant libraries                      |
+| One-off                         | Only one library (or one dormant library) has it                           |
+| Service-specific                | Reviewers judged it inherently tied to one service                         |
+
+Patterns are ranked by how many active libraries carry them, then by services and instances.
+
 ## Review procedure
 
 1. Read the language file for the library's language first.

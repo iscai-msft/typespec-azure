@@ -11,6 +11,7 @@ import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./
 import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.mjs";
 import { append, createOverride, exportData, readState, validateScan } from "./store.mjs";
 import { exportTracker } from "./tracker.mjs";
+import { ExchangeClient, reviewScans } from "./review.mjs";
 import {
   GitRepository,
   discoverAll,
@@ -40,6 +41,10 @@ export async function main(args = process.argv.slice(2)) {
       reader: { type: "string", default: "github-api" },
       "skip-unchanged": { type: "boolean", default: false },
       limit: { type: "string" },
+      exchange: { type: "string" },
+      only: { type: "string" },
+      "analyst-model": { type: "string", default: "" },
+      "reviewer-model": { type: "string", default: "" },
       inventory: {
         type: "string",
         default: new URL("./inventory/libraries.json", import.meta.url).pathname,
@@ -53,7 +58,7 @@ export async function main(args = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, validate, export, publish, override, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   switch (positionals[0]) {
@@ -143,6 +148,64 @@ export async function main(args = process.argv.slice(2)) {
       console.log(JSON.stringify({ scanned: targets.length - skipped, skipped, failures }));
       // Preserve and export every failed scan before reporting a failed job.
       if (failures) process.exitCode = 1;
+      break;
+    }
+    case "review": {
+      // AI review of the latest scans. --exchange DIR: requests/answers as files (each run
+      // advances analyst -> reviewer -> complete). Completed reviews are appended to state.
+      // Either an approved model API (--ai-config, as in the weekly workflow) or a file
+      // exchange (--exchange DIR) answered outside the tool.
+      if (Boolean(values.exchange) === Boolean(values["ai-config"]))
+        throw new Error("review requires exactly one of --exchange DIR or --ai-config FILE");
+      if (values.exchange && (!values["analyst-model"] || !values["reviewer-model"]))
+        throw new Error("--analyst-model and --reviewer-model name who answers the requests");
+      const inventory = await readInventory(resolve(values.inventory));
+      const libraries = (inventory?.libraries ?? []).filter(
+        (item) => values.plane === "all" || item.plane === values.plane,
+      );
+      const wanted = new Set(libraries.map((item) => `${item.repo}:${item.root}`));
+      const only = values.only ? new Set(values.only.split(",").map((item) => item.trim())) : null;
+      const { scans } = await readState(state);
+      const latest = new Map();
+      for (const scan of scans)
+        if (
+          scan.provenance.origin === "public-github" &&
+          (!latest.has(scan.identity) || latest.get(scan.identity).observedAt < scan.observedAt)
+        )
+          latest.set(scan.identity, scan);
+      let targets = [...latest.values()].filter(
+        (scan) =>
+          wanted.has(`${scan.target.repo}:${scan.target.root}`) &&
+          scan.analysis.status !== "complete" &&
+          (!only || only.has(scan.identity) || only.has(scan.target.package)),
+      );
+      if (values.limit) targets = targets.slice(0, Number(values.limit));
+      const client = values.exchange
+        ? new ExchangeClient(resolve(values.exchange), {
+            analystModel: values["analyst-model"],
+            reviewerModel: values["reviewer-model"],
+          })
+        : new ModelClient(await readJson(values["ai-config"]));
+      const result = await reviewScans(targets, client, {
+        libraries,
+        cacheDirectory: join(values.exchange ? resolve(values.exchange) : state, "cache"),
+        history: scans,
+      });
+      for (const scan of result.completed) {
+        validateScan(scan);
+        await append(join(state, "records"), scan);
+      }
+      console.log(
+        JSON.stringify({
+          libraries: targets.length,
+          completed: result.completed.length,
+          pendingAnalyst: result.pending.filter((item) => item.startsWith("PENDING analyst"))
+            .length,
+          pendingReviewer: result.pending.filter((item) => item.startsWith("PENDING reviewer"))
+            .length,
+          failed: result.failed,
+        }),
+      );
       break;
     }
     case "discover": {

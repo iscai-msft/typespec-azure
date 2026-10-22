@@ -122,8 +122,15 @@ try {
     "synthetic",
   ]);
   // Without a tracker the overview falls back to scan-only measures.
-  assert.equal(await page.locator(".metric-card").count(), 4);
+  assert.equal(await page.locator("#metric-cards .metric-card").count(), 4);
   assert.equal(await page.locator("#customized").isVisible(), false);
+  // The synthetic accepted finding has no pattern, so it is listed under all patterns only.
+  assert.match(await page.locator("#reducible-filters").innerText(), /All patterns \(1\)/);
+  assert.match(await page.locator("#reducible-filters").innerText(), /Reducible \(0\)/);
+  await page.getByRole("button", { name: "All patterns (1)" }).click();
+  assert.match(await page.locator("#reducible-rows").innerText(), /Unpatterned/);
+  assert.match(page.url(), /patterns=all/);
+  await page.getByRole("button", { name: "Reducible (0)" }).click();
   assert.match(await page.locator("#coverage-title").innerText(), /Collection diagnostics/);
   assert.equal(await page.locator("#diagnostics").getAttribute("open"), null);
   assert.equal(await page.locator(".code-link-card").count(), 1);
@@ -147,7 +154,7 @@ try {
   // The library matches through its reviewed LRO finding; its files are listed as unclassified.
   assert.equal(await page.locator(".code-link-card").count(), 1);
   assert.match(await page.locator("#code-link-status").innerText(), /not classified yet/);
-  assert.deepEqual(await page.locator(".metric-value").allTextContents(), [
+  assert.deepEqual(await page.locator("#metric-cards .metric-value").allTextContents(), [
     "1",
     "1",
     "1",
@@ -270,10 +277,10 @@ try {
   await page.reload();
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
   assert.equal(await page.locator("#customized").isVisible(), true);
-  assert.deepEqual((await page.locator(".metric-value").allTextContents()).slice(0, 2), [
-    "66.7%",
-    "3",
-  ]);
+  assert.deepEqual(
+    (await page.locator("#metric-cards .metric-value").allTextContents()).slice(0, 2),
+    ["66.7%", "3"],
+  );
   assert.equal(await page.locator("#library-rows tr").count(), 3);
   await page.locator("#customized").selectOption("no");
   assert.equal(await page.locator("#library-rows tr").count(), 1);

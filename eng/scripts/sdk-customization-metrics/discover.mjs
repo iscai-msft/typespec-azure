@@ -307,6 +307,16 @@ export async function discoverAll({
     warnings,
   };
   inventory.changes = inventoryChanges(previous, inventory);
+  // Track when each library's folder last changed (between runs) and when it was first seen.
+  const before = new Map((previous?.libraries ?? []).map((item) => [libraryKey(item), item]));
+  for (const library of libraries) {
+    const prior = before.get(libraryKey(library));
+    library.firstSeen = prior?.firstSeen ?? inventory.generatedAt;
+    library.lastChanged =
+      prior && prior.treeSha !== library.treeSha
+        ? inventory.generatedAt
+        : (prior?.lastChanged ?? null);
+  }
   return inventory;
 }
 

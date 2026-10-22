@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "17cab6db-f0c3-4a7c-a716-0a320a102d3f",
+  "observedAt": "2026-10-22T20:42:47.882Z",
+  "identity": "dotnet:azure.data.ai:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Data.AI",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/dataai/Azure.Data.AI"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "d0a5f893d242b929de86b2184634be36b5e9a49e"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 61,
+    "eligibleFiles": 48,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/dataai/Azure.Data.AI/src/Customization/InferenceClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ClientModel.Primitives;\nusing System.Diagnostics.CodeAnalysis;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Data.AI\n{\n#pragma warning disable SCME0002\n    // The generated settings-based constructor assumes token authentication and casts\n    // InferenceClientSettings.CredentialProvider to TokenCredential. This service also\n    // supports API-key authentication, where the key lives in Credential.Key and no\n    // token provider is present, so the generated cast yields null and the bearer policy\n    // throws before a request is ever sent. The replacement below picks the policy that\n    // matches the configured credential.\n    [CodeGenSuppress(\"InferenceClient\", typeof(InferenceClientSettings))]\n    public partial class InferenceClient\n    {\n        /// <summary> Initializes a new instance of InferenceClient from a <see cref=\"InferenceClientSettings\"/>. </summary>\n        /// <param name=\"settings\"> The settings for InferenceClient. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"settings\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"settings\"/> does not carry a usable credential. </exception>\n        [Experimental(\"SCME0002\")]\n        public InferenceClient(InferenceClientSettings settings)\n            : this(CreateAuthenticationPolicy(settings), settings?.Endpoint, settings?.Options)\n        {\n        }\n\n        [Experimental(\"SCME0002\")]\n        private static HttpPipelinePolicy CreateAuthenticationPolicy(InferenceClientSettings settings)\n        {\n            Argument.AssertNotNull(settings, nameof(settings));\n\n            if (settings.CredentialProvider is TokenCredential tokenCredential)\n            {\n                return new BearerTokenAuthenticationPolicy(tokenCredential, AuthorizationScopes);\n            }\n\n            string key = settings.Credential?.Key;\n            if (!string.IsNullOrEmpty(key))\n            {\n                return new AzureKeyCredentialPolicy(new AzureKeyCredential(key), AuthorizationHeader);\n            }\n\n            throw new ArgumentException(\n                $\"The supplied {nameof(InferenceClientSettings)} does not contain a usable credential. Set either \"\n                + $\"{nameof(InferenceClientSettings.Credential)}.{nameof(CredentialSettings.TokenProvider)} for Microsoft Entra ID \"\n                + $\"authentication or {nameof(InferenceClientSettings.Credential)}.{nameof(CredentialSettings.Key)} for API key authentication.\",\n                nameof(settings));\n        }\n    }\n#pragma warning restore SCME0002\n}\n",
+      "contentHash": "cdc0e716709877b44b4ece3e9653f1e3f843b177be4864edd58ce3d86fe0a14a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/dataai/Azure.Data.AI/src/Customization/InferenceClient.cs",
+      "startLine": 1,
+      "endLine": 59,
+      "kind": "handwritten-marker",
+      "id": "e615d0ef85483be6e770669e69fe5c6cac89a8f4db22509159a63aabf20905f6"
+    },
+    {
+      "path": "sdk/dataai/Azure.Data.AI/src/Customization/InferenceModelFactory.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Data.AI\n{\n    // The generator derives the model factory name from the package name\n    // (Azure.Data.AI -> AIModelFactory), which is too generic. Rename it to align\n    // with the InferenceClient surface.\n    [CodeGenType(\"AIModelFactory\")]\n    public static partial class InferenceModelFactory\n    {\n    }\n}\n",
+      "contentHash": "80629b60c5f1da9e88c1d57c9bd66337d6a918c798d5abf88c2c8e0ea6993645",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/dataai/Azure.Data.AI/src/Customization/InferenceModelFactory.cs",
+      "startLine": 1,
+      "endLine": 15,
+      "kind": "handwritten-marker",
+      "id": "6dc850279ac0172dc552d8cc8dbcb5758070d448e32522fd6bb12dcd234c2742"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/dataai/Azure.Data.AI/README.md",
+      "text": "# Azure Semantic Reranker client library for .NET\n\n> [!IMPORTANT]\n> `Azure.Data.AI` is a provisional package and namespace for the Semantic Reranker service. Product naming is not final.\n\nAzure.Data.AI provides semantic reranking operations for .NET applications.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.Data.AI --prerelease\n```\n\n### Prerequisites\n\n- You must have a [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n- A Semantic Reranker endpoint.\n- Either an API key or a Microsoft Entra identity assigned the **Semantic Reranker User** role on the `Microsoft.InferenceService/inferenceAccounts` resource.\n\n### Authenticate the client\n\nCreate a client with an API key:\n\n```C# Snippet:SemanticReranker_CreateClient\nUri endpoint = new Uri(\"<semantic-reranker-endpoint>\");\nAzureKeyCredential credential = new AzureKeyCredential(\"<api-key>\");\nInferenceClient client = new InferenceClient(endpoint, credential);\n```\n\nOr authenticate with a `TokenCredential`, such as `DefaultAzureCredential` from\n[`Azure.Identity`](https://learn.microsoft.com/dotnet/api/overview/azure/identity-readme):\n\n```C#\nUri endpoint = new Uri(\"<semantic-reranker-endpoint>\");\nInferenceClient client = new InferenceClient(endpoint, new DefaultAzureCredential());\n```\n\nThe generated bearer-token policy requests the `https://dbinference.azure.com/.default` scope.\n\n## Key concepts\n\nUse `InferenceClient.SemanticRerank` or `SemanticRerankAsync` to rerank documents directly.\n\n## Examples\n\nSee [Semantic reranking](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/dataai/Azure.Data.AI/samples/Sample1_SemanticReranking.md).\n\n## Troubleshooting\n\nService operations throw `RequestFailedException` when the service returns a non-success status code.\n\n## Next steps\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (for example, label, comment). Follow the instructions provided by the bot. You'll only need to do this action once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any other questions or comments.",
+      "contentHash": "3fdb17f6b86314e8e628db87afe3299ebe787f5b877b8887f4831ab7e29fde79",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/dataai/Azure.Data.AI/README.md"
+    },
+    {
+      "path": "sdk/dataai/Azure.Data.AI/src/Azure.Data.AI.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>This is the Azure.Data.AI client library for developing .NET applications with rich experience.</Description>\n    <AssemblyTitle>SDK Code Generation Azure.Data.AI</AssemblyTitle>\n    <Version>1.0.0-beta.2</Version>\n    <PackageTags>Azure.Data.AI</PackageTags>\n    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n    <GenerateAPIListing>true</GenerateAPIListing>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureKeyCredentialPolicy.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RawRequestUriBuilder.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TypeFormatters.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RequestHeaderExtensions.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AppContextSwitchHelper.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ClientDiagnostics.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScopeFactory.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScope.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)HttpMessageSanitizer.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TrimmingAttribute.cs\" LinkBase=\"Shared/Core\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n</Project>\n",
+      "contentHash": "02816357131067a5791166a354ca2e41ff0c2e45cbea3cda8843b0f104b84ad6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/dataai/Azure.Data.AI/src/Azure.Data.AI.csproj"
+    },
+    {
+      "path": "sdk/dataai/Azure.Data.AI/tsp-location.yaml",
+      "text": "directory: specification/inferenceservice/data-plane/InferenceService\ncommit: 42249b16839e7278d8c88cc9b136917dfd8970ac\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-emitter-package.json",
+      "contentHash": "a45ad6b68423d65ac326db0903301efa87464745ecc844f5e236b1c358667b66",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/dataai/Azure.Data.AI/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/dataai/Azure.Data.AI/src/Customization/InferenceClient.cs",
+      "startLine": 1,
+      "endLine": 59,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "cdc0e716709877b44b4ece3e9653f1e3f843b177be4864edd58ce3d86fe0a14a"
+    },
+    {
+      "path": "sdk/dataai/Azure.Data.AI/src/Customization/InferenceModelFactory.cs",
+      "startLine": 1,
+      "endLine": 15,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "80629b60c5f1da9e88c1d57c9bd66337d6a918c798d5abf88c2c8e0ea6993645"
+    }
+  ]
+}

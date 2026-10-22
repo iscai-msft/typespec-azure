@@ -1,14 +1,25 @@
 import { createHash, randomUUID } from "node:crypto";
-import { codeNavigation, entryPoint, navigationContext } from "./navigation.mjs";
+import {
+  codeNavigation,
+  entryPoint,
+  javaHandwrittenMembers,
+  navigationContext,
+} from "./navigation.mjs";
 import { identity, scanSchema, validate } from "./schema.mjs";
 import { LANGUAGES } from "./web/languages.mjs";
 
-export const COLLECTOR_VERSION = "3";
+export const COLLECTOR_VERSION = "4";
 export const digest = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
     .digest("hex");
 export const lines = (text) => text.split("\n");
+// Evidence IDs: the path for a whole file, path#startLine for an excerpt.
+export const evidenceId = (evidence) =>
+  digest(evidence.excerpt ? `${evidence.path}#${evidence.startLine}` : evidence.path);
+// Lines start..end (1-based, inclusive, file line numbers) of a whole-file or excerpt evidence.
+export const evidenceLines = (evidence, start, end) =>
+  lines(evidence.text).slice(start - evidence.startLine, end - evidence.startLine + 1);
 export const sourceLineCount = (text) => lines(text).length - (text.endsWith("\n") ? 1 : 0);
 export const emptyAnalysis = () => ({
   status: "missing",
@@ -156,6 +167,117 @@ export function capture(
   return scan;
 }
 
+// Line range of a Java member: from its first annotation/Javadoc line to its closing brace.
+export function javaMemberRange(text, declarationLine) {
+  const all = lines(text);
+  let start = declarationLine;
+  while (start > 1) {
+    const previous = all[start - 2].trim();
+    if (previous.startsWith("@") || previous.startsWith("*") || previous.startsWith("/*")) start--;
+    else break;
+  }
+  let depth = 0;
+  let opened = false;
+  for (
+    let index = declarationLine - 1;
+    index < all.length && index < declarationLine + 400;
+    index++
+  ) {
+    for (const char of all[index].replace(/"(?:\\.|[^"\\])*"|\/\/.*$/g, "")) {
+      if (char === "{") {
+        depth++;
+        opened = true;
+      } else if (char === "}") depth--;
+    }
+    if ((opened && depth <= 0) || (!opened && all[index].includes(";"))) return [start, index + 1];
+  }
+  return [start, Math.min(all.length, declarationLine + 400)];
+}
+
+// Review evidence: the library's handwritten code, most telling first, within a byte budget.
+// Excerpts (Java members, the head of an oversized file) keep their real line numbers.
+const REVIEW_PRIORITY = [
+  /^(?:Python patch|Java customization script|Go custom source)$/,
+  /^Java members without @Generated|\/custom/i,
+];
+export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 } = {}) {
+  const rank = (link) => {
+    const index = REVIEW_PRIORITY.findIndex(
+      (pattern) => pattern.test(link.provenance) || pattern.test(link.path),
+    );
+    return index < 0 ? REVIEW_PRIORITY.length : index;
+  };
+  const ordered = [...(scan.navigation ?? [])].sort(
+    (a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path),
+  );
+  let used = 0;
+  const evidence = [];
+  const add = (path, text, startLine, endLine, excerpt) => {
+    // Whole files keep their exact text (and hash); excerpts are the selected lines.
+    const lineText = excerpt
+      ? lines(text)
+          .slice(startLine - 1, endLine)
+          .join("\n")
+      : text;
+    const item = {
+      path,
+      text: lineText,
+      contentHash: digest(lineText),
+      sourceUrl: sourceUrl(scan.target.repo, scan.commit, path),
+      startLine,
+      endLine: startLine + sourceLineCount(lineText) - 1,
+      kind: classify(path, lineText),
+      ...(excerpt ? { excerpt: true } : {}),
+    };
+    item.id = evidenceId(item);
+    evidence.push(item);
+    used += Buffer.byteLength(lineText);
+  };
+  for (const link of ordered) {
+    const text = texts.get(link.path);
+    if (typeof text !== "string" || !text.trim()) continue;
+    if (used >= budget) {
+      scan.coverage.skipped.push({ path: link.path, reason: "Review budget; not sent for review" });
+      continue;
+    }
+    if (link.provenance.startsWith("Java members without @Generated")) {
+      const ranges = javaHandwrittenMembers(text)
+        .map((member) => javaMemberRange(text, member.line))
+        .sort((a, b) => a[0] - b[0]);
+      // Merge overlapping or adjacent member ranges.
+      const merged = [];
+      for (const range of ranges) {
+        const last = merged.at(-1);
+        if (last && range[0] <= last[1] + 1) last[1] = Math.max(last[1], range[1]);
+        else merged.push([...range]);
+      }
+      for (const [start, end] of merged) {
+        if (used >= budget) break;
+        add(link.path, text, start, end, true);
+      }
+      continue;
+    }
+    if (Buffer.byteLength(text) <= maxChunk) {
+      add(link.path, text, 1, sourceLineCount(text), false);
+      continue;
+    }
+    // Oversized file: the head of it, as an excerpt.
+    let bytes = 0;
+    let end = 0;
+    for (const line of lines(text)) {
+      bytes += Buffer.byteLength(line) + 1;
+      if (bytes > maxChunk) break;
+      end++;
+    }
+    if (end > 0) add(link.path, text, 1, end, true);
+    scan.coverage.skipped.push({
+      path: link.path,
+      reason: `Review budget; only lines 1-${end} sent for review`,
+    });
+  }
+  return evidence;
+}
+
 // Shared by every reader: given the package's files ({ path, sha, size, mode }) and a way to
 // read one, find customization entry points and capture bounded evidence into the scan.
 export async function scanFiles(scan, files, readBlob, limits = {}) {
@@ -211,6 +333,22 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
       path: file.path,
       reason: "Customization navigation file limit; content not checked",
     });
+  if (limits.review) {
+    // Context files (manifests, tsp-location.yaml) as before; evidence is the review set.
+    const texts = new Map();
+    for (const link of scan.navigation) {
+      const file = files.find((item) => item.path === link.path);
+      texts.set(link.path, await readBlob(file));
+    }
+    const contextFiles = [];
+    for (const file of files.filter((item) => isContext(item.path) && item.size <= 16000))
+      contextFiles.push({ ...file, text: await readBlob(file) });
+    capture(scan, contextFiles, { maxFiles: 10, maxFileBytes: 16000, maxTotalBytes: 60000 });
+    scan.evidence = reviewEvidence(scan, texts, limits.review);
+    scan.coverage.capturedFiles = scan.evidence.length;
+    scan.coverage.eligibleFiles = files.filter((file) => eligible(target, file.path)).length;
+    return;
+  }
   // Choose files before fetching, so limits also bound network work.
   const selected = [];
   let total = 0;
@@ -362,6 +500,8 @@ export class GitSource {
       await scanFiles(scan, files, readBlob, {
         navigationFiles: 5000,
         navigationBytes: 500000000,
+        // Evidence is the library's handwritten code, prioritized, for AI and human review.
+        review: { budget: 40000, maxChunk: 24000 },
         ...limits,
       });
     } catch (error) {

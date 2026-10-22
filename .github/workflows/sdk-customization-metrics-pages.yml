@@ -27,23 +27,17 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "26"
-      - name: Test extraction, review states, overrides, queries, and publication
+      - name: Test discovery, scanning, review, overrides, queries, and publication
         run: node --test eng/scripts/sdk-customization-metrics/test/*.test.mjs
-      - name: Collect only public starter evidence without AI or legacy imports
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          cp -R eng/scripts/sdk-customization-metrics/state "$RUNNER_TEMP/sdk-metrics-history"
-          node eng/scripts/sdk-customization-metrics/cli.mjs collect \
-            --state eng/scripts/sdk-customization-metrics/state
       - name: Assemble fork landing page and isolated dashboard route
         run: |
           mkdir "$RUNNER_TEMP/sdk-metrics-site"
           cp eng/scripts/sdk-customization-metrics/web/fork-index.html \
             "$RUNNER_TEMP/sdk-metrics-site/index.html"
+          # Publish committed state only. Collection (and AI review) happens in the weekly
+          # workflow; re-collecting here would supersede reviewed scans with unreviewed ones.
           node eng/scripts/sdk-customization-metrics/cli.mjs publish \
             --state eng/scripts/sdk-customization-metrics/state \
-            --history-state "$RUNNER_TEMP/sdk-metrics-history" \
             --tracker eng/scripts/sdk-customization-metrics/tracker/dataplane-tracker.csv \
             --out "$RUNNER_TEMP/sdk-metrics-site"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

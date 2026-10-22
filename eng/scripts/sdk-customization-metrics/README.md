@@ -241,6 +241,57 @@ patterns. Discovery, the scan schema, file filters, dashboard filters and labels
 this list. For better code links, add the language's customization entry-point heuristic
 to `navigation.mjs`; without one, scans still capture source but list no entry points.
 
+## AI review and reducible customizations
+
+What counts as a customization, per language, lives in `guidelines/` (published on the
+dashboard's Guidelines page). Every review request carries the library's language guidelines,
+the pattern catalog (`guidelines/patterns.json`) and library facts, so editing a guideline
+re-reviews that language on the next run.
+
+Scans read with git (`--reader git`) store the library's handwritten code as review evidence,
+most telling first, within about 40 KB per library: Python patches, Java customization scripts
+and `custom_*.go` first; then Java members without `@Generated` (cut out as line-range
+excerpts with their annotations); then other handwritten files. Anything over budget is
+recorded as "not sent for review", never as absent.
+
+```sh
+# Approved model API (what the weekly workflow does):
+cli.mjs review --state state --plane data --ai-config approved-ai.json
+# Or a file exchange answered outside the tool: each run advances analyst -> reviewer -> done
+cli.mjs review --state state --plane data --exchange DIR \
+  --analyst-model NAME --reviewer-model NAME [--only pkg,pkg] [--limit N]
+```
+
+Findings carry a `pattern` (kebab-case name of the reusable shape) and `generatorAddressable`
+(yes/no/unclear). The dashboard's **Reducible customizations** section groups accepted
+findings by catalog pattern and applies the definition in `guidelines/SKILL.md`: a pattern
+is reducible when it recurs in two or more services (TypeSpec projects, normalized across
+spellings), at least one library with it is active (released or changed in the last 12
+months), and most instances are not judged service-specific. Other statuses: same service in
+several languages (spec-fix candidate), dormant only, one-off, service-specific.
+
+`ai.github-models.example.json` shows a GitHub Models configuration. It sets
+`approvedPublicSource: true`; use it only after approval to send public SDK source to that
+provider.
+
+## Weekly workflow
+
+`.github/workflows/sdk-customization-metrics.yml` (job `collect`) runs discover, scans
+libraries whose folder changed, AI-reviews them when enabled, validates, commits inventory and
+scan history to the branch, and dispatches the Pages workflow. It is off until these
+repository settings exist:
+
+| Setting                                | Purpose                                                        |
+| -------------------------------------- | -------------------------------------------------------------- |
+| variable `SDK_METRICS_ENABLED=true`    | Turns the job on (schedule and manual runs)                    |
+| variable `SDK_METRICS_AI_ENABLED=true` | Also run AI review                                             |
+| variable `SDK_METRICS_AI_CONFIG_JSON`  | The approved model config (see the example)                    |
+| secret `SDK_METRICS_AI_TOKEN`          | Provider key; omit for GitHub Models (uses the workflow token) |
+
+GitHub runs schedules only from the default branch, so the weekly schedule fires once this
+workflow is on the repository's default branch; until then use "Run workflow". The Pages
+workflow publishes committed state only and never collects.
+
 ## Manual library tracker (opt-in)
 
 The overview, breakdown and library explorer can be driven by a manually maintained
