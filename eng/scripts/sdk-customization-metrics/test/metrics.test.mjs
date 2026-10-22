@@ -20,7 +20,18 @@ import {
   validateScan,
 } from "../store.mjs";
 import { coverageGroups, fileUrl, filterCodeLinks, filterFindings } from "../web/app.mjs";
-import { breakdown, historyRows, selectView, serviceOf } from "../web/data.mjs";
+import {
+  breakdown,
+  canonicalCategory,
+  filterLibraries,
+  findingCategory,
+  historyRows,
+  mergeLibraries,
+  selectView,
+  serviceOf,
+  trackerBreakdown,
+} from "../web/data.mjs";
+import { categorize, normalizeTracker, parseCsv } from "../tracker.mjs";
 
 test("customization navigation rejects boilerplate, generated code and formatting-only overlays", () => {
   const python = "sdk/lib/_patch.py";
@@ -1014,8 +1025,10 @@ test("Pages integration adds only the dashboard subdirectory and excludes privat
   assert.doesNotMatch(published, /PRIVATE_WORKBOOK_SENTINEL/);
   assert.match(
     await readFile(join(website, "sdk-customization-metrics", "index.html"), "utf8"),
-    /SDK customization metrics/,
+    /SDK Customization Metrics/i,
   );
+  // The manual tracker is opt-in at export time and never part of Pages publication.
+  await assert.rejects(readFile(join(website, "sdk-customization-metrics", "tracker.json")));
   const db = new DatabaseSync(join(website, "sdk-customization-metrics", "metrics.sqlite"), {
     readOnly: true,
   });
@@ -1100,4 +1113,164 @@ test("legacy TSV preserves unverified hints privately, deduplicates identities w
   assert.deepEqual(parseTsv('"a\nb"\tc\r\n'), [["a\nb", "c"]]);
   assert.throws(() => parseTsv('"unterminated'), /Unterminated/);
   assert.equal(effectiveDataset([], []).summary.packages, 0);
+});
+
+const trackerCsv = [
+  "\uFEFFService,Language,Package,Repo Link,Has Customization?,What Was Customized,Notes",
+  'documentintelligence,Java,azure-ai-documentintelligence,https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/documentintelligence/azure-ai-documentintelligence,Yes,"LRO/polling, convenience methods","Custom poller, ""quoted"" note"',
+  'keyvault,Java,azure-security-keyvault-keys,https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/keyvault/azure-security-keyvault-keys,Yes,"crypto/signing, extensive hand-written client (predates _patch.py convention — challenge-auth policy, custom polling)",',
+  "keyvault-v2,Java,azure-security-keyvault-keys,https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/keyvault-v2/azure-security-keyvault-keys,Yes,model overrides,",
+  "batch,Go,azbatch,https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/batch/azbatch,No,fully generated,",
+].join("\r\n");
+
+test("tracker CSV parsing keeps quoted commas, BOMs and same-named packages in different folders", () => {
+  assert.deepEqual(parseCsv('a,"b,c",""""\n1,2,3'), [
+    ["a", "b,c", '"'],
+    ["1", "2", "3"],
+  ]);
+  const tracker = normalizeTracker(trackerCsv);
+  assert.equal(tracker.libraries.length, 4);
+  const [docs, keys, keysV2, batch] = tracker.libraries;
+  assert.equal(docs.language, "java");
+  assert.equal(docs.notes, 'Custom poller, "quoted" note');
+  assert.deepEqual(docs.categories, ["LRO / polling", "Convenience methods"]);
+  assert.deepEqual(keys.categories, [
+    "LRO / polling",
+    "Auth",
+    "Crypto / signing",
+    "Hand-written client",
+  ]);
+  assert.notEqual(keys.key, keysV2.key);
+  assert.equal(batch.customized, false);
+  assert.deepEqual(batch.categories, []);
+  assert.match(tracker.sourceSha256, /^[a-f0-9]{64}$/);
+  assert.deepEqual(categorize("fully generated"), []);
+  assert.deepEqual(categorize("something new"), ["Other"]);
+});
+
+test("tracker rejects unknown languages, non-Azure links, bad flags and duplicate paths", () => {
+  const header = trackerCsv.split("\r\n")[0];
+  const row = (cells) => `${header}\n${cells}`;
+  assert.throws(
+    () =>
+      normalizeTracker(
+        row("x,Rust,p,https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/x/p,Yes,,"),
+      ),
+    /unknown language/,
+  );
+  assert.throws(
+    () => normalizeTracker(row("x,Go,p,https://example.com/sdk/x/p,Yes,,")),
+    /public Azure SDK/,
+  );
+  assert.throws(
+    () =>
+      normalizeTracker(
+        row("x,Go,p,https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/x/p,Maybe,,"),
+      ),
+    /Yes or No/,
+  );
+  const line = "x,Go,p,https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/x/p,Yes,,";
+  assert.throws(() => normalizeTracker(`${header}\n${line}\n${line}`), /duplicate path/);
+  assert.throws(() => normalizeTracker("Service,Language\nx,Go"), /missing a column/);
+});
+
+test("tracker rows join scans by repository path and keep scan-only libraries", () => {
+  const tracker = normalizeTracker(trackerCsv);
+  const scan = {
+    identity: "java:azure-ai-documentintelligence:module-v1",
+    language: "java",
+    package: "azure-ai-documentintelligence",
+    repo: "Azure/azure-sdk-for-java",
+    root: "sdk/documentintelligence/azure-ai-documentintelligence",
+    customizationLinks: [{ path: "x/Customizations.java", preview: "addPollingStrategy" }],
+  };
+  const orphan = {
+    identity: "go:github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai:module-v1",
+    language: "go",
+    package: "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai",
+    repo: "Azure/azure-sdk-for-go",
+    root: "sdk/ai/azopenai",
+    customizationLinks: [],
+  };
+  const rows = mergeLibraries(tracker, [scan, orphan]);
+  assert.equal(rows.length, 5);
+  assert.equal(rows[0].scan, scan);
+  assert.equal(rows[0].id, scan.identity);
+  assert.equal(rows.at(-1).tracker, null);
+  assert.equal(rows.at(-1).service, "azopenai");
+
+  const finding = {
+    identity: scan.identity,
+    counted: true,
+    category: "Paging",
+    status: "AI-reviewed",
+    subtype: "s",
+    explanation: "",
+    symbols: [],
+  };
+  const ids = (filters) => filterLibraries(rows, [finding], filters).map((row) => row.package);
+  assert.deepEqual(ids({ language: "java", category: "LRO / polling" }), [
+    "azure-ai-documentintelligence",
+    "azure-security-keyvault-keys",
+  ]);
+  // Reviewed findings also satisfy the category, mapped to canonical names.
+  assert.deepEqual(ids({ category: "Pagination" }), ["azure-ai-documentintelligence"]);
+  assert.deepEqual(ids({ customized: "no" }), ["azbatch"]);
+  assert.deepEqual(ids({ accepted: true }), ["azure-ai-documentintelligence"]);
+  assert.deepEqual(ids({ search: "addPollingStrategy" }), ["azure-ai-documentintelligence"]);
+  assert.deepEqual(ids({ search: "quoted poller" }), ["azure-ai-documentintelligence"]);
+  assert.deepEqual(ids({ service: "keyvault-v2" }), ["azure-security-keyvault-keys"]);
+  assert.equal(canonicalCategory("LRO"), "LRO / polling");
+  assert.equal(findingCategory("LRO / polling"), "LRO");
+  assert.equal(findingCategory("Byte range"), "Byte range");
+
+  const byLanguage = Object.fromEntries(
+    trackerBreakdown(rows, "language").map((row) => [row.key, row]),
+  );
+  assert.deepEqual(byLanguage.java, { key: "java", libraries: 3, customized: 3, candidates: 1 });
+  assert.deepEqual(byLanguage.go, { key: "go", libraries: 1, customized: 0, candidates: 0 });
+  const byCategory = Object.fromEntries(
+    trackerBreakdown(rows, "category").map((row) => [row.key, row.libraries]),
+  );
+  assert.equal(byCategory["LRO / polling"], 2);
+  assert.equal(byCategory["Model overrides"], 1);
+});
+
+test("history leaves entry points unmeasured for scans that predate discovery", () => {
+  const pkg = (navigationRecorded, links) => ({
+    identity: "python:p:module-v1",
+    language: "python",
+    package: "p",
+    repo: "Azure/azure-sdk-for-python",
+    root: "sdk/x/p",
+    excluded: false,
+    analysisStatus: "missing",
+    coverage: { status: "partial", errors: [] },
+    navigationRecorded,
+    customizationLinks: links,
+  });
+  const observation = (observedAt, item) => ({
+    id: observedAt,
+    observedAt,
+    packages: [item],
+    findings: [],
+  });
+  const rows = historyRows([
+    observation("2026-10-01T00:00:00Z", pkg(false, [])),
+    observation("2026-10-02T00:00:00Z", pkg(true, [{ path: "a" }, { path: "b" }])),
+  ]);
+  assert.deepEqual(
+    rows.map((row) => row.candidates),
+    [null, 2],
+  );
+  assert.deepEqual(
+    rows.map((row) => row.accepted),
+    [null, null],
+  );
+  // Scope restriction by identity set (the tracker join) narrows history too.
+  assert.equal(
+    historyRows([observation("2026-10-02T00:00:00Z", pkg(true, []))], { identities: new Set() })[0]
+      .libraries,
+    0,
+  );
 });

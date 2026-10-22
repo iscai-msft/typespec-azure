@@ -10,6 +10,7 @@ import { publishSite } from "./publish.mjs";
 import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./schema.mjs";
 import { GitHubSource } from "./source.mjs";
 import { append, createOverride, exportData, readState, validateScan } from "./store.mjs";
+import { exportTracker } from "./tracker.mjs";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 export async function main(args = process.argv.slice(2)) {
@@ -21,6 +22,7 @@ export async function main(args = process.argv.slice(2)) {
       out: { type: "string", default: "eng/scripts/sdk-customization-metrics/.local/site" },
       targets: { type: "string", default: new URL("./targets.json", import.meta.url).pathname },
       "history-state": { type: "string" },
+      tracker: { type: "string" },
       "ai-config": { type: "string" },
       analyze: { type: "boolean", default: false },
       input: { type: "string" },
@@ -82,6 +84,11 @@ export async function main(args = process.argv.slice(2)) {
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),
       });
+      // The manual tracker is opt-in: it is only published when explicitly passed.
+      if (values.tracker) {
+        const tracker = await exportTracker(resolve(values.tracker), resolve(values.out));
+        console.log(JSON.stringify({ trackerLibraries: tracker.libraries.length }));
+      }
       console.log(JSON.stringify(dataset.summary));
       break;
     }

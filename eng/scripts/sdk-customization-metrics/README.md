@@ -178,6 +178,34 @@ keyed by evidence/context hashes, coverage, extractor/schema/prompt versions,
 both model identifiers, endpoint, and output settings, **not the commit alone**.
 Unchanged evidence on a new commit reuses review without new calls.
 
+## Manual library tracker (opt-in)
+
+The overview, breakdown and library explorer can be driven by a manually maintained
+tracker: one CSV row per library with the columns `Service`, `Language`, `Package`,
+`Repo Link`, `Has Customization?` (Yes/No), `What Was Customized` and `Notes`. Pass it
+to export explicitly:
+
+```sh
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs export \
+  --state eng/scripts/sdk-customization-metrics/state \
+  --tracker path/to/tracker.csv \
+  --out eng/scripts/sdk-customization-metrics/.local/review-site
+```
+
+`tracker.mjs` validates every row (known language, public `Azure/azure-sdk-for-*`
+tree link, Yes/No flag, unique repository path) and writes `tracker.json` next to
+`metrics.json`. Free-text "What was customized" notes are normalized into canonical
+categories (`LRO / polling`, `Pagination`, `Auth`, `Convenience methods`, …); one note
+can map to several. Tracker rows join scans by `repo` + `root`, so a scanned library
+shows its pinned code entry points under the tracker answer, and scan-only libraries
+keep their own row.
+
+The tracker is a person's survey, not reviewed evidence: the dashboard labels it as
+such, keeps reviewed findings separate ("Only counted customizations"), and never
+turns tracker categories into classifications of individual files. Publication
+(`publish`) never includes it; the Pages workflow does not pass `--tracker`. Without
+`tracker.json` the dashboard falls back to scan-only measures.
+
 ## Explore the portfolio, history, and individual code
 
 The static dashboard has one shared language/service/library/category/review/text
@@ -195,10 +223,13 @@ opens pinned evidence, captured snippets (when available), explanation, independ
 review status, override provenance and assessment-version metadata.
 
 URL parameters persist the filters (`language`, `service`, `library`, `category`,
-`status`, `search`, `accepted`), as-of `observation` timestamp, selected `instance`,
-breakdown `group`/`measure`, sorting and history range/cohort. The Java/LRO shortcut
-queries accepted semantic instances only. It cannot classify a generated poller or
-an unreviewed candidate as LRO.
+`customized`, `status`, `search`, `accepted`), as-of `observation` timestamp, selected `instance`,
+breakdown `group`/`measure`, sorting and history range/cohort. Categories use the
+canonical names (`LRO / polling`); older `category=LRO` links are mapped. The Java/LRO
+shortcut lists Java libraries tagged LRO in the tracker or with an accepted LRO finding.
+Their code entry points are shown as files of matching libraries, never as LRO
+classifications; "Only counted customizations" restricts to accepted findings. The
+"Find customizations" dropdowns build the same shared filters.
 
 Exports add `historyVersion: 1` and `observations` without changing immutable scan v1
 records. Each observation is the effective state as of a recorded scan's `observedAt`

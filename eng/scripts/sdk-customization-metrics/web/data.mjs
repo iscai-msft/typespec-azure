@@ -89,7 +89,8 @@ export function selectView(snapshot, filters = {}) {
     (item) =>
       (!filters.language || item.language === filters.language) &&
       (!filters.service || serviceOf(item) === filters.service) &&
-      (!filters.library || item.identity === filters.library),
+      (!filters.library || item.identity === filters.library) &&
+      (!filters.identities || filters.identities.has(item.identity)),
   );
   const ids = new Set(scope.map((item) => item.identity));
   const findings = filterFindings(
@@ -133,6 +134,42 @@ export function breakdown(view, group = "language", measure = "accepted") {
   }
   return [...rows].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
+const languageLabels = {
+  dotnet: ".NET",
+  go: "Go",
+  java: "Java",
+  javascript: "JavaScript",
+  python: "Python",
+};
+export function languageLabel(language) {
+  return languageLabels[language] ?? language;
+}
+export function groupKey(group, item, packages) {
+  if (group === "service") return serviceOf(packages.get(item.identity) ?? item);
+  if (group === "category") return item.category ?? "Unclassified candidate";
+  if (group === "library") return item.identity;
+  return item.language;
+}
+// One row per group with both measures, so the chart and its table never disagree.
+export function breakdownTable(view, group = "language") {
+  const packages = new Map(view.scope.map((item) => [item.identity, item]));
+  const rows = new Map();
+  const row = (key) => {
+    if (!rows.has(key)) rows.set(key, { key, accepted: 0, candidates: 0, libraries: new Set() });
+    return rows.get(key);
+  };
+  for (const item of view.accepted) {
+    const entry = row(groupKey(group, item, packages));
+    entry.accepted += 1;
+    entry.libraries.add(item.identity);
+  }
+  for (const item of view.candidates) {
+    const entry = row(groupKey(group, item, packages));
+    entry.candidates += 1;
+    entry.libraries.add(item.identity);
+  }
+  return [...rows.values()].map((item) => ({ ...item, libraries: item.libraries.size }));
+}
 export function historyRows(observations, filters = {}, fixed = true, from = "") {
   const snapshots = observations.filter(
     (item) =>
@@ -167,6 +204,12 @@ export function historyRows(observations, filters = {}, fixed = true, from = "")
         view.scope.some((item) => !item.excluded) && !view.unassessed.length
           ? view.accepted.length
           : null,
+      // Entry points are only comparable when every library in scope recorded discovery.
+      candidates:
+        view.scope.some((item) => !item.excluded) &&
+        view.scope.every((item) => item.excluded || item.navigationRecorded !== false)
+          ? view.candidates.length
+          : null,
       added: [...ids].filter((id) => !previous.has(id)).length,
       removed: [...previous].filter((id) => !ids.has(id)).length,
       cohort: fixed ? "fixed intersection" : "available libraries",
@@ -175,4 +218,112 @@ export function historyRows(observations, filters = {}, fixed = true, from = "")
     previous = ids;
     return row;
   });
+}
+
+// Reviewed findings use short category names; the tracker and filters use the canonical names.
+const findingCategories = {
+  LRO: "LRO / polling",
+  Paging: "Pagination",
+  Serialization: "Serialization",
+  Authentication: "Auth",
+  Convenience: "Convenience methods",
+  Other: "Other",
+};
+export function canonicalCategory(category) {
+  return findingCategories[category] ?? category;
+}
+export function findingCategory(canonical) {
+  return Object.entries(findingCategories).find(([, name]) => name === canonical)?.[0] ?? canonical;
+}
+
+// One row per library: the manual tracker row (if any) joined to its latest scan (if any) by
+// repository path. Scan-only libraries keep their own row so no evidence is hidden.
+export function mergeLibraries(tracker, packages) {
+  const byPath = new Map(packages.map((item) => [`${item.repo}:${item.root}`, item]));
+  const used = new Set();
+  const rows = (tracker?.libraries ?? []).map((entry) => {
+    const scan = byPath.get(entry.key) ?? null;
+    if (scan) used.add(scan.identity);
+    return {
+      id: scan?.identity ?? `tracker:${entry.key}`,
+      language: entry.language,
+      package: entry.package,
+      service: entry.service,
+      repo: entry.repo,
+      root: entry.root,
+      tracker: entry,
+      scan,
+    };
+  });
+  for (const item of packages) {
+    if (used.has(item.identity)) continue;
+    rows.push({
+      id: item.identity,
+      language: item.language,
+      package: item.package,
+      service: serviceOf(item),
+      repo: item.repo,
+      root: item.root,
+      tracker: null,
+      scan: item,
+    });
+  }
+  return rows;
+}
+
+export function filterLibraries(rows, findings, filters = {}) {
+  const tokens = (filters.search ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+  const byIdentity = new Map();
+  for (const item of findings) {
+    if (!byIdentity.has(item.identity)) byIdentity.set(item.identity, []);
+    byIdentity.get(item.identity).push(item);
+  }
+  return rows.filter((row) => {
+    const own = row.scan ? (byIdentity.get(row.scan.identity) ?? []) : [];
+    const counted = own.filter((item) => item.counted);
+    if (filters.language && row.language !== filters.language) return false;
+    if (filters.service && row.service !== filters.service) return false;
+    if (filters.library && row.id !== filters.library) return false;
+    if (filters.customized === "yes" && !row.tracker?.customized) return false;
+    if (filters.customized === "no" && row.tracker?.customized !== false) return false;
+    if (
+      filters.category &&
+      !row.tracker?.categories.includes(filters.category) &&
+      !counted.some((item) => canonicalCategory(item.category) === filters.category)
+    )
+      return false;
+    if (filters.status && !own.some((item) => item.status === filters.status)) return false;
+    if (filters.accepted && !counted.length) return false;
+    if (!tokens.length) return true;
+    const text = [
+      row.package,
+      row.service,
+      row.language,
+      row.tracker?.details,
+      row.tracker?.notes,
+      ...(row.tracker?.categories ?? []),
+      ...(row.scan?.customizationLinks ?? []).map((link) => `${link.path} ${link.preview ?? ""}`),
+      ...own.map((item) => [item.subtype, item.explanation, ...item.symbols].join(" ")),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return tokens.every((token) => text.includes(token));
+  });
+}
+
+// Portfolio aggregates over tracker rows only; scan-only rows have no survey answer.
+export function trackerBreakdown(rows, group = "language") {
+  const groups = new Map();
+  const add = (key, row) => {
+    if (!groups.has(key)) groups.set(key, { key, libraries: 0, customized: 0, candidates: 0 });
+    const entry = groups.get(key);
+    entry.libraries += 1;
+    if (row.tracker.customized) entry.customized += 1;
+    entry.candidates += row.scan?.customizationLinks?.length ?? 0;
+  };
+  for (const row of rows.filter((item) => item.tracker)) {
+    if (group === "category") for (const category of row.tracker.categories) add(category, row);
+    else add(group === "service" ? row.service : row.language, row);
+  }
+  return [...groups.values()];
 }

@@ -5,6 +5,16 @@ baseline `76e510e1fdffc5ab5248f3964fc69278e0fb400a`. Read [README.md](./README.m
 for detailed commands and contracts. This file provides context, not authorization
 to deploy, spend money, or change repository settings.
 
+## October 22 update: tracker-driven overview
+
+The dashboard was redesigned to follow the reference layout (KPI cards, filters,
+two-column breakdown/trend charts, library explorer) and can now be driven by the
+user's manual library tracker CSV (206 data-plane libraries, Yes/No + what was
+customized). `tracker.mjs` validates and normalizes it; `export --tracker` writes
+`tracker.json`. Tracker rows join scans by repository path. The SQL section was
+replaced by a dropdown query builder. The tracker is **not** published by `publish`
+or the Pages workflow; publishing it requires the owner's explicit decision.
+
 ## Locations and strict boundaries
 
 - Source: [iscai-msft/typespec-azure, sdk-customization-metrics branch](https://github.com/iscai-msft/typespec-azure/tree/sdk-customization-metrics/eng/scripts/sdk-customization-metrics).
