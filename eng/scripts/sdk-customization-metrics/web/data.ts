@@ -1,16 +1,37 @@
-import { languageById, planeOf } from "./languages.mjs";
-export function serviceOf(item) {
+import type {
+  CandidateLink,
+  Dataset,
+  Filters,
+  FindingRecord,
+  GeneratorAddressable,
+  Inventory,
+  InventoryLibrary,
+  LibraryRow,
+  Observation,
+  PackageRecord,
+  PatternCatalog,
+  Tracker,
+} from "./types.ts";
+import { languageById, planeOf } from "./languages.ts";
+
+// Anything with a package name and/or repository root can be assigned a service.
+export type ServiceSource = { package?: string; root?: string; language?: string };
+export type BreakdownGroup = "language" | "service" | "category" | "library";
+export type SelectedView = ReturnType<typeof selectView>;
+export type ResolvedPattern = { id: string; name?: string; description?: string };
+
+export function serviceOf(item: ServiceSource): string {
   const name = item.package?.replace(/^@azure-rest\//i, "");
   if (name) {
     if (/^Azure\./i.test(name)) {
-      return name.split(".").at(-1).toLowerCase();
+      return name.split(".").at(-1)!.toLowerCase();
     }
     if (/^azure-/i.test(name)) {
       const parts = name
         .replace(/^azure-/i, "")
         .toLowerCase()
         .split("-");
-      return parts[0] === "ai" ? parts.slice(1).join("") : parts.at(-1);
+      return parts[0] === "ai" ? parts.slice(1).join("") : parts.at(-1)!;
     }
     if (/^ai-/i.test(name)) {
       const parts = name.toLowerCase().split("-");
@@ -20,7 +41,7 @@ export function serviceOf(item) {
       return name
         .replace(/\/v\d+$/, "")
         .split("/")
-        .at(-1)
+        .at(-1)!
         .toLowerCase();
     }
   }
@@ -28,9 +49,9 @@ export function serviceOf(item) {
   return root.length > 2 ? root.slice(1, -1).join(".").toLowerCase() : "unspecified";
 }
 export function filterFindings(
-  findings,
-  { language = "", category = "", status = "", search = "", accepted = false } = {},
-) {
+  findings: FindingRecord[],
+  { language = "", category = "", status = "", search = "", accepted = false }: Filters = {},
+): FindingRecord[] {
   const tokens = search.toLowerCase().split(/\s+/).filter(Boolean);
   return findings.filter(
     (item) =>
@@ -55,9 +76,9 @@ export function filterFindings(
   );
 }
 export function filterCodeLinks(
-  packages,
-  { language = "", category = "", status = "", search = "", accepted = false } = {},
-) {
+  packages: PackageRecord[],
+  { language = "", category = "", status = "", search = "", accepted = false }: Filters = {},
+): CandidateLink[] {
   if (category || status || accepted) return [];
   const tokens = search.toLowerCase().split(/\s+/).filter(Boolean);
   return packages
@@ -85,7 +106,10 @@ export function filterCodeLinks(
       ),
     );
 }
-export function selectView(snapshot, filters = {}) {
+export function selectView(
+  snapshot: Pick<Dataset, "packages" | "findings">,
+  filters: Filters = {},
+) {
   const scope = snapshot.packages.filter(
     (item) =>
       (!filters.language || item.language === filters.language) &&
@@ -120,37 +144,49 @@ export function selectView(snapshot, filters = {}) {
     unassessed: scope.filter((item) => !item.excluded && !assessed.includes(item)),
   };
 }
-export function breakdown(view, group = "language", measure = "accepted") {
-  const rows = new Map();
+export function breakdown(
+  view: SelectedView,
+  group: BreakdownGroup = "language",
+  measure = "accepted",
+): [string, number][] {
+  const rows = new Map<string, number>();
   const items = measure === "candidates" ? view.candidates : view.accepted;
   const packages = new Map(view.scope.map((item) => [item.identity, item]));
   for (const item of items) {
     const value =
       group === "service"
-        ? serviceOf(packages.get(item.identity))
+        ? serviceOf(packages.get(item.identity)!)
         : group === "category"
-          ? (item.category ?? "Unclassified candidate")
+          ? ((item as Partial<FindingRecord>).category ?? "Unclassified candidate")
           : item.language;
     rows.set(value, (rows.get(value) ?? 0) + 1);
   }
   return [...rows].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
-export function languageLabel(language) {
+export function languageLabel(language: string): string {
   return languageById.get(language)?.label ?? language;
 }
-export function groupKey(group, item, packages) {
+export function groupKey(
+  group: BreakdownGroup,
+  item: FindingRecord | CandidateLink,
+  packages: Map<string, PackageRecord>,
+): string {
   if (group === "service") return serviceOf(packages.get(item.identity) ?? item);
-  if (group === "category") return item.category ?? "Unclassified candidate";
+  if (group === "category")
+    return ("category" in item ? item.category : undefined) ?? "Unclassified candidate";
   if (group === "library") return item.identity;
   return item.language;
 }
 // One row per group with both measures, so the chart and its table never disagree.
-export function breakdownTable(view, group = "language") {
+export function breakdownTable(view: SelectedView, group: BreakdownGroup = "language") {
   const packages = new Map(view.scope.map((item) => [item.identity, item]));
-  const rows = new Map();
-  const row = (key) => {
+  const rows = new Map<
+    string,
+    { key: string; accepted: number; candidates: number; libraries: Set<string> }
+  >();
+  const row = (key: string) => {
     if (!rows.has(key)) rows.set(key, { key, accepted: 0, candidates: 0, libraries: new Set() });
-    return rows.get(key);
+    return rows.get(key)!;
   };
   for (const item of view.accepted) {
     const entry = row(groupKey(group, item, packages));
@@ -164,7 +200,12 @@ export function breakdownTable(view, group = "language") {
   }
   return [...rows.values()].map((item) => ({ ...item, libraries: item.libraries.size }));
 }
-export function historyRows(observations, filters = {}, fixed = true, from = "") {
+export function historyRows(
+  observations: Observation[],
+  filters: Filters = {},
+  fixed = true,
+  from = "",
+) {
   const snapshots = observations.filter(
     (item) =>
       (!filters.observation || item.observedAt <= filters.observation) &&
@@ -179,7 +220,7 @@ export function historyRows(observations, filters = {}, fixed = true, from = "")
         .map((item) => item.identity)
         .filter((id) => scopes.every((scope) => scope.some((item) => item.identity === id)))
     : [];
-  let previous = new Set();
+  let previous = new Set<string>();
   return snapshots.map((snapshot, index) => {
     const ids = new Set(scopes[index].map((item) => item.identity));
     const scoped = {
@@ -215,7 +256,7 @@ export function historyRows(observations, filters = {}, fixed = true, from = "")
 }
 
 // Reviewed findings use short category names; the tracker and filters use the canonical names.
-const findingCategories = {
+const findingCategories: Record<string, string> = {
   LRO: "LRO / polling",
   Paging: "Pagination",
   Serialization: "Serialization",
@@ -223,17 +264,17 @@ const findingCategories = {
   Convenience: "Convenience methods",
   Other: "Other",
 };
-export function canonicalCategory(category) {
+export function canonicalCategory(category: string): string {
   return findingCategories[category] ?? category;
 }
-export function findingCategory(canonical) {
+export function findingCategory(canonical: string): string {
   return Object.entries(findingCategories).find(([, name]) => name === canonical)?.[0] ?? canonical;
 }
 
 // Language-agnostic service: the TypeSpec project a library is generated from, taken from its
 // tsp-location.yaml directory (specification/ai/DocumentIntelligence -> ai/DocumentIntelligence).
 // Every language's SDK for the same spec gets the same service name.
-export function specService(directory) {
+export function specService(directory?: string | null): string {
   if (!directory) return "";
   const parts = directory
     .split("/")
@@ -246,7 +287,7 @@ export function specService(directory) {
   if (parts.length >= 2) {
     const group = parts[0].toLowerCase();
     parts[parts.length - 1] = parts
-      .at(-1)
+      .at(-1)!
       .replace(/^Azure\./i, "")
       .replace(new RegExp(`^${group.replace(/[^a-z0-9]/g, "")}\\.`, "i"), "");
   }
@@ -254,9 +295,9 @@ export function specService(directory) {
 }
 
 // Fallback for libraries without a spec location. Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
-export function folderService(item) {
+export function folderService(item: ServiceSource): string {
   const parts = (item.root ?? "").split("/").filter(Boolean);
-  if (item.language === "go" && parts.length > 3) return parts.at(-2).toLowerCase();
+  if (item.language === "go" && parts.length > 3) return parts.at(-2)!.toLowerCase();
   return (parts[1] ?? serviceOf(item)).toLowerCase();
 }
 
@@ -265,8 +306,12 @@ export function folderService(item) {
 // - tracker: the manual survey answer;
 // - scan: the latest code scan (pinned customization entry points, findings).
 // Libraries known to only one source still get a row, so nothing is hidden.
-export function mergeLibraries(tracker, packages, inventory = null) {
-  const keyOf = (item) => `${item.repo}:${item.root}`;
+export function mergeLibraries(
+  tracker: Tracker | null | undefined,
+  packages: PackageRecord[],
+  inventory: Inventory | null = null,
+): LibraryRow[] {
+  const keyOf = (item: { repo: string; root: string }) => `${item.repo}:${item.root}`;
   const scans = new Map(packages.map((item) => [keyOf(item), item]));
   const surveys = new Map((tracker?.libraries ?? []).map((item) => [item.key, item]));
   const discovered = new Map((inventory?.libraries ?? []).map((item) => [keyOf(item), item]));
@@ -275,8 +320,8 @@ export function mergeLibraries(tracker, packages, inventory = null) {
     const found = discovered.get(key) ?? null;
     const survey = surveys.get(key) ?? null;
     const scan = scans.get(key) ?? null;
-    const source = found ?? scan ?? survey;
-    const packageName = found?.package ?? scan?.package ?? survey.package;
+    const source = (found ?? scan ?? survey)!;
+    const packageName = found?.package ?? scan?.package ?? survey!.package;
     return {
       id: scan?.identity ?? `library:${key}`,
       language: source.language,
@@ -297,16 +342,16 @@ export function mergeLibraries(tracker, packages, inventory = null) {
 }
 
 export function filterLibraries(
-  rows,
-  findings,
-  filters = {},
-  resolvePattern = (name) => ({ id: name }),
-) {
+  rows: LibraryRow[],
+  findings: FindingRecord[],
+  filters: Filters = {},
+  resolvePattern: (name: string) => ResolvedPattern = (name) => ({ id: name }),
+): LibraryRow[] {
   const tokens = (filters.search ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-  const byIdentity = new Map();
+  const byIdentity = new Map<string, FindingRecord[]>();
   for (const item of findings) {
     if (!byIdentity.has(item.identity)) byIdentity.set(item.identity, []);
-    byIdentity.get(item.identity).push(item);
+    byIdentity.get(item.identity)!.push(item);
   }
   return rows.filter((row) => {
     const own = row.scan ? (byIdentity.get(row.scan.identity) ?? []) : [];
@@ -351,12 +396,15 @@ export function filterLibraries(
 // Portfolio aggregates. Every library counts toward `libraries`; only tracker rows have a
 // customized/fully-generated answer, so untracked libraries stay a separate share, never "no".
 // Category groups exist only for tracked libraries (categories come from the tracker).
-export function trackerBreakdown(rows, group = "language") {
-  const groups = new Map();
-  const add = (key, row) => {
+export function trackerBreakdown(rows: LibraryRow[], group = "language") {
+  const groups = new Map<
+    string,
+    { key: string; libraries: number; tracked: number; customized: number; candidates: number }
+  >();
+  const add = (key: string, row: LibraryRow) => {
     if (!groups.has(key))
       groups.set(key, { key, libraries: 0, tracked: 0, customized: 0, candidates: 0 });
-    const entry = groups.get(key);
+    const entry = groups.get(key)!;
     entry.libraries += 1;
     if (row.tracker) entry.tracked += 1;
     if (row.tracker?.customized) entry.customized += 1;
@@ -371,13 +419,13 @@ export function trackerBreakdown(rows, group = "language") {
 }
 
 // Pattern catalog: canonical patterns with the alias names reviewers have used for them.
-export function patternResolver(catalog) {
-  const byName = new Map();
+export function patternResolver(catalog?: PatternCatalog | null) {
+  const byName = new Map<string, PatternCatalog["patterns"][number]>();
   for (const entry of catalog?.patterns ?? []) {
     byName.set(entry.id, entry);
     for (const alias of entry.aliases ?? []) byName.set(alias, entry);
   }
-  return (name) => {
+  return (name?: string | null) => {
     const entry = name ? byName.get(name) : null;
     return entry
       ? { id: entry.id, name: entry.name ?? entry.id, description: entry.description ?? "" }
@@ -397,44 +445,57 @@ export const REDUCIBLE_RULES = {
 // `rows` are library rows (service, language, release stability) keyed by scan identity.
 // A library is active if it released within the dormancy window (from its CHANGELOG), or if
 // its folder changed within it (recorded by discovery). Unknown counts as active.
-export function isDormant(row, now = Date.now(), rules = REDUCIBLE_RULES) {
-  const dates = [row.release?.latestDate, row.lastChanged].filter(Boolean).map(Date.parse);
+export function isDormant(
+  row: Pick<LibraryRow, "release" | "lastChanged">,
+  now = Date.now(),
+  rules = REDUCIBLE_RULES,
+): boolean {
+  const dates = [row.release?.latestDate, row.lastChanged]
+    .filter((date): date is string => Boolean(date))
+    .map((date) => Date.parse(date));
   if (!dates.length) return false;
   return now - Math.max(...dates) > rules.dormantAfterDays * 86400000;
 }
 
 export function reduciblePatterns(
-  findings,
-  rows,
-  catalog = null,
+  findings: FindingRecord[],
+  rows: LibraryRow[],
+  catalog: PatternCatalog | null = null,
   rules = REDUCIBLE_RULES,
   now = Date.now(),
 ) {
   const resolve = patternResolver(catalog);
-  const byIdentity = new Map(rows.filter((row) => row.scan).map((row) => [row.scan.identity, row]));
-  const groups = new Map();
+  const byIdentity = new Map(
+    rows.filter((row) => row.scan).map((row) => [row.scan!.identity, row]),
+  );
+  const groups = new Map<
+    string,
+    Required<ResolvedPattern> & { instances: FindingRecord[]; categories: Map<string, number> }
+  >();
   for (const finding of findings) {
     if (!finding.counted) continue;
     const pattern = resolve(finding.pattern);
     if (!groups.has(pattern.id))
       groups.set(pattern.id, { ...pattern, instances: [], categories: new Map() });
-    const group = groups.get(pattern.id);
+    const group = groups.get(pattern.id)!;
     group.instances.push(finding);
     group.categories.set(finding.category, (group.categories.get(finding.category) ?? 0) + 1);
   }
   return [...groups.values()]
     .map((group) => {
       const libraries = new Set(group.instances.map((item) => item.identity));
-      const rowsFor = [...libraries].map((identity) => byIdentity.get(identity)).filter(Boolean);
+      const rowsFor = [...libraries]
+        .map((identity) => byIdentity.get(identity))
+        .filter((row): row is LibraryRow => Boolean(row));
       const services = new Set(rowsFor.map((row) => row.service));
       const languages = new Set(group.instances.map((item) => item.language));
-      const votes = { yes: 0, no: 0, unclear: 0 };
+      const votes: Record<GeneratorAddressable, number> = { yes: 0, no: 0, unclear: 0 };
       for (const item of group.instances) votes[item.generatorAddressable ?? "unclear"]++;
       const serviceSpecific = votes.no / group.instances.length > rules.maxServiceSpecificShare;
       const active = rowsFor.filter((row) => !isDormant(row, now, rules)).length;
       const unpatterned = group.id === "unpatterned";
-      let status;
-      let reason;
+      let status: string;
+      let reason: string;
       if (unpatterned) {
         status = "unknown";
         reason = "No pattern recorded";

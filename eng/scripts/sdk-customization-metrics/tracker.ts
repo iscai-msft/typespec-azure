@@ -3,10 +3,11 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Tracker, TrackerLibrary } from "./web/types.ts";
 
 export const TRACKER_SCHEMA_VERSION = 1;
 
-const LANGUAGES = {
+const LANGUAGES: Record<string, string> = {
   python: "python",
   "c#": "dotnet",
   ".net": "dotnet",
@@ -21,7 +22,7 @@ const REPOSITORY =
   /^https:\/\/github\.com\/(Azure\/azure-sdk-for-(?:python|net|js|java|go))\/tree\/[^/]+\/(sdk\/[^?#]+?)\/?$/;
 
 // Canonical customization categories; an item may match more than one.
-export const TRACKER_CATEGORIES = [
+export const TRACKER_CATEGORIES: [string, RegExp][] = [
   ["LRO / polling", /\blro\b|polling|poller/],
   ["Pagination", /paginat|paging|\bpager/],
   ["Serialization", /serializ/],
@@ -40,9 +41,9 @@ export const TRACKER_CATEGORIES = [
 const NOT_CUSTOMIZED =
   /fully generated|no customization|no patch content|no real customization|no hand-written|assemblyinfo/;
 
-export function parseCsv(text) {
-  const rows = [];
-  let row = [];
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let field = "";
   let quoted = false;
   const source = text.replace(/^﻿/, "");
@@ -73,8 +74,8 @@ export function parseCsv(text) {
 }
 
 // Split "a, b (c, d), e" on top-level commas only.
-function splitItems(text) {
-  const items = [];
+function splitItems(text: string): string[] {
+  const items: string[] = [];
   let depth = 0;
   let current = "";
   for (const char of text) {
@@ -89,8 +90,8 @@ function splitItems(text) {
   return items.map((item) => item.trim()).filter(Boolean);
 }
 
-export function categorize(text) {
-  const categories = new Set();
+export function categorize(text: string): string[] {
+  const categories = new Set<string>();
   for (const item of splitItems(text)) {
     const value = item.toLowerCase();
     if (NOT_CUSTOMIZED.test(value)) continue;
@@ -103,11 +104,14 @@ export function categorize(text) {
   return [...categories].sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 
-export function normalizeTracker(text, { source = "tracker.csv" } = {}) {
+export function normalizeTracker(
+  text: string,
+  { source = "tracker.csv" }: { source?: string } = {},
+): Tracker {
   const [header, ...records] = parseCsv(text);
   if (!header) throw new Error("Tracker CSV is empty");
   const columns = header.map((name) => name.trim().toLowerCase());
-  const column = (...names) => {
+  const column = (...names: string[]) => {
     const index = columns.findIndex((name) => names.includes(name));
     if (index < 0) throw new Error(`Tracker CSV is missing a column: ${names[0]}`);
     return index;
@@ -122,8 +126,8 @@ export function normalizeTracker(text, { source = "tracker.csv" } = {}) {
     notes: column("notes"),
   };
   const seen = new Set();
-  const libraries = records.map((record, index) => {
-    const value = (key) => (record[at[key]] ?? "").trim();
+  const libraries = records.map((record, index): TrackerLibrary => {
+    const value = (key: keyof typeof at) => (record[at[key]] ?? "").trim();
     const line = index + 2;
     const language = LANGUAGES[value("language").toLowerCase()];
     if (!language) throw new Error(`Line ${line}: unknown language "${value("language")}"`);
@@ -161,7 +165,7 @@ export function normalizeTracker(text, { source = "tracker.csv" } = {}) {
   };
 }
 
-export async function exportTracker(csvPath, outputDirectory) {
+export async function exportTracker(csvPath: string, outputDirectory: string): Promise<Tracker> {
   const text = await readFile(csvPath, "utf8");
   const tracker = normalizeTracker(text, { source: csvPath.split(/[\\/]/).at(-1) });
   await writeFile(join(outputDirectory, "tracker.json"), `${JSON.stringify(tracker)}\n`);

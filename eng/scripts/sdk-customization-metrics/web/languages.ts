@@ -1,7 +1,9 @@
+import type { LanguageConfig, LanguageId, Plane } from "./types.ts";
+
 // One entry per SDK language. Shared by the collector (Node) and the dashboard (browser), so
 // adding a language means adding an entry here plus, optionally, entry-point heuristics in
-// navigation.mjs. Everything else (discovery, schema, filters, labels) reads this list.
-export const LANGUAGES = [
+// navigation.ts. Everything else (discovery, schema, filters, labels) reads this list.
+export const LANGUAGES: LanguageConfig[] = [
   {
     id: "python",
     label: "Python",
@@ -61,7 +63,7 @@ export const LANGUAGES = [
 ];
 
 // Planes in display order. "data" is the default when no other plane matches.
-export const PLANES = [
+export const PLANES: { id: Plane; label: string }[] = [
   { id: "data", label: "Data plane" },
   { id: "management", label: "Management plane" },
   { id: "provisioning", label: "Provisioning" },
@@ -70,12 +72,14 @@ export const PLANES = [
 // Any language: "mgmt" or "management" as a separate word in the package name or path.
 export const MANAGEMENT_WORD = "(^|[-_./])(mgmt|management)([-_./]|$)";
 
-export const languageById = new Map(LANGUAGES.map((language) => [language.id, language]));
+export const languageById = new Map<LanguageId, LanguageConfig>(
+  LANGUAGES.map((language) => [language.id, language]),
+);
 
-export function planeOf(languageId, packageName, root = "") {
+export function planeOf(languageId: LanguageId, packageName: string, root = ""): Plane {
   const planes = languageById.get(languageId)?.planes ?? {};
   for (const [plane, pattern] of Object.entries(planes))
-    if (new RegExp(pattern, "i").test(packageName)) return plane;
+    if (new RegExp(pattern, "i").test(packageName)) return plane as Plane;
   const word = new RegExp(MANAGEMENT_WORD, "i");
   // Skip "sdk/<service>" so a service folder name alone never decides the plane.
   return word.test(packageName) || word.test(root.split("/").slice(2).join("/"))

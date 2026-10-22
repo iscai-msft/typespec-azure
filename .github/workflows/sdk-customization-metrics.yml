@@ -38,7 +38,14 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "26"
-      - run: node --test eng/scripts/sdk-customization-metrics/test/*.test.mjs
+      - name: Type-check (TypeScript version matches the repository)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tsc" --no-save --no-package-lock \
+            typescript@7.0.2 @types/node@26
+          ln -sfn "$RUNNER_TEMP/tsc/node_modules" \
+            eng/scripts/sdk-customization-metrics/node_modules
+          "$RUNNER_TEMP/tsc/node_modules/.bin/tsc" -p eng/scripts/sdk-customization-metrics/tsconfig.json
+      - run: node --test eng/scripts/sdk-customization-metrics/test/*.test.ts
 
   collect:
     needs: test
@@ -72,12 +79,12 @@ jobs:
           key: sdk-repos-${{ github.run_id }}
           restore-keys: sdk-repos-
       - name: Discover TypeSpec libraries (new, removed and changed)
-        run: node "$TOOL/cli.mjs" discover --repos-dir "$RUNNER_TEMP/sdk-repos"
+        run: node "$TOOL/cli.ts" discover --repos-dir "$RUNNER_TEMP/sdk-repos"
       - name: Scan libraries whose folder changed
         id: collect
         continue-on-error: true
         run: |
-          node "$TOOL/cli.mjs" collect --state "$TOOL/state" --from-inventory --plane data \
+          node "$TOOL/cli.ts" collect --state "$TOOL/state" --from-inventory --plane data \
             --reader git --skip-unchanged --repos-dir "$RUNNER_TEMP/sdk-repos"
       - name: AI-review new and changed libraries (only when enabled)
         id: review
@@ -89,10 +96,10 @@ jobs:
           METRICS_AI_TOKEN: ${{ secrets.SDK_METRICS_AI_TOKEN || github.token }}
         run: |
           printf '%s' "$AI_CONFIG" > "$RUNNER_TEMP/metrics-ai.json"
-          node "$TOOL/cli.mjs" review --state "$TOOL/state" --plane data \
+          node "$TOOL/cli.ts" review --state "$TOOL/state" --plane data \
             --ai-config "$RUNNER_TEMP/metrics-ai.json"
       - name: Validate
-        run: node "$TOOL/cli.mjs" validate --state "$TOOL/state"
+        run: node "$TOOL/cli.ts" validate --state "$TOOL/state"
       - name: Commit inventory and append-only scan history
         run: |
           git add -- "$TOOL/inventory" "$TOOL/state/records"

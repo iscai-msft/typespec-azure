@@ -1,20 +1,25 @@
-import { LANGUAGES } from "./web/languages.mjs";
+import type { Target } from "./web/types.ts";
+import { LANGUAGES } from "./web/languages.ts";
+
+// JSON-schema nodes are dynamic by design (closed vocabulary, validated at runtime).
+// biome-ignore lint/suspicious/noExplicitAny: dynamic JSON-schema validation internals
+type Schema = Record<string, any>;
 
 // This closed JSON Schema vocabulary keeps the collector dependency-free.
 // Unknown schema keywords fail closed rather than being silently ignored.
-const str = (extra = {}) => ({ type: "string", minLength: 1, ...extra });
-const integer = (minimum = 0) => ({ type: "integer", minimum });
-const list = (items, extra = {}) => ({ type: "array", items, ...extra });
-const choice = (...values) => ({ type: "string", enum: values });
-const object = (properties, optional = []) => ({
+const str = (extra: Schema = {}): Schema => ({ type: "string", minLength: 1, ...extra });
+const integer = (minimum = 0): Schema => ({ type: "integer", minimum });
+const list = (items: Schema, extra: Schema = {}): Schema => ({ type: "array", items, ...extra });
+const choice = (...values: string[]): Schema => ({ type: "string", enum: values });
+const object = (properties: Record<string, Schema>, optional: string[] = []): Schema => ({
   type: "object",
   properties,
   required: Object.keys(properties).filter((key) => !optional.includes(key)),
   additionalProperties: false,
 });
-const hash = str({ pattern: "^[a-f0-9]{64}$" });
-const path = str({ pattern: "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$" });
-const text = { type: "string" };
+const hash: Schema = str({ pattern: "^[a-f0-9]{64}$" });
+const path: Schema = str({ pattern: "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$" });
+const text: Schema = { type: "string" };
 
 // Languages and their repositories come from the shared language list.
 export const REPOSITORIES = Object.fromEntries(
@@ -212,7 +217,8 @@ const vocabulary = new Set([
   "required",
   "additionalProperties",
 ]);
-export function validate(schema, value, location = "$") {
+// biome-ignore lint/suspicious/noExplicitAny: values are arbitrary parsed JSON
+export function validate(schema: Schema, value: any, location = "$"): any {
   for (const key of Object.keys(schema)) {
     if (!vocabulary.has(key)) throw new Error(`Unsupported schema keyword: ${key}`);
   }
@@ -234,7 +240,9 @@ export function validate(schema, value, location = "$") {
     if (value.length < (schema.minItems ?? 0) || value.length > (schema.maxItems ?? Infinity)) {
       throw new Error(`${location}: invalid array length`);
     }
-    value.forEach((item, index) => validate(schema.items, item, `${location}[${index}]`));
+    value.forEach((item: unknown, index: number) =>
+      validate(schema.items, item, `${location}[${index}]`),
+    );
   } else if (schema.type === "string") {
     if (value.length < (schema.minLength ?? 0) || value.length > (schema.maxLength ?? Infinity)) {
       throw new Error(`${location}: invalid string length`);
@@ -248,13 +256,13 @@ export function validate(schema, value, location = "$") {
   return value;
 }
 
-export function canonicalPackageName(language, packageName) {
+export function canonicalPackageName(language: string, packageName: string): string {
   if (language === "python") return packageName.toLowerCase().replace(/[-_.]+/g, "-");
   if (["dotnet", "javascript"].includes(language)) return packageName.toLowerCase();
   return packageName;
 }
 
-export function identity(target) {
+export function identity(target: Target): string {
   validate(targetSchema, target);
   if (target.repo !== REPOSITORIES[target.language])
     throw new Error("Language/repository mismatch");

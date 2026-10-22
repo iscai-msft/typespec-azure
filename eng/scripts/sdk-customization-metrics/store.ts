@@ -1,4 +1,5 @@
-import { exportGuidelines } from "./guidelines.mjs";
+import { stripTypeScriptTypes } from "node:module";
+import { exportGuidelines } from "./guidelines.ts";
 import { randomUUID } from "node:crypto";
 import {
   copyFile,
@@ -13,14 +14,20 @@ import {
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import { checkAnalysis, checkFinding, findingKey } from "./analysis.mjs";
-import {
-  identity,
-  overrideRequestSchema,
-  overrideSchema,
-  scanSchema,
-  validate,
-} from "./schema.mjs";
+import type {
+  Dataset,
+  Evidence,
+  Finding,
+  FindingRecord,
+  Observation,
+  Override,
+  OverrideRequest,
+  PackageRecord,
+  Scan,
+  Snippet,
+} from "./web/types.ts";
+import { checkAnalysis, checkFinding, findingKey } from "./analysis.ts";
+import { identity, overrideRequestSchema, overrideSchema, scanSchema, validate } from "./schema.ts";
 import {
   classify,
   digest,
@@ -29,13 +36,30 @@ import {
   lines,
   sourceLineCount,
   sourceUrl,
-} from "./source.mjs";
+} from "./source.ts";
 
-export function validateScan(scan) {
+// TypeScript to browser JavaScript: strip types (no type-only runtime constructs are used)
+// and point relative imports at the emitted .js files.
+type Bindings = Override["bindings"];
+
+interface DatasetOptions {
+  includeFixtures?: boolean;
+  historyStateDirectory?: string;
+  runGapMinutes?: number;
+}
+
+export function browserModule(source: string): string {
+  return stripTypeScriptTypes(source, { mode: "strip" }).replace(
+    /((?:from|import)\s*\(?\s*["']\.\/[^"']+?)\.ts(["'])/g,
+    "$1.js$2",
+  );
+}
+
+export function validateScan(scan: Scan): Scan {
   validate(scanSchema, scan);
   if (scan.identity !== identity(scan.target)) throw new Error("Scan identity mismatch");
   if (!Number.isFinite(Date.parse(scan.observedAt))) throw new Error("Invalid scan timestamp");
-  const navigationPaths = new Set();
+  const navigationPaths = new Set<string>();
   for (const link of scan.navigation ?? []) {
     if (
       !scan.commit ||
@@ -56,7 +80,7 @@ export function validateScan(scan) {
       throw new Error("Customization navigation evidence mismatch");
     }
   }
-  const ids = new Set();
+  const ids = new Set<string>();
   for (const evidence of [...scan.evidence, ...scan.generationContext]) {
     if (!evidence.path.startsWith(`${scan.target.root}/`))
       throw new Error("Evidence outside package root");
@@ -68,15 +92,16 @@ export function validateScan(scan) {
       throw new Error("Evidence URL is not commit-pinned");
     }
     if ("id" in evidence) {
-      if (evidence.kind !== classify(evidence.path, evidence.text))
+      const captured = evidence as Evidence;
+      if (captured.kind !== classify(captured.path, captured.text))
         throw new Error("Evidence classification mismatch");
-      if (ids.has(evidence.id) || evidence.id !== evidenceId(evidence))
+      if (ids.has(captured.id) || captured.id !== evidenceId(captured))
         throw new Error("Duplicate or invalid evidence ID");
-      ids.add(evidence.id);
+      ids.add(captured.id);
       // Whole files start at line 1; excerpts carry their own line range.
       if (
-        (!evidence.excerpt && evidence.startLine !== 1) ||
-        evidence.endLine !== evidence.startLine + sourceLineCount(evidence.text) - 1
+        (!captured.excerpt && captured.startLine !== 1) ||
+        captured.endLine !== captured.startLine + sourceLineCount(captured.text) - 1
       ) {
         throw new Error("Evidence line count mismatch");
       }
@@ -103,9 +128,9 @@ export function validateScan(scan) {
   return scan;
 }
 
-export async function append(directory, record) {
+export async function append(directory: string, record: Scan | Override): Promise<void> {
   if (record && Object.hasOwn(record, "request")) validate(overrideSchema, record);
-  else validateScan(record);
+  else validateScan(record as Scan);
   await mkdir(directory, { recursive: true });
   const temporary = join(directory, `.${record.id}.tmp`);
   await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`, { flag: "wx" });
@@ -117,15 +142,18 @@ export async function append(directory, record) {
   }
 }
 
-async function readDirectory(directory, check) {
-  let names;
+async function readDirectory<T extends { id: string }>(
+  directory: string,
+  check: (value: any) => unknown, // eslint-disable-line @typescript-eslint/no-explicit-any
+): Promise<T[]> {
+  let names: string[];
   try {
     names = await readdir(directory);
   } catch (error) {
-    if (error.code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }
-  const results = [];
+  const results: T[] = [];
   for (const name of names.filter((name) => name.endsWith(".json")).sort()) {
     const value = JSON.parse(await readFile(join(directory, name), "utf8"));
     check(value);
@@ -135,9 +163,11 @@ async function readDirectory(directory, check) {
   return results;
 }
 
-export async function readState(directory) {
-  const scans = await readDirectory(join(directory, "records"), validateScan);
-  const overrides = await readDirectory(join(directory, "overrides"), (value) =>
+export async function readState(
+  directory: string,
+): Promise<{ scans: Scan[]; overrides: Override[] }> {
+  const scans = await readDirectory<Scan>(join(directory, "records"), validateScan);
+  const overrides = await readDirectory<Override>(join(directory, "overrides"), (value) =>
     validate(overrideSchema, value),
   );
   const scansById = new Map(scans.map((scan) => [scan.id, scan]));
@@ -170,19 +200,25 @@ export async function readState(directory) {
   return { scans, overrides };
 }
 
-function latestBy(values, key, timestamp) {
-  const result = new Map();
+function latestBy<T extends { id: string }>(
+  values: T[],
+  key: (value: T) => string,
+  timestamp: keyof T & string,
+): Map<string, T> {
+  const result = new Map<string, T>();
   for (const value of [...values].sort(
-    (a, b) => Date.parse(a[timestamp]) - Date.parse(b[timestamp]) || a.id.localeCompare(b.id),
+    (a, b) =>
+      Date.parse(a[timestamp] as string) - Date.parse(b[timestamp] as string) ||
+      a.id.localeCompare(b.id),
   )) {
     result.set(key(value), value);
   }
   return result;
 }
 
-function snippets(scan, finding) {
+function snippets(scan: Scan, finding: Finding): Snippet[] {
   return finding.evidence.map((ref) => {
-    const evidence = scan.evidence.find((item) => item.id === ref.id);
+    const evidence = scan.evidence.find((item) => item.id === ref.id)!;
     const text = evidenceLines(evidence, ref.startLine, ref.endLine).join("\n");
     return {
       path: evidence.path,
@@ -202,7 +238,7 @@ function snippets(scan, finding) {
   });
 }
 
-function row(scan, finding, status, reviewReason = "") {
+function row(scan: Scan, finding: Finding, status: string, reviewReason = ""): FindingRecord {
   return {
     id: `${scan.identity}:${finding.key}`,
     key: finding.key,
@@ -231,9 +267,14 @@ function row(scan, finding, status, reviewReason = "") {
   };
 }
 
-function relocate(scan, finding, bindings, accepted = true) {
+function relocate(
+  scan: Scan,
+  finding: Finding,
+  bindings: Bindings,
+  accepted = true,
+): Finding | null {
   if (bindings.length !== finding.evidence.length) return null;
-  const refs = [];
+  const refs: Finding["evidence"] = [];
   for (const binding of bindings) {
     // The bound text must occur exactly once across this file's evidence (whole or excerpts).
     const matches = scan.evidence.filter(
@@ -263,7 +304,11 @@ function relocate(scan, finding, bindings, accepted = true) {
   return relocated;
 }
 
-export function effectiveDataset(scans, overrides, { includeFixtures = false } = {}) {
+export function effectiveDataset(
+  scans: Scan[],
+  overrides: Override[],
+  { includeFixtures = false }: DatasetOptions = {},
+): Dataset {
   const publicScans = scans.filter(
     (scan) => includeFixtures || scan.provenance.origin !== "fixture",
   );
@@ -273,14 +318,14 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
     (item) => `${item.request.identity}:${item.request.key ?? "__package__"}`,
     "createdAt",
   );
-  const findings = [];
-  const packages = [];
+  const findings: FindingRecord[] = [];
+  const packages: PackageRecord[] = [];
   for (const scan of latest.values()) {
-    const current = new Map();
+    const current = new Map<string, FindingRecord>();
     for (const proposal of scan.analysis.proposals) {
       // Failed model output must not become an effective finding.
       if (scan.analysis.status !== "complete") continue;
-      const decision = scan.analysis.decisions.find((item) => item.key === proposal.key);
+      const decision = scan.analysis.decisions.find((item) => item.key === proposal.key)!;
       const status = ["accepted", "revised"].includes(decision.status)
         ? "AI-reviewed"
         : decision.status;
@@ -299,7 +344,8 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
     }
     let excluded = false;
     let packageOverrideStatus = "none";
-    let packageOverride;
+    let packageOverride:
+      (NonNullable<PackageRecord["packageOverride"]> & Record<string, unknown>) | undefined;
     for (const override of [...latestOverrides.values()].sort(
       (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
     )) {
@@ -322,7 +368,7 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         };
         continue;
       }
-      const original = scans.find((item) => item.id === override.scanId);
+      const original = scans.find((item) => item.id === override.scanId)!;
       const previousFinding = override.finding;
       if (!previousFinding) throw new Error("Override finding no longer exists in history");
       let relocated = relocate(
@@ -331,7 +377,7 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         override.bindings,
         request.action !== "reject",
       );
-      let existing = current.get(request.key);
+      let existing = current.get(request.key!);
       if (!existing) {
         // Symbol labels can drift between models while the reviewed code stays identical.
         const matches = [...current.values()].filter((item) =>
@@ -344,7 +390,7 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
         if (matches.length === 1) existing = matches[0];
         else if (matches.length > 1) relocated = null;
       }
-      let effective;
+      let effective: FindingRecord;
       if (!relocated || scan.coverage.status === "failed") {
         effective = existing ?? row(original, previousFinding, "needs-revalidation");
         effective = {
@@ -385,10 +431,10 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
       effective.overrideId = override.id;
       effective.overrideReason = request.reason;
       effective.id = `${scan.identity}:${request.key}`;
-      effective.key = request.key;
-      effective.finding = { ...effective.finding, key: request.key };
+      effective.key = request.key!;
+      effective.finding = { ...effective.finding, key: request.key! };
       if (existing && existing.key !== request.key) current.delete(existing.key);
-      current.set(request.key, effective);
+      current.set(request.key!, effective);
     }
     for (const item of current.values()) {
       if (excluded) {
@@ -479,13 +525,16 @@ export function effectiveDataset(scans, overrides, { includeFixtures = false } =
   };
 }
 
-export async function createOverride(directory, request) {
+export async function createOverride(
+  directory: string,
+  request: OverrideRequest,
+): Promise<Override> {
   validate(overrideRequestSchema, request);
   const { scans, overrides } = await readState(directory);
   const dataset = effectiveDataset(scans, overrides);
   const packageRow = dataset.packages.find((item) => item.identity === request.identity);
   if (!packageRow) throw new Error("Override requires a previously collected public package");
-  const scan = scans.find((item) => item.id === packageRow.scanId);
+  const scan = scans.find((item) => item.id === packageRow.scanId)!;
   const existing = dataset.findings.find(
     (item) => item.identity === request.identity && item.key === request.key,
   );
@@ -511,10 +560,10 @@ export async function createOverride(directory, request) {
         )
           throw new Error("Addition duplicates an existing finding");
       }
-      request.finding = { ...request.finding, key: request.key };
+      request.finding = { ...request.finding, key: request.key! };
     }
   }
-  const finding = request.finding ?? existing?.finding;
+  const finding = (request.finding ?? existing?.finding)!;
   const bindings = packageOverride
     ? scan.evidence.map(({ path, text, contentHash }) => ({ path, text, contentHash }))
     : snippets(scan, finding).map(({ path, text, contentHash }) => ({ path, text, contentHash }));
@@ -522,7 +571,7 @@ export async function createOverride(directory, request) {
     throw new Error("Override snippets must match unique whole-line evidence");
   }
   const lastTime = Math.max(0, ...overrides.map((item) => Date.parse(item.createdAt)));
-  const override = {
+  const override: Override = {
     schemaVersion: 1,
     id: randomUUID(),
     createdAt: new Date(Math.max(Date.now(), lastTime + 1)).toISOString(),
@@ -536,7 +585,11 @@ export async function createOverride(directory, request) {
   return override;
 }
 
-export async function exportData(stateDirectory, outputDirectory, options = {}) {
+export async function exportData(
+  stateDirectory: string,
+  outputDirectory: string,
+  options: DatasetOptions = {},
+): Promise<Dataset> {
   const { scans, overrides } = await readState(stateDirectory);
   const dataset = effectiveDataset(scans, overrides, options);
   dataset.historyVersion = 1;
@@ -660,7 +713,7 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
   await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(dataset, null, 2)}\n`);
   // The page loads a lighter copy: per-file inventories go to diagnostics.json, which is only
   // fetched when someone opens collection diagnostics. metrics.json stays the complete record.
-  const light = (item) => ({
+  const light = (item: PackageRecord): PackageRecord => ({
     ...item,
     sourceFiles: undefined,
     coverage: { ...item.coverage, skipped: [], skippedCount: item.coverage.skipped.length },
@@ -688,17 +741,26 @@ export async function exportData(stateDirectory, outputDirectory, options = {}) 
     })}\n`,
   );
   await exportGuidelines(outputDirectory);
-  for (const name of ["index.html", "app.mjs", "style.css", "data.mjs", "languages.mjs"]) {
+  for (const name of ["index.html", "style.css"]) {
     await copyFile(
       fileURLToPath(new URL(`./web/${name}`, import.meta.url)),
       join(outputDirectory, name),
     );
   }
+  // The page's modules are TypeScript; browsers get them with types stripped.
+  for (const name of ["app", "data", "languages"]) {
+    const source = await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8");
+    await writeFile(join(outputDirectory, `${name}.js`), browserModule(source));
+  }
 
   return dataset;
 }
 
-export function effectiveObservations(scans, overrides, options = {}) {
+export function effectiveObservations(
+  scans: Scan[],
+  overrides: Override[],
+  options: DatasetOptions = {},
+): Observation[] {
   const publicScans = scans.filter(
     (scan) => options.includeFixtures || scan.provenance.origin !== "fixture",
   );
@@ -719,8 +781,8 @@ export function effectiveObservations(scans, overrides, options = {}) {
     (time, index) =>
       index === times.length - 1 || Date.parse(times[index + 1]) - Date.parse(time) > gap,
   );
-  const observations = [];
-  let previous;
+  const observations: Observation[] = [];
+  let previous: string | undefined;
   for (const time of runEnds) {
     const available = publicScans.filter((scan) => Date.parse(scan.observedAt) <= Date.parse(time));
     const availableIds = new Set(available.map((scan) => scan.id));
@@ -744,10 +806,10 @@ export function effectiveObservations(scans, overrides, options = {}) {
         override: item.packageOverride,
         overrideStatus: item.overrideStatus,
         evidence: available
-          .find((scan) => scan.id === item.scanId)
+          .find((scan) => scan.id === item.scanId)!
           .evidence.map((evidence) => [evidence.path, evidence.contentHash]),
         versions: item.assessmentVersion,
-        assessment: available.find((scan) => scan.id === item.scanId).analysis,
+        assessment: available.find((scan) => scan.id === item.scanId)!.analysis,
       })),
       findings: snapshot.findings.map((item) => ({
         identity: item.identity,

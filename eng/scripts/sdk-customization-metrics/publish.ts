@@ -1,10 +1,20 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { exportData, readState } from "./store.mjs";
-import { exportInventory } from "./discover.mjs";
-import { exportTracker } from "./tracker.mjs";
+import { exportData, readState } from "./store.ts";
+import { exportInventory } from "./discover.ts";
+import { exportTracker } from "./tracker.ts";
 
-export async function publishSite(stateDirectory, websiteDirectory, options = {}) {
+export async function publishSite(
+  stateDirectory: string,
+  websiteDirectory: string,
+  options: {
+    tracker?: string;
+    inventory?: string;
+    includeFixtures?: boolean;
+    historyStateDirectory?: string;
+    runGapMinutes?: number;
+  } = {},
+) {
   const root = resolve(websiteDirectory);
   // Require the complete existing site, never a dashboard-only Pages artifact.
   const homepage = await readFile(join(root, "index.html"));
