@@ -4,14 +4,15 @@ import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { ModelClient, analyze } from "./analysis.mjs";
-import { importLegacy } from "./legacy.mjs";
-import { publishSite } from "./publish.mjs";
-import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./schema.mjs";
-import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.mjs";
-import { append, createOverride, exportData, readState, validateScan } from "./store.mjs";
-import { exportTracker } from "./tracker.mjs";
-import { ExchangeClient, reviewScans } from "./review.mjs";
+import type { Inventory, Scan, Target } from "./web/types.ts";
+import { ModelClient, analyze } from "./analysis.ts";
+import { importLegacy } from "./legacy.ts";
+import { publishSite } from "./publish.ts";
+import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./schema.ts";
+import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.ts";
+import { append, createOverride, exportData, readState, validateScan } from "./store.ts";
+import { exportTracker } from "./tracker.ts";
+import { ExchangeClient, reviewScans } from "./review.ts";
 import {
   GitRepository,
   discoverAll,
@@ -19,10 +20,11 @@ import {
   exportInventory,
   readInventory,
   writeInventory,
-} from "./discover.mjs";
+} from "./discover.ts";
 
-const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
-export async function main(args = process.argv.slice(2)) {
+// JSON files read here are validated against schemas by the callers, so the result is dynamic.
+const readJson = async (path: string): Promise<any> => JSON.parse(await readFile(path, "utf8"));
+export async function main(args: string[] = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
@@ -64,7 +66,7 @@ export async function main(args = process.argv.slice(2)) {
   switch (positionals[0]) {
     case "collect": {
       // Targets: the configured starter list, or every discovered library in one plane.
-      let targets;
+      let targets: Target[];
       if (values["from-inventory"]) {
         const inventory = await readInventory(resolve(values.inventory));
         if (!inventory) throw new Error("No inventory; run discover first");
@@ -80,14 +82,16 @@ export async function main(args = process.argv.slice(2)) {
         throw new Error("Duplicate target identity");
       if (values.analyze !== Boolean(values["ai-config"]))
         throw new Error("--analyze and --ai-config must be supplied together");
-      const client = values.analyze ? new ModelClient(await readJson(values["ai-config"])) : null;
-      if (!["github-api", "git"].includes(values.reader))
+      const client = values.analyze
+        ? new ModelClient(await readJson(values["ai-config"] as string))
+        : null;
+      if (!["github-api", "git"].includes(values.reader as string))
         throw new Error("--reader must be github-api or git");
-      const repositories = new Map();
+      const repositories = new Map<string, GitRepository>();
       const source =
         values.reader === "git"
           ? new GitSource({
-              repositoryFor: (repo) => {
+              repositoryFor: (repo: string) => {
                 if (!repositories.has(repo))
                   repositories.set(
                     repo,
@@ -96,25 +100,29 @@ export async function main(args = process.argv.slice(2)) {
                       join(resolve(values["repos-dir"]), repo.replace("/", "__")),
                     ),
                   );
-                return repositories.get(repo);
+                return repositories.get(repo) as GitRepository;
               },
             })
           : new GitHubSource();
       const { scans: history } = await readState(state);
       // The latest successful scan per library, to skip folders that have not changed.
-      const latest = new Map();
+      const latest = new Map<string, Scan>();
       for (const scan of history)
         if (
           scan.coverage.status !== "failed" &&
-          (!latest.has(scan.identity) || latest.get(scan.identity).observedAt < scan.observedAt)
+          (!latest.has(scan.identity) ||
+            (latest.get(scan.identity) as Scan).observedAt < scan.observedAt)
         )
           latest.set(scan.identity, scan);
       let failures = 0;
       let skipped = 0;
       for (const [index, target] of targets.entries()) {
-        if (values["skip-unchanged"] && source.packageTree) {
+        // Only the GitHub API source can read a package tree hash cheaply.
+        const packageTree = (source as { packageTree?: (target: Target) => Promise<string> })
+          .packageTree;
+        if (values["skip-unchanged"] && packageTree) {
           const previous = latest.get(identity(target));
-          const tree = await source.packageTree(target);
+          const tree = await packageTree.call(source, target);
           if (
             previous?.provenance.packageTree === tree &&
             previous.provenance.collectorVersion === COLLECTOR_VERSION
@@ -166,27 +174,28 @@ export async function main(args = process.argv.slice(2)) {
       const wanted = new Set(libraries.map((item) => `${item.repo}:${item.root}`));
       const only = values.only ? new Set(values.only.split(",").map((item) => item.trim())) : null;
       const { scans } = await readState(state);
-      const latest = new Map();
+      const latest = new Map<string, Scan>();
       for (const scan of scans)
         if (
           scan.provenance.origin === "public-github" &&
-          (!latest.has(scan.identity) || latest.get(scan.identity).observedAt < scan.observedAt)
+          (!latest.has(scan.identity) ||
+            (latest.get(scan.identity) as Scan).observedAt < scan.observedAt)
         )
           latest.set(scan.identity, scan);
-      let targets = [...latest.values()].filter(
-        (scan) =>
+      let scanTargets = [...latest.values()].filter(
+        (scan: Scan) =>
           wanted.has(`${scan.target.repo}:${scan.target.root}`) &&
           scan.analysis.status !== "complete" &&
           (!only || only.has(scan.identity) || only.has(scan.target.package)),
       );
-      if (values.limit) targets = targets.slice(0, Number(values.limit));
+      if (values.limit) scanTargets = scanTargets.slice(0, Number(values.limit));
       const client = values.exchange
         ? new ExchangeClient(resolve(values.exchange), {
-            analystModel: values["analyst-model"],
-            reviewerModel: values["reviewer-model"],
+            analystModel: values["analyst-model"] as string,
+            reviewerModel: values["reviewer-model"] as string,
           })
-        : new ModelClient(await readJson(values["ai-config"]));
-      const result = await reviewScans(targets, client, {
+        : new ModelClient(await readJson(values["ai-config"] as string));
+      const result = await reviewScans(scanTargets, client, {
         libraries,
         cacheDirectory: join(values.exchange ? resolve(values.exchange) : state, "cache"),
         history: scans,
@@ -197,12 +206,14 @@ export async function main(args = process.argv.slice(2)) {
       }
       console.log(
         JSON.stringify({
-          libraries: targets.length,
+          libraries: scanTargets.length,
           completed: result.completed.length,
-          pendingAnalyst: result.pending.filter((item) => item.startsWith("PENDING analyst"))
-            .length,
-          pendingReviewer: result.pending.filter((item) => item.startsWith("PENDING reviewer"))
-            .length,
+          pendingAnalyst: result.pending.filter((item: string) =>
+            item.startsWith("PENDING analyst"),
+          ).length,
+          pendingReviewer: result.pending.filter((item: string) =>
+            item.startsWith("PENDING reviewer"),
+          ).length,
           failed: result.failed,
         }),
       );
@@ -214,18 +225,19 @@ export async function main(args = process.argv.slice(2)) {
       const inventory = await discoverAll({
         reposDirectory: resolve(values["repos-dir"]),
         previous,
-        log: (message) => console.error(message),
+        log: (message: string) => console.error(message),
       });
       await writeInventory(resolve(values.inventory), inventory);
-      const count = (plane) => inventory.libraries.filter((item) => item.plane === plane).length;
+      const count = (plane: string) =>
+        inventory.libraries.filter((item) => item.plane === plane).length;
       console.log(
         JSON.stringify({
           libraries: inventory.libraries.length,
           data: count("data"),
           management: count("management"),
-          added: inventory.changes.added.length,
-          removed: inventory.changes.removed.length,
-          changed: inventory.changes.changed.length,
+          added: (inventory.changes as NonNullable<Inventory["changes"]>).added.length,
+          removed: (inventory.changes as NonNullable<Inventory["changes"]>).removed.length,
+          changed: (inventory.changes as NonNullable<Inventory["changes"]>).changed.length,
           warnings: inventory.warnings.length,
         }),
       );
@@ -302,7 +314,7 @@ export async function main(args = process.argv.slice(2)) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().catch((error) => {
+  main().catch((error: Error) => {
     console.error(`SDK metrics: ${error.message}`);
     process.exitCode = 1;
   });

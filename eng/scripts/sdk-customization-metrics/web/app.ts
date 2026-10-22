@@ -10,19 +10,76 @@ import {
   reduciblePatterns,
   selectView,
   trackerBreakdown,
-} from "./data.mjs";
-import { LANGUAGES, PLANES } from "./languages.mjs";
-export { filterCodeLinks, filterFindings } from "./data.mjs";
+} from "./data.ts";
+import { LANGUAGES, PLANES } from "./languages.ts";
+import type {
+  CandidateLink,
+  Dataset,
+  Filters,
+  FindingRecord,
+  Inventory,
+  LibraryRow,
+  PackageRecord,
+  PatternCatalog,
+  Snippet,
+  Tracker,
+  TrackerLibrary,
+} from "./types.ts";
+export { filterCodeLinks, filterFindings } from "./data.ts";
 
-function element(tag, text, className) {
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  text?: string,
+  className?: string,
+): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
   if (className) node.className = className;
   return node;
 }
 
+function byId<T extends HTMLElement = HTMLElement>(id: string): T {
+  const node = document.getElementById(id);
+  if (!node) throw new Error(`Missing #${id}`);
+  return node as T;
+}
+// Form controls whose id is only known at runtime (filters, presets).
+const control = (id: string) => byId<HTMLInputElement | HTMLSelectElement>(id);
+
+// The filter form: one string per control, plus the "accepted" checkbox.
+type FormFilters = Required<
+  Pick<
+    Filters,
+    | "plane"
+    | "language"
+    | "category"
+    | "status"
+    | "search"
+    | "service"
+    | "library"
+    | "observation"
+    | "customized"
+    | "pattern"
+  >
+> & { accepted: boolean };
+
+// A measured history point; null means "not measured", never zero.
+type TrendRow = { observedAt: string; candidates: number | null; accepted: number | null };
+
+// diagnostics.json: per-package file inventories, fetched when the diagnostics panel opens.
+type Diagnostics = {
+  packages?: Record<
+    string,
+    {
+      scanId: string;
+      sourceFiles: PackageRecord["sourceFiles"];
+      skipped: PackageRecord["coverage"]["skipped"];
+    }
+  >;
+};
+
 const repositories = new Set(LANGUAGES.map((language) => language.repo));
-export function fileUrl(repo, commit, path, tree = false) {
+export function fileUrl(repo: string, commit: string, path: string, tree = false): string {
   if (
     !repositories.has(repo) ||
     !/^[a-f0-9]{40}$/.test(commit) ||
@@ -35,7 +92,7 @@ export function fileUrl(repo, commit, path, tree = false) {
   }
   return `https://github.com/${repo}/${tree ? "tree" : "blob"}/${commit}/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
-function externalLink(url, label) {
+function externalLink(url: string, label: string) {
   const link = element("a", label);
   link.href = url;
   link.target = "_blank";
@@ -43,16 +100,16 @@ function externalLink(url, label) {
   link.setAttribute("aria-label", `${label} (opens in a new tab)`);
   return link;
 }
-export function coverageGroups(skipped) {
-  const groups = new Map();
+export function coverageGroups<T extends { reason: string }>(skipped: T[]): [string, T[]][] {
+  const groups = new Map<string, T[]>();
   for (const item of skipped) {
     if (!groups.has(item.reason)) groups.set(item.reason, []);
-    groups.get(item.reason).push(item);
+    groups.get(item.reason)!.push(item);
   }
   return [...groups.entries()];
 }
 
-function sourceLink(snippet) {
+function sourceLink(snippet: Snippet) {
   const url = new URL(snippet.sourceUrl);
   if (
     url.protocol !== "https:" ||
@@ -64,7 +121,7 @@ function sourceLink(snippet) {
   return externalLink(url.href, `${snippet.path}:${snippet.startLine}-${snippet.endLine}`);
 }
 
-function renderPackage(item) {
+function renderPackage(item: PackageRecord) {
   const details = element("details", undefined, "package-card");
   const summary = element("summary");
   summary.append(
@@ -112,7 +169,11 @@ function renderPackage(item) {
     body.append(element("p", `Error: ${message}`, "warning"));
   }
   for (const message of item.limitations) body.append(element("p", message, "muted"));
-  const inventory = (title, files, captured) => {
+  const inventory = (
+    title: string,
+    files: { path: string; kind?: string }[],
+    captured: boolean,
+  ) => {
     const group = element("details", undefined, "file-group");
     group.append(element("summary", `${title} (${files.length})`));
     const table = element("table");
@@ -165,7 +226,7 @@ function renderPackage(item) {
   return details;
 }
 
-function renderFinding(item, inspect) {
+function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
   const article = element("article");
   article.append(
     element(
@@ -239,25 +300,29 @@ function renderFinding(item, inspect) {
 }
 
 const SVG = "http://www.w3.org/2000/svg";
-function svg(tag, attributes = {}, text) {
-  const node = document.createElementNS(SVG, tag);
+function svg(tag: string, attributes: Record<string, string | number> = {}, text?: string) {
+  const node = document.createElementNS(SVG, tag) as SVGElement;
   for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
   if (text !== undefined) node.textContent = text;
   return node;
 }
 const number = new Intl.NumberFormat("en-US");
-const percent = (part, whole) => (whole ? `${((part / whole) * 100).toFixed(1)}%` : "N/A");
-function formatDate(value) {
+const percent = (part: number, whole: number) =>
+  whole ? `${((part / whole) * 100).toFixed(1)}%` : "N/A";
+function formatDate(value: string) {
   return `${value.slice(0, 10)} ${value.slice(11, 16)}`;
 }
-function niceMax(value) {
+function niceMax(value: number) {
   if (value <= 4) return 4;
   const magnitude = 10 ** Math.floor(Math.log10(value));
-  const step = [1, 2, 2.5, 5, 10].find((item) => item * magnitude * 4 >= value) * magnitude;
+  const step = [1, 2, 2.5, 5, 10].find((item) => item * magnitude * 4 >= value)! * magnitude;
   return step * 4;
 }
 
-export function renderTrendChart(rows, { showCandidates = true } = {}) {
+export function renderTrendChart(
+  rows: TrendRow[],
+  { showCandidates = true }: { showCandidates?: boolean } = {},
+) {
   const width = 640;
   const height = 240;
   const left = 44;
@@ -266,16 +331,21 @@ export function renderTrendChart(rows, { showCandidates = true } = {}) {
   const bottom = 34;
   const series = [
     {
-      key: "candidates",
+      key: "candidates" as const,
       label: "Entry points",
       className: "series-candidates",
       show: showCandidates,
     },
-    { key: "accepted", label: "Reviewed customizations", className: "series-accepted", show: true },
+    {
+      key: "accepted" as const,
+      label: "Reviewed customizations",
+      className: "series-accepted",
+      show: true,
+    },
   ].filter((item) => item.show);
   const values = rows
     .flatMap((row) => series.map((item) => row[item.key]))
-    .filter((value) => value !== null);
+    .filter((value): value is number => value !== null);
   const chart = svg("svg", {
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
@@ -287,9 +357,9 @@ export function renderTrendChart(rows, { showCandidates = true } = {}) {
   const max = niceMax(Math.max(1, ...values));
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const x = (index) =>
+  const x = (index: number) =>
     left + (rows.length < 2 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
-  const y = (value) => top + plotHeight - (value / max) * plotHeight;
+  const y = (value: number) => top + plotHeight - (value / max) * plotHeight;
   for (let tick = 0; tick <= 4; tick++) {
     const value = (max / 4) * tick;
     chart.append(
@@ -358,7 +428,7 @@ export function renderTrendChart(rows, { showCandidates = true } = {}) {
   return chart;
 }
 
-function kpi(label, value, note, variant = "") {
+function kpi(label: string, value: string, note: string, variant = "") {
   const card = element("article", undefined, `kpi metric-card ${variant}`.trim());
   card.append(
     element("span", label, "metric-label"),
@@ -368,14 +438,14 @@ function kpi(label, value, note, variant = "") {
   return card;
 }
 
-function renderCodeLink(item, inspect, selected) {
+function renderCodeLink(item: CandidateLink, inspect: (id: string) => void, selected: boolean) {
   const row = element("li", undefined, `code-link-row${selected ? " selected" : ""}`);
   const file = element("div", undefined, "code-file");
   const parts = item.path.split("/");
   file.append(
     externalLink(
       `${fileUrl(item.repo, item.commit, item.path)}#L${item.startLine}-L${item.endLine}`,
-      parts.at(-1),
+      parts.at(-1)!,
     ),
     element(
       "span",
@@ -392,13 +462,13 @@ function renderCodeLink(item, inspect, selected) {
   return row;
 }
 
-function chips(categories, onPick) {
+function chips(categories: string[], onPick: (category: string) => void) {
   const list = element("span", undefined, "chip-list");
   for (const category of categories) {
     const chip = element("button", category, "tag");
     chip.type = "button";
     chip.setAttribute("aria-label", `Filter by ${category}`);
-    chip.addEventListener("click", (event) => {
+    chip.addEventListener("click", (event: MouseEvent) => {
       event.stopPropagation();
       onPick(category);
     });
@@ -408,14 +478,15 @@ function chips(categories, onPick) {
 }
 
 export async function start() {
-  const byId = (id) => document.getElementById(id);
   const loadStatus = byId("load-status");
   try {
     // dashboard.json is the page's lighter copy of metrics.json (no per-file inventories).
-    let response = await fetch("./dashboard.json", { cache: "no-store" }).catch(() => null);
+    let response: Response | null = await fetch("./dashboard.json", { cache: "no-store" }).catch(
+      () => null,
+    );
     if (!response?.ok) response = await fetch("./metrics.json", { cache: "no-store" });
     if (!response.ok) throw new Error(`Metrics download failed: HTTP ${response.status}`);
-    const data = await response.json();
+    const data: Dataset = await response.json();
     if (
       data.schemaVersion !== 1 ||
       (data.historyVersion !== undefined && data.historyVersion !== 1) ||
@@ -425,7 +496,7 @@ export async function start() {
       throw new Error("Unsupported metrics data schema");
     }
     // The manual tracker is optional; without it the dashboard shows scanned libraries only.
-    let tracker = null;
+    let tracker: Tracker | null = null;
     const trackerResponse = await fetch("./tracker.json", { cache: "no-store" }).catch(() => null);
     if (trackerResponse?.ok) {
       const candidate = await trackerResponse.json();
@@ -434,7 +505,7 @@ export async function start() {
       tracker = candidate;
     }
     // The library inventory (every tsp-location.yaml) is optional too.
-    let inventory = null;
+    let inventory: Inventory | null = null;
     const inventoryResponse = await fetch("./inventory.json", { cache: "no-store" }).catch(
       () => null,
     );
@@ -445,7 +516,7 @@ export async function start() {
       inventory = candidate;
     }
     // Pattern catalog (synonyms -> canonical pattern), published with the guidelines.
-    let catalog = { patterns: [] };
+    let catalog: PatternCatalog = { patterns: [] };
     const catalogResponse = await fetch("./guidelines/patterns.json", { cache: "no-store" }).catch(
       () => null,
     );
@@ -459,7 +530,7 @@ export async function start() {
       byId("plane").append(option);
     }
     const defaultPlane = inventory ? "data" : "";
-    if (!inventory) byId("plane").closest("label").hidden = true;
+    if (!inventory) byId("plane").closest("label")!.hidden = true;
     const categories = tracker?.categories ?? [
       "Auth",
       "Convenience methods",
@@ -497,9 +568,9 @@ export async function start() {
       byId("observation").append(option);
     }
     if (!tracker) {
-      byId("customized").closest("label").hidden = true;
-      byId("measure").value = "candidates";
-      for (const option of byId("measure").options)
+      byId("customized").closest("label")!.hidden = true;
+      byId<HTMLSelectElement>("measure").value = "candidates";
+      for (const option of byId<HTMLSelectElement>("measure").options)
         option.hidden = option.value === "share" || option.value === "libraries";
     }
 
@@ -517,14 +588,14 @@ export async function start() {
       "pattern",
     ];
     for (const id of ["from", "group", "measure"])
-      if (params.has(id)) byId(id).value = params.get(id);
-    for (const id of fields) byId(id).value = params.get(id) ?? "";
-    byId("plane").value = params.has("plane") ? params.get("plane") : defaultPlane;
+      if (params.has(id)) control(id).value = params.get(id)!;
+    for (const id of fields) control(id).value = params.get(id) ?? "";
+    control("plane").value = params.has("plane") ? params.get("plane")! : defaultPlane;
     // Older links used short finding categories (?category=LRO).
-    if (params.get("category") && !byId("category").value)
-      byId("category").value = canonicalCategory(params.get("category"));
-    byId("accepted").checked = params.get("accepted") === "true";
-    byId("fixed").checked = params.get("fixed") !== "false";
+    if (params.get("category") && !control("category").value)
+      control("category").value = canonicalCategory(params.get("category")!);
+    byId<HTMLInputElement>("accepted").checked = params.get("accepted") === "true";
+    byId<HTMLInputElement>("fixed").checked = params.get("fixed") !== "false";
     let instance = params.get("instance") ?? "";
     let patternStatus = params.get("patterns") ?? "reducible";
     let sort = params.get("sort") ?? (tracker ? "customized" : "package");
@@ -536,14 +607,16 @@ export async function start() {
     let codeLimit = 10;
     const expandedLibraries = new Set();
     const update = () => {
-      const filters = Object.fromEntries(fields.map((id) => [id, byId(id).value]));
-      filters.accepted = byId("accepted").checked;
+      const filters = Object.fromEntries(
+        fields.map((id) => [id, control(id).value]),
+      ) as unknown as FormFilters;
+      filters.accepted = byId<HTMLInputElement>("accepted").checked;
       const snapshot =
         data.observations?.find((item) => item.observedAt === filters.observation) ?? data;
       // Libraries come from the tracker (always current) joined to the selected scan observation.
       const libraries = mergeLibraries(tracker, snapshot.packages, inventory);
       const rows = filterLibraries(libraries, snapshot.findings, filters, resolvePattern);
-      const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan!.identity));
       const scanFilters = {
         language: filters.language,
         category: filters.category,
@@ -575,40 +648,42 @@ export async function start() {
       for (const [key, value] of Object.entries(filters)) if (value) query.set(key, String(value));
       if (!filters.plane && defaultPlane) query.set("plane", "");
       for (const id of ["from", "group", "measure"])
-        if (byId(id).value) query.set(id, byId(id).value);
-      if (!byId("fixed").checked) query.set("fixed", "false");
+        if (control(id).value) query.set(id, control(id).value);
+      if (!byId<HTMLInputElement>("fixed").checked) query.set("fixed", "false");
       if (instance) query.set("instance", instance);
       if (patternStatus !== "reducible") query.set("patterns", patternStatus);
       query.set("sort", sort);
       query.set("descending", String(descending));
       history.replaceState(null, "", `${location.pathname}${query.size ? `?${query}` : ""}`);
 
-      byId("q-language").value = filters.language;
-      byId("q-service").value = filters.service;
-      byId("q-category").value = filters.category;
-      byId("q-review").value = filters.accepted ? "counted" : "";
+      control("q-language").value = filters.language;
+      control("q-service").value = filters.service;
+      control("q-category").value = filters.category;
+      control("q-review").value = filters.accepted ? "counted" : "";
 
-      const inspect = (id) => {
+      const inspect = (id: string) => {
         instance = id;
         update();
         byId("instance-detail").focus({ preventScroll: true });
         if (matchMedia("(max-width: 900px)").matches)
           byId("instance-detail").scrollIntoView({ block: "start" });
       };
-      const pickCategory = (category) => {
-        byId("category").value = category;
-        byId("library").value = "";
+      const pickCategory = (category: string) => {
+        control("category").value = category;
+        control("library").value = "";
         instance = "";
         update();
       };
 
       // Overview
-      const tracked = rows.filter((row) => row.tracker);
+      const tracked = rows.filter((row): row is LibraryRow & { tracker: TrackerLibrary } =>
+        Boolean(row.tracker),
+      );
       const customized = tracked.filter((row) => row.tracker.customized);
       const repos = new Set(rows.map((row) => row.repo));
       const scanned = rows.filter((row) => row.scan);
       const latest = scanned
-        .map((row) => row.scan.observedAt)
+        .map((row) => row.scan!.observedAt)
         .sort()
         .at(-1);
       byId("observation-meta").textContent = [
@@ -620,13 +695,13 @@ export async function start() {
       ].join(" | ");
       const reviewable = view.scope.filter((item) => !item.excluded).length;
       if (tracker) {
-        const counts = new Map();
+        const counts = new Map<string, number>();
         for (const row of customized)
           for (const category of row.tracker.categories)
             counts.set(category, (counts.get(category) ?? 0) + 1);
-        const [top, topCount] = [...counts].sort(
-          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-        )[0] ?? ["N/A", 0];
+        const [top, topCount] =
+          [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ??
+          (["N/A", 0] as [string, number]);
         const services = new Set(rows.map((row) => row.service)).size;
         const langs = new Set(rows.map((row) => row.language)).size;
         byId("metric-cards").replaceChildren(
@@ -685,13 +760,15 @@ export async function start() {
       // Reducible customizations: statuses are decided across all libraries in the plane;
       // the table lists patterns that occur in the libraries matching the other filters.
       const planeRows = libraries.filter((row) => !filters.plane || row.plane === filters.plane);
-      const planeIds = new Set(planeRows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const planeIds = new Set(
+        planeRows.filter((row) => row.scan).map((row) => row.scan!.identity),
+      );
       const patterns = reduciblePatterns(
         snapshot.findings.filter((item) => planeIds.has(item.identity)),
         planeRows,
         catalog,
       );
-      const inScope = new Set(rows.filter((row) => row.scan).map((row) => row.scan.identity));
+      const inScope = new Set(rows.filter((row) => row.scan).map((row) => row.scan!.identity));
       const scopedPatterns = patterns.filter((pattern) =>
         snapshot.findings.some(
           (item) =>
@@ -745,7 +822,7 @@ export async function start() {
           "generated",
         ),
       );
-      const statuses = [
+      const statuses: [string, string][] = [
         ["reducible", "Reducible"],
         ["spec-candidate", "Same service, several languages"],
         ["dormant", "Dormant only"],
@@ -790,7 +867,7 @@ export async function start() {
         clear.type = "button";
         clear.setAttribute("aria-label", "Clear pattern filter");
         clear.addEventListener("click", () => {
-          byId("pattern").value = "";
+          control("pattern").value = "";
           update();
         });
         byId("reducible-status").append(" ", clear);
@@ -804,8 +881,8 @@ export async function start() {
           button.type = "button";
           button.setAttribute("aria-label", `Show libraries with pattern ${pattern.name}`);
           button.addEventListener("click", () => {
-            byId("pattern").value = pattern.id;
-            byId("library").value = "";
+            control("pattern").value = pattern.id;
+            control("library").value = "";
             instance = "";
             update();
             byId("explorer-title").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -858,23 +935,23 @@ export async function start() {
         );
 
       // Breakdown
-      const group = byId("group").value;
-      const measure = byId("measure").value;
-      const label = (key) => (group === "language" ? languageLabel(key) : key);
+      const group = control("group").value;
+      const measure = control("measure").value;
+      const label = (key: string) => (group === "language" ? languageLabel(key) : key);
       const portfolio = new Map(trackerBreakdown(rows, group).map((row) => [row.key, row]));
       // Scanned measures follow the same group keys as the tracker (its service names win).
-      const scannedGroups = new Map();
-      const addScanned = (key, field, amount = 1) => {
+      const scannedGroups = new Map<string, { candidates: number; accepted: number }>();
+      const addScanned = (key: string, field: "candidates" | "accepted", amount = 1) => {
         if (!scannedGroups.has(key)) scannedGroups.set(key, { candidates: 0, accepted: 0 });
-        scannedGroups.get(key)[field] += amount;
+        scannedGroups.get(key)![field] += amount;
       };
       const rowByIdentity = new Map(
-        rows.filter((row) => row.scan).map((row) => [row.scan.identity, row]),
+        rows.filter((row) => row.scan).map((row) => [row.scan!.identity, row]),
       );
-      const keyFor = (identity, fallback) => {
+      const keyFor = (identity: string, fallback: { language: string; service?: string }) => {
         const row = rowByIdentity.get(identity);
         return group === "service"
-          ? (row?.service ?? fallback.service)
+          ? (row?.service ?? fallback.service)!
           : (row?.language ?? fallback.language);
       };
       for (const link of codeLinks)
@@ -897,7 +974,7 @@ export async function start() {
         accepted: scannedGroups.get(key)?.accepted ?? 0,
       }));
       const totalTracked = tracked.length;
-      const valueOf = (row) =>
+      const valueOf = (row: (typeof table)[number]): number =>
         measure === "share"
           ? group === "category"
             ? row.libraries / Math.max(1, totalTracked)
@@ -906,7 +983,7 @@ export async function start() {
               : -1
           : measure === "libraries"
             ? row.libraries
-            : row[measure];
+            : row[measure as "candidates" | "accepted"];
       table.sort(
         (a, b) =>
           valueOf(b) - valueOf(a) || b.libraries - a.libraries || a.key.localeCompare(b.key),
@@ -951,11 +1028,11 @@ export async function start() {
           const unclassified = row.key === "Unclassified candidate";
           if (unclassified) button.disabled = true;
           const track = element("span", undefined, "bar-track");
-          let text;
+          let text: string;
           if (stacked) {
             // Segments are shares of all libraries in the group (share) or counts (libraries).
             const scale = measure === "share" ? row.libraries || 1 : scaleMax;
-            const segments = [
+            const segments: [string, number][] = [
               ["fill-custom", row.customized],
               ["fill-generated", row.tracked - row.customized],
               ["fill-untracked", row.libraries - row.tracked],
@@ -995,8 +1072,8 @@ export async function start() {
             element("span", text, "bar-value"),
           );
           button.addEventListener("click", () => {
-            byId(group).value = row.key;
-            byId("library").value = "";
+            control(group).value = row.key;
+            control("library").value = "";
             instance = "";
             update();
           });
@@ -1048,30 +1125,34 @@ export async function start() {
           ...row,
           customized: row.tracker ? (row.tracker.customized ? 1 : 0) : -1,
           accepted: row.scan
-            ? accepted.filter((item) => item.identity === row.scan.identity).length
+            ? accepted.filter((item) => item.identity === row.scan!.identity).length
             : -1,
           candidates: row.scan ? (row.scan.customizationLinks?.length ?? 0) : -1,
           reviewed: Boolean(
-            row.scan && view.assessed.some((item) => item.identity === row.scan.identity),
+            row.scan && view.assessed.some((item) => item.identity === row.scan!.identity),
           ),
         }))
         .sort((a, b) => {
-          const left = a[sort] ?? a.package;
-          const right = b[sort] ?? b.package;
+          const sortValue = (row: typeof a): string | number =>
+            (row as unknown as Record<string, string | number | undefined>)[sort] ?? row.package;
+          const left = sortValue(a);
+          const right = sortValue(b);
           return (
-            (typeof left === "number" ? left - right : String(left).localeCompare(String(right))) *
-              (descending ? -1 : 1) || a.package.localeCompare(b.package)
+            (typeof left === "number"
+              ? left - (right as number)
+              : String(left).localeCompare(String(right))) * (descending ? -1 : 1) ||
+            a.package.localeCompare(b.package)
           );
         });
-      for (const button of document.querySelectorAll("[data-sort]"))
-        button.parentElement.setAttribute(
+      for (const button of document.querySelectorAll<HTMLElement>("[data-sort]"))
+        button.parentElement!.setAttribute(
           "aria-sort",
           button.dataset.sort === sort ? (descending ? "descending" : "ascending") : "none",
         );
       byId("library-count").textContent =
         `${number.format(libraryRows.length)} matching ${libraryRows.length === 1 ? "library" : "libraries"}. Select one for its details and code.`;
-      const chooseLibrary = (id) => {
-        byId("library").value = id;
+      const chooseLibrary = (id: string) => {
+        control("library").value = id;
         instance = "";
         update();
         byId("code-title").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1099,7 +1180,7 @@ export async function start() {
           );
           show.type = "button";
           show.addEventListener("click", () => {
-            byId("accepted").checked = false;
+            byId<HTMLInputElement>("accepted").checked = false;
             update();
           });
           emptyNote.append(
@@ -1195,14 +1276,14 @@ export async function start() {
         const close = element("button", "Show all libraries", "secondary small");
         close.type = "button";
         close.addEventListener("click", () => {
-          byId("library").value = "";
+          control("library").value = "";
           instance = "";
           update();
         });
         head.append(close);
         card.append(head);
         const facts = element("dl", undefined, "facts");
-        const fact = (term, value) => {
+        const fact = (term: string, value: string | Node) => {
           const wrap = element("div");
           wrap.append(element("dt", term));
           const dd = element("dd");
@@ -1263,10 +1344,10 @@ export async function start() {
       }
 
       // Customization code
-      const byLibrary = new Map();
+      const byLibrary = new Map<string, CandidateLink[]>();
       for (const item of codeLinks) {
         if (!byLibrary.has(item.identity)) byLibrary.set(item.identity, []);
-        byLibrary.get(item.identity).push(item);
+        byLibrary.get(item.identity)!.push(item);
       }
       // Long lists page: 10 libraries at a time, 8 files per library until expanded.
       const scopeKey = JSON.stringify(filters);
@@ -1358,7 +1439,7 @@ export async function start() {
           : `No scanned customization files match.${unscanned ? ` ${number.format(unscanned)} matching libraries are not scanned yet.` : ""} Discovery is incomplete; this is not proof of absence.`;
 
       byId("findings").replaceChildren(...findings.map((item) => renderFinding(item, inspect)));
-      document.querySelector(".reviewed-results").open =
+      document.querySelector<HTMLDetailsElement>(".reviewed-results")!.open =
         findings.length > 0 || Boolean(filters.status || filters.accepted);
       byId("result-count").textContent = `(${findings.length})`;
       byId("findings").classList.toggle("empty-state", findings.length === 0);
@@ -1390,7 +1471,7 @@ export async function start() {
         detail.append(element("p", "Select “Preview code” on a file to read it here.", "muted"));
       } else if (finding) {
         detail.append(renderFinding(finding));
-        const item = snapshot.packages.find((pkg) => pkg.identity === finding.identity);
+        const item = snapshot.packages.find((pkg) => pkg.identity === finding.identity)!;
         detail.append(
           element(
             "p",
@@ -1450,15 +1531,15 @@ export async function start() {
       const observationRows = historyRows(
         data.observations ?? [],
         historyFilters,
-        byId("fixed").checked,
-        byId("from").value,
+        byId<HTMLInputElement>("fixed").checked,
+        control("from").value,
       );
       const comparable = observationRows.filter((row) => row.accepted !== null);
       const sameVersion = new Set(comparable.map((row) => row.version)).size <= 1;
       const showCandidates = !semantic && !filters.category;
       const measured = observationRows.filter((row) => row.candidates !== null).length;
       byId("history-status").textContent = [
-        `${observationRows.length} scan observations${byId("fixed").checked ? " · fixed cohort" : ""}.`,
+        `${observationRows.length} scan observations${byId<HTMLInputElement>("fixed").checked ? " · fixed cohort" : ""}.`,
         tracker ? "The manual tracker is a single snapshot, so history comes from code scans." : "",
         showCandidates && measured < observationRows.length
           ? `${observationRows.length - measured} early scans predate entry-point discovery and are gaps, not zeros.`
@@ -1483,7 +1564,7 @@ export async function start() {
           button.type = "button";
           button.setAttribute("aria-label", `Show observation ${row.observedAt}`);
           button.addEventListener("click", () => {
-            byId("observation").value = row.observedAt;
+            control("observation").value = row.observedAt;
             instance = "";
             update();
           });
@@ -1522,7 +1603,7 @@ export async function start() {
       byId("provenance").textContent =
         `Observation ${filters.observation || "latest available"}; schema ${snapshot.schemaVersion}, history v${data.historyVersion ?? 0}. Export ${data.generatedAt}.${tracker ? ` Tracker ${tracker.source}, SHA-256 ${tracker.sourceSha256.slice(0, 12)}.` : ""} Human overrides apply as of the observation timestamp, not retroactively.`;
       // Package cards (with file inventories) render only while diagnostics are open.
-      const withFiles = (item) => {
+      const withFiles = (item: PackageRecord): PackageRecord => {
         const files = diagnostics?.packages?.[item.identity];
         if (!files || files.scanId !== item.scanId) return item;
         return {
@@ -1532,10 +1613,13 @@ export async function start() {
         };
       };
       byId("packages").replaceChildren(
-        ...(byId("diagnostics").open
+        ...(byId<HTMLDetailsElement>("diagnostics").open
           ? [
               ...new Map(
-                [...view.scope, ...failures].map((item) => [item.identity, item]),
+                [...view.scope, ...failures].map((item): [string, PackageRecord] => [
+                  item.identity,
+                  item,
+                ]),
               ).values(),
             ].map((item) => renderPackage(withFiles(item)))
           : []),
@@ -1544,9 +1628,9 @@ export async function start() {
         `${view.scope.length} scanned libraries. Technical inventory is not a customization count.`;
     };
 
-    let diagnostics = null;
+    let diagnostics: Diagnostics | null = null;
     byId("diagnostics").addEventListener("toggle", async () => {
-      if (byId("diagnostics").open && !diagnostics) {
+      if (byId<HTMLDetailsElement>("diagnostics").open && !diagnostics) {
         const loaded = await fetch("./diagnostics.json", { cache: "no-store" }).catch(() => null);
         diagnostics = loaded?.ok ? await loaded.json() : { packages: {} };
       }
@@ -1554,25 +1638,25 @@ export async function start() {
     });
     const controls = [...fields, "accepted", "from", "fixed", "group", "measure"];
     for (const id of controls)
-      byId(id).addEventListener(id === "search" || id === "from" ? "input" : "change", () => {
+      control(id).addEventListener(id === "search" || id === "from" ? "input" : "change", () => {
         if (fields.includes(id) || id === "accepted") instance = "";
         update();
       });
     byId("filters").addEventListener("submit", (event) => event.preventDefault());
-    for (const button of document.querySelectorAll("[data-sort]"))
+    for (const button of document.querySelectorAll<HTMLElement>("[data-sort]"))
       button.addEventListener("click", () => {
-        const numeric = ["candidates", "accepted", "customized"].includes(button.dataset.sort);
+        const numeric = ["candidates", "accepted", "customized"].includes(button.dataset.sort!);
         descending = sort === button.dataset.sort ? !descending : numeric;
-        sort = button.dataset.sort;
+        sort = button.dataset.sort!;
         update();
       });
     const reset = () => {
-      for (const id of [...fields, "from"]) byId(id).value = "";
-      byId("plane").value = defaultPlane;
-      byId("accepted").checked = false;
+      for (const id of [...fields, "from"]) control(id).value = "";
+      control("plane").value = defaultPlane;
+      byId<HTMLInputElement>("accepted").checked = false;
       instance = "";
     };
-    const jump = (id) => byId(id).scrollIntoView({ behavior: "smooth", block: "start" });
+    const jump = (id: string) => byId(id).scrollIntoView({ behavior: "smooth", block: "start" });
     byId("clear-filters").addEventListener("click", () => {
       reset();
       update();
@@ -1580,37 +1664,37 @@ export async function start() {
     byId("query").addEventListener("submit", (event) => {
       event.preventDefault();
       const values = {
-        language: byId("q-language").value,
-        service: byId("q-service").value,
-        category: byId("q-category").value,
-        counted: byId("q-review").value === "counted",
+        language: control("q-language").value,
+        service: control("q-service").value,
+        category: control("q-category").value,
+        counted: control("q-review").value === "counted",
       };
       reset();
-      byId("language").value = values.language;
-      byId("service").value = values.service;
-      byId("category").value = values.category;
-      byId("accepted").checked = values.counted;
+      control("language").value = values.language;
+      control("service").value = values.service;
+      control("category").value = values.category;
+      byId<HTMLInputElement>("accepted").checked = values.counted;
       update();
       jump("explorer-title");
     });
     byId("java-lro").addEventListener("click", () => {
       reset();
-      byId("language").value = "java";
-      byId("category").value = "LRO / polling";
+      control("language").value = "java";
+      control("category").value = "LRO / polling";
       update();
       jump("explorer-title");
     });
-    for (const button of document.querySelectorAll("[data-preset]"))
+    for (const button of document.querySelectorAll<HTMLElement>("[data-preset]"))
       button.addEventListener("click", () => {
         reset();
         for (const [key, value] of new URLSearchParams(button.dataset.preset))
-          byId(key).value = value;
+          control(key).value = value;
         update();
-        jump(button.dataset.preset.includes("group=") ? "summary-title" : "explorer-title");
+        jump(button.dataset.preset!.includes("group=") ? "summary-title" : "explorer-title");
       });
     update();
   } catch (error) {
-    loadStatus.textContent = `Unable to display metrics: ${error.message}`;
+    loadStatus.textContent = `Unable to display metrics: ${(error as Error).message}`;
     loadStatus.setAttribute("role", "alert");
     loadStatus.className = "status alert";
   }

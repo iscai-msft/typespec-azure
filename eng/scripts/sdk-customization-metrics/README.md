@@ -20,13 +20,13 @@ From the repository root:
 ```sh
 mise trust
 mise install
-mise exec -- node --test eng/scripts/sdk-customization-metrics/test/*.test.mjs
+mise exec -- node --test eng/scripts/sdk-customization-metrics/test/*.test.ts
 
 # Public GitHub GET requests only. Optional GITHUB_TOKEN improves rate limits.
 # No model calls: every new scan has explicit "missing" analysis.
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs collect
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs validate
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs export
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts collect
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts validate
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts export
 
 # Serve the exported files locally (stop with Ctrl+C).
 mise exec -- python -m http.server 8000 \
@@ -68,7 +68,7 @@ inventory for captured evidence; the underlying immutable scan schema is unchang
 No cloning or execution of SDK code occurs.
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs query \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts query \
   --db eng/scripts/sdk-customization-metrics/.local/site/metrics.sqlite \
   --sql "SELECT package, module_major, subtype, explanation, snippets_json
          FROM accepted_customizations
@@ -86,11 +86,11 @@ effective view, not the full history.
 ## Evidence, identity, and coverage
 
 Source-of-truth records are immutable JSON files in `STATE/records/`; human
-decisions are immutable files in `STATE/overrides/`. `schema.mjs` declares closed,
+decisions are immutable files in `STATE/overrides/`. `schema.ts` declares closed,
 versioned JSON Schemas and a deliberately small, dependency-free validator for
 the vocabulary those schemas use. Unsupported keywords fail closed. Additional
 semantic validation checks content hashes, identities, pinned URLs, line ranges,
-review completeness, and generated-only claims. `cli.mjs schema` prints a
+review completeness, and generated-only claims. `cli.ts schema` prints a
 Draft 2020-12 scan schema with the override schema in `$defs`.
 
 Identity is `language:package:module-vN`, independent of a release version or
@@ -128,7 +128,7 @@ For the optional browser smoke test, restore the repository's development
 dependencies and install its existing Playwright Chromium build, then run:
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/test/browser-check.mjs
+mise exec -- node eng/scripts/sdk-customization-metrics/test/browser-check.ts
 ```
 
 This test uses an isolated local HTTP server and synthetic export, checks
@@ -153,7 +153,7 @@ integration exercise.
 3. Explicitly opt into calls:
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs collect \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts collect \
   --analyze --ai-config /path/to/approved-ai.json
 ```
 
@@ -184,7 +184,7 @@ Unchanged evidence on a new commit reuses review without new calls.
 its `tsp-location.yaml`, and writes `inventory/libraries.json`:
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs discover
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts discover
 ```
 
 It uses shallow, blob-less git clones (cached under `.local/repos`), so listing a whole
@@ -210,7 +210,7 @@ repository data and is always published with the site when present.
 ### Scanning discovered libraries
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs collect \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts collect \
   --from-inventory --plane data --reader git --skip-unchanged
 ```
 
@@ -234,12 +234,12 @@ them, so the export grows linearly with runs rather than with libraries × runs.
 
 ### Adding a language
 
-Add one entry to `web/languages.mjs`: id, label, repository, source file extensions,
+Add one entry to `web/languages.ts`: id, label, repository, source file extensions,
 package manifests (`*` matches one path segment), how to read the package name
 (`directory`, `package.json`, or `go.mod`), an optional package-root pattern, and plane
 patterns. Discovery, the scan schema, file filters, dashboard filters and labels all read
 this list. For better code links, add the language's customization entry-point heuristic
-to `navigation.mjs`; without one, scans still capture source but list no entry points.
+to `navigation.ts`; without one, scans still capture source but list no entry points.
 
 ## AI review and reducible customizations
 
@@ -256,9 +256,9 @@ recorded as "not sent for review", never as absent.
 
 ```sh
 # Approved model API (what the weekly workflow does):
-cli.mjs review --state state --plane data --ai-config approved-ai.json
+cli.ts review --state state --plane data --ai-config approved-ai.json
 # Or a file exchange answered outside the tool: each run advances analyst -> reviewer -> done
-cli.mjs review --state state --plane data --exchange DIR \
+cli.ts review --state state --plane data --exchange DIR \
   --analyst-model NAME --reviewer-model NAME [--only pkg,pkg] [--limit N]
 ```
 
@@ -300,13 +300,13 @@ tracker: one CSV row per library with the columns `Service`, `Language`, `Packag
 to export explicitly:
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs export \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts export \
   --state eng/scripts/sdk-customization-metrics/state \
   --tracker path/to/tracker.csv \
   --out eng/scripts/sdk-customization-metrics/.local/review-site
 ```
 
-`tracker.mjs` validates every row (known language, public `Azure/azure-sdk-for-*`
+`tracker.ts` validates every row (known language, public `Azure/azure-sdk-for-*`
 tree link, Yes/No flag, unique repository path) and writes `tracker.json` next to
 `metrics.json`. Free-text "What was customized" notes are normalized into canonical
 categories (`LRO / polling`, `Pagination`, `Auth`, `Convenience methods`, …); one note
@@ -440,7 +440,7 @@ maintenance changes. Do not edit/delete historical scans or override files.
 ## Optional private legacy import
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs import-legacy \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts import-legacy \
   --input /path/to/tracker-packages.tsv
 ```
 
@@ -511,12 +511,12 @@ coverage and missing AI analysis; there are no accepted customization findings.
 CI adds fresh scans for the deployed database but does not push generated scans
 back to the branch. Private local tracker imports are never committed.
 
-`publish.mjs` requires a nonempty site homepage, refuses an existing route
+`publish.ts` requires a nonempty site homepage, refuses an existing route
 collision, excludes fixture/private import records, and checks that the original
 homepage is unchanged. To exercise the additive step against a local website:
 
 ```sh
-mise exec -- node eng/scripts/sdk-customization-metrics/cli.mjs publish \
+mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts publish \
   --state eng/scripts/sdk-customization-metrics/.local/state \
   --out website/dist
 ```

@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { canonicalPackageName } from "./schema.mjs";
-import { digest } from "./source.mjs";
+import { canonicalPackageName } from "./schema.ts";
+import { digest } from "./source.ts";
 
-export function parseTsv(text) {
-  const rows = [];
-  let row = [];
+export function parseTsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let field = "";
   let quoted = false;
   for (let index = 0; index < text.length; index++) {
@@ -33,7 +33,10 @@ export function parseTsv(text) {
   return rows;
 }
 
-export async function importLegacy(input, stateDirectory) {
+export async function importLegacy(
+  input: string,
+  stateDirectory: string,
+): Promise<{ output: string; rows: number; identities: number }> {
   const text = await readFile(input, "utf8");
   const [header, ...rows] = parseTsv(text.replace(/^\uFEFF/, ""));
   const expected = [
@@ -47,7 +50,7 @@ export async function importLegacy(input, stateDirectory) {
   ];
   if (!header || expected.some((name) => !header.includes(name)))
     throw new Error("Unexpected legacy TSV columns");
-  const aliases = {
+  const aliases: Record<string, string> = {
     python: "python",
     java: "java",
     go: "go",
@@ -59,7 +62,7 @@ export async function importLegacy(input, stateDirectory) {
     "c#": "dotnet",
     dotnet: "dotnet",
   };
-  const identities = new Map();
+  const identities = new Map<string, Record<string, unknown>>();
   const imported = rows
     .filter((row) => row.some(Boolean))
     .map((values, index) => {

@@ -4,24 +4,41 @@ import {
   entryPoint,
   javaHandwrittenMembers,
   navigationContext,
-} from "./navigation.mjs";
-import { identity, scanSchema, validate } from "./schema.mjs";
-import { LANGUAGES } from "./web/languages.mjs";
+} from "./navigation.ts";
+import { identity, scanSchema, validate } from "./schema.ts";
+import type { Analysis, Evidence, Scan, ScanLimits, SourceFile, Target } from "./web/types.ts";
+import { LANGUAGES } from "./web/languages.ts";
+
+// Reads a file's text; supplied by each reader (GitHub API or git clone).
+export type BlobReader = (file: SourceFile) => Promise<string>;
+// The part of a git clone that GitSource uses (see discover.ts).
+interface GitRepositoryReader {
+  sync(): Promise<string>;
+  treeSha(commit: string, path: string): Promise<string>;
+  entries(
+    commit: string,
+    prefix: string,
+  ): Promise<{ path: string; sha: string; mode: string; type: string }[]>;
+  read(shas: string[]): Promise<Map<string, string>>;
+}
 
 export const COLLECTOR_VERSION = "4";
-export const digest = (value) =>
+export const digest = (value: unknown) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
     .digest("hex");
-export const lines = (text) => text.split("\n");
+export const lines = (text: string) => text.split("\n");
 // Evidence IDs: the path for a whole file, path#startLine for an excerpt.
-export const evidenceId = (evidence) =>
+export const evidenceId = (evidence: Pick<Evidence, "path" | "startLine" | "excerpt">) =>
   digest(evidence.excerpt ? `${evidence.path}#${evidence.startLine}` : evidence.path);
 // Lines start..end (1-based, inclusive, file line numbers) of a whole-file or excerpt evidence.
-export const evidenceLines = (evidence, start, end) =>
-  lines(evidence.text).slice(start - evidence.startLine, end - evidence.startLine + 1);
-export const sourceLineCount = (text) => lines(text).length - (text.endsWith("\n") ? 1 : 0);
-export const emptyAnalysis = () => ({
+export const evidenceLines = (
+  evidence: Pick<Evidence, "text" | "startLine">,
+  start: number,
+  end: number,
+) => lines(evidence.text).slice(start - evidence.startLine, end - evidence.startLine + 1);
+export const sourceLineCount = (text: string) => lines(text).length - (text.endsWith("\n") ? 1 : 0);
+export const emptyAnalysis = (): Analysis => ({
   status: "missing",
   cacheKey: "",
   analystModel: "",
@@ -35,7 +52,10 @@ export const emptyAnalysis = () => ({
   errors: [],
 });
 
-export function newScan(target, origin = "public-github") {
+export function newScan(
+  target: Target,
+  origin: Scan["provenance"]["origin"] = "public-github",
+): Scan {
   return {
     schemaVersion: 1,
     id: randomUUID(),
@@ -59,12 +79,18 @@ export function newScan(target, origin = "public-github") {
   };
 }
 
-export function sourceUrl(repo, commit, path, start, end) {
+export function sourceUrl(
+  repo: string,
+  commit: string,
+  path: string,
+  start?: number,
+  end?: number,
+): string {
   const url = `https://github.com/${repo}/blob/${commit}/${path.split("/").map(encodeURIComponent).join("/")}`;
   return start ? `${url}#L${start}-L${end}` : url;
 }
 
-export function classify(path, text) {
+export function classify(path: string, text: string): Evidence["kind"] {
   if (
     /auto[- ]generated|automatically generated|code generated|@Generated\b/i.test(
       text.slice(0, 6000),
@@ -78,7 +104,7 @@ export function classify(path, text) {
   return "unknown";
 }
 
-const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const extensions = Object.fromEntries(
   LANGUAGES.map((language) => [
     language.id,
@@ -89,28 +115,29 @@ const contextFiles =
   /(?:^|\/)(?:tsp-location\.yaml|tspconfig\.yaml|readme\.md|autorest\.md|go\.mod|pom\.xml|package\.json|pyproject\.toml|[^/]+\.csproj)$/i;
 const excludedPaths =
   /(?:^|\/)(?:tests?|samples?|testdata|node_modules|vendor|target|dist)(?:\/|$)/i;
-export function eligible(target, path) {
+export function eligible(target: Target, path: string): boolean {
   return (
     extensions[target.language].test(path) &&
     !excludedPaths.test(path) &&
     !/(?:_test\.go|\.test\.[jt]s)$/i.test(path)
   );
 }
-const isContext = (path) => contextFiles.test(path) && !excludedPaths.test(path);
-function priority(path) {
+const isContext = (path: string) => contextFiles.test(path) && !excludedPaths.test(path);
+function priority(path: string): number {
   if (/(?:^|\/)(?:custom|customizations?)(?:\/|$)|(?:^|\/)_patch\.py$/i.test(path)) return 0;
   if (isContext(path)) return 1;
   if (/poll|lro/i.test(path)) return 2;
   if (/(?:^|\/)(?:models|generated)(?:\/|$)/i.test(path)) return 4;
   return 3;
 }
-const fileOrder = (a, b) => priority(a.path) - priority(b.path) || a.path.localeCompare(b.path);
+const fileOrder = (a: { path: string }, b: { path: string }) =>
+  priority(a.path) - priority(b.path) || a.path.localeCompare(b.path);
 
 export function capture(
-  scan,
-  files,
-  { maxFiles = 20, maxFileBytes = 16000, maxTotalBytes = 100000 } = {},
-) {
+  scan: Scan,
+  files: SourceFile[],
+  { maxFiles = 20, maxFileBytes = 16000, maxTotalBytes = 100000 }: ScanLimits = {},
+): Scan {
   let bytes = 0;
   let captured = 0;
   for (const file of [...files].sort(fileOrder)) {
@@ -168,7 +195,7 @@ export function capture(
 }
 
 // Line range of a Java member: from its first annotation/Javadoc line to its closing brace.
-export function javaMemberRange(text, declarationLine) {
+export function javaMemberRange(text: string, declarationLine: number): [number, number] {
   const all = lines(text);
   let start = declarationLine;
   while (start > 1) {
@@ -200,8 +227,12 @@ const REVIEW_PRIORITY = [
   /^(?:Python patch|Java customization script|Go custom source)$/,
   /^Java members without @Generated|\/custom/i,
 ];
-export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 } = {}) {
-  const rank = (link) => {
+export function reviewEvidence(
+  scan: Scan,
+  texts: Map<string, string>,
+  { budget = 40000, maxChunk = 24000 }: { budget?: number; maxChunk?: number } = {},
+): Evidence[] {
+  const rank = (link: { provenance: string; path: string }) => {
     const index = REVIEW_PRIORITY.findIndex(
       (pattern) => pattern.test(link.provenance) || pattern.test(link.path),
     );
@@ -211,15 +242,21 @@ export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 }
     (a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path),
   );
   let used = 0;
-  const evidence = [];
-  const add = (path, text, startLine, endLine, excerpt) => {
+  const evidence: Evidence[] = [];
+  const add = (
+    path: string,
+    text: string,
+    startLine: number,
+    endLine: number,
+    excerpt: boolean,
+  ) => {
     // Whole files keep their exact text (and hash); excerpts are the selected lines.
     const lineText = excerpt
       ? lines(text)
           .slice(startLine - 1, endLine)
           .join("\n")
       : text;
-    const item = {
+    const item: Omit<Evidence, "id"> & { id?: string } = {
       path,
       text: lineText,
       contentHash: digest(lineText),
@@ -230,7 +267,7 @@ export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 }
       ...(excerpt ? { excerpt: true } : {}),
     };
     item.id = evidenceId(item);
-    evidence.push(item);
+    evidence.push(item as Evidence);
     used += Buffer.byteLength(lineText);
   };
   for (const link of ordered) {
@@ -245,11 +282,11 @@ export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 }
         .map((member) => javaMemberRange(text, member.line))
         .sort((a, b) => a[0] - b[0]);
       // Merge overlapping or adjacent member ranges.
-      const merged = [];
+      const merged: [number, number][] = [];
       for (const range of ranges) {
         const last = merged.at(-1);
         if (last && range[0] <= last[1] + 1) last[1] = Math.max(last[1], range[1]);
-        else merged.push([...range]);
+        else merged.push([range[0], range[1]]);
       }
       for (const [start, end] of merged) {
         if (used >= budget) break;
@@ -280,7 +317,12 @@ export function reviewEvidence(scan, texts, { budget = 40000, maxChunk = 24000 }
 
 // Shared by every reader: given the package's files ({ path, sha, size, mode }) and a way to
 // read one, find customization entry points and capture bounded evidence into the scan.
-export async function scanFiles(scan, files, readBlob, limits = {}) {
+export async function scanFiles(
+  scan: Scan,
+  files: SourceFile[],
+  readBlob: BlobReader,
+  limits: ScanLimits = {},
+): Promise<void> {
   const target = scan.target;
   scan.coverage.discoveredFiles = files.length;
   const context = navigationContext(
@@ -295,7 +337,8 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
   let navigationBytes = 0;
   const navigationFiles = files.filter(
     (file) =>
-      entryPoint(target.language, file.path, context) && ["100644", "100755"].includes(file.mode),
+      entryPoint(target.language, file.path, context) &&
+      ["100644", "100755"].includes(file.mode ?? ""),
   );
   for (const file of navigationFiles.slice(0, maxNavigationFiles)) {
     if (file.size > 1000000 || navigationBytes + file.size > maxNavigationBytes) {
@@ -307,7 +350,7 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
     }
     const text = await readBlob(file);
     navigationBytes += file.size;
-    let baseline;
+    let baseline: string | undefined;
     if (target.language === "javascript") {
       const generated = files.find(
         (item) =>
@@ -335,12 +378,12 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
     });
   if (limits.review) {
     // Context files (manifests, tsp-location.yaml) as before; evidence is the review set.
-    const texts = new Map();
+    const texts = new Map<string, string>();
     for (const link of scan.navigation) {
       const file = files.find((item) => item.path === link.path);
-      texts.set(link.path, await readBlob(file));
+      texts.set(link.path, await readBlob(file as SourceFile));
     }
-    const contextFiles = [];
+    const contextFiles: SourceFile[] = [];
     for (const file of files.filter((item) => isContext(item.path) && item.size <= 16000))
       contextFiles.push({ ...file, text: await readBlob(file) });
     capture(scan, contextFiles, { maxFiles: 10, maxFileBytes: 16000, maxTotalBytes: 60000 });
@@ -350,14 +393,14 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
     return;
   }
   // Choose files before fetching, so limits also bound network work.
-  const selected = [];
+  const selected: SourceFile[] = [];
   let total = 0;
   const maxFiles = limits.maxFiles ?? 20;
   const maxFileBytes = limits.maxFileBytes ?? 16000;
   const maxTotalBytes = limits.maxTotalBytes ?? 100000;
   for (const file of files.sort(fileOrder)) {
     if (!eligible(target, file.path) && !isContext(file.path)) continue;
-    if (!["100644", "100755"].includes(file.mode)) continue;
+    if (!["100644", "100755"].includes(file.mode ?? "")) continue;
     if (
       file.size > maxFileBytes ||
       selected.length >= maxFiles ||
@@ -377,11 +420,18 @@ export async function scanFiles(scan, files, readBlob, limits = {}) {
 }
 
 export class GitHubSource {
-  constructor({ token = process.env.GITHUB_TOKEN, fetcher = fetch } = {}) {
+  token: string | undefined;
+  fetcher: typeof fetch;
+  constructor({
+    token = process.env.GITHUB_TOKEN,
+    fetcher = fetch,
+  }: { token?: string; fetcher?: typeof fetch } = {}) {
     this.token = token;
     this.fetcher = fetcher;
   }
-  async get(repo, path) {
+  // GitHub REST responses are arbitrary JSON, narrowed at each use.
+  // biome-ignore lint/suspicious/noExplicitAny: untyped GitHub API payloads
+  async get(repo: string, path: string): Promise<any> {
     const response = await this.fetcher(
       `https://api.github.com/repos/${repo}${path ? `/${path}` : ""}`,
       {
@@ -397,7 +447,7 @@ export class GitHubSource {
     if (!response.ok) throw new Error(`GitHub ${response.status} for ${path}`);
     return response.json();
   }
-  async collect(target, limits = {}) {
+  async collect(target: Target, limits: ScanLimits = {}): Promise<Scan> {
     const scan = newScan(target);
     try {
       const metadata = await this.get(target.repo, "");
@@ -414,7 +464,9 @@ export class GitHubSource {
       for (const segment of target.root.split("/")) {
         const tree = await this.get(target.repo, `git/trees/${treeSha}`);
         if (tree.truncated) throw new Error("Truncated directory tree");
-        const entry = tree.tree.find((item) => item.path === segment && item.type === "tree");
+        const entry = tree.tree.find(
+          (item: { path: string; type: string }) => item.path === segment && item.type === "tree",
+        );
         if (!entry) throw new Error(`Package root missing: ${target.root}`);
         treeSha = entry.sha;
       }
@@ -422,12 +474,12 @@ export class GitHubSource {
       const tree = await this.get(target.repo, `git/trees/${treeSha}?recursive=1`);
       if (tree.truncated) throw new Error("Truncated package tree; discovery incomplete");
       const files = tree.tree
-        .filter((item) => item.type === "blob")
-        .map((file) => ({
+        .filter((item: { type: string }) => item.type === "blob")
+        .map((file: SourceFile) => ({
           ...file,
           path: `${target.root}/${file.path}`,
         }));
-      const readBlob = async (file) => {
+      const readBlob: BlobReader = async (file) => {
         const blob = await this.get(target.repo, `git/blobs/${file.sha}`);
         if (blob.encoding !== "base64") throw new Error(`Unexpected blob encoding: ${file.path}`);
         const content = Buffer.from(blob.content, "base64");
@@ -437,30 +489,32 @@ export class GitHubSource {
       await scanFiles(scan, files, readBlob, limits);
     } catch (error) {
       scan.coverage.status = "failed";
-      scan.coverage.errors.push(error.message);
+      scan.coverage.errors.push((error as Error).message);
     }
     validate(scanSchema, scan);
     return scan;
   }
 }
 
-// Reads packages from shallow, blob-less git clones (see discover.mjs). One clone per
+// Reads packages from shallow, blob-less git clones (see discover.ts). One clone per
 // repository is synced once per run; only the files a scan may read are downloaded.
 export class GitSource {
-  constructor({ repositoryFor }) {
+  repositoryFor: (repo: string) => GitRepositoryReader;
+  commits: Map<string, Promise<string>>;
+  constructor({ repositoryFor }: { repositoryFor: (repo: string) => GitRepositoryReader }) {
     this.repositoryFor = repositoryFor;
     this.commits = new Map();
   }
-  async commitOf(repo) {
+  async commitOf(repo: string): Promise<string> {
     if (!this.commits.has(repo)) this.commits.set(repo, this.repositoryFor(repo).sync());
-    return this.commits.get(repo);
+    return this.commits.get(repo) as Promise<string>;
   }
   // The package folder's tree hash at the synced commit, or "" when the folder is gone.
-  async packageTree(target) {
+  async packageTree(target: Target): Promise<string> {
     const commit = await this.commitOf(target.repo);
     return this.repositoryFor(target.repo).treeSha(commit, target.root);
   }
-  async collect(target, limits = {}) {
+  async collect(target: Target, limits: ScanLimits = {}): Promise<Scan> {
     const scan = newScan(target);
     scan.provenance.reader = "git";
     try {
@@ -491,11 +545,11 @@ export class GitSource {
         path: entry.path,
         sha: entry.sha,
         mode: entry.mode,
-        size: texts.has(entry.sha) ? Buffer.byteLength(texts.get(entry.sha)) : 0,
+        size: texts.has(entry.sha) ? Buffer.byteLength(texts.get(entry.sha) as string) : 0,
       }));
-      const readBlob = async (file) => {
-        if (!texts.has(file.sha)) throw new Error(`Blob not downloaded: ${file.path}`);
-        return texts.get(file.sha);
+      const readBlob: BlobReader = async (file) => {
+        if (!texts.has(file.sha as string)) throw new Error(`Blob not downloaded: ${file.path}`);
+        return texts.get(file.sha as string) as string;
       };
       await scanFiles(scan, files, readBlob, {
         navigationFiles: 5000,
@@ -506,7 +560,7 @@ export class GitSource {
       });
     } catch (error) {
       scan.coverage.status = "failed";
-      scan.coverage.errors.push(error.message);
+      scan.coverage.errors.push((error as Error).message);
     }
     validate(scanSchema, scan);
     return scan;

@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { findingKey } from "../analysis.mjs";
-import { capture, newScan } from "../source.mjs";
-import { append, exportData } from "../store.mjs";
-import { normalizeTracker } from "../tracker.mjs";
+import type { Browser } from "playwright";
+import { findingKey } from "../analysis.ts";
+import { capture, newScan } from "../source.ts";
+import { append, exportData } from "../store.ts";
+import { normalizeTracker } from "../tracker.ts";
 
 // Local-only synthetic browser fixture. Never publish this export.
 const directory = await mkdtemp(join(tmpdir(), "sdk-metrics-browser-"));
@@ -78,13 +80,13 @@ await exportData(state, site, { includeFixtures: true });
 let failData = false;
 const prefix = "/typespec-azure/sdk-customization-metrics";
 const server = createServer(async (request, response) => {
-  const pathname = new URL(request.url, "http://localhost").pathname;
+  const pathname = new URL(request.url!, "http://localhost").pathname;
   const path = pathname.startsWith(`${prefix}/`) ? pathname.slice(prefix.length) : "";
-  const files = {
+  const files: Record<string, [string, string]> = {
     "/": ["index.html", "text/html"],
-    "/app.mjs": ["app.mjs", "text/javascript"],
-    "/data.mjs": ["data.mjs", "text/javascript"],
-    "/languages.mjs": ["languages.mjs", "text/javascript"],
+    "/app.js": ["app.js", "text/javascript"],
+    "/data.js": ["data.js", "text/javascript"],
+    "/languages.js": ["languages.js", "text/javascript"],
     "/style.css": ["style.css", "text/css"],
     "/metrics.json": ["metrics.json", "application/json"],
     "/dashboard.json": ["dashboard.json", "application/json"],
@@ -103,17 +105,17 @@ const server = createServer(async (request, response) => {
     response.writeHead(500).end();
   }
 });
-let browser;
+let browser: Browser | undefined;
 try {
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    server.listen(0, "127.0.0.1", () => resolve());
   });
-  const url = `http://127.0.0.1:${server.address().port}${prefix}/`;
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}${prefix}/`;
   assert.equal((await fetch(url)).status, 200);
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  const pageErrors = [];
+  const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(url);
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
@@ -135,14 +137,14 @@ try {
   assert.equal(await page.locator("#diagnostics").getAttribute("open"), null);
   assert.equal(await page.locator(".code-link-card").count(), 1);
   assert.match(await page.locator(".code-link-card").innerText(), /Candidate; AI review pending/);
-  assert.match(await page.locator(".code-link-row a").getAttribute("href"), /#L1-L4$/);
+  assert.match((await page.locator(".code-link-row a").getAttribute("href"))!, /#L1-L4$/);
   await page.locator("#coverage-title").click();
   assert.match(await page.locator(".notice").last().innerText(), /not collection failures/);
   await page.locator(".package-card > summary").click();
   await page.getByText("Outside the file-count budget (1)", { exact: true }).click();
   const excluded = page.getByRole("link", { name: /Not captured #1.java/ });
   assert.match(
-    await excluded.getAttribute("href"),
+    (await excluded.getAttribute("href"))!,
     /\/blob\/a{40}\/sdk\/synthetic\/browser-test-only\/custom\/Not%20captured%20%231.java$/,
   );
   assert.equal(await excluded.getAttribute("target"), "_blank");
@@ -172,7 +174,7 @@ try {
   await page.locator("#language").selectOption("go");
   assert.equal(await page.locator("#findings article").count(), 0);
   assert.equal(await page.locator(".package-card").count(), 0);
-  assert.match(await page.locator("#findings").textContent(), /does not establish absence/);
+  assert.match((await page.locator("#findings").textContent())!, /does not establish absence/);
   assert.match(await page.locator("#library-empty").innerText(), /No libraries match/);
   await page.locator("#language").selectOption("java");
   await page.locator("#status").selectOption("inconclusive");
@@ -182,8 +184,14 @@ try {
   await page.locator("#findings article details").first().locator("summary").click();
   assert.match(await page.locator("#findings article pre").innerText(), /<script>/);
   assert.equal(await page.locator("article script").count(), 0);
-  assert.equal(await page.evaluate(() => window.injected), undefined);
-  assert.match(await page.locator("#findings article a").getAttribute("href"), /\/blob\/a{40}\//);
+  assert.equal(
+    await page.evaluate(() => (window as unknown as { injected?: unknown }).injected),
+    undefined,
+  );
+  assert.match(
+    (await page.locator("#findings article a").getAttribute("href"))!,
+    /\/blob\/a{40}\//,
+  );
   await page.locator("#search").fill("no-match");
   assert.equal(await page.locator("#findings article").count(), 0);
   assert.equal(await page.locator("#result-count").innerText(), "(0)");
@@ -363,6 +371,6 @@ try {
   );
 } finally {
   if (browser) await browser.close();
-  await new Promise((resolve) => server.close(resolve));
+  await new Promise<void>((resolve) => server.close(() => resolve()));
   await rm(directory, { recursive: true, force: true });
 }
