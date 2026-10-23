@@ -9,6 +9,7 @@ import {
   patternResolver,
   reduciblePatterns,
   selectView,
+  serviceName,
   trackerBreakdown,
 } from "./data.ts";
 import { LANGUAGES, PLANES } from "./languages.ts";
@@ -597,6 +598,9 @@ export async function start() {
     for (const id of ["from", "group", "measure"])
       if (params.has(id)) control(id).value = params.get(id)!;
     for (const id of fields) control(id).value = params.get(id) ?? "";
+    // Older links named services as group/project ("ai/DocumentIntelligence").
+    if (params.get("service")?.includes("/"))
+      control("service").value = serviceName(params.get("service"));
     control("plane").value = params.has("plane") ? params.get("plane")! : defaultPlane;
     // Older links used short finding categories (?category=LRO).
     if (params.get("category") && !control("category").value)

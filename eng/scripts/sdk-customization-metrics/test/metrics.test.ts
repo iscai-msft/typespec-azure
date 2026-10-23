@@ -75,6 +75,7 @@ import {
   reduciblePatterns,
   selectView,
   serviceOf,
+  serviceName,
   specService,
   trackerBreakdown,
 } from "../web/data.ts";
@@ -1765,6 +1766,22 @@ test("services come from the TypeSpec project in tsp-location.yaml", () => {
     "ai-foundry/Foundry/sdk-x",
   );
   assert.equal(specService(""), "");
+  // Dashboard names: the project only, without group or namespace prefixes.
+  assert.equal(serviceName("specification/ai/DocumentIntelligence"), "DocumentIntelligence");
+  assert.equal(serviceName("specification/keyvault/Security.KeyVault.Keys"), "Keys");
+  assert.equal(serviceName("specification/keyvault/data-plane/Keys"), "Keys");
+  assert.equal(
+    serviceName("specification/keyvault/Administration/BackupRestore"),
+    "Administration",
+  );
+  assert.equal(serviceName("specification/purview/Analytics.Purview.DataMap"), "DataMap");
+  assert.equal(serviceName("specification/monitor/Query.Logs"), "Query.Logs");
+  assert.equal(
+    serviceName("specification/confidentialledger/Microsoft.CodeTransparency"),
+    "CodeTransparency",
+  );
+  assert.equal(serviceName("specification/ai-foundry/data-plane/Foundry/src/sdk-x"), "Foundry");
+  assert.equal(serviceName(""), "");
   for (const directory of [
     "specification/monitor/Monitor.Ingestion",
     "specification/monitor/Azure.Monitor.Ingestion",
@@ -1801,7 +1818,7 @@ test("services come from the TypeSpec project in tsp-location.yaml", () => {
       ),
     ],
   } as Inventory);
-  assert.deepEqual([...new Set(rows.map((row) => row.service))], ["ai/DocumentIntelligence"]);
+  assert.deepEqual([...new Set(rows.map((row) => row.service))], ["DocumentIntelligence"]);
 });
 
 test("entry points follow the language guidelines", () => {
