@@ -272,7 +272,7 @@ findings by catalog pattern and applies the definition in `guidelines/SKILL.md`:
 is reducible when it recurs in two or more services (TypeSpec projects, normalized across
 spellings), at least one library with it is active (released or changed in the last 12
 months), and most instances are not judged service-specific. Other statuses: same service in
-several languages (spec-fix candidate), dormant only, one-off, service-specific.
+several languages (spec-fix candidate), dormant only, and one-off or service-specific.
 
 `ai.github-models.example.json` shows a GitHub Models configuration. It sets
 `approvedPublicSource: true`; use it only after approval to send public SDK source to that

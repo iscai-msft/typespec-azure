@@ -72,7 +72,8 @@ in at least two services, at least one of those libraries is active (released or
 in the last 365 days), and at most half its instances are judged service-specific.
 Other statuses: **spec-candidate** (one service, several languages: fix in the spec),
 **dormant** (only in libraries untouched for a year; "stable" means not touched in a
-while, not GA), **one-off**, **service-specific**, **unknown**. Defined in
+while, not GA), **one-off or service-specific** (one status: only one library has it, or most instances
+are judged tied to their service), **unknown**. Defined in
 `guidelines/SKILL.md`; computed in `web/data.ts` (`reduciblePatterns`).
 
 ## Status (October 22, 2026)
@@ -81,7 +82,7 @@ while, not GA), **one-off**, **service-specific**, **unknown**. Defined in
   CI type-checks). Unit tests: 50. Browser smoke test: `test/browser-check.ts`.
 - Pilot AI review of 22 data-plane libraries (in-session, no provider costs): 135
   accepted findings, 8 rejected, 8 inconclusive. After normalizing services: 12
-  reducible patterns, 3 spec-candidates, 3 service-specific, 1 dormant, 16 one-off. Top
+  reducible patterns, 3 spec-candidates, 1 dormant, 19 one-off or service-specific. Top
   reducible: options-unpacking convenience overloads, typed wrappers over protocol
   methods, auth audience/scope options, alternative model constructors, hiding generated
   surface. Review coverage is about 10% of data-plane libraries.

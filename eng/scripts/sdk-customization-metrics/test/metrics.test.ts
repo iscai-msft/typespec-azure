@@ -2129,7 +2129,8 @@ test("reducible patterns recur across services and are not service-specific", ()
   assert.equal(isDormant(rows[3], now), true);
   assert.equal(isDormant(rows[0], now), false);
   assert.equal(isDormant({} as LibraryRow, now), false);
-  assert.equal(byId["service-quirk"].status, "service-specific");
+  assert.equal(byId["service-quirk"].status, "one-off");
+  assert.match(byId["service-quirk"].reason, /service-specific/);
   assert.equal(byId.ignored, undefined);
 });
 
