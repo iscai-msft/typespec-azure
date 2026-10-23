@@ -774,7 +774,8 @@ export async function start() {
       }
 
       // Reducible customizations: statuses are decided across all libraries in the plane;
-      // the table lists patterns that occur in the libraries matching the other filters.
+      // the table lists patterns that occur in the libraries matching the other filters and,
+      // when a category is chosen, only patterns with reviewed findings in that category.
       const planeRows = libraries.filter((row) => !filters.plane || row.plane === filters.plane);
       const planeIds = new Set(
         planeRows.filter((row) => row.scan).map((row) => row.scan!.identity),
@@ -790,6 +791,7 @@ export async function start() {
           (item) =>
             item.counted &&
             inScope.has(item.identity) &&
+            (!filters.category || canonicalCategory(item.category) === filters.category) &&
             resolvePattern(item.pattern).id === pattern.id,
         ),
       );
@@ -869,7 +871,7 @@ export async function start() {
         element(
           "span",
           reviewedLibraries
-            ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries. Unreviewed libraries are not counted either way.`
+            ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries. Unreviewed libraries are not counted either way.${filters.category ? ` Showing patterns with reviewed “${filters.category}” findings; counts and status cover all of each pattern's instances.` : ""}`
             : "No library has been AI-reviewed yet, so no patterns are known.",
         ),
       );
