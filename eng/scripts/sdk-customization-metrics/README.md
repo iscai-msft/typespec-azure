@@ -262,6 +262,10 @@ cli.ts review --state state --plane data --exchange DIR \
   --analyst-model NAME --reviewer-model NAME [--only pkg,pkg] [--limit N]
 ```
 
+To run the exchange with a coding agent (such as Copilot) answering the requests, follow
+[AI-REVIEW-WITH-AN-AGENT.md](./AI-REVIEW-WITH-AN-AGENT.md); `cli.ts check-exchange --exchange DIR`
+lists unanswered requests and checks answers before the next run.
+
 Findings carry a `pattern` (kebab-case name of the reusable shape) and `generatorAddressable`
 (yes/no/unclear). The dashboard's **Reducible customizations** section groups accepted
 findings by catalog pattern and applies the definition in `guidelines/SKILL.md`: a pattern

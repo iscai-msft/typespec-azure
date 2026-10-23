@@ -123,3 +123,99 @@ export async function reviewScans(
   }
   return { completed, pending, failed };
 }
+
+export interface ExchangeCheck {
+  name: string;
+  status: "missing" | "ok" | "invalid";
+  problems: string[];
+}
+
+// Checks every request in an exchange folder against its answer (if any): JSON shape per the
+// request's schema, evidence ids and line ranges that exist and are not blank, and, for
+// reviewer requests, exactly one decision per proposal. Answering agents run this before the
+// next `review` run, which repeats the same checks and rejects bad answers.
+export async function checkExchange(directory: string): Promise<ExchangeCheck[]> {
+  const { readdir } = await import("node:fs/promises");
+  const { evidenceLines } = await import("./source.ts");
+  let names: string[];
+  try {
+    names = (await readdir(join(directory, "requests"))).filter((name) => name.endsWith(".json"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  const results: ExchangeCheck[] = [];
+  for (const name of names.sort()) {
+    const request = JSON.parse(await readFile(join(directory, "requests", name), "utf8"));
+    let text: string;
+    try {
+      text = await readFile(join(directory, "responses", name), "utf8");
+    } catch {
+      results.push({ name, status: "missing", problems: [] });
+      continue;
+    }
+    const problems: string[] = [];
+    let response: any;
+    try {
+      response = JSON.parse(text);
+    } catch (error) {
+      results.push({
+        name,
+        status: "invalid",
+        problems: [`not JSON: ${(error as Error).message}`],
+      });
+      continue;
+    }
+    try {
+      validate(request.schema, response);
+    } catch (error) {
+      problems.push(`schema: ${(error as Error).message}`);
+    }
+    const evidence = new Map<
+      string,
+      { path: string; text: string; startLine: number; endLine: number }
+    >((request.data.evidence ?? []).map((item: { id: string }) => [item.id, item]));
+    const findings = [
+      ...(response.findings ?? []),
+      ...(response.omissions ?? []),
+      ...(response.decisions ?? [])
+        .map((item: { finding?: unknown }) => item.finding)
+        .filter(Boolean),
+    ];
+    for (const finding of findings) {
+      for (const ref of finding.evidence ?? []) {
+        const item = evidence.get(ref.id);
+        if (!item) {
+          problems.push(`${finding.key}: unknown evidence id ${ref.id}`);
+          continue;
+        }
+        if (
+          ref.startLine < item.startLine ||
+          ref.endLine > item.endLine ||
+          ref.startLine > ref.endLine
+        )
+          problems.push(
+            `${finding.key}: lines ${ref.startLine}-${ref.endLine} outside ${item.path} ${item.startLine}-${item.endLine}`,
+          );
+        else if (!evidenceLines(item, ref.startLine, ref.endLine).join("\n").trim())
+          problems.push(`${finding.key}: cites only blank lines`);
+      }
+    }
+    if (request.role === "reviewer") {
+      const keys = new Set((request.data.proposals ?? []).map((item: { key: string }) => item.key));
+      const decided = new Set((response.decisions ?? []).map((item: { key: string }) => item.key));
+      for (const key of keys) if (!decided.has(key)) problems.push(`missing decision for ${key}`);
+      for (const item of response.decisions ?? []) {
+        if (!keys.has(item.key)) problems.push(`decision for unknown key ${item.key}`);
+        if (item.status === "revised" && !item.finding)
+          problems.push(`${item.key}: "revised" needs a finding`);
+        if (item.finding && item.status !== "revised")
+          problems.push(`${item.key}: only "revised" may include a finding`);
+        if (item.finding && item.finding.key !== item.key)
+          problems.push(`${item.key}: a revised finding keeps its key`);
+      }
+    }
+    results.push({ name, status: problems.length ? "invalid" : "ok", problems });
+  }
+  return results;
+}
