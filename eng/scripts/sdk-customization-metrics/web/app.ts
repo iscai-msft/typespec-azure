@@ -6,6 +6,7 @@ import {
   historyRows,
   languageLabel,
   mergeLibraries,
+  patternLabel,
   patternResolver,
   reduciblePatterns,
   selectView,
@@ -47,6 +48,9 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 // Form controls whose id is only known at runtime (filters, presets).
 const control = (id: string) => byId<HTMLInputElement | HTMLSelectElement>(id);
+
+// A pattern's display name (catalog name, or the id in words); set once the catalog loads.
+let patternName = (id: string) => patternLabel(id);
 
 // Human review: loaded once at start; rerender redraws the page after a review is submitted.
 let reviewState: ReviewState | null = null;
@@ -250,7 +254,7 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
       ? [
           element(
             "p",
-            `Pattern: ${item.pattern} · generator-addressable: ${item.generatorAddressable ?? "unclear"}`,
+            `Pattern: ${patternName(item.pattern)} · generator-addressable: ${item.generatorAddressable ?? "unclear"}`,
             "muted",
           ),
         ]
@@ -529,6 +533,7 @@ export async function start() {
     );
     if (catalogResponse?.ok) catalog = await catalogResponse.json();
     const resolvePattern = patternResolver(catalog);
+    patternName = (id) => resolvePattern(id).name;
     reviewState = await loadReviewState(catalog.patterns.map((item) => item.id));
     const allLibraries = mergeLibraries(tracker, data.packages, inventory);
     const languages = LANGUAGES.map((language) => language.id);
