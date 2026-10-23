@@ -604,7 +604,11 @@ export async function start() {
     byId<HTMLInputElement>("accepted").checked = params.get("accepted") === "true";
     byId<HTMLInputElement>("fixed").checked = params.get("fixed") !== "false";
     let instance = params.get("instance") ?? "";
-    let patternStatus = params.get("patterns") ?? "reducible";
+    // "service-specific" was merged into "one-off"; older links keep working.
+    let patternStatus = (params.get("patterns") ?? "reducible").replace(
+      "service-specific",
+      "one-off",
+    );
     let sort = params.get("sort") ?? (tracker ? "customized" : "package");
     let descending = params.has("descending")
       ? params.get("descending") === "true"
@@ -834,8 +838,7 @@ export async function start() {
         ["reducible", "Reducible"],
         ["spec-candidate", "Same service, several languages"],
         ["dormant", "Dormant only"],
-        ["one-off", "One-off"],
-        ["service-specific", "Service-specific"],
+        ["one-off", "One-off or service-specific"],
         ["all", "All patterns"],
       ];
       byId("reducible-filters").replaceChildren(

@@ -500,7 +500,8 @@ export function reduciblePatterns(
         status = "unknown";
         reason = "No pattern recorded";
       } else if (serviceSpecific) {
-        status = "service-specific";
+        // One status for "not worth a generator fix": unique to one library or one service.
+        status = "one-off";
         reason = `${votes.no} of ${group.instances.length} reviewed instances are service-specific`;
       } else if (services.size >= rules.minServices && active > 0) {
         status = "reducible";
