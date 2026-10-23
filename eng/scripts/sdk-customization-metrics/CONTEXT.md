@@ -41,7 +41,7 @@ go-ahead and that repository's normal review.
 
 Inventory today: 1,334 libraries (221 data plane, 1,038 management, 75 .NET
 provisioning). Management plane is detected from "mgmt"/"management" in the package name;
-the service name is the spec project from `tsp-location.yaml` (85 data-plane services).
+the service name is the spec project from `tsp-location.yaml` (68 data-plane services; the dashboard shows the project name only, e.g. DocumentIntelligence).
 
 ## Pipeline
 
