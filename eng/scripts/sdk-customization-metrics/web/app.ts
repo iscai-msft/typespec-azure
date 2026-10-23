@@ -941,10 +941,24 @@ export async function start() {
             const td = element(
               "td",
               reviewedLibraries
-                ? "No patterns with this status in the current filters."
+                ? `No ${statusLabel[patternStatus]?.toLowerCase() ?? ""} patterns${filters.category ? ` in “${filters.category}”` : ""} in the current filters. `
                 : "Patterns appear once libraries are AI-reviewed.",
               "muted",
             );
+            // A category with patterns in other statuses: offer them rather than an empty table.
+            if (reviewedLibraries && patternStatus !== "all" && scopedPatterns.length) {
+              const all = element(
+                "button",
+                `Show all ${scopedPatterns.length} ${scopedPatterns.length === 1 ? "pattern" : "patterns"}`,
+                "secondary small",
+              );
+              all.type = "button";
+              all.addEventListener("click", () => {
+                patternStatus = "all";
+                update();
+              });
+              td.append(all);
+            }
             td.colSpan = 7;
             tr.append(td);
             return tr;
