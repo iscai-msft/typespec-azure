@@ -505,6 +505,19 @@ One small Node server that also runs locally (`cli.ts serve`) keeps both paths t
 
 ### One-time setup (TME subscription)
 
+The quickest way is the script, which does every step below and is safe to run again
+(bash: macOS, Linux, WSL or Git Bash):
+
+```bash
+az login --tenant 70a036f6-8e4d-4615-bad6-149c02e7720d
+gh auth login
+REVIEWERS='you@microsoft.com,teammate@microsoft.com' \
+  eng/scripts/sdk-customization-metrics/azure/setup.sh
+```
+
+It ends by printing the site URL and the command for the sign-in app registration; then run
+it again with `AUTH_CLIENT_ID=<appId>`. The manual steps, for reference:
+
 Run these yourself (Azure CLI, signed in to the TME tenant). They create the resource
 group, an identity for GitHub Actions with Contributor on that group only, and its trust
 for this repository's `sdk-metrics-azure` environment.
