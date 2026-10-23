@@ -522,7 +522,8 @@ export function patternLabel(id: string): string {
   return words
     .map((word, index) => {
       if (ACRONYMS.has(word)) return word === "ids" ? "IDs" : word.toUpperCase();
-      if (SPELLINGS[word]) return SPELLINGS[word];
+      // Own keys only: "constructor" is a plain word, not Object.prototype.constructor.
+      if (Object.hasOwn(SPELLINGS, word)) return SPELLINGS[word];
       return index === 0 ? word[0].toUpperCase() + word.slice(1) : word;
     })
     .join(" ");

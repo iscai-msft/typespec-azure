@@ -2374,4 +2374,5 @@ test("pattern ids read as names", () => {
   assert.equal(patternLabel("lro-operation-id"), "LRO operation ID");
   assert.equal(patternLabel("sse-typed-event-stream"), "SSE typed event stream");
   assert.equal(patternLabel("websocket-session-lifecycle"), "WebSocket session lifecycle");
+  assert.equal(patternLabel("model-constructor-to-string"), "Model constructor to string");
 });
