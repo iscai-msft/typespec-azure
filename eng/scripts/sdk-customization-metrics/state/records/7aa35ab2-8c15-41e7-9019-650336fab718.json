@@ -1,0 +1,677 @@
+{
+  "schemaVersion": 1,
+  "id": "7aa35ab2-8c15-41e7-9019-650336fab718",
+  "observedAt": "2026-10-23T19:39:21.540Z",
+  "identity": "java:azure-messaging-webpubsub-chat:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-messaging-webpubsub-chat",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/webpubsub/azure-messaging-webpubsub-chat"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "b98206f58b276ffdd199219de87924ed6b1ff3df"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 51,
+    "eligibleFiles": 30,
+    "capturedFiles": 22,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/customization/src/main/java/WebPubSubChatCustomization.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.azure.autorest.customization.PackageCustomization;\nimport org.slf4j.Logger;\n\n/** Customizes the generated Azure Web PubSub Chat client library. */\npublic final class WebPubSubChatCustomization extends Customization {\n    private static final String PACKAGE_NAME = \"com.azure.messaging.webpubsub.chat\";\n\n    @Override\n    public void customize(LibraryCustomization libraryCustomization, Logger logger) {\n        PackageCustomization chatPackage = libraryCustomization.getPackage(PACKAGE_NAME);\n\n        chatPackage.getClass(\"WebPubSubChatServiceClientBuilder\").customizeAst(ast -> {\n            ast.getClassByName(\"WebPubSubChatServiceClientBuilder\").ifPresent(builder -> {\n                if (builder.getImplementedTypes()\n                    .stream()\n                    .noneMatch(type -> type.getNameAsString().equals(\"AzureKeyCredentialTrait\"))) {\n                    builder.addImplementedType(\"AzureKeyCredentialTrait<WebPubSubChatServiceClientBuilder>\");\n                }\n                if (builder.getImplementedTypes()\n                    .stream()\n                    .noneMatch(type -> type.getNameAsString().equals(\"ConnectionStringTrait\"))) {\n                    builder.addImplementedType(\"ConnectionStringTrait<WebPubSubChatServiceClientBuilder>\");\n                }\n            });\n        });\n\n        customizeTokenClient(chatPackage, \"WebPubSubChatServiceClient\");\n        customizeTokenClient(chatPackage, \"WebPubSubChatServiceAsyncClient\");\n\n        removeTrailingJavadocWhitespace(libraryCustomization);\n    }\n\n    private static void customizeTokenClient(PackageCustomization chatPackage, String className) {\n        chatPackage.getClass(className).customizeAst(ast -> {\n            ast.getImports()\n                .removeIf(importDeclaration -> importDeclaration.getNameAsString()\n                    .equals(\"com.azure.messaging.webpubsub.chat.implementation.models.GenerateClientTokenResponse\"));\n\n            ast.getClassByName(className).ifPresent(client -> {\n                client.getMethodsByName(\"generateClientToken\").forEach(method -> method.remove());\n                client.getMethodsByName(\"generateClientTokenWithResponse\").forEach(method -> method.remove());\n            });\n        });\n    }\n\n    private static void removeTrailingJavadocWhitespace(LibraryCustomization libraryCustomization) {\n        String path\n            = \"src/main/java/com/azure/messaging/webpubsub/chat/implementation/WebPubSubChatServiceClientImpl.java\";\n        String implementation = libraryCustomization.getRawEditor().getFileContent(path);\n        libraryCustomization.getRawEditor()\n            .replaceFile(path, implementation.replace(\"* \\r\\n\", \"*\\r\\n\").replace(\"* \\n\", \"*\\n\"));\n    }\n}\n",
+      "contentHash": "4448a0653be85c4253776ae937d6ba1d0a551e95b982985aa4f555171e679991",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/customization/src/main/java/WebPubSubChatCustomization.java",
+      "startLine": 1,
+      "endLine": 58,
+      "kind": "handwritten-marker",
+      "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/ChatMessage.java",
+      "text": "            @Override\n            public ChatMessage prepareModelForJsonMergePatch(ChatMessage model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "c24bc26f4ea31a584c964321ac040216ac36a31b6629b0aae4432d043bbc547e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/ChatMessage.java",
+      "startLine": 72,
+      "endLine": 76,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "befd0a7516054cebe9f1e6546247c8aa773a02bc2e746afbad2bce897dd419a4"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/ChatMessage.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(ChatMessage model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "6ac66412249e256e8e04e75c4624a2de0d5030d54db1b6dcc8099fe58589c27f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/ChatMessage.java",
+      "startLine": 78,
+      "endLine": 81,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "487c5df1bafbc35fd01000312a568496b4a3b80ea38b5f3da43c4f35914fd6b8"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/MessageContent.java",
+      "text": "            @Override\n            public MessageContent prepareModelForJsonMergePatch(MessageContent model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "4cd25ea03ef6a8692ceab2dcd1a574f2bc0232015c147b178bb5123d6fe96c40",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/MessageContent.java",
+      "startLine": 53,
+      "endLine": 57,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5da41c4a478d8526cbd76b20fd386631e8da753b30ac631f1334afbfd062e22d"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/MessageContent.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(MessageContent model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "92dea85848308571809f5fa2fdd06b5e9a77f61e0a1dd75737b1a5469835066b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/MessageContent.java",
+      "startLine": 59,
+      "endLine": 62,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "57317b313c56b366a372b82ea23e289a8566e7bb695de1b12dde214c0ac91e29"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceAsyncClient.java",
+      "text": "    /**\n     * Creates a client access token for connecting to Azure Web PubSub Chat.\n     *\n     * @param options Options for creating the client access token.\n     * @return A publisher containing the client access token.\n     */\n    public Mono<WebPubSubClientAccessToken> getClientAccessToken(GetClientAccessTokenOptions options) {\n        return WebPubSubClientAccessTokenFactory.createAsync(serviceClient, keyCredential, options);\n    }",
+      "contentHash": "e4b54ef3f8f962239fe8bb95f6a303cec77300bf8d8a7f9ee6e9302972c963d0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceAsyncClient.java",
+      "startLine": 1654,
+      "endLine": 1662,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f0c90ab7cdf34f10ea390d19125ca5a5419257f7a051adcaa8b1951afeb03179"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClient.java",
+      "text": "    /**\n     * Creates a client access token for connecting to Azure Web PubSub Chat.\n     *\n     * @param options Options for creating the client access token.\n     * @return The client access token.\n     */\n    public WebPubSubClientAccessToken getClientAccessToken(GetClientAccessTokenOptions options) {\n        return WebPubSubClientAccessTokenFactory.create(serviceClient, keyCredential, options);\n    }",
+      "contentHash": "75edfea61782ab6775f9be30bc4699af10e678a97f13ac7dedc694dc7032d64b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClient.java",
+      "startLine": 1510,
+      "endLine": 1518,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b0d734bb1a1d0e6b03d541dcb65637cb1796a4847f4d287ba1458178e5cf1860"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    private void validateClient() {\n        Objects.requireNonNull(endpoint, \"'endpoint' cannot be null.\");\n        if (hub == null || hub.isEmpty()) {\n            throw LOGGER.logExceptionAsError(\n                new IllegalStateException(\"hub is not valid - it must be non-null and non-empty.\"));\n        }\n    }",
+      "contentHash": "43a1be5c991d1e540cb242dbc7db7600b6b8321217b0b6a9a18319d039c493d9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 298,
+      "endLine": 304,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4f455720da31ec49d84981e173d956ae094ab5fbca910213225fd771f7e8d079"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    private HttpPipeline createHttpPipeline() {\n        Configuration buildConfiguration\n            = (configuration == null) ? Configuration.getGlobalConfiguration() : configuration;\n        HttpLogOptions localHttpLogOptions = this.httpLogOptions == null ? new HttpLogOptions() : this.httpLogOptions;\n        ClientOptions localClientOptions = this.clientOptions == null ? new ClientOptions() : this.clientOptions;\n        List<HttpPipelinePolicy> policies = new ArrayList<>();\n        String clientName = PROPERTIES.getOrDefault(SDK_NAME, \"UnknownName\");\n        String clientVersion = PROPERTIES.getOrDefault(SDK_VERSION, \"UnknownVersion\");\n        String applicationId = CoreUtils.getApplicationId(localClientOptions, localHttpLogOptions);\n        policies.add(new UserAgentPolicy(applicationId, clientName, clientVersion, buildConfiguration));\n        policies.add(new RequestIdPolicy());\n        policies.add(new AddHeadersFromContextPolicy());\n        HttpHeaders headers = CoreUtils.createHttpHeadersFromClientOptions(localClientOptions);\n        if (headers != null) {\n            policies.add(new AddHeadersPolicy(headers));\n        }\n        this.pipelinePolicies.stream()\n            .filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_CALL)\n            .forEach(policies::add);\n        HttpPolicyProviders.addBeforeRetryPolicies(policies);\n        policies.add(ClientBuilderUtil.validateAndGetRetryPolicy(retryPolicy, retryOptions, new RetryPolicy()));\n        policies.add(new AddDatePolicy());\n        if (keyCredential != null) {\n            policies.add(new WebPubSubAuthenticationPolicy(keyCredential));\n        } else if (tokenCredential != null) {\n            policies.add(new BearerTokenAuthenticationPolicy(tokenCredential, DEFAULT_SCOPES));\n        } else {\n            throw LOGGER\n                .logExceptionAsError(new IllegalStateException(\"No credential available to create the client.\"));\n        }\n        if (!CoreUtils.isNullOrEmpty(reverseProxyEndpoint)) {\n            policies.add(new ReverseProxyPolicy(reverseProxyEndpoint));\n        }\n        this.pipelinePolicies.stream()\n            .filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_RETRY)\n            .forEach(policies::add);\n        HttpPolicyProviders.addAfterRetryPolicies(policies);\n        policies.add(new HttpLoggingPolicy(localHttpLogOptions));\n        return new HttpPipelineBuilder().policies(policies.toArray(new HttpPipelinePolicy[0]))\n            .httpClient(httpClient)\n            .clientOptions(localClientOptions)\n            .build();\n    }",
+      "contentHash": "f412c9ed5fbd283b10a6b1cc6cfac1cac952d31678580964fd5acb2491e4a50b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 307,
+      "endLine": 349,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fea503813aea890c18e89a098e55f2fac69dddec6ce953961d9dcf3b2b6a50af"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    /**\n     * Builds an instance of WebPubSubChatServiceAsyncClient class.\n     *\n     * @return an instance of WebPubSubChatServiceAsyncClient.\n     */\n    public WebPubSubChatServiceAsyncClient buildAsyncClient() {\n        return new WebPubSubChatServiceAsyncClient(buildInnerClient(), keyCredential);\n    }",
+      "contentHash": "4ff0bfd361a95c52f06f1e7352b79a097c88d1b9c7133a93126b06bef91a2928",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 351,
+      "endLine": 358,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "236f73319fd252ce6cc1419b56e9a872ed3b139c2d54c3ac7d2e7fcbd42e6c07"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    /**\n     * Builds an instance of WebPubSubChatServiceClient class.\n     *\n     * @return an instance of WebPubSubChatServiceClient.\n     */\n    public WebPubSubChatServiceClient buildClient() {\n        return new WebPubSubChatServiceClient(buildInnerClient(), keyCredential);\n    }",
+      "contentHash": "59a215d37aa4aa340ac040c9cb2b3605a79dba351c42124abe2cad65d5488930",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 360,
+      "endLine": 367,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f5f18548696e8baeee54b41ffc8b010bad9e43e3870430df9a7516338139c294"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    /**\n     * Sets the Azure key credential used to authenticate requests.\n     *\n     * @param credential The Azure key credential.\n     * @return The updated builder.\n     */\n    @Override\n    public WebPubSubChatServiceClientBuilder credential(AzureKeyCredential credential) {\n        this.keyCredential = Objects.requireNonNull(credential, \"'credential' cannot be null.\");\n        return this;\n    }",
+      "contentHash": "e32e376860c3f84888be99ad0583d4193c9c23d91ec59d0452c776b12d526f4e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 375,
+      "endLine": 385,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "926e9501f404c165efb779c375ff5f95d110cbe2d9f173119b19f39bc2025969"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    /**\n     * Sets the Web PubSub connection string used to configure the endpoint and access key.\n     *\n     * @param connectionString The Web PubSub connection string.\n     * @return The updated builder.\n     */\n    @Override\n    public WebPubSubChatServiceClientBuilder connectionString(String connectionString) {\n        Objects.requireNonNull(connectionString, \"'connectionString' cannot be null.\");\n        Map<String, String> connectionStringParams = parseConnectionString(connectionString);\n        if (!connectionStringParams.containsKey(\"endpoint\") || !connectionStringParams.containsKey(\"accesskey\")) {\n            throw LOGGER.logExceptionAsError(new IllegalArgumentException(\n                \"Connection string does not contain required 'endpoint' and 'accesskey' values\"));\n        }\n        this.keyCredential = new AzureKeyCredential(connectionStringParams.get(\"accesskey\"));\n        String connectionStringEndpoint = connectionStringParams.get(\"endpoint\");\n        URL url;\n        try {\n            url = new URL(connectionStringEndpoint);\n            this.endpoint = connectionStringEndpoint;\n        } catch (MalformedURLException exception) {\n            throw LOGGER.logExceptionAsWarning(\n                new IllegalArgumentException(\"Connection string contains invalid endpoint\", exception));\n        }\n        String port = connectionStringParams.get(\"port\");\n        if (!CoreUtils.isNullOrEmpty(port)) {\n            this.endpoint = UrlBuilder.parse(url).setPort(port).toString();\n        }\n        return this;\n    }",
+      "contentHash": "97d2ece67bc939264be174d4fed95c9a791672cfbfd36fd61d8dba9020186ef5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 387,
+      "endLine": 416,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2cd53bdedc3fd0e3936442b77f855c9372366f64bf8575654e57207a94e0ecda"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    /**\n     * Sets the reverse proxy endpoint.\n     *\n     * @param reverseProxyEndpoint The reverse proxy endpoint.\n     * @return The updated builder.\n     */\n    public WebPubSubChatServiceClientBuilder reverseProxyEndpoint(String reverseProxyEndpoint) {\n        this.reverseProxyEndpoint = reverseProxyEndpoint;\n        return this;\n    }",
+      "contentHash": "2c091c989409ba7fb609cc46102344ef913e1e55d0033968a42bb9e1716438a8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 418,
+      "endLine": 427,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "82bb6506b90e8bf116aa6e6f56769a13bc154059909b1aaca45311cbf94d766c"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "text": "    private Map<String, String> parseConnectionString(String connectionString) {\n        String[] parameters = connectionString.split(\";\");\n        Map<String, String> connectionStringParams = new HashMap<>();\n        for (String parameter : parameters) {\n            String[] parameterParts = parameter.split(\"=\", 2);\n            if (parameterParts.length != 2) {\n                continue;\n            }\n            String key = parameterParts[0].trim().toLowerCase(Locale.ROOT);\n            if (connectionStringParams.containsKey(key)) {\n                throw LOGGER.logExceptionAsError(new IllegalArgumentException(\n                    \"Duplicate connection string key parameter provided for key '\" + key + \"'\"));\n            }\n            connectionStringParams.put(key, parameterParts[1].trim());\n        }\n        return connectionStringParams;\n    }",
+      "contentHash": "31bb7ef91e5c3b1165757f5067ea6a760f0fac198321bd870ee0231f92532037",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 429,
+      "endLine": 445,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "13a822e3e32eb12343ebcf2f035e512bb5db784a993fb1e2dde3b657fe564797"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/BuiltInChatRoles.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat.models;\n\n/** Built-in roles supported by Azure Web PubSub Chat. */\npublic final class BuiltInChatRoles {\n    /** The normal user role. */\n    public static final String USER_NORMAL = \"user.normal\";\n\n    /** The room member role. */\n    public static final String ROOM_MEMBER = \"room.member\";\n\n    /** The room operator role. */\n    public static final String ROOM_OPERATOR = \"room.operator\";\n\n    private BuiltInChatRoles() {\n    }\n}\n",
+      "contentHash": "f394cdc969f0c5b158744ed617c07f5b89811305072bd8ddf13b602b13f6cd67",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/BuiltInChatRoles.java",
+      "startLine": 1,
+      "endLine": 19,
+      "kind": "unknown",
+      "id": "9b24a0955d68be56a42c40ef19d15f6dd1b574513021d0e5177727cb02e82026"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/GetClientAccessTokenOptions.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat.models;\n\nimport java.time.Duration;\n\n/** Options for creating a Web PubSub client access token for Chat. */\npublic final class GetClientAccessTokenOptions {\n    private Duration expiresAfter = Duration.ofHours(1);\n    private String userId;\n\n    /** Creates an instance of {@link GetClientAccessTokenOptions}. */\n    public GetClientAccessTokenOptions() {\n    }\n\n    /**\n     * Sets the duration after which the client access token expires.\n     *\n     * @param expiresAfter The token lifetime.\n     * @return The updated options.\n     */\n    public GetClientAccessTokenOptions setExpiresAfter(Duration expiresAfter) {\n        this.expiresAfter = expiresAfter;\n        return this;\n    }\n\n    /**\n     * Gets the duration after which the client access token expires.\n     *\n     * @return The token lifetime.\n     */\n    public Duration getExpiresAfter() {\n        return expiresAfter;\n    }\n\n    /**\n     * Sets the user ID included in the client access token.\n     *\n     * @param userId The user ID.\n     * @return The updated options.\n     */\n    public GetClientAccessTokenOptions setUserId(String userId) {\n        this.userId = userId;\n        return this;\n    }\n\n    /**\n     * Gets the user ID included in the client access token.\n     *\n     * @return The user ID.\n     */\n    public String getUserId() {\n        return userId;\n    }\n}\n",
+      "contentHash": "04d24396297a19746567170665f8e59d068cbd68b28a538ec2197d5a5c4fb0bf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/GetClientAccessTokenOptions.java",
+      "startLine": 1,
+      "endLine": 56,
+      "kind": "unknown",
+      "id": "9fe94e004f4c53e417c2fc0e02d15e947f4eb0ccd8fe6bce9a65456b8d180094"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/WebPubSubClientAccessToken.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat.models;\n\n/** A client access token and URL for connecting to Azure Web PubSub. */\npublic final class WebPubSubClientAccessToken {\n    private final String token;\n    private final String url;\n\n    /**\n     * Creates a Web PubSub client access token result.\n     *\n     * @param token The client access token.\n     * @param url The client connection URL.\n     */\n    public WebPubSubClientAccessToken(String token, String url) {\n        this.token = token;\n        this.url = url;\n    }\n\n    /**\n     * Gets the client access token.\n     *\n     * @return The client access token.\n     */\n    public String getToken() {\n        return token;\n    }\n\n    /**\n     * Gets the client connection URL.\n     *\n     * @return The client connection URL.\n     */\n    public String getUrl() {\n        return url;\n    }\n}\n",
+      "contentHash": "63374a51ef2dbd024fe403b9cee54e2ad13d01588bca9df4be3a94a8cc71dc27",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/WebPubSubClientAccessToken.java",
+      "startLine": 1,
+      "endLine": 39,
+      "kind": "unknown",
+      "id": "13192ebc02311f3cc8c942a5de342e197f07de8bf3327c579f78650f00a333c3"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/ReverseProxyPolicy.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat;\n\nimport com.azure.core.http.HttpPipelineCallContext;\nimport com.azure.core.http.HttpPipelineNextPolicy;\nimport com.azure.core.http.HttpRequest;\nimport com.azure.core.http.HttpResponse;\nimport com.azure.core.http.policy.HttpPipelinePolicy;\nimport com.azure.core.util.CoreUtils;\nimport reactor.core.publisher.Mono;\n\nimport java.net.URL;\n\n/**\n * Routes requests through a reverse proxy using the Web PubSub service SDK convention.\n */\nfinal class ReverseProxyPolicy implements HttpPipelinePolicy {\n    private final String reverseProxyEndpoint;\n\n    ReverseProxyPolicy(String reverseProxyEndpoint) {\n        this.reverseProxyEndpoint = reverseProxyEndpoint;\n    }\n\n    @Override\n    public Mono<HttpResponse> process(HttpPipelineCallContext context, HttpPipelineNextPolicy next) {\n        URL url = context.getHttpRequest().getUrl();\n        String reverseProxyUrl = reverseProxyEndpoint;\n        String path = url.getPath();\n        if (!CoreUtils.isNullOrEmpty(path)) {\n            reverseProxyUrl += path;\n        }\n        String query = url.getQuery();\n        if (!CoreUtils.isNullOrEmpty(query)) {\n            reverseProxyUrl += \"?\" + query;\n        }\n\n        HttpRequest requestCopy = context.getHttpRequest().copy();\n        context.setHttpRequest(requestCopy.setUrl(reverseProxyUrl));\n        return next.clone().process();\n    }\n}\n",
+      "contentHash": "a9277ed953ac4cb3321ebb44ade5b6ad7bc51443488db2c78fbd63f47f2b0398",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/ReverseProxyPolicy.java",
+      "startLine": 1,
+      "endLine": 43,
+      "kind": "unknown",
+      "id": "6891eb258943677c43d02d881ac0b7f0229475bb698fb4c899a9cdcf598a2b49"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubAuthenticationPolicy.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat;\n\nimport com.azure.core.credential.AzureKeyCredential;\nimport com.azure.core.http.HttpHeaderName;\nimport com.azure.core.http.HttpPipelineCallContext;\nimport com.azure.core.http.HttpPipelineNextPolicy;\nimport com.azure.core.http.HttpResponse;\nimport com.azure.core.http.policy.HttpPipelinePolicy;\nimport reactor.core.publisher.Mono;\n\nimport java.time.Duration;\n\n/**\n * An {@link HttpPipelinePolicy} for authenticating requests to the Azure Web PubSub Chat service.\n */\npublic final class WebPubSubAuthenticationPolicy implements HttpPipelinePolicy {\n    private static final Duration DEFAULT_EXPIRATION = Duration.ofHours(1);\n\n    private final AzureKeyCredential credential;\n\n    /**\n     * Creates a policy that authenticates requests using the supplied credential.\n     *\n     * @param credential The credential used to authenticate outgoing requests.\n     */\n    public WebPubSubAuthenticationPolicy(AzureKeyCredential credential) {\n        this.credential = credential;\n    }\n\n    @Override\n    public Mono<HttpResponse> process(HttpPipelineCallContext context, HttpPipelineNextPolicy next) {\n        return Mono.fromRunnable(() -> {\n            String audience = context.getHttpRequest().getUrl().toString();\n            String token = WebPubSubTokenGenerator.generateToken(audience, null, null, DEFAULT_EXPIRATION, credential);\n            if (token != null) {\n                context.getHttpRequest().setHeader(HttpHeaderName.AUTHORIZATION, \"Bearer \" + token);\n            }\n        }).then(next.process());\n    }\n}\n",
+      "contentHash": "c0965a530f367b45d60b4b6925008eba1b787b90a73a3027f9df9900c8f407c6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubAuthenticationPolicy.java",
+      "startLine": 1,
+      "endLine": 43,
+      "kind": "unknown",
+      "id": "1a65da3479b69c5132f1d858400d3eeb1172693b88d4535a2a39fa01a37307ad"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubClientAccessTokenFactory.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat;\n\nimport com.azure.core.credential.AzureKeyCredential;\nimport com.azure.core.http.rest.RequestOptions;\nimport com.azure.messaging.webpubsub.chat.implementation.WebPubSubChatServiceClientImpl;\nimport com.azure.messaging.webpubsub.chat.implementation.models.GenerateClientTokenResponse;\nimport com.azure.messaging.webpubsub.chat.models.GetClientAccessTokenOptions;\nimport com.azure.messaging.webpubsub.chat.models.WebPubSubClientAccessToken;\nimport reactor.core.publisher.Mono;\n\nimport java.time.Duration;\nimport java.util.Arrays;\nimport java.util.List;\nimport java.util.Objects;\n\nfinal class WebPubSubClientAccessTokenFactory {\n    private static final List<String> CHAT_ROLES = Arrays.asList(\"webpubsub.getGroupState\", \"webpubsub.setGroupState\");\n\n    static WebPubSubClientAccessToken create(WebPubSubChatServiceClientImpl serviceClient,\n        AzureKeyCredential keyCredential, GetClientAccessTokenOptions options) {\n        Objects.requireNonNull(options, \"'options' cannot be null.\");\n        Duration expiresAfter = validateExpiresAfter(options.getExpiresAfter());\n        String token;\n        if (keyCredential == null) {\n            token = serviceClient\n                .generateClientTokenWithResponse(serviceClient.getHub(), createRequestOptions(options, expiresAfter))\n                .getValue()\n                .toObject(GenerateClientTokenResponse.class)\n                .getToken();\n        } else {\n            token = WebPubSubTokenGenerator.generateToken(createAudience(serviceClient), options.getUserId(),\n                CHAT_ROLES, expiresAfter, keyCredential);\n        }\n        return createResult(token, serviceClient);\n    }\n\n    static Mono<WebPubSubClientAccessToken> createAsync(WebPubSubChatServiceClientImpl serviceClient,\n        AzureKeyCredential keyCredential, GetClientAccessTokenOptions options) {\n        Objects.requireNonNull(options, \"'options' cannot be null.\");\n        Duration expiresAfter = validateExpiresAfter(options.getExpiresAfter());\n        if (keyCredential == null) {\n            return serviceClient\n                .generateClientTokenWithResponseAsync(serviceClient.getHub(),\n                    createRequestOptions(options, expiresAfter))\n                .map(response -> response.getValue().toObject(GenerateClientTokenResponse.class).getToken())\n                .map(token -> createResult(token, serviceClient));\n        }\n        return Mono.fromCallable(() -> create(serviceClient, keyCredential, options));\n    }\n\n    private static RequestOptions createRequestOptions(GetClientAccessTokenOptions options, Duration expiresAfter) {\n        RequestOptions requestOptions = new RequestOptions();\n        requestOptions.addQueryParam(\"clientType\", \"default\");\n        if (options.getUserId() != null) {\n            requestOptions.addQueryParam(\"userId\", options.getUserId());\n        }\n        requestOptions.addQueryParam(\"minutesToExpire\", String.valueOf(expiresAfter.toMinutes()));\n        CHAT_ROLES.forEach(role -> requestOptions.addQueryParam(\"role\", role));\n        return requestOptions;\n    }\n\n    private static Duration validateExpiresAfter(Duration expiresAfter) {\n        Objects.requireNonNull(expiresAfter, \"'expiresAfter' cannot be null.\");\n        long minutes = expiresAfter.toMinutes();\n        if (minutes < 1 || minutes > Integer.MAX_VALUE) {\n            throw new IllegalArgumentException(\n                \"'expiresAfter' must be between 1 minute and \" + Integer.MAX_VALUE + \" minutes.\");\n        }\n        return expiresAfter;\n    }\n\n    private static String createAudience(WebPubSubChatServiceClientImpl serviceClient) {\n        String endpoint = serviceClient.getEndpoint();\n        return endpoint + (endpoint.endsWith(\"/\") ? \"\" : \"/\") + \"client/hubs/\" + serviceClient.getHub();\n    }\n\n    private static WebPubSubClientAccessToken createResult(String token, WebPubSubChatServiceClientImpl serviceClient) {\n        String clientUrl = createAudience(serviceClient).replaceFirst(\"http\", \"ws\");\n        return new WebPubSubClientAccessToken(token, clientUrl + \"?access_token=\" + token);\n    }\n\n    private WebPubSubClientAccessTokenFactory() {\n    }\n}\n",
+      "contentHash": "a71d3e3cf07ca9ff19cc9d24e0d6608c8506af8d8a7b6640d708b9cd18dec702",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubClientAccessTokenFactory.java",
+      "startLine": 1,
+      "endLine": 87,
+      "kind": "unknown",
+      "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubTokenGenerator.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.messaging.webpubsub.chat;\n\nimport com.azure.core.credential.AzureKeyCredential;\nimport com.azure.core.util.CoreUtils;\nimport com.azure.core.util.logging.ClientLogger;\nimport com.nimbusds.jose.JOSEException;\nimport com.nimbusds.jose.JWSAlgorithm;\nimport com.nimbusds.jose.JWSHeader;\nimport com.nimbusds.jose.JWSSigner;\nimport com.nimbusds.jose.crypto.MACSigner;\nimport com.nimbusds.jwt.JWTClaimsSet;\nimport com.nimbusds.jwt.SignedJWT;\n\nimport java.nio.charset.StandardCharsets;\nimport java.time.Duration;\nimport java.time.ZoneId;\nimport java.util.Date;\nimport java.util.List;\n\nimport static java.time.LocalDateTime.now;\n\nfinal class WebPubSubTokenGenerator {\n    private static final ClientLogger LOGGER = new ClientLogger(WebPubSubTokenGenerator.class);\n\n    static String generateToken(String audience, String userId, List<String> roles, Duration expiresAfter,\n        AzureKeyCredential credential) {\n        try {\n            JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder().audience(audience)\n                .expirationTime(Date.from(now().plus(expiresAfter).atZone(ZoneId.systemDefault()).toInstant()));\n            if (!CoreUtils.isNullOrEmpty(userId)) {\n                claimsBuilder.subject(userId);\n            }\n            if (!CoreUtils.isNullOrEmpty(roles)) {\n                claimsBuilder.claim(\"role\", roles);\n            }\n\n            JWSSigner signer = new MACSigner(credential.getKey().getBytes(StandardCharsets.UTF_8));\n            SignedJWT signedJwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimsBuilder.build());\n            signedJwt.sign(signer);\n            return signedJwt.serialize();\n        } catch (JOSEException exception) {\n            LOGGER.logThrowableAsError(exception);\n            return null;\n        }\n    }\n\n    private WebPubSubTokenGenerator() {\n    }\n}\n",
+      "contentHash": "f9b80eaa5481c6b31313c115123e06ba6bc003bad8d5b919b8eb31cd8d041899",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubTokenGenerator.java",
+      "startLine": 1,
+      "endLine": 52,
+      "kind": "unknown",
+      "id": "08f714c7e89c74ef2b78b6f3d40baf76287a8a1b8b125dc57822a12ebb8a11ef"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/customization/pom.xml",
+      "text": "<!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-messaging-webpubsub-chat-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure Web PubSub Chat client customization for Java</name>\n  <description>This package contains client customization for Microsoft Azure Web PubSub Chat.</description>\n\n  <properties>\n    <relative.path.to.eng.folder>../../../../</relative.path.to.eng.folder>\n  </properties>\n</project>",
+      "contentHash": "e44e66e86e9581103a72112a98e3d3d285788158585561916e964742df717605",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/customization/pom.xml"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\n ~ Licensed under the MIT License.\n ~ Code generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-messaging-webpubsub-chat</artifactId>\n  <version>1.0.0-beta.2</version> <!-- {x-version-update;com.azure:azure-messaging-webpubsub-chat;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for WebPubSubChat</name>\n  <description>This package contains Microsoft Azure WebPubSubChat client library.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.61.0-beta.1</version> <!-- {x-version-update;unreleased_com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.17.0-beta.1</version> <!-- {x-version-update;unreleased_com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.nimbusds</groupId>\n      <artifactId>nimbus-jose-jwt</artifactId>\n      <version>9.37.3</version> <!-- {x-version-update;com.nimbusds:nimbus-jose-jwt;external_dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.20</version> <!-- {x-version-update;unreleased_com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>io.projectreactor.netty</groupId>\n      <artifactId>reactor-netty-http</artifactId>\n      <version>1.3.7</version> <!-- {x-version-update;io.projectreactor.netty:reactor-netty-http;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.apache.maven.plugins</groupId>\n        <artifactId>maven-enforcer-plugin</artifactId>\n        <version>3.6.3</version> <!-- {x-version-update;org.apache.maven.plugins:maven-enforcer-plugin;external_dependency} -->\n        <configuration>\n          <rules>\n            <bannedDependencies>\n              <includes>\n                <include>com.nimbusds:nimbus-jose-jwt:[9.37.3]</include> <!-- {x-include-update;com.nimbusds:nimbus-jose-jwt;external_dependency} -->\n                <include>io.projectreactor.netty:reactor-netty-http:[1.3.7]</include> <!-- {x-include-update;io.projectreactor.netty:reactor-netty-http;external_dependency} -->\n              </includes>\n            </bannedDependencies>\n          </rules>\n        </configuration>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+      "contentHash": "c297d9daf0581a10dbc3805b7f932769f250167edf5997e4c26b148f5001a4f7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/pom.xml"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/README.md",
+      "text": "# Azure Web PubSub Chat service client library for Java\n\n[Azure Web PubSub Chat][product_documentation] is a managed chat capability built on [Azure Web PubSub][webpubsub_documentation]. It provides purpose-built client and server APIs for chat scenarios. Applications use the SDKs to work with chat-native concepts such as rooms, messages, members, and users. The service handles real-time message delivery and ordering, fan-out across a user's devices and browser tabs, room membership, and message persistence and retrieval.\n\nUse this client library in an application server to:\n\n- Create and manage Chat roles and permissions.\n- Create users, rooms, and room memberships.\n- Get room conversations and query persisted message history.\n- Update and delete persisted messages.\n- Generate client access credentials for Chat WebSocket clients.\n\n[Source code][source_code] | [Package][package] | [API reference documentation][docs] | [Product documentation][product_documentation] | [Samples][samples] | [Changelog][changelog]\n\n## Getting started\n\n### Prerequisites\n\n- A [Java Development Kit (JDK)][jdk] with version 8 or later.\n- An [Azure subscription][azure_subscription].\n- An [Azure Web PubSub resource][create_instance].\n- A Web PubSub hub with [Chat enabled][enable_chat].\n\n### 1. Add the package to your project\n\n[//]: # ({x-version-update-start;com.azure:azure-messaging-webpubsub-chat;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-messaging-webpubsub-chat</artifactId>\n    <version>1.0.0-beta.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### 2. Create and authenticate a `WebPubSubChatServiceClient`\n\nThe client supports a connection string, an `AzureKeyCredential`, or a Microsoft Entra ID token credential. The hub passed to the client must have Chat enabled.\n\n#### Use a connection string\n\nGet the connection string from the Azure portal or Azure CLI, and store it securely. See [Web PubSub authorization][connection_string] for details.\n\n```java readme-sample-createChatClientWithConnectionString\nWebPubSubChatServiceClient client = new WebPubSubChatServiceClientBuilder()\n    .connectionString(\"<web-pubsub-connection-string>\")\n    .hub(\"chat\")\n    .buildClient();\n```\n\n#### Use an access key\n\n```java readme-sample-createChatClientWithKey\nWebPubSubChatServiceClient client = new WebPubSubChatServiceClientBuilder()\n    .endpoint(\"https://<resource-name>.webpubsub.azure.com\")\n    .hub(\"chat\")\n    .credential(new AzureKeyCredential(\"<web-pubsub-access-key>\"))\n    .buildClient();\n```\n\n#### Use Microsoft Entra ID\n\nFor recommended passwordless authentication, add the [Azure Identity][azure_identity] package, assign an appropriate Web PubSub data-plane role to the principal, and authenticate with a token credential. The following example uses `DefaultAzureCredential`:\n\n```java readme-sample-createChatClientWithEntraId\nWebPubSubChatServiceClient client = new WebPubSubChatServiceClientBuilder()\n    .endpoint(\"https://<resource-name>.webpubsub.azure.com\")\n    .hub(\"chat\")\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildClient();\n```\n\nFor more information, see [Authenticate Azure-hosted Java applications][azure_identity_auth] and [Microsoft Entra authorization for Azure Web PubSub][entra_authorization].\n\n## Key concepts\n\n### Client\n\n`WebPubSubChatServiceClient` is the entry point for managing Chat resources in one Web PubSub hub. Create one client for each endpoint and hub combination, and reuse the client for multiple operations. For nonblocking operations, use `WebPubSubChatServiceAsyncClient`, which is created by calling `buildAsyncClient` on the same builder.\n\n### Hub\n\nA hub is a logical collection of WebSocket connections. A standard hub offers event-based real-time messaging through the Web PubSub subprotocol or a custom subprotocol. A chat hub adds built-in rooms, member management, message persistence, and chat-specific APIs.\n\nThis SDK applies only to chat hubs. Chat must be enabled on the target hub before the SDK can manage roles, users, rooms, members, conversations, or messages.\n\n### Role and permission\n\nA role is a named collection of Chat permissions. User role names start with `user.`, and room role names start with `room.`. Do not combine user and room permissions in one role.\n\nUser roles control operations such as creating rooms. Room roles control what a member can do in a particular room, such as publishing messages or reading message history. `BuiltInChatRoles` provides role names for common scenarios, and `ChatPermission` provides the permissions used to define custom roles.\n\n### User\n\nA user represents an application identity that can send and receive messages. A user is identified by a user ID and assigned a user role. A human user also has a nickname. Client access credentials associate WebSocket connections with a user ID.\n\n### Room\n\nA room groups users together and is the primary organizational unit for chat interactions. Every room has an automatically created default conversation.\n\n### Room member\n\nA room member represents a user added to a room. Membership controls which users can receive and send messages in the room. Each room member is assigned a room role.\n\n### Conversation and message history\n\nA conversation is a message thread that belongs to a room. Every room has a default conversation and can contain multiple conversations.\n\nMessages sent to a conversation are delivered in real time to the room's connected members. The Chat service manages ordering and persistence, allowing members to load message history after reconnecting or joining later. The service client can list, update, and delete persisted messages.\n\n### Client access credentials\n\n`getClientAccessToken` returns a token and WebSocket connection URL. Clients configured with a connection string or access key sign the token locally. Clients configured with Microsoft Entra ID request the token from the Web PubSub service.\n\n## Examples\n\n### Generate a client access token\n\n```java readme-sample-getChatClientAccessToken\nWebPubSubClientAccessToken accessToken = client.getClientAccessToken(\n    new GetClientAccessTokenOptions().setUserId(\"alice\").setExpiresAfter(Duration.ofHours(1)));\nString clientConnectionUrl = accessToken.getUrl();\n```\n\nThe returned URL contains an access token. Send it only to the intended client, and do not log or persist it in production.\n\n### Work with built-in values\n\n```java readme-sample-chatBuiltInValues\nString memberRole = BuiltInChatRoles.ROOM_MEMBER;\nChatPermission publishPermission = ChatPermission.ROOM_PUBLISH_MESSAGE;\n```\n\n### Create and list a custom role\n\n```java readme-sample-manageChatRoles\nChatRole moderator = new ChatRole(Arrays.asList(ChatPermission.ROOM_HISTORY,\n    ChatPermission.ROOM_REMOVE_USER, ChatPermission.ROOM_PUBLISH_MESSAGE));\nclient.createOrReplaceRole(\"room.moderator\", moderator);\n\nclient.listRoles().forEach(role -> System.out.println(role.getName()));\nclient.deleteRole(\"room.moderator\");\n```\n\n### Create a user, room, and room membership\n\n```java readme-sample-manageChatRooms\nclient.createOrReplaceRole(\"user.room_creator\",\n    new ChatRole(Arrays.asList(ChatPermission.USER_CREATE_ROOM)));\nclient.createOrReplaceRole(\"room.contributor\",\n    new ChatRole(Arrays.asList(ChatPermission.ROOM_PUBLISH_MESSAGE)));\nclient.createOrReplaceUser(\"alice\", new HumanChatUser(\"Alice\", \"user.room_creator\"));\n\nChatRoom room = client.createOrReplaceRoom(\"general\", new ChatRoom(\"General\"));\nChatRoomMember member = client.createOrReplaceRoomMember(\n    room.getId(), \"alice\", new ChatRoomMember(\"room.contributor\"));\nSystem.out.printf(\"%s: %s%n\", member.getUserId(), member.getRoleName());\n\nclient.deleteRoom(room.getId());\nclient.deleteUser(\"alice\");\nclient.deleteRole(\"room.contributor\");\nclient.deleteRole(\"user.room_creator\");\n```\n\nDelete dependent resources in reverse order when they are no longer needed: room, user, and then roles.\n\n### List persisted messages\n\n```java readme-sample-listChatMessages\nChatRoom room = client.getRoom(\"general\");\nclient.listMessages(room.getDefaultConversation()).forEach(message ->\n    System.out.printf(\"%s: %s%n\", message.getCreatedBy(), message.getContent().getText()));\n```\n\n### Use the asynchronous client\n\n```java readme-sample-createAsyncChatClient\nWebPubSubChatServiceAsyncClient asyncClient = new WebPubSubChatServiceClientBuilder()\n    .connectionString(\"<web-pubsub-connection-string>\")\n    .hub(\"chat\")\n    .buildAsyncClient();\n\nasyncClient.listRoles().subscribe(role -> System.out.println(role.getName()));\n```\n\n### Service API versions\n\nThe client library targets the latest service API version by default. To use another supported version, pass a `WebPubSubChatServiceVersion` to the builder's `serviceVersion` method. Verify that the selected version supports the operations and models used by your application.\n\n## Troubleshooting\n\n### Handle service errors\n\nService operations throw `HttpResponseException` or a more specific subclass when a request fails. Inspect the status code and response body before retrying an operation. For example, a missing resource results in a `ResourceNotFoundException`, while a failed ETag condition can result in a `ResourceModifiedException`.\n\n### Logging\n\nEnable SDK logging by setting the `AZURE_LOG_LEVEL` environment variable. See [Azure SDK logging][logging] for the supported levels and logging configuration. HTTP logs can contain sensitive information. Do not enable detailed logging in production without reviewing how logs are collected and protected, and never log connection strings, access keys, bearer tokens, or generated client access tokens.\n\n### Authentication and authorization\n\n- Confirm that the endpoint and hub name identify the Web PubSub resource and Chat-enabled hub you intend to use.\n- For Microsoft Entra ID, confirm that the principal has an appropriate Web PubSub data-plane role and that role assignment propagation has completed.\n- Connection-string and access-key authentication are unavailable when local authentication is disabled on the Web PubSub resource.\n\n\n## Next steps\n\nExplore the [complete package samples][samples] to learn how to:\n\n- Authenticate with a connection string, access key, or Microsoft Entra ID.\n- Manage roles, permissions, users, rooms, and room members.\n- Generate client access credentials.\n- Query, update, and delete message history.\n- Use synchronous and asynchronous clients.\n\n## Additional resources\n\n- [Azure Web PubSub documentation][webpubsub_documentation]\n- [Web PubSub Chat documentation][product_documentation]\n- [Web PubSub Chat REST API][rest_api]\n- [Azure SDK for Java design guidelines][design_guidelines]\n\n## Contributing\n\nThis project welcomes contributions and suggestions. See the [contributing guide][contributing] for instructions on building, testing, and submitting changes.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information, see the [Code of Conduct FAQ][code_of_conduct_faq] or contact opencode@microsoft.com with questions or comments.\n\n<!-- LINKS -->\n[source_code]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/webpubsub/azure-messaging-webpubsub-chat/src\n[package]: https://central.sonatype.com/artifact/com.azure/azure-messaging-webpubsub-chat\n[docs]: https://azure.github.io/azure-sdk-for-java/\n[product_documentation]: https://learn.microsoft.com/azure/azure-web-pubsub/chat-overview\n[samples]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/webpubsub/azure-messaging-webpubsub-chat/src/samples\n[changelog]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/webpubsub/azure-messaging-webpubsub-chat/CHANGELOG.md\n[jdk]: https://learn.microsoft.com/java/azure/jdk/\n[azure_subscription]: https://azure.microsoft.com/free\n[webpubsub_documentation]: https://learn.microsoft.com/azure/azure-web-pubsub/\n[create_instance]: https://learn.microsoft.com/azure/azure-web-pubsub/howto-develop-create-instance\n[enable_chat]: https://learn.microsoft.com/azure/azure-web-pubsub/chat-howto-enable-chat\n[connection_string]: https://learn.microsoft.com/azure/azure-web-pubsub/howto-websocket-connect#authorization\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity\n[azure_identity_auth]: https://learn.microsoft.com/azure/developer/java/sdk/authentication/overview\n[entra_authorization]: https://learn.microsoft.com/azure/azure-web-pubsub/concept-azure-ad-authorization\n[logging]: https://learn.microsoft.com/azure/developer/java/sdk/logging-overview\n[rest_api]: https://learn.microsoft.com/rest/api/webpubsub/dataplane/webpubsubchat/web-pub-sub-chat-service\n[design_guidelines]: https://azure.github.io/azure-sdk/java_introduction.html\n[contributing]: https://github.com/Azure/azure-sdk-for-java/blob/main/CONTRIBUTING.md\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[code_of_conduct_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "815237f1454f264d0f2bc03be55dd88641b79d23199574f7c16e7e264392f195",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/README.md"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/tsp-location.yaml",
+      "text": "directory: specification/webpubsub/data-plane/WebPubSubChat\ncommit: 2f561e5f227705bf7985424de42fc5edd67d3dd7\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "cd0beacd2dd8c7f708c4dd8b41018cce64c079bd62d858750cd7c8039e259c7f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/webpubsub/azure-messaging-webpubsub-chat/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "2a4bf90176d1bc646a6fa22ee2d5d2b4796d1c64e7f9c90c7d18518d026b4743",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "21dc7d240ddb1e745ac941d41e035a79d92a97575fd9a1f5270aa3df688b39fd",
+        "category": "Auth",
+        "subtype": "Key and connection-string builder interfaces",
+        "pattern": "credential-builder-traits",
+        "generatorAddressable": "yes",
+        "explanation": "The customization AST adds AzureKeyCredentialTrait and ConnectionStringTrait parametrized by WebPubSubChatServiceClientBuilder when those interface names are not already implemented.",
+        "handwrittenRationale": "An explicit AST edit in a class extending Customization targets the generated builder.",
+        "symbols": [
+          "WebPubSubChatServiceClientBuilder"
+        ],
+        "evidence": [
+          {
+            "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d",
+            "startLine": 17,
+            "endLine": 30
+          }
+        ]
+      },
+      {
+        "key": "81584dfb1301fd829148951b05d6e50045bd89a399d4b4140224e9f1e3fbb814",
+        "category": "Auth",
+        "subtype": "Remove generated synchronous token-operation entry points",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "explanation": "For WebPubSubChatServiceClient, the script removes methods named generateClientToken and generateClientTokenWithResponse and the GenerateClientTokenResponse implementation-model import.",
+        "handwrittenRationale": "The supplied Customization subclass explicitly invokes a helper that removes those generated AST members/imports.",
+        "symbols": [
+          "WebPubSubChatServiceClient.generateClientToken",
+          "WebPubSubChatServiceClient.generateClientTokenWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d",
+            "startLine": 32,
+            "endLine": 32
+          },
+          {
+            "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d",
+            "startLine": 38,
+            "endLine": 49
+          }
+        ]
+      },
+      {
+        "key": "a50bf0777d993e4008861fb881cd7c01865f7b9f726301a68468bf76a47f9eb2",
+        "category": "Auth",
+        "subtype": "Remove generated asynchronous token-operation entry points",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "explanation": "For WebPubSubChatServiceAsyncClient, the script removes generateClientToken and generateClientTokenWithResponse methods and the GenerateClientTokenResponse implementation-model import.",
+        "handwrittenRationale": "A separate explicit invocation targets the async generated class through the supplied AST-removal helper.",
+        "symbols": [
+          "WebPubSubChatServiceAsyncClient.generateClientToken",
+          "WebPubSubChatServiceAsyncClient.generateClientTokenWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d",
+            "startLine": 33,
+            "endLine": 33
+          },
+          {
+            "id": "3bb286b5df9f5ec54e7ce8413924e6b787ffbd92b08ba31ee07e3b8fc44bc07d",
+            "startLine": 38,
+            "endLine": 49
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "21dc7d240ddb1e745ac941d41e035a79d92a97575fd9a1f5270aa3df688b39fd",
+        "status": "accepted",
+        "reason": "The Customization subclass explicitly adds both credential-related implemented types to the named builder at lines 17-30. The cited range, affected builder symbol, Auth category, reusable credential-builder-traits pattern, and generator-addressable assessment match this AST change; this does not establish how the builder's credential methods were authored."
+      },
+      {
+        "key": "81584dfb1301fd829148951b05d6e50045bd89a399d4b4140224e9f1e3fbb814",
+        "status": "accepted",
+        "reason": "The script invokes customizeTokenClient for the synchronous client at line 32, and the helper removes the named token methods and implementation-model import at lines 38-49. Hiding these generated entry points is an explicit handwritten API-surface edit; the cited symbols belong to this client and the pattern is service-independent."
+      },
+      {
+        "key": "a50bf0777d993e4008861fb881cd7c01865f7b9f726301a68468bf76a47f9eb2",
+        "status": "accepted",
+        "reason": "The separate invocation at line 33 targets the asynchronous client; the shared helper at lines 38-49 removes the named methods and import from that class. The async symbols distinguish this edit from the synchronous one, and the hide-generated-surface pattern describes its reusable shape."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "6fd9a18f1cd321b40d60572100d84e249027e52f1ff14cd32106f20441d4ed17",
+        "category": "Convenience methods",
+        "subtype": "Synchronous client access token convenience method",
+        "explanation": "The public synchronous getClientAccessToken method delegates to a factory that creates a client token and WebSocket URL through credential-dependent paths; whether the public method itself was handwritten needs provenance confirmation.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "This unannotated excerpt calls a separate, unmarked full-file factory over the generated implementation, and the supplied customization script removes lower-level token entry points. The excerpt does not show neighboring generation markers or an explicit script insertion for getClientAccessToken, so handwriting is not established.",
+        "symbols": [
+          "WebPubSubChatServiceClient.getClientAccessToken"
+        ],
+        "evidence": [
+          {
+            "id": "b0d734bb1a1d0e6b03d541dcb65637cb1796a4847f4d287ba1458178e5cf1860",
+            "startLine": 1510,
+            "endLine": 1518
+          },
+          {
+            "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606",
+            "startLine": 22,
+            "endLine": 38
+          }
+        ]
+      },
+      {
+        "key": "b1b41a23c7dc5501a26f49d147d26fe6b903caa258386a322c123082c4996752",
+        "category": "Convenience methods",
+        "subtype": "Asynchronous client access token convenience method",
+        "explanation": "The public asynchronous getClientAccessToken method delegates to the factory's asynchronous token construction; whether the public method itself was handwritten needs provenance confirmation.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The isolated unannotated client excerpt delegates to a separate unmarked factory with a handwritten-looking credential-dependent flow, and a script removes lower-level token methods. No neighboring markers, generation baseline, or explicit insertion of this public method is supplied.",
+        "symbols": [
+          "WebPubSubChatServiceAsyncClient.getClientAccessToken"
+        ],
+        "evidence": [
+          {
+            "id": "f0c90ab7cdf34f10ea390d19125ca5a5419257f7a051adcaa8b1951afeb03179",
+            "startLine": 1654,
+            "endLine": 1662
+          },
+          {
+            "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606",
+            "startLine": 40,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "fae6b2249276f497efa6151cf177d95359bac7ea5b0e0630bbd498375150c8ad",
+        "category": "Auth",
+        "subtype": "Key-credential bearer authorization policy",
+        "explanation": "A policy generates a short-lived token for the request URL and adds a Bearer authorization header when token generation succeeds; the builder selects it for key credentials.",
+        "pattern": "custom-auth-header-policy",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The complete policy file lacks a generated header and @Generated markers, implements service-specific authentication, and is referenced by the builder pipeline. Its provenance and the builder method's provenance are not independently confirmed.",
+        "symbols": [
+          "WebPubSubAuthenticationPolicy.process"
+        ],
+        "evidence": [
+          {
+            "id": "1a65da3479b69c5132f1d858400d3eeb1172693b88d4535a2a39fa01a37307ad",
+            "startLine": 19,
+            "endLine": 42
+          },
+          {
+            "id": "fea503813aea890c18e89a098e55f2fac69dddec6ce953961d9dcf3b2b6a50af",
+            "startLine": 327,
+            "endLine": 336
+          }
+        ]
+      },
+      {
+        "key": "83bead126dfe3c96cc5a6fbb46b3fc92dfa2b3821ac154704cd1642721dc8bc8",
+        "category": "Other",
+        "subtype": "Optional reverse-proxy request routing",
+        "explanation": "The policy reroutes a copied request to a configured reverse-proxy endpoint while preserving its path and query; the builder exposes and conditionally installs that policy.",
+        "pattern": "reverse-proxy-endpoint-option",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The complete dedicated policy file has no generated header or @Generated markers and is referenced by the builder's reverseProxyEndpoint option and pipeline. The supplied excerpts do not prove the builder method is handwritten or rule out generation of the policy.",
+        "symbols": [
+          "ReverseProxyPolicy.process",
+          "WebPubSubChatServiceClientBuilder.reverseProxyEndpoint"
+        ],
+        "evidence": [
+          {
+            "id": "6891eb258943677c43d02d881ac0b7f0229475bb698fb4c899a9cdcf598a2b49",
+            "startLine": 19,
+            "endLine": 42
+          },
+          {
+            "id": "82bb6506b90e8bf116aa6e6f56769a13bc154059909b1aaca45311cbf94d766c",
+            "startLine": 418,
+            "endLine": 427
+          },
+          {
+            "id": "fea503813aea890c18e89a098e55f2fac69dddec6ce953961d9dcf3b2b6a50af",
+            "startLine": 337,
+            "endLine": 339
+          }
+        ]
+      },
+      {
+        "key": "b54d5524f7069c961dd6f132695c7faf885c1375967a42766552d7e36cc4ae00",
+        "category": "Crypto / signing",
+        "subtype": "Local signed JWT creation",
+        "explanation": "A token helper builds audience, expiry, optional subject and roles claims and signs an HS256 JWT with the key credential, which is used by both the auth policy and token factory.",
+        "pattern": "local-jwt-credential-signing",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The complete unmarked helper uses a JOSE signing library and is called from two other supplied files; unlike an ordinary emitted model or poller it contains service-auth signing logic. No generator baseline or explicit customization-script edit establishes its authorship.",
+        "symbols": [
+          "WebPubSubTokenGenerator.generateToken"
+        ],
+        "evidence": [
+          {
+            "id": "08f714c7e89c74ef2b78b6f3d40baf76287a8a1b8b125dc57822a12ebb8a11ef",
+            "startLine": 25,
+            "endLine": 48
+          },
+          {
+            "id": "1a65da3479b69c5132f1d858400d3eeb1172693b88d4535a2a39fa01a37307ad",
+            "startLine": 33,
+            "endLine": 41
+          },
+          {
+            "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606",
+            "startLine": 22,
+            "endLine": 37
+          }
+        ]
+      },
+      {
+        "key": "ca7cfb48e97075a5095890a3b463cfe409b58ea0d5786b5d88000faa7a2a363c",
+        "category": "Auth",
+        "subtype": "Credential-dependent client token issuance",
+        "explanation": "The token factory obtains a token through the service for non-key credentials or signs it locally for a key credential, then builds a WebSocket connection URL; its asynchronous counterpart mirrors the choice.",
+        "pattern": "credential-dependent-token-issuance",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The complete unmarked factory composes an internal generated client operation, a separate signing helper and bespoke token result construction. Its exact handwritten provenance is not supplied; its behavior is distinct from simply exposing the two public facade methods.",
+        "symbols": [
+          "WebPubSubClientAccessTokenFactory.create",
+          "WebPubSubClientAccessTokenFactory.createAsync"
+        ],
+        "evidence": [
+          {
+            "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606",
+            "startLine": 19,
+            "endLine": 52
+          },
+          {
+            "id": "1e41245e6753344c54443124e29c04a6093c55e66497529bef6a6dbda578d606",
+            "startLine": 75,
+            "endLine": 83
+          }
+        ]
+      },
+      {
+        "key": "3c6bf1ee10c3ed6f4c8bf1da0550de73447839968c278d14099c47145637688c",
+        "category": "Auth",
+        "subtype": "Connection-string credential and endpoint setup",
+        "explanation": "The builder parses a connection string, requires endpoint and access key, creates a key credential, validates its endpoint and applies an optional port.",
+        "pattern": "connection-string-credential-builder",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The snippets expose a specialized parser and builder operation, and the explicit script separately adds ConnectionStringTrait to this builder. That script does not add or modify the actual connectionString or parseConnectionString methods; their generated-versus-handwritten provenance requires a fuller file or baseline.",
+        "symbols": [
+          "WebPubSubChatServiceClientBuilder.connectionString",
+          "WebPubSubChatServiceClientBuilder.parseConnectionString"
+        ],
+        "evidence": [
+          {
+            "id": "2cd53bdedc3fd0e3936442b77f855c9372366f64bf8575654e57207a94e0ecda",
+            "startLine": 393,
+            "endLine": 416
+          },
+          {
+            "id": "13a822e3e32eb12343ebcf2f035e512bb5db784a993fb1e2dde3b657fe564797",
+            "startLine": 429,
+            "endLine": 445
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Coverage is partial. The reported 22 captured items comprise a customization script, full small utility/model files and multiple fragments of larger files; they are not 22 complete files out of 30 eligible files.",
+      "The model merge-patch fragments, getClientAccessToken methods and builder method fragments have unknown provenance and do not show neighboring @Generated members or a generated comparison. Their bodies are readable candidates but are not established as handwritten by this request.",
+      "BuiltInChatRoles, token options/result classes, ReverseProxyPolicy, WebPubSubAuthenticationPolicy, WebPubSubClientAccessTokenFactory and WebPubSubTokenGenerator lack generated markers, but the supplied script does not add or rewrite them and no baseline establishes their provenance. They remain unresolved candidates rather than counted findings.",
+      "The visible unknown-provenance bodies include connection-string parsing, dual key/token pipeline selection, proxy URL rewriting, local signing versus server token requests, expiration checks and WebSocket token-URL construction. This does not by itself prove they are handwritten extensions.",
+      "The script's trailing Javadoc whitespace normalization is cosmetic and is not counted as a customization behavior. Import removal is grouped with each affected token API family rather than counted as separate runtime behavior.",
+      "The script proves the requested AST operations, not observed execution of customization/generation or the final compiled API. README authentication/token-generation claims and dependency declarations do not independently prove provenance or successful execution.",
+      "No generated paging, merge-patch serialization or real-time service behavior is counted merely from method names or documentation. Findings do not establish exhaustive discovery or whole-library absence.",
+      "Coverage is partial: 22 source files captured out of 30 eligible and 51 discovered; extraction was bounded to the configured package root and cannot establish library-wide absence.",
+      "No uncustomized generated baseline, generation diff, neighboring @Generated members for the short excerpts, or generator/customization execution was supplied. Standalone unknown-provenance files and snippets therefore remain inconclusive unless an explicit AST edit establishes authorship.",
+      "The script's removeTrailingJavadocWhitespace changes only trailing whitespace in generated implementation Javadoc; it is cosmetic, not a customization instance. The JSON merge-patch snippets and other generic builder/model scaffolding lack affirmative handwriting evidence and are not inferred to be customizations.",
+      "No cross-service recurrence or current activity evidence supports a reducibility determination; generatorAddressable assessments concern potential generator support for the behavior, not proof that a change is reducible."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/customization/src/main/java/WebPubSubChatCustomization.java",
+      "startLine": 1,
+      "endLine": 58,
+      "provenance": "Java customization script",
+      "contentHash": "4448a0653be85c4253776ae937d6ba1d0a551e95b982985aa4f555171e679991"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/ReverseProxyPolicy.java",
+      "startLine": 1,
+      "endLine": 43,
+      "provenance": "Java handwritten source",
+      "contentHash": "a9277ed953ac4cb3321ebb44ade5b6ad7bc51443488db2c78fbd63f47f2b0398"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubAuthenticationPolicy.java",
+      "startLine": 1,
+      "endLine": 43,
+      "provenance": "Java handwritten source",
+      "contentHash": "c0965a530f367b45d60b4b6925008eba1b787b90a73a3027f9df9900c8f407c6"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceAsyncClient.java",
+      "startLine": 1660,
+      "endLine": 1660,
+      "provenance": "Java members without @Generated: getClientAccessToken",
+      "contentHash": "a7ef7e5397c1f41dee0f6241f0b587bd08e7f155703865f3356d17bb870dae4c"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClient.java",
+      "startLine": 1516,
+      "endLine": 1516,
+      "provenance": "Java members without @Generated: getClientAccessToken",
+      "contentHash": "f348de9041859175c4712cc8256bddf82075d40d256484a900fe449ede4033c6"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubChatServiceClientBuilder.java",
+      "startLine": 298,
+      "endLine": 429,
+      "provenance": "Java members without @Generated: validateClient, createHttpPipeline, buildAsyncClient, buildClient, credential, connectionString, +2 more",
+      "contentHash": "017dbeb59d7ac879cab9247c6992f01dc8943f4b1c21f7bafec1b11de687b3b7"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubClientAccessTokenFactory.java",
+      "startLine": 1,
+      "endLine": 87,
+      "provenance": "Java handwritten source",
+      "contentHash": "a71d3e3cf07ca9ff19cc9d24e0d6608c8506af8d8a7b6640d708b9cd18dec702"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/WebPubSubTokenGenerator.java",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "Java handwritten source",
+      "contentHash": "f9b80eaa5481c6b31313c115123e06ba6bc003bad8d5b919b8eb31cd8d041899"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/BuiltInChatRoles.java",
+      "startLine": 1,
+      "endLine": 19,
+      "provenance": "Java handwritten source",
+      "contentHash": "f394cdc969f0c5b158744ed617c07f5b89811305072bd8ddf13b602b13f6cd67"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/ChatMessage.java",
+      "startLine": 73,
+      "endLine": 79,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "3ec43728c3e48efcbcc0b9060ab9bae4b56a20b10e80d92421fa6a06ce4b407a"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/GetClientAccessTokenOptions.java",
+      "startLine": 1,
+      "endLine": 56,
+      "provenance": "Java handwritten source",
+      "contentHash": "04d24396297a19746567170665f8e59d068cbd68b28a538ec2197d5a5c4fb0bf"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/MessageContent.java",
+      "startLine": 54,
+      "endLine": 60,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "a9400f72d99ed53c9f105fbfa6ece0df9f91107ab7f16a03a9ea4297c992973a"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsub-chat/src/main/java/com/azure/messaging/webpubsub/chat/models/WebPubSubClientAccessToken.java",
+      "startLine": 1,
+      "endLine": 39,
+      "provenance": "Java handwritten source",
+      "contentHash": "63374a51ef2dbd024fe403b9cee54e2ad13d01588bca9df4be3a94a8cc71dc27"
+    }
+  ]
+}
