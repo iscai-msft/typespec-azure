@@ -12,7 +12,7 @@ import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./
 import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.ts";
 import { append, createOverride, exportData, readState, validateScan } from "./store.ts";
 import { exportTracker } from "./tracker.ts";
-import { ExchangeClient, reviewScans } from "./review.ts";
+import { ExchangeClient, checkExchange, reviewScans } from "./review.ts";
 import { FileReviewStore, parseReviewers } from "./reviews.ts";
 import { applyReviews, fetchReviews } from "./apply-reviews.ts";
 import { createReviewServer } from "./server.ts";
@@ -71,7 +71,7 @@ export async function main(args: string[] = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, check-exchange, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   switch (positionals[0]) {
@@ -295,6 +295,28 @@ export async function main(args: string[] = process.argv.slice(2)) {
       if (!values.input) throw new Error("--input override-request.json required");
       console.log(JSON.stringify(await createOverride(state, await readJson(values.input))));
       break;
+    case "check-exchange": {
+      // Lists exchange requests still waiting for an answer and checks the answers given.
+      if (!values.exchange) throw new Error("--exchange DIR required");
+      const results = await checkExchange(resolve(values.exchange));
+      const count = (status: string) => results.filter((item) => item.status === status).length;
+      for (const item of results.filter((entry) => entry.status !== "ok"))
+        console.log(
+          item.status === "missing"
+            ? `MISSING  ${item.name}`
+            : `INVALID  ${item.name}\n  ${item.problems.join("\n  ")}`,
+        );
+      console.log(
+        JSON.stringify({
+          requests: results.length,
+          ok: count("ok"),
+          missing: count("missing"),
+          invalid: count("invalid"),
+        }),
+      );
+      if (count("invalid")) process.exitCode = 1;
+      break;
+    }
     case "apply-reviews": {
       // --reviews: the review API URL (https://…/api/reviews) or a {reviews: [...]} JSON file.
       if (!values.reviews) throw new Error("--reviews URL_OR_FILE required");
