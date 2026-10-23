@@ -277,11 +277,13 @@ lists unanswered requests and checks answers before the next run.
 
 Findings carry a `pattern` (kebab-case name of the reusable shape) and `generatorAddressable`
 (yes/no/unclear). The dashboard's **Reducible customizations** section groups accepted
-findings by catalog pattern and applies the definition in `guidelines/SKILL.md`: a pattern
-is reducible when it recurs in two or more services (TypeSpec projects, normalized across
-spellings), at least one library with it is active (released or changed in the last 12
-months), and most instances are not judged service-specific. Other statuses: same service in
-several languages (spec-fix candidate), dormant only, and one-off or service-specific.
+findings by catalog pattern. A pattern is reducible when a generator or TypeSpec feature could
+provide it generally: at least one library with it is active (released or changed in the last
+12 months), most instances are not judged service-specific, and either it recurs in two or more
+services (Recurring, ranked first; services are counted by Azure namespace) or most instances
+say a generator could produce it (One service so far). One service in several languages adds a
+Spec fix tag. Other statuses: needs a human call (one service, reviewers mostly unsure),
+service-specific, and dormant only. The rules live in `web/data.ts` (`reduciblePatterns`).
 
 `ai.github-models.example.json` shows a GitHub Models configuration. It sets
 `approvedPublicSource: true`; use it only after approval to send public SDK source to that
