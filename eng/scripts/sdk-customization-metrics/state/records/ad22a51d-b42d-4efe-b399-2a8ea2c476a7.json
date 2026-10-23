@@ -1,0 +1,1812 @@
+{
+  "schemaVersion": 1,
+  "id": "ad22a51d-b42d-4efe-b399-2a8ea2c476a7",
+  "observedAt": "2026-10-23T21:36:40.885Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2:module-v2",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2",
+    "moduleMajor": 2,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/storage/azqueue"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "4c6cfb08c65a2e573e8d75eef9a6fd9ff3523bd6"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 49,
+    "eligibleFiles": 31,
+    "capturedFiles": 12,
+    "skipped": [
+      {
+        "path": "sdk/storage/azqueue/queue_client.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/queueerror/error_codes.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/responses.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/sas/account.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/sas/query_params.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/sas/service.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/sas/url_parts.go",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/azqueue/service_client.go",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/storage/azqueue/constants.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azqueue\n\nimport \"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/generated\"\n\n// GeoReplicationStatus - The status of the secondary location\ntype GeoReplicationStatus = generated.GeoReplicationStatus\n\nconst (\n\tGeoReplicationStatusLive        GeoReplicationStatus = generated.GeoReplicationStatusLive\n\tGeoReplicationStatusBootstrap   GeoReplicationStatus = generated.GeoReplicationStatusBootstrap\n\tGeoReplicationStatusUnavailable GeoReplicationStatus = generated.GeoReplicationStatusUnavailable\n)\n",
+      "contentHash": "a147b7e3a8d280b17094acb19f6d3817795d9935b8ab8ab38d1813030d9db687",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/constants.go",
+      "startLine": 1,
+      "endLine": 15,
+      "kind": "unknown",
+      "id": "b86797d2131c7d6d6fd5981a7ee51458bccdb15efb0140c4789a3484ff728133"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/base/clients.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage base\n\nimport (\n\t\"strings\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/exported\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/generated\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/shared\"\n)\n\n// ClientOptions contains the optional parameters when creating a Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// Audience to use when requesting tokens for Azure Active Directory authentication.\n\t// Only has an effect when credential is of type TokenCredential. The value could be\n\t// https://storage.azure.com/ (default) or https://<account>.queue.core.windows.net.\n\tAudience string\n}\n\ntype Client[T any] struct {\n\tinner     *T\n\tsharedKey *exported.SharedKeyCredential\n}\n\nfunc InnerClient[T any](client *Client[T]) *T {\n\treturn client.inner\n}\n\nfunc SharedKey[T any](client *Client[T]) *exported.SharedKeyCredential {\n\treturn client.sharedKey\n}\n\nfunc NewClient[T any](inner *T) *Client[T] {\n\treturn &Client[T]{inner: inner}\n}\n\nfunc GetAudience(clOpts *ClientOptions) string {\n\tif clOpts == nil || len(strings.TrimSpace(clOpts.Audience)) == 0 {\n\t\treturn shared.TokenScope\n\t} else {\n\t\treturn strings.TrimRight(clOpts.Audience, \"/\") + \"/.default\"\n\t}\n}\nfunc NewServiceClient(queueURL string, azClient *azcore.Client, sharedKey *exported.SharedKeyCredential) *Client[generated.ServiceClient] {\n\treturn &Client[generated.ServiceClient]{\n\t\tinner:     generated.NewServiceClient(queueURL, azClient),\n\t\tsharedKey: sharedKey,\n\t}\n}\n\nfunc NewQueueClient(queueURL string, azClient *azcore.Client, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.QueueClient, generated.MessagesClient] {\n\treturn &CompositeClient[generated.QueueClient, generated.MessagesClient]{\n\t\tinnerT:    generated.NewQueueClient(queueURL, azClient),\n\t\tinnerU:    &generated.MessagesClient{},\n\t\tsharedKey: sharedKey,\n\t}\n}\n\ntype CompositeClient[T, U any] struct {\n\tinnerT    *T\n\tinnerU    *U\n\tsharedKey *exported.SharedKeyCredential\n}\n\nfunc InnerClients[T, U any](client *CompositeClient[T, U]) (*T, *U) {\n\treturn client.innerT, client.innerU\n}\n\nfunc SharedKeyComposite[T, U any](client *CompositeClient[T, U]) *exported.SharedKeyCredential {\n\treturn client.sharedKey\n}\n",
+      "contentHash": "5107f80380812d8f371bfa2b176b8dc2f8e5c460c7126b18521ddd4b5bd18886",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/base/clients.go",
+      "startLine": 1,
+      "endLine": 76,
+      "kind": "unknown",
+      "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/access_policy.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage exported\n\nimport (\n\t\"bytes\"\n\t\"fmt\"\n)\n\n// AccessPolicyPermission type simplifies creating the permissions string for a queue's access policy.\n// Initialize an instance of this type and then call its String method to set AccessPolicy's Permission field.\ntype AccessPolicyPermission struct {\n\tRead, Add, Update, Process bool\n}\n\n// String produces the access policy permission string for an Azure Storage queue.\n// Call this method to set AccessPolicy's Permission field.\nfunc (p *AccessPolicyPermission) String() string {\n\tvar b bytes.Buffer\n\tif p.Read {\n\t\tb.WriteRune('r')\n\t}\n\tif p.Add {\n\t\tb.WriteRune('a')\n\t}\n\tif p.Update {\n\t\tb.WriteRune('u')\n\t}\n\tif p.Process {\n\t\tb.WriteRune('p')\n\t}\n\treturn b.String()\n}\n\n// Parse initializes the AccessPolicyPermission's fields from a string.\nfunc (p *AccessPolicyPermission) Parse(s string) error {\n\t*p = AccessPolicyPermission{} // Clear the flags\n\tfor _, r := range s {\n\t\tswitch r {\n\t\tcase 'r':\n\t\t\tp.Read = true\n\t\tcase 'a':\n\t\t\tp.Add = true\n\t\tcase 'u':\n\t\t\tp.Update = true\n\t\tcase 'p':\n\t\t\tp.Process = true\n\t\tdefault:\n\t\t\treturn fmt.Errorf(\"invalid permission: '%v'\", r)\n\t\t}\n\t}\n\treturn nil\n}\n",
+      "contentHash": "217234ce0bd415e39d38ca7e3f9cb5e7169f8cb28ea4dc54f71eed1f00158a8e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/exported/access_policy.go",
+      "startLine": 1,
+      "endLine": 54,
+      "kind": "unknown",
+      "id": "5ef9f159cac3002fd23b53344e23e2112d9a4007b10445f388d69dda6d90ad57"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/shared_key_credential.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage exported\n\nimport (\n\t\"bytes\"\n\t\"crypto/hmac\"\n\t\"crypto/sha256\"\n\t\"encoding/base64\"\n\t\"fmt\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"sort\"\n\t\"strings\"\n\t\"sync/atomic\"\n\t\"time\"\n\n\tazlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/internal/log\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/shared\"\n)\n\n// NewSharedKeyCredential creates an immutable SharedKeyCredential containing the\n// storage account's name and either its primary or secondary key.\nfunc NewSharedKeyCredential(accountName string, accountKey string) (*SharedKeyCredential, error) {\n\tc := SharedKeyCredential{accountName: accountName}\n\tif err := c.SetAccountKey(accountKey); err != nil {\n\t\treturn nil, err\n\t}\n\treturn &c, nil\n}\n\n// SharedKeyCredential contains an account's name and its primary or secondary key.\ntype SharedKeyCredential struct {\n\t// Only the NewSharedKeyCredential method should set these; all other methods should treat them as read-only\n\taccountName string\n\taccountKey  atomic.Value // []byte\n}\n\n// AccountName returns the Storage account's name.\nfunc (c *SharedKeyCredential) AccountName() string {\n\treturn c.accountName\n}\n\n// SetAccountKey replaces the existing account key with the specified account key.\nfunc (c *SharedKeyCredential) SetAccountKey(accountKey string) error {\n\t_bytes, err := base64.StdEncoding.DecodeString(accountKey)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"decode account key: %w\", err)\n\t}\n\tc.accountKey.Store(_bytes)\n\treturn nil\n}\n\n// ComputeHMACSHA256 generates a hash signature for an HTTP request or for a SAS.\nfunc (c *SharedKeyCredential) computeHMACSHA256(message string) (string, error) {\n\th := hmac.New(sha256.New, c.accountKey.Load().([]byte))\n\t_, err := h.Write([]byte(message))\n\treturn base64.StdEncoding.EncodeToString(h.Sum(nil)), err\n}\n\nfunc (c *SharedKeyCredential) buildStringToSign(req *http.Request) (string, error) {\n\t// https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services\n\theaders := req.Header\n\tcontentLength := getHeader(shared.HeaderContentLength, headers)\n\tif contentLength == \"0\" {\n\t\tcontentLength = \"\"\n\t}\n\n\tcanonicalizedResource, err := c.buildCanonicalizedResource(req.URL)\n\tif err != nil {\n\t\treturn \"\", err\n\t}\n\n\tstringToSign := strings.Join([]string{\n\t\treq.Method,\n\t\tgetHeader(shared.HeaderContentEncoding, headers),\n\t\tgetHeader(shared.HeaderContentLanguage, headers),\n\t\tcontentLength,\n\t\tgetHeader(shared.HeaderContentMD5, headers),\n\t\tgetHeader(shared.HeaderContentType, headers),\n\t\t\"\", // Empty date because x-ms-date is expected (as per web page above)\n\t\tgetHeader(shared.HeaderIfModifiedSince, headers),\n\t\tgetHeader(shared.HeaderIfMatch, headers),\n\t\tgetHeader(shared.HeaderIfNoneMatch, headers),\n\t\tgetHeader(shared.HeaderIfUnmodifiedSince, headers),\n\t\tgetHeader(shared.HeaderRange, headers),\n\t\tc.buildCanonicalizedHeader(headers),\n\t\tcanonicalizedResource,\n\t}, \"\\n\")\n\treturn stringToSign, nil\n}\n\nfunc getHeader(key string, headers map[string][]string) string {\n\tif headers == nil {\n\t\treturn \"\"\n\t}\n\tif v, ok := headers[key]; ok {\n\t\tif len(v) > 0 {\n\t\t\treturn v[0]\n\t\t}\n\t}\n\n\treturn \"\"\n}\n\nfunc (c *SharedKeyCredential) buildCanonicalizedHeader(headers http.Header) string {\n\tcm := map[string][]string{}\n\tfor k, v := range headers {\n\t\theaderName := strings.TrimSpace(strings.ToLower(k))\n\t\tif strings.HasPrefix(headerName, \"x-ms-\") {\n\t\t\tcm[headerName] = v // NOTE: the value must not have any whitespace around it.\n\t\t}\n\t}\n\tif len(cm) == 0 {\n\t\treturn \"\"\n\t}\n\n\tkeys := make([]string, 0, len(cm))\n\tfor key := range cm {\n\t\tkeys = append(keys, key)\n\t}\n\tsort.Strings(keys)\n\tch := bytes.NewBufferString(\"\")\n\tfor i, key := range keys {\n\t\tif i > 0 {\n\t\t\tch.WriteRune('\\n')\n\t\t}\n\t\tch.WriteString(key)\n\t\tch.WriteRune(':')\n\t\tch.WriteString(strings.Join(cm[key], \",\"))\n\t}\n\treturn ch.String()\n}\n\nfunc (c *SharedKeyCredential) buildCanonicalizedResource(u *url.URL) (string, error) {\n\t// https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services\n\tcr := bytes.NewBufferString(\"/\")\n\tcr.WriteString(c.accountName)\n\n\tif len(u.Path) > 0 {\n\t\t// Any portion of the CanonicalizedResource string that is derived from\n\t\t// the resource's URI should be encoded exactly as it is in the URI.\n\t\t// -- https://msdn.microsoft.com/en-gb/library/azure/dd179428.aspx\n\t\tcr.WriteString(u.EscapedPath())\n\t} else {\n\t\t// a slash is required to indicate the root path\n\t\tcr.WriteString(\"/\")\n\t}\n\n\t// params is a map[string][]string; param name is key; params values is []string\n\tparams, err := url.ParseQuery(u.RawQuery) // Returns URL decoded values\n\tif err != nil {\n\t\treturn \"\", fmt.Errorf(\"failed to parse query params: %w\", err)\n\t}\n\n\tif len(params) > 0 { // There is at least 1 query parameter\n\t\tvar paramNames []string // We use this to sort the parameter key names\n\t\tfor paramName := range params {\n\t\t\tparamNames = append(paramNames, paramName) // paramNames must be lowercase\n\t\t}\n\t\tsort.Strings(paramNames)\n\n\t\tfor _, paramName := range paramNames {\n\t\t\tparamValues := params[paramName]\n\t\t\tsort.Strings(paramValues)\n\n\t\t\t// Join the sorted key values separated by ','\n\t\t\t// Then prepend \"keyName:\"; then add this string to the buffer\n\t\t\tcr.WriteString(\"\\n\" + strings.ToLower(paramName) + \":\" + strings.Join(paramValues, \",\"))\n\t\t}\n\t}\n\treturn cr.String(), nil\n}\n\n// ComputeHMACSHA256 is a helper for computing the signed string outside of this package.\nfunc ComputeHMACSHA256(cred *SharedKeyCredential, message string) (string, error) {\n\treturn cred.computeHMACSHA256(message)\n}\n\n// the following content isn't actually exported but must live\n// next to SharedKeyCredential as it uses its unexported methods\n\ntype SharedKeyCredPolicy struct {\n\tcred *SharedKeyCredential\n}\n\nfunc NewSharedKeyCredPolicy(cred *SharedKeyCredential) *SharedKeyCredPolicy {\n\treturn &SharedKeyCredPolicy{cred: cred}\n}\n\nfunc (s *SharedKeyCredPolicy) Do(req *policy.Request) (*http.Response, error) {\n\tif d := getHeader(shared.HeaderXmsDate, req.Raw().Header); d == \"\" {\n\t\treq.Raw().Header.Set(shared.HeaderXmsDate, time.Now().UTC().Format(http.TimeFormat))\n\t}\n\tstringToSign, err := s.cred.buildStringToSign(req.Raw())\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tsignature, err := s.cred.computeHMACSHA256(stringToSign)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tauthHeader := strings.Join([]string{\"SharedKey \", s.cred.AccountName(), \":\", signature}, \"\")\n\treq.Raw().Header.Set(shared.HeaderAuthorization, authHeader)\n\n\tresponse, err := req.Next()\n\tif err != nil && response != nil && response.StatusCode == http.StatusForbidden {\n\t\t// Service failed to authenticate request, log it\n\t\tlog.Write(azlog.EventResponse, \"===== HTTP Forbidden status, String-to-Sign:\\n\"+stringToSign+\"\\n===============================\\n\")\n\t}\n\treturn response, err\n}\n",
+      "contentHash": "8ec17b7cac22298410b2f11e1a24d224e412d73b30eb3788a7b034c64e4ff32d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/exported/shared_key_credential.go",
+      "startLine": 1,
+      "endLine": 215,
+      "kind": "unknown",
+      "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/user_delegation_credential.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage exported\n\nimport (\n\t\"crypto/hmac\"\n\t\"crypto/sha256\"\n\t\"encoding/base64\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/generated\"\n)\n\n// NewUserDelegationCredential creates a new UserDelegationCredential using a Storage account's Name and a user delegation Key from it\nfunc NewUserDelegationCredential(accountName string, udk UserDelegationKey) *UserDelegationCredential {\n\treturn &UserDelegationCredential{\n\t\taccountName:       accountName,\n\t\tuserDelegationKey: udk,\n\t}\n}\n\n// UserDelegationKey contains UserDelegationKey.\ntype UserDelegationKey = generated.UserDelegationKey\n\n// UserDelegationCredential contains an account's name and its user delegation key.\ntype UserDelegationCredential struct {\n\taccountName       string\n\tuserDelegationKey UserDelegationKey\n}\n\n// getAccountName returns the Storage account's Name\nfunc (f *UserDelegationCredential) getAccountName() string {\n\treturn f.accountName\n}\n\n// GetAccountName is a helper method for accessing the user delegation key parameters outside this package.\nfunc GetAccountName(udc *UserDelegationCredential) string {\n\treturn udc.getAccountName()\n}\n\n// computeHMACSHA256 generates a hash signature for an HTTP request or for a SAS.\nfunc (f *UserDelegationCredential) computeHMACSHA256(message string) (string, error) {\n\tbytes, _ := base64.StdEncoding.DecodeString(*f.userDelegationKey.Value)\n\th := hmac.New(sha256.New, bytes)\n\t_, err := h.Write([]byte(message))\n\treturn base64.StdEncoding.EncodeToString(h.Sum(nil)), err\n}\n\n// ComputeUDCHMACSHA256 is a helper method for computing the signed string outside this package.\nfunc ComputeUDCHMACSHA256(udc *UserDelegationCredential, message string) (string, error) {\n\treturn udc.computeHMACSHA256(message)\n}\n\n// getUDKParams returns UserDelegationKey\nfunc (f *UserDelegationCredential) getUDKParams() *UserDelegationKey {\n\treturn &f.userDelegationKey\n}\n\n// GetUDKParams is a helper method for accessing the user delegation key parameters outside this package.\nfunc GetUDKParams(udc *UserDelegationCredential) *UserDelegationKey {\n\treturn udc.getUDKParams()\n}\n",
+      "contentHash": "1b92a4a3001f082c248346ed63331754cbdfd993fc304574426d07957d4c413c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/exported/user_delegation_credential.go",
+      "startLine": 1,
+      "endLine": 62,
+      "kind": "unknown",
+      "id": "640dad2d2cbe25348d3a5ccfe8592b78b54ba5e1bc2c5a895c8b8add048d11cf"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/generated/queue_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage generated\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n)\n\nfunc (client *QueueClient) Endpoint() string {\n\treturn client.url\n}\n\nfunc (client *QueueClient) InternalClient() *azcore.Client {\n\treturn client.internal\n}\n\ntype MessagesClient struct {\n\t// client just here for back compatibility. Use QueueClient instead.\n}\n\n// NewQueueClient creates a new instance of QueueClient with the specified values.\n//   - endpoint - The URL of the service account, queue, or message that is the target of the desired operation.\n//   - azClient - azcore.Client is a basic HTTP client. It consists of a pipeline and tracing provider.\nfunc NewQueueClient(url string, azClient *azcore.Client) *QueueClient {\n\tclient := &QueueClient{\n\t\tinternal: azClient,\n\t\turl:      url,\n\t}\n\treturn client\n}\n",
+      "contentHash": "3ecbdeb708d963a713fddcca9168b9ef121d40254d8a525528bedef097d8484c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/generated/queue_client.go",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "unknown",
+      "id": "9fefecdac78524d6485f412193486f4f1c509178dc396d81d47c3bd15acbbbca"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/generated/service_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage generated\n\nimport (\n\t\"context\"\n\t\"net/http\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n)\n\nfunc (client *ServiceClient) Endpoint() string {\n\treturn client.url\n}\n\nfunc (client *ServiceClient) InternalClient() *azcore.Client {\n\treturn client.internal\n}\n\nfunc (client *ServiceClient) ListQueuesSegmentCreateRequest(ctx context.Context, options *ServiceClientListQueuesSegmentOptions) (*policy.Request, error) {\n\treturn client.listQueuesSegmentCreateRequest(ctx, options)\n}\n\nfunc (client *ServiceClient) ListQueuesSegmentHandleResponse(resp *http.Response) (ServiceClientListQueuesSegmentResponse, error) {\n\treturn client.listQueuesSegmentHandleResponse(resp)\n}\n\nfunc NewServiceClient(url string, azClient *azcore.Client) *ServiceClient {\n\tclient := &ServiceClient{\n\t\tinternal: azClient,\n\t\turl:      url,\n\t}\n\treturn client\n}\n",
+      "contentHash": "c62e1b862ba184fddd495c1eb80b4cb9765b65fbef487a648e297ed5bfc49fb0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/generated/service_client.go",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/shared/challenge_policy.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage shared\n\nimport (\n\t\"errors\"\n\t\"net/http\"\n\t\"strings\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n)\n\ntype storageAuthorizer struct {\n\tscopes   []string\n\ttenantID string\n}\n\nfunc NewStorageChallengePolicy(cred azcore.TokenCredential, audience string, allowHTTP bool) policy.Policy {\n\ts := storageAuthorizer{scopes: []string{audience}}\n\treturn runtime.NewBearerTokenPolicy(cred, []string{audience}, &policy.BearerTokenOptions{\n\t\tAuthorizationHandler: policy.AuthorizationHandler{\n\t\t\tOnRequest:   s.onRequest,\n\t\t\tOnChallenge: s.onChallenge,\n\t\t},\n\t\tInsecureAllowCredentialWithHTTP: allowHTTP,\n\t})\n}\n\nfunc (s *storageAuthorizer) onRequest(req *policy.Request, authNZ func(policy.TokenRequestOptions) error) error {\n\treturn authNZ(policy.TokenRequestOptions{Scopes: s.scopes})\n}\n\nfunc (s *storageAuthorizer) onChallenge(req *policy.Request, resp *http.Response, authNZ func(policy.TokenRequestOptions) error) error {\n\t// parse the challenge\n\terr := s.parseChallenge(resp)\n\tif err != nil {\n\t\treturn err\n\t}\n\t// TODO: Set tenantID when policy.TokenRequestOptions supports it. https://github.com/Azure/azure-sdk-for-go/issues/19841\n\treturn authNZ(policy.TokenRequestOptions{Scopes: s.scopes})\n}\n\ntype challengePolicyError struct {\n\terr error\n}\n\nfunc (c *challengePolicyError) Error() string {\n\treturn c.err.Error()\n}\n\nfunc (*challengePolicyError) NonRetriable() {\n\t// marker method\n}\n\nfunc (c *challengePolicyError) Unwrap() error {\n\treturn c.err\n}\n\n// parses Tenant ID from auth challenge\n// https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/authorize\nfunc parseTenant(url string) string {\n\tif url == \"\" {\n\t\treturn \"\"\n\t}\n\tparts := strings.Split(url, \"/\")\n\tif len(parts) >= 3 {\n\t\ttenant := parts[3]\n\t\ttenant = strings.ReplaceAll(tenant, \",\", \"\")\n\t\treturn tenant\n\t} else {\n\t\treturn \"\"\n\t}\n}\n\nfunc (s *storageAuthorizer) parseChallenge(resp *http.Response) error {\n\tauthHeader := resp.Header.Get(\"WWW-Authenticate\")\n\tif authHeader == \"\" {\n\t\treturn &challengePolicyError{err: errors.New(\"response has no WWW-Authenticate header for challenge authentication\")}\n\t}\n\n\t// Strip down to auth and resource\n\t// Format is \"Bearer authorization_uri=\\\"<site>\\\" resource_id=\\\"<site>\\\"\"\n\tauthHeader = strings.ReplaceAll(authHeader, \"Bearer \", \"\")\n\n\tparts := strings.Split(authHeader, \" \")\n\n\tvals := map[string]string{}\n\tfor _, part := range parts {\n\t\tsubParts := strings.Split(part, \"=\")\n\t\tif len(subParts) == 2 {\n\t\t\tstripped := strings.ReplaceAll(subParts[1], \"\\\"\", \"\")\n\t\t\tstripped = strings.TrimSuffix(stripped, \",\")\n\t\t\tvals[subParts[0]] = stripped\n\t\t}\n\t}\n\n\ts.tenantID = parseTenant(vals[\"authorization_uri\"])\n\n\tscope := vals[\"resource_id\"]\n\tif scope == \"\" {\n\t\treturn &challengePolicyError{err: errors.New(\"could not find a valid resource in the WWW-Authenticate header\")}\n\t}\n\n\tif !strings.HasSuffix(scope, \"/.default\") {\n\t\tscope += \"/.default\"\n\t}\n\ts.scopes = []string{scope}\n\treturn nil\n}\n",
+      "contentHash": "7f14236d8ccaf91f6adbd53cacc1d13b75722a08ddae291eb404ac0e898b3010",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/shared/challenge_policy.go",
+      "startLine": 1,
+      "endLine": 112,
+      "kind": "unknown",
+      "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/shared/shared.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage shared\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"hash/crc64\"\n\t\"net\"\n\t\"strings\"\n)\n\nconst (\n\tTokenScope = \"https://storage.azure.com/.default\"\n)\n\nconst (\n\tHeaderAuthorization     = \"Authorization\"\n\tHeaderXmsDate           = \"x-ms-date\"\n\tHeaderContentLength     = \"Content-Length\"\n\tHeaderContentEncoding   = \"Content-Encoding\"\n\tHeaderContentLanguage   = \"Content-Language\"\n\tHeaderContentType       = \"Content-Type\"\n\tHeaderContentMD5        = \"Content-MD5\"\n\tHeaderIfModifiedSince   = \"If-Modified-Since\"\n\tHeaderIfMatch           = \"If-Match\"\n\tHeaderIfNoneMatch       = \"If-None-Match\"\n\tHeaderIfUnmodifiedSince = \"If-Unmodified-Since\"\n\tHeaderRange             = \"Range\"\n)\n\nconst crc64Polynomial uint64 = 0x9A6C9329AC4BC9B5\n\nvar CRC64Table = crc64.MakeTable(crc64Polynomial)\n\n// CopyOptions returns a zero-value T if opts is nil.\n// If opts is not nil, a copy is made and its address returned.\nfunc CopyOptions[T any](opts *T) *T {\n\tif opts == nil {\n\t\treturn new(T)\n\t}\n\tcp := *opts\n\treturn &cp\n}\n\nvar errConnectionString = errors.New(\"connection string is either blank or malformed. The expected connection string \" +\n\t\"should contain key value pairs separated by semicolons. For example 'DefaultEndpointsProtocol=https;AccountName=<accountName>;\" +\n\t\"AccountKey=<accountKey>;EndpointSuffix=core.windows.net'\")\n\ntype ParsedConnectionString struct {\n\tServiceURL  string\n\tAccountName string\n\tAccountKey  string\n}\n\nfunc ParseConnectionString(connectionString string) (ParsedConnectionString, error) {\n\tconst (\n\t\tdefaultScheme = \"https\"\n\t\tdefaultSuffix = \"core.windows.net\"\n\t)\n\n\tconnStrMap := make(map[string]string)\n\tconnectionString = strings.TrimRight(connectionString, \";\")\n\n\tsplitString := strings.Split(connectionString, \";\")\n\tif len(splitString) == 0 {\n\t\treturn ParsedConnectionString{}, errConnectionString\n\t}\n\tfor _, stringPart := range splitString {\n\t\tparts := strings.SplitN(stringPart, \"=\", 2)\n\t\tif len(parts) != 2 {\n\t\t\treturn ParsedConnectionString{}, errConnectionString\n\t\t}\n\t\tconnStrMap[parts[0]] = parts[1]\n\t}\n\n\tprotocol, ok := connStrMap[\"DefaultEndpointsProtocol\"]\n\tif !ok {\n\t\tprotocol = defaultScheme\n\t}\n\n\tsuffix, ok := connStrMap[\"EndpointSuffix\"]\n\tif !ok {\n\t\tsuffix = defaultSuffix\n\t}\n\n\tqueueEndpoint, has_queueEndpoint := connStrMap[\"QueueEndpoint\"]\n\taccountName, has_accountName := connStrMap[\"AccountName\"]\n\n\tvar serviceURL string\n\tif has_queueEndpoint {\n\t\tserviceURL = queueEndpoint\n\t} else if has_accountName {\n\t\tserviceURL = fmt.Sprintf(\"%v://%v.queue.%v\", protocol, accountName, suffix)\n\t} else {\n\t\treturn ParsedConnectionString{}, errors.New(\"connection string needs either AccountName or QueueEndpoint\")\n\t}\n\n\tif !strings.HasSuffix(serviceURL, \"/\") {\n\t\t// add a trailing slash to be consistent with the portal\n\t\tserviceURL += \"/\"\n\t}\n\n\taccountKey, has_accountKey := connStrMap[\"AccountKey\"]\n\tsharedAccessSignature, has_sharedAccessSignature := connStrMap[\"SharedAccessSignature\"]\n\n\tif has_accountName && has_accountKey {\n\t\treturn ParsedConnectionString{\n\t\t\tServiceURL:  serviceURL,\n\t\t\tAccountName: accountName,\n\t\t\tAccountKey:  accountKey,\n\t\t}, nil\n\t} else if has_sharedAccessSignature {\n\t\treturn ParsedConnectionString{\n\t\t\tServiceURL: fmt.Sprintf(\"%v?%v\", serviceURL, sharedAccessSignature),\n\t\t}, nil\n\t} else {\n\t\treturn ParsedConnectionString{}, errors.New(\"connection string needs either AccountKey or SharedAccessSignature\")\n\t}\n}\n\nfunc GetClientOptions[T any](o *T) *T {\n\tif o == nil {\n\t\treturn new(T)\n\t}\n\treturn o\n}\n\n// IsIPEndpointStyle checkes if URL's host is IP, in this case the storage account endpoint will be composed as:\n// http(s)://IP(:port)/storageaccount/queue/...\n// As url's Host property, host could be both host or host:port\nfunc IsIPEndpointStyle(host string) bool {\n\tif host == \"\" {\n\t\treturn false\n\t}\n\tif h, _, err := net.SplitHostPort(host); err == nil {\n\t\thost = h\n\t}\n\t// For IPv6, there could be case where SplitHostPort fails for cannot finding port.\n\t// In this case, eliminate the '[' and ']' in the URL.\n\t// For details about IPv6 URL, please refer to https://tools.ietf.org/html/rfc2732\n\tif host[0] == '[' && host[len(host)-1] == ']' {\n\t\thost = host[1 : len(host)-1]\n\t}\n\treturn net.ParseIP(host) != nil\n}\n",
+      "contentHash": "490fa16cc18248e532215fd4588d404e685c2d27d2fa2a5218b154c199bef483",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/shared/shared.go",
+      "startLine": 1,
+      "endLine": 147,
+      "kind": "unknown",
+      "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/testcommon/clients_auth.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\n// Contains common helpers for TESTS ONLY\n\npackage testcommon\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"testing\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/to\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/internal/recording\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2\"\n\t\"github.com/stretchr/testify/require\"\n)\n\ntype TestAccountType string\n\nconst (\n\tTestAccountDefault   TestAccountType = \"\"\n\tTestAccountSecondary TestAccountType = \"SECONDARY_\"\n\tTestAccountPremium   TestAccountType = \"PREMIUM_\"\n)\n\nconst (\n\tDefaultEndpointSuffix       = \"core.windows.net/\"\n\tDefaultQueueEndpointSuffix  = \"queue.core.windows.net/\"\n\tAccountNameEnvVar           = \"AZURE_STORAGE_ACCOUNT_NAME\"\n\tAccountKeyEnvVar            = \"AZURE_STORAGE_ACCOUNT_KEY\"\n\tDefaultEndpointSuffixEnvVar = \"AZURE_STORAGE_ENDPOINT_SUFFIX\"\n)\n\nconst (\n\tFakeStorageAccount = \"fakestorage\"\n\tFakeStorageURL     = \"https://fakestorage.queue.core.windows.net\"\n)\n\nvar BasicMetadata = map[string]*string{\"Foo\": to.Ptr(\"bar\")}\n\nfunc setClientOptions(t *testing.T, opts *azcore.ClientOptions) {\n\topts.Logging.AllowedHeaders = append(opts.Logging.AllowedHeaders, \"X-Request-Mismatch\", \"X-Request-Mismatch-Error\")\n\n\ttransport, err := recording.NewRecordingHTTPClient(t, nil)\n\trequire.NoError(t, err)\n\topts.Transport = transport\n}\n\nfunc GetServiceClient(t *testing.T, accountType TestAccountType, options *azqueue.ClientOptions) (*azqueue.ServiceClient, error) {\n\tif options == nil {\n\t\toptions = &azqueue.ClientOptions{}\n\t}\n\n\tsetClientOptions(t, &options.ClientOptions)\n\n\tcred, err := GetGenericCredential(accountType)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tserviceClient, err := azqueue.NewServiceClientWithSharedKeyCredential(\"https://\"+cred.AccountName()+\".queue.core.windows.net/\", cred, options)\n\n\treturn serviceClient, err\n}\n\nfunc GetAccountInfo(accountType TestAccountType) (string, string) {\n\taccountNameEnvVar := string(accountType) + AccountNameEnvVar\n\taccountKeyEnvVar := string(accountType) + AccountKeyEnvVar\n\taccountName, _ := GetRequiredEnv(accountNameEnvVar)\n\taccountKey, _ := GetRequiredEnv(accountKeyEnvVar)\n\treturn accountName, accountKey\n}\n\nfunc GetGenericCredential(accountType TestAccountType) (*azqueue.SharedKeyCredential, error) {\n\tif recording.GetRecordMode() == recording.PlaybackMode {\n\t\treturn azqueue.NewSharedKeyCredential(FakeStorageAccount, \"ZmFrZQ==\")\n\t}\n\n\taccountName, accountKey := GetAccountInfo(accountType)\n\tif accountName == \"\" || accountKey == \"\" {\n\t\treturn nil, errors.New(string(accountType) + AccountNameEnvVar + \" and/or \" + string(accountType) + AccountKeyEnvVar + \" environment variables not specified.\")\n\t}\n\treturn azqueue.NewSharedKeyCredential(accountName, accountKey)\n}\n\nfunc GetConnectionString(accountType TestAccountType) string {\n\taccountName, accountKey := GetAccountInfo(accountType)\n\tconnectionString := fmt.Sprintf(\"DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net/\",\n\t\taccountName, accountKey)\n\treturn connectionString\n}\n\nfunc GetServiceClientFromConnectionString(t *testing.T, accountType TestAccountType, options *azqueue.ClientOptions) (*azqueue.ServiceClient, error) {\n\tif options == nil {\n\t\toptions = &azqueue.ClientOptions{}\n\t}\n\n\ttransport, err := recording.NewRecordingHTTPClient(t, nil)\n\trequire.NoError(t, err)\n\toptions.Transport = transport\n\n\tif recording.GetRecordMode() == recording.PlaybackMode {\n\t\treturn azqueue.NewServiceClientWithNoCredential(FakeStorageURL, options)\n\t}\n\n\tconnectionString := GetConnectionString(accountType)\n\tsvcClient, err := azqueue.NewServiceClientFromConnectionString(connectionString, options)\n\treturn svcClient, err\n}\n\nfunc GetQueueClient(queueName string, serviceClient *azqueue.ServiceClient) *azqueue.QueueClient {\n\treturn serviceClient.NewQueueClient(queueName)\n}\n\nfunc CreateNewQueue(ctx context.Context, _require *require.Assertions, queueName string, serviceClient *azqueue.ServiceClient) *azqueue.QueueClient {\n\tqueueClient := GetQueueClient(queueName, serviceClient)\n\n\t_, err := queueClient.Create(ctx, nil)\n\t_require.NoError(err)\n\treturn queueClient\n}\n\nfunc DeleteQueue(ctx context.Context, _require *require.Assertions, queueClient *azqueue.QueueClient) {\n\t_, err := queueClient.Delete(ctx, nil)\n\t_require.NoError(err)\n}\n",
+      "contentHash": "2cf3ef7d5211a447ef24f1d38684d3ebc7da5fa483a9bc6c4dbab38347f8fcd1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/testcommon/clients_auth.go",
+      "startLine": 1,
+      "endLine": 129,
+      "kind": "unknown",
+      "id": "0f443d3525af209e0deb4dca54f71e9b7345afffea6f88a0e59937826f890dd3"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/testcommon/common.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage testcommon\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"os\"\n\t\"runtime\"\n\t\"strconv\"\n\t\"strings\"\n\t\"testing\"\n\t\"time\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/internal/recording\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/queueerror\"\n\t\"github.com/stretchr/testify/require\"\n\t\"github.com/stretchr/testify/suite\"\n)\n\nconst (\n\tRecordingDirectory = \"sdk/storage/azqueue/testdata\"\n\tQueuePrefix        = \"goq\"\n\tQueueDefaultData   = \"this is some default data\"\n)\n\nfunc GenerateQueueName(testName string) string {\n\treturn QueuePrefix + GenerateEntityName(testName)\n}\n\nfunc GenerateName(prefix string) string {\n\tpc := make([]uintptr, 10)\n\truntime.Callers(0, pc)\n\tframes := runtime.CallersFrames(pc)\n\tname := \"\"\n\tfor f, next := frames.Next(); next; f, next = frames.Next() {\n\t\tname = f.Function\n\t\tif strings.Contains(name, \"Suite\") {\n\t\t\tbreak\n\t\t}\n\t}\n\tfuncNameStart := strings.Index(name, \"Test\")\n\tname = name[funcNameStart+len(\"Test\"):] // Just get the name of the test and not any of the garbage at the beginning\n\tname = strings.ToLower(name)            // Ensure it is a valid resource name\n\tcurrentTime := time.Now()\n\tname = fmt.Sprintf(\"%s%s%d%d%d\", prefix, strings.ToLower(name), currentTime.Minute(), currentTime.Second(), currentTime.Nanosecond())\n\treturn name\n}\n\nfunc GenerateEntityName(testName string) string {\n\treturn strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(testName), \"/\", \"\"), \"test\", \"\")\n}\n\nfunc ValidateHTTPErrorCode(_require *require.Assertions, err error, code int) {\n\t_require.Error(err)\n\tvar responseErr *azcore.ResponseError\n\terrors.As(err, &responseErr)\n\tif responseErr != nil {\n\t\t_require.Equal(responseErr.StatusCode, code)\n\t} else {\n\t\t_require.Equal(strings.Contains(err.Error(), strconv.Itoa(code)), true)\n\t}\n}\n\n// GetRequiredEnv gets an environment variable by name and returns an error if it is not found\nfunc GetRequiredEnv(name string) (string, error) {\n\tenv, ok := os.LookupEnv(name)\n\tif ok {\n\t\treturn env, nil\n\t} else {\n\t\treturn \"\", errors.New(\"Required environment variable not set: \" + name)\n\t}\n}\n\nfunc SetupSuite(suite *suite.Suite) *recording.TestProxyInstance {\n\tproxy, err := recording.StartTestProxy(RecordingDirectory, nil)\n\tif err != nil {\n\t\tsuite.T().Fatal(err)\n\t}\n\n\treturn proxy\n}\n\nfunc TearDownSuite(suite *suite.Suite, proxy *recording.TestProxyInstance) {\n\terr := recording.StopTestProxy(proxy)\n\tif err != nil {\n\t\tsuite.T().Fatal(err)\n\t}\n}\n\nfunc BeforeTest(t *testing.T, suite string, test string) {\n\tconst urlRegex = `https://\\S+\\.queue\\.core\\.windows\\.net`\n\trequire.NoError(t, recording.AddURISanitizer(FakeStorageURL, urlRegex, nil))\n\t// we freeze request IDs and timestamps to avoid creating noisy diffs\n\t// NOTE: we can't freeze time stamps as that breaks some tests that use if-modified-since etc (maybe it can be fixed?)\n\t// testframework.AddHeaderRegexSanitizer(\"X-Ms-Date\", \"Wed, 10 Aug 2022 23:34:14 GMT\", \"\", nil)\n\trequire.NoError(t, recording.AddHeaderRegexSanitizer(\"x-ms-request-id\", \"00000000-0000-0000-0000-000000000000\", \"\", nil))\n\t// TODO: more freezing\n\trequire.NoError(t, recording.Start(t, RecordingDirectory, nil))\n\trequire.NoError(t, recording.SetDefaultMatcher(t, &recording.SetDefaultMatcherOptions{ExcludedHeaders: []string{\"Accept\"}}))\n}\n\nfunc AfterTest(t *testing.T, suite string, test string) {\n\trequire.NoError(t, recording.Stop(t, nil))\n}\n\nfunc ValidateQueueErrorCode(_require *require.Assertions, err error, code queueerror.Code) {\n\t_require.Error(err)\n\tvar responseErr *azcore.ResponseError\n\terrors.As(err, &responseErr)\n\tif responseErr != nil {\n\t\t_require.Equal(string(code), responseErr.ErrorCode)\n\t} else {\n\t\t_require.Contains(err.Error(), code)\n\t}\n}\n",
+      "contentHash": "323d901ece7adeed7022e834c5969921afe7d572fe8b32480509a08dfe3ce311",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/internal/testcommon/common.go",
+      "startLine": 1,
+      "endLine": 118,
+      "kind": "unknown",
+      "id": "58361ef2c910300ed162b1dce9ff35e1e52b8f9dc3ba5108e744d1a5de6ab667"
+    },
+    {
+      "path": "sdk/storage/azqueue/models.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azqueue\n\nimport (\n\t\"time\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/to\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/exported\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/internal/generated\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2/sas\"\n)\n\n// SharedKeyCredential contains an account's name and its primary or secondary key.\ntype SharedKeyCredential = exported.SharedKeyCredential\n\n// NewSharedKeyCredential creates an immutable SharedKeyCredential containing the\n// storage account's name and either its primary or secondary key.\nfunc NewSharedKeyCredential(accountName, accountKey string) (*SharedKeyCredential, error) {\n\treturn exported.NewSharedKeyCredential(accountName, accountKey)\n}\n\n// URLParts object represents the components that make up an Azure Storage Queue URL.\n// NOTE: Changing any SAS-related field requires computing a new SAS signature.\ntype URLParts = sas.URLParts\n\n// ParseURL parses a URL initializing URLParts' fields including any SAS-related & snapshot query parameters. Any other\n// query parameters remain in the UnparsedParams field. This method overwrites all fields in the URLParts object.\nfunc ParseURL(u string) (URLParts, error) {\n\treturn sas.ParseURL(u)\n}\n\n// ================================================================\n\n// CORSRule - CORS is an HTTP feature that enables a web application running under one domain to access resources in another\n// domain. Web browsers implement a security restriction known as same-origin policy that\n// prevents a web page from calling APIs in a different domain; CORS provides a secure way to allow one domain (the origin\n// domain) to call APIs in another domain\ntype CORSRule = generated.CORSRule\n\n// GeoReplication - Geo-Replication information for the Secondary Storage Service\ntype GeoReplication = generated.GeoReplication\n\n// RetentionPolicy - the retention policy which determines how long the associated data should persist\ntype RetentionPolicy = generated.RetentionPolicy\n\n// Metrics - a summary of request statistics grouped by API in hour or minute aggregates for queues\ntype Metrics = generated.Metrics\n\n// Logging - Azure Analytics Logging settings.\ntype Logging = generated.Logging\n\n// StorageServiceProperties - Storage Service Properties.\ntype StorageServiceProperties = generated.StorageServiceProperties\n\n// StorageServiceStats - Stats for the storage service.\ntype StorageServiceStats = generated.StorageServiceStats\n\n// SignedIdentifier - signed identifier\ntype SignedIdentifier = generated.SignedIdentifier\n\n// EnqueuedMessage - enqueued message\ntype EnqueuedMessage = generated.EnqueuedMessage\n\n// DequeuedMessage - dequeued message\ntype DequeuedMessage = generated.DequeuedMessage\n\n// PeekedMessage - peeked message\ntype PeekedMessage = generated.PeekedMessage\n\n// ListQueuesSegmentResponse - response segment\ntype ListQueuesSegmentResponse = generated.ListQueuesSegmentResponse\n\n// Queue - queue item\ntype Queue = generated.Queue\n\n// AccessPolicy - An Access policy\ntype AccessPolicy = generated.AccessPolicy\n\n// AccessPolicyPermission type simplifies creating the permissions string for a queue's access policy.\n// Initialize an instance of this type and then call its String method to set AccessPolicy's Permission field.\ntype AccessPolicyPermission = exported.AccessPolicyPermission\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// ListQueuesOptions provides set of configurations for ListQueues operation\ntype ListQueuesOptions struct {\n\tInclude ListQueuesInclude\n\n\t// A string value that identifies the portion of the list of queues to be returned with the next listing operation. The\n\t// operation returns the NextMarker value within the response body if the listing operation did not return all queues\n\t// remaining to be listed with the current page. The NextMarker value can be used as the value for the marker parameter in\n\t// a subsequent call to request the next page of list items. The marker value is opaque to the client.\n\tMarker *string\n\n\t// Specifies the maximum number of queues to return. If the request does not specify max results, or specifies a value\n\t// greater than 5000, the server will return up to 5000 items. Note that if the listing operation crosses a partition boundary,\n\t// then the service will return a continuation token for retrieving the remainder of the results. For this reason, it is possible\n\t// that the service will return fewer results than specified by max results, or than the default of 5000.\n\tMaxResults *int32\n\n\t// Filters the results to return only queues whose name begins with the specified prefix.\n\tPrefix *string\n}\n\n// ListQueuesInclude indicates what additional information the service should return with each queue.\ntype ListQueuesInclude struct {\n\t// Tells the service whether to return metadata for each queue.\n\tMetadata bool\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// SetPropertiesOptions provides set of options for ServiceClient.SetProperties\ntype SetPropertiesOptions struct {\n\t// The set of CORS rules.\n\tCORS []*CORSRule\n\n\t// a summary of request statistics grouped by API in hour or minute aggregates for queues\n\tHourMetrics *Metrics\n\n\t// Azure Analytics Logging settings.\n\tLogging *Logging\n\n\t// a summary of request statistics grouped by API in hour or minute aggregates for queues\n\tMinuteMetrics *Metrics\n}\n\nfunc (o *SetPropertiesOptions) format() (generated.StorageServiceProperties, *generated.ServiceClientSetPropertiesOptions) {\n\tif o == nil {\n\t\treturn generated.StorageServiceProperties{}, nil\n\t}\n\n\tdefaultVersion := to.Ptr[string](\"1.0\")\n\tdefaultAge := to.Ptr[int32](0)\n\temptyStr := to.Ptr[string](\"\")\n\n\tif o.CORS != nil {\n\t\tfor i := 0; i < len(o.CORS); i++ {\n\t\t\tif o.CORS[i].AllowedHeaders == nil {\n\t\t\t\to.CORS[i].AllowedHeaders = emptyStr\n\t\t\t}\n\t\t\tif o.CORS[i].ExposedHeaders == nil {\n\t\t\t\to.CORS[i].ExposedHeaders = emptyStr\n\t\t\t}\n\t\t\tif o.CORS[i].MaxAgeInSeconds == nil {\n\t\t\t\to.CORS[i].MaxAgeInSeconds = defaultAge\n\t\t\t}\n\t\t}\n\t}\n\n\tif o.HourMetrics != nil {\n\t\tif o.HourMetrics.Version == nil {\n\t\t\to.HourMetrics.Version = defaultVersion\n\t\t}\n\t}\n\n\tif o.Logging != nil {\n\t\tif o.Logging.Version == nil {\n\t\t\to.Logging.Version = defaultVersion\n\t\t}\n\t}\n\n\tif o.MinuteMetrics != nil {\n\t\tif o.MinuteMetrics.Version == nil {\n\t\t\to.MinuteMetrics.Version = defaultVersion\n\t\t}\n\n\t}\n\n\treturn generated.StorageServiceProperties{\n\t\tCORS:          o.CORS,\n\t\tHourMetrics:   o.HourMetrics,\n\t\tLogging:       o.Logging,\n\t\tMinuteMetrics: o.MinuteMetrics,\n\t}, nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// GetServicePropertiesOptions contains the optional parameters for the ServiceClient.GetServiceProperties method.\ntype GetServicePropertiesOptions struct {\n\t// placeholder for future options\n}\n\nfunc (o *GetServicePropertiesOptions) format() *generated.ServiceClientGetPropertiesOptions {\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// GetStatisticsOptions provides set of options for ServiceClient.GetStatistics\ntype GetStatisticsOptions struct {\n\t// placeholder for future options\n}\n\nfunc (o *GetStatisticsOptions) format() *generated.ServiceClientGetStatisticsOptions {\n\treturn nil\n}\n\n// -------------------------------------------------QUEUES--------------------------------------------------------------\n\n// CreateOptions contains the optional parameters for creating a queue.\ntype CreateOptions struct {\n\t// Optional. Specifies a user-defined name-value pair associated with the queue.\n\tMetadata map[string]*string\n}\n\nfunc (o *CreateOptions) format() *generated.QueueClientCreateOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\treturn &generated.QueueClientCreateOptions{Metadata: o.Metadata}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// DeleteOptions contains the optional parameters for deleting a queue.\ntype DeleteOptions struct {\n}\n\nfunc (o *DeleteOptions) format() *generated.QueueClientDeleteOptions {\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// SetMetadataOptions contains the optional parameters for the QueueClient.SetMetadata method.\ntype SetMetadataOptions struct {\n\tMetadata map[string]*string\n}\n\nfunc (o *SetMetadataOptions) format() *generated.QueueClientSetMetadataOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn &generated.QueueClientSetMetadataOptions{Metadata: o.Metadata}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// GetAccessPolicyOptions contains the optional parameters for the QueueClient.GetAccessPolicy method.\ntype GetAccessPolicyOptions struct {\n}\n\nfunc (o *GetAccessPolicyOptions) format() *generated.QueueClientGetAccessPolicyOptions {\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// SetAccessPolicyOptions provides set of configurations for QueueClient.SetAccessPolicy operation\ntype SetAccessPolicyOptions struct {\n\tQueueACL []*SignedIdentifier\n}\n\nfunc (o *SetAccessPolicyOptions) format() (*generated.QueueClientSetAccessPolicyOptions, []*SignedIdentifier, error) {\n\tif o == nil {\n\t\treturn nil, nil, nil\n\t}\n\tif o.QueueACL != nil {\n\t\tfor _, c := range o.QueueACL {\n\t\t\terr := formatTime(c)\n\t\t\tif err != nil {\n\t\t\t\treturn nil, nil, err\n\t\t\t}\n\t\t}\n\t}\n\treturn &generated.QueueClientSetAccessPolicyOptions{}, o.QueueACL, nil\n}\n\nfunc formatTime(c *SignedIdentifier) error {\n\tif c.AccessPolicy == nil {\n\t\treturn nil\n\t}\n\n\tif c.AccessPolicy.Start != nil {\n\t\tst, err := time.Parse(time.RFC3339, c.AccessPolicy.Start.UTC().Format(time.RFC3339))\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tc.AccessPolicy.Start = &st\n\t}\n\tif c.AccessPolicy.Expiry != nil {\n\t\tet, err := time.Parse(time.RFC3339, c.AccessPolicy.Expiry.UTC().Format(time.RFC3339))\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tc.AccessPolicy.Expiry = &et\n\t}\n\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// GetQueuePropertiesOptions contains the optional parameters for the QueueClient.GetProperties method.\ntype GetQueuePropertiesOptions struct {\n}\n\nfunc (o *GetQueuePropertiesOptions) format() *generated.QueueClientGetPropertiesOptions {\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// EnqueueMessageOptions contains the optional parameters for the QueueClient.EnqueueMessage method.\ntype EnqueueMessageOptions struct {\n\t// Specifies the time-to-live interval for the message, in seconds.\n\t// The time-to-live may be any positive number or -1 for infinity.\n\t// If this parameter is omitted, the default time-to-live is 7 days.\n\tTimeToLive *int32\n\t// If not specified, the default value is 0.\n\t// Specifies the new visibility timeout value, in seconds, relative to server time.\n\t// The value must be larger than or equal to 0, and cannot be larger than 7 days.\n\t// The visibility timeout of a message cannot be set to a value later than the expiry time.\n\t// VisibilityTimeout should be set to a value smaller than the time-to-live value.\n\tVisibilityTimeout *int32\n}\n\nfunc (o *EnqueueMessageOptions) format() *generated.QueueClientSendMessageOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn &generated.QueueClientSendMessageOptions{MessageTimeToLive: o.TimeToLive,\n\t\tVisibilityTimeout: o.VisibilityTimeout}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// DequeueMessageOptions contains the optional parameters for the QueueClient.DequeueMessage method.\ntype DequeueMessageOptions struct {\n\t// If not specified, the default value is 0. Specifies the new visibility timeout value,\n\t// in seconds, relative to server time. The value must be larger than or equal to 0, and cannot be\n\t// larger than 7 days. The visibility timeout of a message cannot be\n\t// set to a value later than the expiry time. VisibilityTimeout\n\t// should be set to a value smaller than the time-to-live value.\n\tVisibilityTimeout *int32\n}\n\nfunc (o *DequeueMessageOptions) format() *generated.QueueClientReceiveMessagesOptions {\n\tnumberOfMessages := int32(1)\n\tif o == nil {\n\t\treturn &generated.QueueClientReceiveMessagesOptions{NumberOfMessages: &numberOfMessages}\n\t}\n\n\treturn &generated.QueueClientReceiveMessagesOptions{NumberOfMessages: &numberOfMessages,\n\t\tVisibilityTimeout: o.VisibilityTimeout}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// DequeueMessagesOptions contains the optional parameters for the QueueClient.DequeueMessages method.\ntype DequeueMessagesOptions struct {\n\t// Optional. A nonzero integer value that specifies the number of messages to retrieve from the queue,\n\t// up to a maximum of 32. If fewer messages are visible, the visible messages are returned.\n\t// By default, a single message is retrieved from the queue with this operation.\n\tNumberOfMessages *int32\n\t// If not specified, the default value is 30. Specifies the\n\t// new visibility timeout value, in seconds, relative to server time.\n\t// The value must be larger than or equal to 1, and cannot be\n\t// larger than 7 days. The visibility timeout of a message cannot be\n\t// set to a value later than the expiry time. VisibilityTimeout\n\t// should be set to a value smaller than the time-to-live value.\n\tVisibilityTimeout *int32\n}\n\nfunc (o *DequeueMessagesOptions) format() *generated.QueueClientReceiveMessagesOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn &generated.QueueClientReceiveMessagesOptions{NumberOfMessages: o.NumberOfMessages,\n\t\tVisibilityTimeout: o.VisibilityTimeout}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// UpdateMessageOptions contains the optional parameters for the QueueClient.UpdateMessage method.\ntype UpdateMessageOptions struct {\n\tVisibilityTimeout *int32\n}\n\nfunc (o *UpdateMessageOptions) format() *generated.QueueClientUpdateMessageOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// DeleteMessageOptions contains the optional parameters for the QueueClient.DeleteMessage method.\ntype DeleteMessageOptions struct {\n}\n\nfunc (o *DeleteMessageOptions) format() *generated.QueueClientDeleteMessageOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// PeekMessageOptions contains the optional parameters for the QueueClient.PeekMessage method.\ntype PeekMessageOptions struct {\n}\n\nfunc (o *PeekMessageOptions) format() *generated.QueueClientPeekMessagesOptions {\n\tnumberOfMessages := int32(1)\n\treturn &generated.QueueClientPeekMessagesOptions{NumberOfMessages: &numberOfMessages}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// PeekMessagesOptions contains the optional parameters for the QueueClient.PeekMessages method.\ntype PeekMessagesOptions struct {\n\tNumberOfMessages *int32\n}\n\nfunc (o *PeekMessagesOptions) format() *generated.QueueClientPeekMessagesOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn &generated.QueueClientPeekMessagesOptions{NumberOfMessages: o.NumberOfMessages}\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// ClearMessagesOptions contains the optional parameters for the QueueClient.ClearMessages method.\ntype ClearMessagesOptions struct {\n}\n\nfunc (o *ClearMessagesOptions) format() *generated.QueueClientClearOptions {\n\tif o == nil {\n\t\treturn nil\n\t}\n\n\treturn nil\n}\n\n// ---------------------------------------------------------------------------------------------------------------------\n\n// GetSASURLOptions contains the optional parameters for the Client.GetSASURL method.\ntype GetSASURLOptions struct {\n\tStartTime *time.Time\n}\n\nfunc (o *GetSASURLOptions) format() time.Time {\n\tif o == nil {\n\t\treturn time.Time{}\n\t}\n\tvar st time.Time\n\tif o.StartTime != nil {\n\t\tst = o.StartTime.UTC()\n\t}\n\treturn st\n}\n",
+      "contentHash": "3c3bb8b53b4f19a995c3b8b69490aac4f05aef9c195216cb79680fd181da2f81",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/models.go",
+      "startLine": 1,
+      "endLine": 465,
+      "kind": "unknown",
+      "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/storage/azqueue/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/storage/internal v0.1.0\n\tgithub.com/stretchr/testify v1.12.1\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgo.yaml.in/yaml/v3 v3.0.5 // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n)\n",
+      "contentHash": "701b10c30c05c2b01ea2020472b2ca267a45fc9028d4a95bf2e382ac08f0b4c3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/go.mod"
+    },
+    {
+      "path": "sdk/storage/azqueue/README.md",
+      "text": "# Azure Queue Storage SDK for Go\n\nAzure Queue storage is a service for storing large numbers of messages that can be accessed from anywhere in \nthe world via authenticated calls using HTTP or HTTPS. \nA single queue message can be up to 64 KiB in size, and a queue can contain millions of messages, \nup to the total capacity limit of a storage account.\n\n[Source code][source] | [API reference documentation][docs] | [REST API documentation][rest_docs]\n\n## Getting started\n\n### Install the package\n\nInstall the Azure Queue Storage SDK for Go with [go get][goget]:\n\n```Powershell\ngo get github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2\n```\n\nIf you're going to authenticate with Azure Active Directory (recommended), install the [azidentity][azidentity] module.\n```Powershell\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n\n### Prerequisites\n\nA supported [Go][godevdl] version (the Azure SDK supports the two most recent Go releases).\n\nYou need an [Azure subscription][azure_sub] and a\n[Storage Account][storage_account_docs] to use this package.\n\nTo create a new Storage Account, you can use the [Azure Portal][storage_account_create_portal],\n[Azure PowerShell][storage_account_create_ps], or the [Azure CLI][storage_account_create_cli].\nHere's an example using the Azure CLI:\n\n```Powershell\naz storage account create --name MyStorageAccount --resource-group MyResourceGroup --location westus --sku Standard_LRS\n```\n\n### Authenticate the client\n\nIn order to interact with the Azure Queue Storage service, you'll need to create an instance of the `azqueue.ServiceClient` type.  The [azidentity][azidentity] module makes it easy to add Azure Active Directory support for authenticating Azure SDK clients with their corresponding Azure services.\n\n```go\n// create a credential for authenticating with Azure Active Directory\ncred, err := azidentity.NewDefaultAzureCredential(nil)\n// TODO: handle err\n\n// create an azqueue.ServiceClient for the specified storage account that uses the above credential\nclient, err := azqueue.NewServiceClient(\"https://MYSTORAGEACCOUNT.queue.core.windows.net/\", cred, nil)\n// TODO: handle err\n```\n\nLearn more about enabling Azure Active Directory for authentication with Azure Storage in [our documentation][storage_ad] and [our samples](#next-steps).\n\n## Key concepts\nThe following components make up the Azure Queue Service:\n* The storage account itself\n* A queue within the storage account, which contains a set of messages\n* A message within a queue, in any format, of up to 64 KiB\n\nThe Azure Storage Queues client library for GO allows you to interact with each of these components through the\nuse of a dedicated client object.\n\n### Clients\nTwo different clients are provided to interact with the various components of the Queue Service:\n1. ServiceClient -\n   this client represents interaction with the Azure storage account itself, and allows you to acquire preconfigured\n   client instances to access the queues within. It provides operations to retrieve and configure the account\n   properties as well as list, create, and delete queues within the account. To perform operations on a specific queue,\n   retrieve a client using the `NewQueueClient` method.\n2. QueueClient -\n   this client represents interaction with a specific queue (which need not exist yet). It provides operations to\n   create, delete, or configure a queue and includes operations to enqueue, dequeue, peek, delete, and update messages\n   within it.\n\n### Messages\n* **Enqueue** - Adds a message to the queue and optionally sets a visibility timeout for the message.\n* **Dequeue** - Retrieves a message from the queue and makes it invisible to other consumers.\n* **Peek** - Retrieves a message from the front of the queue, without changing the message visibility.\n* **Update** - Updates the visibility timeout of a message and/or the message contents.\n* **Delete** - Deletes a specified message from the queue.\n* **Clear** - Clears all messages from the queue.\n\n### Goroutine safety\nWe guarantee that all client instance methods are goroutine-safe and independent of each other ([guideline](https://azure.github.io/azure-sdk/golang_introduction.html#thread-safety)). This ensures that the recommendation of reusing client instances is always safe, even across goroutines.\n\n### About Queue metadata\nQueue metadata name/value pairs are valid HTTP headers and should adhere to all restrictions governing HTTP headers. Metadata names must be valid HTTP header names, may contain only ASCII characters, and should be treated as case-insensitive. Base64-encode or URL-encode metadata values containing non-ASCII characters.\n\n### Additional concepts\n<!-- CLIENT COMMON BAR -->\n[Client options](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/policy#ClientOptions) |\n[Accessing the response](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime#WithCaptureResponse) |\n[Handling failures](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore#ResponseError) |\n[Logging](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/log)\n<!-- CLIENT COMMON BAR -->\n\n## Examples\n\n### Queue Manipulation\n\n```go\nconst (\n\taccountName   = \"MYSTORAGEACCOUNT\"\n\taccountKey    = \"ACCOUNT_KEY\"\n\tqueueName     = \"samplequeue\"\n)\n```\n\n### Exploring Queue Service APIs\n\n```go\n// shared key credential set up\ncred := azqueue.NewSharedKeyCredential(accountName, accountKey)\n\n// instantiate service client\nserviceClient, err := azqueue.NewServiceClientWithSharedKeyCredential(account, cred, nil)\n// TODO: handle error\n\n// 1. create queue\nqueueClient := serviceClient.NewQueueClient(queueName)\n_, err = queueClient.Create(context.TODO(), nil)\n// TODO: handle error\n\n// 2. enqueue message\n_, err = queueClient.EnqueueMessage(context.TODO(), message, nil)\n// TODO: handle error\n\n// 3. dequeue message\n_, err = queueClient.DequeueMessage(context.TODO(), nil)\n// TODO: handle error\n\n// 4. delete queue\n_, err =queueClient.Delete(context.TODO(), nil)\n// TODO: handle error\n```\n\n### Enumerating queues\n\n```go\nconst (\n\taccount = \"https://MYSTORAGEACCOUNT.queue.core.windows.net/\"\n)\n\n// authenticate with Azure Active Directory\ncred, err := azidentity.NewDefaultAzureCredential(nil)\n// TODO: handle error\n\n// create a client for the specified storage account\nclient, err := azqueue.NewServiceClient(account, cred, nil)\n// TODO: handle error\n\n// queue listings are returned across multiple pages\npager := client.NewListQueuesPager(nil)\n\n// continue fetching pages until no more remain\nfor pager.More() {\n   resp, err := pager.NextPage(context.Background())\n   _require.NoError(err)\n   // print queue name\n   for _, queue := range resp.Queues {\n\t\tfmt.Println(*queue.Name)\n\t}\n}\n```\n\n## Troubleshooting\n\nAll queue service operations will return an\n[*azcore.ResponseError][azcore_response_error] on failure with a\npopulated `ErrorCode` field. Many of these errors are recoverable.\nThe [queueerror][queue_error] package provides the possible Storage error codes\nalong with various helper facilities for error handling.\n\n```go\nconst (\n\tconnectionString = \"<connection_string>\"\n\tqueueName        = \"samplequeue\"\n)\n\n// create a client with the provided connection string\nclient, err := azqueue.NewServiceClientFromConnectionString(connectionString, nil)\n// TODO: handle error\n\n// try to delete the queue, avoiding any potential race conditions with an in-progress or completed deletion\n_, err = client.DeleteQueue(context.TODO(), queueName, nil)\n\nif queueerror.HasCode(err, queueerror.QueueBeingDeleted, queueerror.QueueNotFound) {\n\t// ignore any errors if the queue is being deleted or already has been deleted\n} else if err != nil {\n\t// TODO: some other error\n}\n```\n\n## Next steps\n\nGet started with our [Queue samples][samples].  They contain complete examples of the above snippets and more.\n\n## Contributing\n\nSee the [Storage CONTRIBUTING.md][storage_contrib] for details on building,\ntesting, and contributing to this library.\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a [Contributor License Agreement (CLA)][cla] declaring that you have the right to, and actually do, grant us the rights to use your contribution.\n \nIf you'd like to contribute to this library, please read the [contributing guide] [contributing_guide] to learn more about how to build and test the code.\n \nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.\n \nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or comments.\n\n\n<!-- LINKS -->\n[source]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue\n[docs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue\n[rest_docs]: https://learn.microsoft.com/rest/api/storageservices/queue-service-rest-api\n[godevdl]: https://go.dev/dl/\n[goget]: https://pkg.go.dev/cmd/go#hdr-Add_dependencies_to_current_module_and_install_them\n[storage_account_docs]: https://learn.microsoft.com/azure/storage/common/storage-account-overview\n[storage_account_create_ps]: https://learn.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-powershell\n[storage_account_create_cli]: https://learn.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-cli\n[storage_account_create_portal]: https://learn.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_sub]: https://azure.microsoft.com/free/\n[azidentity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[storage_ad]: https://learn.microsoft.com/azure/storage/common/storage-auth-aad\n[azcore_response_error]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore#ResponseError\n[samples]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue/samples_test.go\n[queue_error]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue/queueerror/error_codes.go\n[queue]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue/queue_client.go\n[sas]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue/sas\n[service]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azqueue/service_client.go\n[storage_contrib]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md\n[contributing_guide]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com",
+      "contentHash": "d40052b77686ead833726dc78b946cd809392448296f1c88252c85595d019a6c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/README.md"
+    },
+    {
+      "path": "sdk/storage/azqueue/tsp-location.yaml",
+      "text": "directory: specification/storage/data-plane/QueueStorage\ncommit: bf00f9a3b5758943ccfef32fbb524799c77fe4ad\nrepo: Azure/azure-rest-api-specs",
+      "contentHash": "e2dd2d499d502d079973f7c75a0a384c338598419e4a2089bbe66566011efbce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/storage/azqueue/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "6bba498f3eb392983ed123041593946951c5308fb3fb0fc4f2686fd9abb759d5",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "97f355dc3a3ff272da58e006a3a047253b12672552587942a11cd2ea445e4ce5",
+        "category": "Auth",
+        "subtype": "Configurable token audience normalization",
+        "explanation": "Adds an Audience client option and a helper that returns shared.TokenScope for nil options or a whitespace-only audience; otherwise it removes trailing slashes from the audience and appends /.default.",
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-test internal/base Go file has neither a generated header nor a zz_ name, meeting the supplied Go handwritten-source rule.",
+        "symbols": [
+          "ClientOptions.Audience",
+          "GetAudience"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 16,
+            "endLine": 23
+          },
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 42,
+            "endLine": 48
+          }
+        ]
+      },
+      {
+        "key": "900e1d02aa4f3e615794fdd5c6b2958340118f2d9dd08cf7d0419ff5d48a100c",
+        "category": "Convenience methods",
+        "subtype": "Generic wrapped client pointer access",
+        "explanation": "Returns the underlying typed client pointer stored in the generic Client wrapper.",
+        "pattern": "client-inner-client-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "InnerClient has a concrete implementation in a non-generated, non-test Go source file.",
+        "symbols": [
+          "InnerClient"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 30,
+            "endLine": 32
+          }
+        ]
+      },
+      {
+        "key": "d4a4a843985dd5e8068d38d25f4e895b7a2ff2c8aaa0251f41020459ad021e5c",
+        "category": "Auth",
+        "subtype": "Wrapped shared-key credential access",
+        "explanation": "Returns the shared-key credential pointer retained by a generic Client wrapper.",
+        "pattern": "client-shared-key-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The helper body is in internal/base/clients.go without the Go generated-file signals.",
+        "symbols": [
+          "SharedKey"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 34,
+            "endLine": 36
+          }
+        ]
+      },
+      {
+        "key": "d3d2de2e4bdb038ea08e4956541cf477687c55a2e15d098fdff19a0bba2c9f97",
+        "category": "Convenience methods",
+        "subtype": "Generic inner-client wrapper construction",
+        "explanation": "Constructs a generic Client with its inner pointer set to the supplied client and its other fields left at zero values.",
+        "pattern": "client-inner-client-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This constructor helper is implemented in a non-generated Go source file rather than being a type alias.",
+        "symbols": [
+          "NewClient"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 38,
+            "endLine": 40
+          }
+        ]
+      },
+      {
+        "key": "924c6c35354dbbd0c724afd474a3d1ceabb707559cecc6823e3465cf7a53fbec",
+        "category": "Convenience methods",
+        "subtype": "Generated service client and credential composition",
+        "explanation": "Creates a generated ServiceClient from the URL and azcore client, then retains it together with the supplied shared-key credential in the generic wrapper.",
+        "pattern": "generated-client-credential-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The internal/base constructor has an active body outside generated output and is a different helper from generated.NewServiceClient.",
+        "symbols": [
+          "NewServiceClient"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 49,
+            "endLine": 54
+          }
+        ]
+      },
+      {
+        "key": "d2026ba26e5c72d89071b2871c2e0a0a1317d24f2ebb32caa3d735456b24dd17",
+        "category": "Convenience methods",
+        "subtype": "Queue and messages client composition with credential retention",
+        "explanation": "Builds a CompositeClient containing a generated QueueClient, an empty generated.MessagesClient instance and the supplied shared-key credential.",
+        "pattern": "composite-generated-client-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The constructor implementation is in a non-generated Go file and composes concrete generated client values.",
+        "symbols": [
+          "NewQueueClient"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 56,
+            "endLine": 62
+          }
+        ]
+      },
+      {
+        "key": "145c213187ca8833cef58f35bded299e07e8f60630717eb86a950d122c6b713c",
+        "category": "Convenience methods",
+        "subtype": "Composite underlying client pointer access",
+        "explanation": "Returns both typed underlying client pointers from a CompositeClient.",
+        "pattern": "client-inner-client-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The generic helper body is in non-generated internal/base Go source.",
+        "symbols": [
+          "InnerClients"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 70,
+            "endLine": 72
+          }
+        ]
+      },
+      {
+        "key": "65ed6064e216138f725fdbea28131dbe21ae83fafa5d0bb83441d9f3cc70e443",
+        "category": "Auth",
+        "subtype": "Composite client's retained credential access",
+        "explanation": "Returns the shared-key credential stored on a CompositeClient.",
+        "pattern": "client-shared-key-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is an implemented helper in the non-generated internal/base file.",
+        "symbols": [
+          "SharedKeyComposite"
+        ],
+        "evidence": [
+          {
+            "id": "8559c2a426ceb74f1b00d8982328a095788253f1d2a74d03142ac2d90fa70494",
+            "startLine": 74,
+            "endLine": 76
+          }
+        ]
+      },
+      {
+        "key": "cd5ca95d80c640d14b1235ba0def7bf080844be37f9ca1bcddef87533730c260",
+        "category": "Serialization",
+        "subtype": "Ordered access-policy permission string construction",
+        "explanation": "Serializes the enabled Read, Add, Update and Process flags to r, a, u and p in that fixed order.",
+        "pattern": "permission-string-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The permission helper file is non-test Go source with no generated header or zz_ prefix and contains an implemented method.",
+        "symbols": [
+          "AccessPolicyPermission.String"
+        ],
+        "evidence": [
+          {
+            "id": "5ef9f159cac3002fd23b53344e23e2112d9a4007b10445f388d69dda6d90ad57",
+            "startLine": 19,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "8cadbbcdd01807c84c75df0958f7e89c36d9938a5b038a5bd2f4519300612236",
+        "category": "Serialization",
+        "subtype": "Permission string to mutable flag parsing",
+        "explanation": "Clears the permission flags, sets them while reading r/a/u/p characters and returns an invalid-permission error on any other character; mutations preceding an invalid character are not rolled back.",
+        "pattern": "permission-string-parsing",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Parse has a substantive body in the non-generated internal/exported Go file.",
+        "symbols": [
+          "AccessPolicyPermission.Parse"
+        ],
+        "evidence": [
+          {
+            "id": "5ef9f159cac3002fd23b53344e23e2112d9a4007b10445f388d69dda6d90ad57",
+            "startLine": 37,
+            "endLine": 54
+          }
+        ]
+      },
+      {
+        "key": "4b77c2239fb16f3a6decfbac475d9d63549126593d9892a9112be12179b227ac",
+        "category": "Auth",
+        "subtype": "Shared-key credential initialization",
+        "explanation": "Creates a credential containing the account name, initializes its key through SetAccountKey and propagates a key decoding error instead of returning the credential.",
+        "pattern": "shared-key-credential-construction",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is concrete non-generated Go credential construction, not a generated model alias or a test fixture.",
+        "symbols": [
+          "NewSharedKeyCredential"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 27,
+            "endLine": 33
+          }
+        ]
+      },
+      {
+        "key": "76731af8519224ed4b64c774f6079822eba534b5a862ac08b06d86a4043e6112",
+        "category": "Auth",
+        "subtype": "Shared-key credential account name exposure",
+        "explanation": "Returns the account name held by a SharedKeyCredential.",
+        "pattern": "credential-account-name-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "AccountName is implemented in the non-generated credential Go file.",
+        "symbols": [
+          "SharedKeyCredential.AccountName"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 43,
+            "endLine": 45
+          }
+        ]
+      },
+      {
+        "key": "aec2d41bffd4b73d248b2b40aed45dc70c850a0b2edaf5e15f05363ac1972f04",
+        "category": "Auth",
+        "subtype": "Base64-decoded account key replacement",
+        "explanation": "Decodes a replacement account key from Base64, wraps decoding errors with context and stores successfully decoded bytes in an atomic.Value.",
+        "pattern": "shared-key-credential-key-update",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The key update has a real method body in non-generated internal/exported Go source.",
+        "symbols": [
+          "SharedKeyCredential.SetAccountKey"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 48,
+            "endLine": 55
+          }
+        ]
+      },
+      {
+        "key": "8be24b8551451f674d64cc97f4e96547c82c7377f04bb6402528afea158e01ad",
+        "category": "Crypto / signing",
+        "subtype": "Base64-encoded HMAC-SHA256 using stored account key",
+        "explanation": "Computes HMAC-SHA256 over a message using the stored key bytes and Base64-encodes the result; the exported package helper delegates to this same computation.",
+        "pattern": "hmac-sha256-signature",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete cryptographic calls and delegating helper are in a Go file without generated-file markers and are grouped as one computation.",
+        "symbols": [
+          "SharedKeyCredential.computeHMACSHA256",
+          "ComputeHMACSHA256"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 58,
+            "endLine": 62
+          },
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 179,
+            "endLine": 181
+          }
+        ]
+      },
+      {
+        "key": "0b331e1c7fca51e1c30cf5e1916c6368b8b7f998d37328e44210d13c4abc3364",
+        "category": "Crypto / signing",
+        "subtype": "Storage request signing string assembly",
+        "explanation": "Builds newline-delimited signing input from the method, selected content and conditional/range headers, canonicalized headers and resource. It treats content length \"0\" as empty and places an empty date field in the signing sequence.",
+        "pattern": "shared-key-string-to-sign",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated credential file contains the explicit signing sequence and normalization rather than merely importing a signing dependency.",
+        "symbols": [
+          "SharedKeyCredential.buildStringToSign"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 64,
+            "endLine": 94
+          }
+        ]
+      },
+      {
+        "key": "cba1fb786c157d5fb42082af6df0a5e26a8c80d93b74bd91b0f3eb0635d8c1b0",
+        "category": "Other",
+        "subtype": "Exact-key first header value lookup",
+        "explanation": "Returns the first value at the supplied map key, or an empty string for a nil map, missing key or empty value slice. The helper does not normalize key case.",
+        "pattern": "header-first-value-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This implemented utility is in the non-generated credential source and is used by the captured signing code.",
+        "symbols": [
+          "getHeader"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 96,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "93caad8d3dbe296b6c40538d7333643bb52d376bf2db6ba21350327d0c01e769",
+        "category": "Crypto / signing",
+        "subtype": "Sorted x-ms header canonicalization",
+        "explanation": "Trims and lowercases header names, retains x-ms- entries, sorts their names and joins each header's values with commas in newline-separated name:value records. It does not trim the values.",
+        "pattern": "shared-key-canonical-headers",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete canonicalization implementation appears in the non-generated Go signing file.",
+        "symbols": [
+          "SharedKeyCredential.buildCanonicalizedHeader"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 109,
+            "endLine": 136
+          }
+        ]
+      },
+      {
+        "key": "0e9b1fd3295a04f2156d6cff6a510cefc45df853ea911471915b183c6fdc0e2f",
+        "category": "Crypto / signing",
+        "subtype": "Account resource and sorted query canonicalization",
+        "explanation": "Prefixes the account name, preserves the URL's escaped path or supplies a root slash, parses the query, sorts query names and values, and emits each query name lowercased with comma-joined values. Query parsing errors are wrapped and returned.",
+        "pattern": "shared-key-canonical-resource",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The body is concrete non-generated Go code constructing the signing resource, including its error path.",
+        "symbols": [
+          "SharedKeyCredential.buildCanonicalizedResource"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 138,
+            "endLine": 176
+          }
+        ]
+      },
+      {
+        "key": "b944a5322f94c1b4ed2ed06a3127e47f9091cd8843db15913bef656b8508ad9b",
+        "category": "Crypto / signing",
+        "subtype": "Pipeline request signing with shared-key authorization",
+        "explanation": "Constructs a credential-backed policy whose Do method supplies x-ms-date when its lookup is empty, builds and signs the request, writes the SharedKey authorization value and invokes the next policy. It logs the signing string only when the returned error is non-nil and the response is non-nil with status 403.",
+        "pattern": "shared-key-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The constructor and active pipeline-policy body are in non-generated Go source. Signing, date handling and conditional diagnostics on this same method are one instance.",
+        "symbols": [
+          "NewSharedKeyCredPolicy",
+          "SharedKeyCredPolicy.Do"
+        ],
+        "evidence": [
+          {
+            "id": "7c9a81a04b0611b21b6a3d95c73b12321635e9f800eeef01a0852cdc7430d520",
+            "startLine": 190,
+            "endLine": 215
+          }
+        ]
+      },
+      {
+        "key": "a86159b0d96906f063028bb336d8de62d126ec87f0f32b68f9d0e5b8843d59ec",
+        "category": "Auth",
+        "subtype": "Account and user delegation key credential construction",
+        "explanation": "Constructs UserDelegationCredential with the supplied account name and UserDelegationKey value; the captured constructor performs no validation.",
+        "pattern": "user-delegation-credential-construction",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This constructor is a concrete function in a non-generated, non-test Go file.",
+        "symbols": [
+          "NewUserDelegationCredential"
+        ],
+        "evidence": [
+          {
+            "id": "640dad2d2cbe25348d3a5ccfe8592b78b54ba5e1bc2c5a895c8b8add048d11cf",
+            "startLine": 15,
+            "endLine": 20
+          }
+        ]
+      },
+      {
+        "key": "2da22f12cbd1627accddd4fa6eb5447c11189f5881e7629b0abca03473b08758",
+        "category": "Auth",
+        "subtype": "User delegation credential account name access",
+        "explanation": "Returns the stored account name through an internal method and a package-level delegating accessor.",
+        "pattern": "credential-account-name-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The two implementations are in the non-generated delegation credential file and are grouped as the same access behavior.",
+        "symbols": [
+          "UserDelegationCredential.getAccountName",
+          "GetAccountName"
+        ],
+        "evidence": [
+          {
+            "id": "640dad2d2cbe25348d3a5ccfe8592b78b54ba5e1bc2c5a895c8b8add048d11cf",
+            "startLine": 32,
+            "endLine": 39
+          }
+        ]
+      },
+      {
+        "key": "64c5fc8aee63c3c1d903407323cd55e19a8821cee96ab97c07d57ba8df02ec48",
+        "category": "Crypto / signing",
+        "subtype": "HMAC-SHA256 using a decoded user delegation key",
+        "explanation": "Decodes the pointed-to delegation key value, computes HMAC-SHA256 over the supplied message and returns the Base64-encoded digest through an internal method and delegating helper. The captured code discards the Base64 decoding error.",
+        "pattern": "hmac-sha256-signature",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The cryptographic calls are explicit in non-generated Go source; the imported generated key alias is not itself counted as the computation.",
+        "symbols": [
+          "UserDelegationCredential.computeHMACSHA256",
+          "ComputeUDCHMACSHA256"
+        ],
+        "evidence": [
+          {
+            "id": "640dad2d2cbe25348d3a5ccfe8592b78b54ba5e1bc2c5a895c8b8add048d11cf",
+            "startLine": 42,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "b48f2da7ec5cb8df31da9e8490f7cc999d66b03b553f42b9b0524447ea87aed6",
+        "category": "Auth",
+        "subtype": "Stored user delegation key pointer access",
+        "explanation": "Returns a pointer to the credential's stored userDelegationKey through its internal method and package helper rather than copying the key on access.",
+        "pattern": "credential-delegation-key-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both concrete accessor bodies are in the non-generated Go credential file and implement one pointer-access behavior.",
+        "symbols": [
+          "UserDelegationCredential.getUDKParams",
+          "GetUDKParams"
+        ],
+        "evidence": [
+          {
+            "id": "640dad2d2cbe25348d3a5ccfe8592b78b54ba5e1bc2c5a895c8b8add048d11cf",
+            "startLine": 55,
+            "endLine": 62
+          }
+        ]
+      },
+      {
+        "key": "5fc0134f63a7f9ae92cbba5b8c270aad812f3da448231b08cfba82733a5c5d58",
+        "category": "Model overrides",
+        "subtype": "Queue endpoint accessor on generated client type",
+        "explanation": "Adds an Endpoint method returning QueueClient's stored URL.",
+        "pattern": "client-endpoint-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Although under internal/generated, this Go file lacks both a generated header and a zz_ prefix; the supplied Go guideline explicitly includes such handwritten extensions inside generated folders.",
+        "symbols": [
+          "QueueClient.Endpoint"
+        ],
+        "evidence": [
+          {
+            "id": "9fefecdac78524d6485f412193486f4f1c509178dc396d81d47c3bd15acbbbca",
+            "startLine": 10,
+            "endLine": 12
+          }
+        ]
+      },
+      {
+        "key": "635350ba516d442a0fe97a49b67e6d049b61e807699394382f541840df45a452",
+        "category": "Convenience methods",
+        "subtype": "Queue client's underlying azcore client access",
+        "explanation": "Returns QueueClient's stored azcore client through InternalClient.",
+        "pattern": "client-inner-client-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete method is in an internal/generated Go file without the generated header or zz_ filename signals; directory name alone does not exclude it under the supplied rule.",
+        "symbols": [
+          "QueueClient.InternalClient"
+        ],
+        "evidence": [
+          {
+            "id": "9fefecdac78524d6485f412193486f4f1c509178dc396d81d47c3bd15acbbbca",
+            "startLine": 14,
+            "endLine": 16
+          }
+        ]
+      },
+      {
+        "key": "ac434e44a4642ce9c7258d1f28009620c0c833b3eaf1283c1a23b40aecb25608",
+        "category": "Convenience methods",
+        "subtype": "Queue client construction from an existing azcore client",
+        "explanation": "Builds QueueClient by setting its internal azcore client and URL fields from supplied arguments.",
+        "pattern": "client-constructor-from-pipeline",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The internal/generated extension file has no Go generated header or zz_ prefix and contains an implemented constructor rather than an empty type declaration.",
+        "symbols": [
+          "NewQueueClient"
+        ],
+        "evidence": [
+          {
+            "id": "9fefecdac78524d6485f412193486f4f1c509178dc396d81d47c3bd15acbbbca",
+            "startLine": 25,
+            "endLine": 31
+          }
+        ]
+      },
+      {
+        "key": "763da88557db3a309b49c2528894208bb0ae63bedaffb3e2aaef1ec59e3c80c8",
+        "category": "Model overrides",
+        "subtype": "Service client endpoint exposure",
+        "explanation": "Returns ServiceClient's stored URL from Endpoint.",
+        "pattern": "client-endpoint-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The service extension file inside internal/generated lacks both Go generated-file signals and is included by the supplied language rule.",
+        "symbols": [
+          "ServiceClient.Endpoint"
+        ],
+        "evidence": [
+          {
+            "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+            "startLine": 14,
+            "endLine": 16
+          }
+        ]
+      },
+      {
+        "key": "ff631992dd824ccc1fe8c1760955734aa6e2e8c3d33bb612ef273467b5b0f45a",
+        "category": "Convenience methods",
+        "subtype": "Service client's underlying azcore client access",
+        "explanation": "Exposes the internal azcore client stored by ServiceClient.",
+        "pattern": "client-inner-client-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-zz_ Go extension file has no generated header, even though its parent folder is named generated.",
+        "symbols": [
+          "ServiceClient.InternalClient"
+        ],
+        "evidence": [
+          {
+            "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+            "startLine": 18,
+            "endLine": 20
+          }
+        ]
+      },
+      {
+        "key": "1766ea5f05c0595a35714b60cfeceff4334a85fd34dcc836b5e726b83ecd65e9",
+        "category": "Convenience methods",
+        "subtype": "Exported queue-list request creation adapter",
+        "explanation": "Adds a ListQueuesSegmentCreateRequest method forwarding context and options to the unexported listQueuesSegmentCreateRequest implementation.",
+        "pattern": "generated-request-builder-exposure",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The adapter is implemented in a Go extension file without a generated header or zz_ prefix; the underlying generated method is not itself counted.",
+        "symbols": [
+          "ServiceClient.ListQueuesSegmentCreateRequest"
+        ],
+        "evidence": [
+          {
+            "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+            "startLine": 22,
+            "endLine": 24
+          }
+        ]
+      },
+      {
+        "key": "f5b832a8aaca970d716419a86506565366d6dea4b477b1ad243b0bb4d7caf54c",
+        "category": "Convenience methods",
+        "subtype": "Exported queue-list response handling adapter",
+        "explanation": "Adds a ListQueuesSegmentHandleResponse method that delegates the HTTP response to the unexported listQueuesSegmentHandleResponse implementation.",
+        "pattern": "generated-response-handler-exposure",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This implemented wrapper is in a non-generated-marked Go extension file; it establishes exposure, not any unseen custom response parsing.",
+        "symbols": [
+          "ServiceClient.ListQueuesSegmentHandleResponse"
+        ],
+        "evidence": [
+          {
+            "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+            "startLine": 26,
+            "endLine": 28
+          }
+        ]
+      },
+      {
+        "key": "3403ba820b4fbb4b066f1d729d5a3bf9b1c2d4684ea0d8b529f3d66e646c9c56",
+        "category": "Convenience methods",
+        "subtype": "Service client construction from an existing pipeline client",
+        "explanation": "Constructs ServiceClient with the supplied azcore client and URL.",
+        "pattern": "client-constructor-from-pipeline",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The active constructor is in internal/generated/service_client.go without the Go generated-header or zz_ signals specified by the guideline.",
+        "symbols": [
+          "NewServiceClient"
+        ],
+        "evidence": [
+          {
+            "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+            "startLine": 30,
+            "endLine": 36
+          }
+        ]
+      },
+      {
+        "key": "ab084de7f90a9a0e9684dc51ef35074c976514c8d72acfb9f765bb81cee83ffa",
+        "category": "Auth",
+        "subtype": "Bearer policy request and challenge callback integration",
+        "explanation": "Creates an azcore bearer policy with the configured audience, request and challenge callbacks, and the allowHTTP credential option. The request callback authorizes using stored scopes; the challenge callback parses the response before authorizing again with the updated scopes.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The policy factory and callback bodies are present in the non-generated internal/shared Go file and implement one challenge-policy integration.",
+        "symbols": [
+          "NewStorageChallengePolicy",
+          "storageAuthorizer.onRequest",
+          "storageAuthorizer.onChallenge"
+        ],
+        "evidence": [
+          {
+            "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425",
+            "startLine": 21,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "0e99214b58c45f7ceccfced33c52a7f723ac52cb0b49d72f7fd5526e9956f8fd",
+        "category": "Retry / error handling",
+        "subtype": "Challenge error wrapper with non-retriable marker",
+        "explanation": "Defines a challenge error wrapper that delegates Error, exposes its underlying error through Unwrap and implements a NonRetriable marker method.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The custom error type and concrete methods are in a non-generated Go file. The marker is reported as an interface-shape feature rather than proof of an unobserved retry execution.",
+        "symbols": [
+          "challengePolicyError.Error",
+          "challengePolicyError.NonRetriable",
+          "challengePolicyError.Unwrap"
+        ],
+        "evidence": [
+          {
+            "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425",
+            "startLine": 46,
+            "endLine": 60
+          }
+        ]
+      },
+      {
+        "key": "b1b30ba1e2418cf8fa8cd46270c175620bc1e3e6b7271d0d8e8b67225c2cc1df",
+        "category": "Auth",
+        "subtype": "Authentication authority tenant segment extraction",
+        "explanation": "Returns empty for empty input, otherwise splits on slash and, when len(parts) >= 3, reads the segment at index 3 and removes commas; it returns empty when that length condition fails.",
+        "pattern": "auth-authority-tenant-parsing",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The parsing helper is implemented in non-generated Go source. Its captured index and length check are described literally without asserting complete URI validation.",
+        "symbols": [
+          "parseTenant"
+        ],
+        "evidence": [
+          {
+            "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425",
+            "startLine": 64,
+            "endLine": 76
+          }
+        ]
+      },
+      {
+        "key": "6a35552b378ed02942f9e0751c6dc3d05ebfbd8cc84e24509e389c03f61d164c",
+        "category": "Auth",
+        "subtype": "Challenge resource extraction and scope replacement",
+        "explanation": "Reads WWW-Authenticate, reports missing header or resource_id through challengePolicyError, parses attribute values, records a tenant segment from authorization_uri, appends /.default when resource_id lacks that suffix and replaces the stored scopes. The exact prefix-removal literal is redacted in the supplied evidence and is not reconstructed.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated Go source includes the parser body, validation branches and scope assignment; redaction limits only the unavailable literal, not the visible statements.",
+        "symbols": [
+          "storageAuthorizer.parseChallenge"
+        ],
+        "evidence": [
+          {
+            "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425",
+            "startLine": 78,
+            "endLine": 112
+          }
+        ]
+      },
+      {
+        "key": "90aa79c693fd2f0259d8787fbbe4c1ab94374844fac134577a6bfdb5d84efb6a",
+        "category": "Other",
+        "subtype": "Configured CRC64 lookup table initialization",
+        "explanation": "Creates CRC64Table with crc64.MakeTable using the declared 0x9A6C9329AC4BC9B5 polynomial. No checksum consumer is included in this finding.",
+        "pattern": "crc64-checksum-table",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The initializer is active code in a non-generated internal/shared Go source file, not a generated constants file.",
+        "symbols": [
+          "CRC64Table"
+        ],
+        "evidence": [
+          {
+            "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79",
+            "startLine": 33,
+            "endLine": 35
+          }
+        ]
+      },
+      {
+        "key": "78576e9d256e50f01148674c18a12ecdc14f3a74d7d453d332f3ca3eac792b87",
+        "category": "Other",
+        "subtype": "Generic options zero default or shallow copy",
+        "explanation": "Returns a newly allocated zero value for nil options; otherwise shallow-copies the supplied value and returns the copy's address.",
+        "pattern": "nil-safe-options-copy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The generic function has an implementation in non-generated Go source.",
+        "symbols": [
+          "CopyOptions"
+        ],
+        "evidence": [
+          {
+            "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79",
+            "startLine": 39,
+            "endLine": 45
+          }
+        ]
+      },
+      {
+        "key": "f6a3abb843ae49429294e15cd411a547a5226fad068f239a7c00693fa9661c61",
+        "category": "Auth",
+        "subtype": "Queue endpoint and account-key or SAS connection string parsing",
+        "explanation": "Parses semicolon-delimited key/value pairs using a two-part equals split, applies https and core.windows.net defaults, uses an explicit QueueEndpoint or builds one from AccountName, and ensures a trailing slash. It returns account/key configuration when both are present, otherwise appends a SharedAccessSignature to the URL, and reports missing or malformed configuration.",
+        "pattern": "connection-string-client-configuration",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The parsing, endpoint assembly and error branches are explicitly implemented in a non-generated Go helper file.",
+        "symbols": [
+          "ParseConnectionString"
+        ],
+        "evidence": [
+          {
+            "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79",
+            "startLine": 57,
+            "endLine": 121
+          }
+        ]
+      },
+      {
+        "key": "fd96e895eba8674acdf0520b853f52f88e0e45480196d916f155d381e5fb33f6",
+        "category": "Other",
+        "subtype": "Generic zero options default without copying non-null input",
+        "explanation": "Allocates a zero-valued options object when the pointer is nil, but returns the original pointer unchanged otherwise.",
+        "pattern": "nil-safe-options-default",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "GetClientOptions is a concrete generic utility in non-generated Go source, distinct from CopyOptions' copying behavior.",
+        "symbols": [
+          "GetClientOptions"
+        ],
+        "evidence": [
+          {
+            "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79",
+            "startLine": 123,
+            "endLine": 128
+          }
+        ]
+      },
+      {
+        "key": "66a5cf260d7bba34cfc3c5a6104b43cd69d8981a9a187660dc4d7ca3eb14f791",
+        "category": "Other",
+        "subtype": "IP host detection with port and IPv6 bracket handling",
+        "explanation": "Rejects an empty host, removes a successfully parsed port, strips surrounding IPv6 brackets and uses net.ParseIP to identify IP-style endpoints.",
+        "pattern": "ip-endpoint-detection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The endpoint helper is implemented in a non-generated Go source file rather than inferred from endpoint examples.",
+        "symbols": [
+          "IsIPEndpointStyle"
+        ],
+        "evidence": [
+          {
+            "id": "fe41e14a5b328dee5db278ab431ef6b5dfc3d51d81007f5c5ec514fc6d7b3f79",
+            "startLine": 133,
+            "endLine": 147
+          }
+        ]
+      },
+      {
+        "key": "89b6cde6e837422f5e1d0c8cb676e670099a3037b5fa5c7d65a7be916f9664e2",
+        "category": "Convenience methods",
+        "subtype": "Public credential factory over internal exported helper",
+        "explanation": "Provides the azqueue package's NewSharedKeyCredential entry point by forwarding account name and key to the internal exported package's constructor and returning its credential/error result.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public function has an explicit delegating body in non-generated models.go; this finding is limited to that entry point, not the nearby type aliases.",
+        "symbols": [
+          "NewSharedKeyCredential"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 20,
+            "endLine": 22
+          }
+        ]
+      },
+      {
+        "key": "5e26eca6e57e86073d8affffdf55efe1fdf52d32a9125a556eb9f59bb9321892",
+        "category": "Convenience methods",
+        "subtype": "Public URL parsing entry point over SAS helper",
+        "explanation": "Adds the public ParseURL function forwarding its string to sas.ParseURL and returning the URLParts/error result. The underlying parser is not supplied.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is a concrete non-generated Go function, not merely the adjacent URLParts alias.",
+        "symbols": [
+          "ParseURL"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 30,
+            "endLine": 32
+          }
+        ]
+      },
+      {
+        "key": "2aaa81fe81b2eb9b70b8344179174bfd9c58c8f249becd0b2db5ba63a35d2ae1",
+        "category": "Model overrides",
+        "subtype": "Queue listing configuration and metadata inclusion model",
+        "explanation": "Defines the public queue-listing options model with Include, Marker, MaxResults and Prefix, plus a ListQueuesInclude.Metadata flag. The declarations alone do not establish pager continuation or service limit enforcement.",
+        "pattern": "paging-options-model",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "These are actual struct definitions in non-generated models.go rather than aliases of generated option types.",
+        "symbols": [
+          "ListQueuesOptions",
+          "ListQueuesInclude"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 88,
+            "endLine": 111
+          }
+        ]
+      },
+      {
+        "key": "a12c7081bc8e9a708a4ade146b98acd929e3df511eb81572a06ff6d5d09cbb8b",
+        "category": "Serialization",
+        "subtype": "Service properties default population and model conversion",
+        "explanation": "Converts SetPropertiesOptions into generated.StorageServiceProperties. It fills missing CORS header strings with empty strings, missing max age with zero and missing metrics/logging versions with \"1.0\", mutating the pointed-to input models; nil options return an empty properties value and nil request options.",
+        "pattern": "model-default-initialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The formatter has a substantial implementation in non-generated models.go and does more than alias generated model names.",
+        "symbols": [
+          "SetPropertiesOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 130,
+            "endLine": 178
+          }
+        ]
+      },
+      {
+        "key": "bf0875312928b3983591e1c344220121bb5b7e2b4f4fed0f4b0f6effe12e92e7",
+        "category": "Convenience methods",
+        "subtype": "Queue creation metadata options conversion",
+        "explanation": "Returns nil for absent CreateOptions, otherwise creates generated.QueueClientCreateOptions containing the Metadata map.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated models.go file explicitly maps the public option to the generated request option.",
+        "symbols": [
+          "CreateOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 210,
+            "endLine": 215
+          }
+        ]
+      },
+      {
+        "key": "ea3c62b23201f801340ef3284d2bf74b40f378e52a2ea599369148391bdcbc95",
+        "category": "Convenience methods",
+        "subtype": "Queue metadata update options conversion",
+        "explanation": "Converts non-nil SetMetadataOptions into generated.QueueClientSetMetadataOptions carrying its Metadata, or returns nil for nil input.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The formatter body is present in non-generated Go source, not generated option aliasing.",
+        "symbols": [
+          "SetMetadataOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 234,
+            "endLine": 240
+          }
+        ]
+      },
+      {
+        "key": "938ac5b7c27e4362c621ee61f107d4ab928cf8c89cf0ff03a4ecbc8d4ca0ebda",
+        "category": "Convenience methods",
+        "subtype": "Access-policy option extraction with time normalization",
+        "explanation": "Returns nil outputs for nil options; otherwise runs formatTime over supplied ACL entries, propagates its errors and returns an empty generated request-options value together with the ACL list.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The method explicitly adapts public options and invokes a handwritten helper in non-generated models.go.",
+        "symbols": [
+          "SetAccessPolicyOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 259,
+            "endLine": 272
+          }
+        ]
+      },
+      {
+        "key": "adcfc963f7db0b0b046ae0476ae91533f818cd8a6b925a3f3413227c10b50d33",
+        "category": "Serialization",
+        "subtype": "UTC RFC3339 access policy time normalization",
+        "explanation": "For a non-nil AccessPolicy, converts non-nil Start and Expiry values to UTC RFC3339 strings, parses them back into time.Time values and replaces the pointers, returning a parse error if conversion fails.",
+        "pattern": "access-policy-time-normalization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The helper body is concrete non-generated Go source performing model mutation rather than a generated serializer call.",
+        "symbols": [
+          "formatTime"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 274,
+            "endLine": 295
+          }
+        ]
+      },
+      {
+        "key": "b90c901b35c44179aeabeec6c2af4b1e5d2528747cde6c93c862168a5eee8577",
+        "category": "Convenience methods",
+        "subtype": "Message lifetime option name adaptation",
+        "explanation": "Converts EnqueueMessageOptions into generated send-message options, mapping TimeToLive to MessageTimeToLive and forwarding VisibilityTimeout, with nil input returning nil.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated formatter explicitly adapts differently named public and generated members.",
+        "symbols": [
+          "EnqueueMessageOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 323,
+            "endLine": 330
+          }
+        ]
+      },
+      {
+        "key": "f72bda3ab67fcd13c19f9199d70fb061c6bf9c332ff5fd4bbd0f4f38265a25b9",
+        "category": "Convenience methods",
+        "subtype": "Single-message receive option shaping",
+        "explanation": "Always creates receive-message options with NumberOfMessages set to one, including when public options are nil; non-nil options also forward VisibilityTimeout.",
+        "pattern": "single-item-operation-options",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The implemented non-generated formatter actively fixes the generated operation's item count.",
+        "symbols": [
+          "DequeueMessageOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 344,
+            "endLine": 352
+          }
+        ]
+      },
+      {
+        "key": "6807ced8a4f238b1bd5db5f597edfe70acbe3418a0dcf98e87aee618e3e65a8a",
+        "category": "Convenience methods",
+        "subtype": "Multi-message receive options conversion",
+        "explanation": "Returns nil for absent DequeueMessagesOptions, otherwise forwards NumberOfMessages and VisibilityTimeout into generated receive-message options.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated Go formatter supplies a real conversion rather than an empty options placeholder.",
+        "symbols": [
+          "DequeueMessagesOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 371,
+            "endLine": 378
+          }
+        ]
+      },
+      {
+        "key": "5bfdfbf724392ee3bf42db38f10a41e457ec91d5d781a35b8a0114b394dc1772",
+        "category": "Model overrides",
+        "subtype": "Public message update visibility timeout declaration",
+        "explanation": "Declares a VisibilityTimeout pointer field on UpdateMessageOptions. Its captured formatter returns nil even for non-nil input, so this declaration does not establish that the field is transmitted.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The field is declared in a non-generated public Go options struct rather than a generated alias; the finding is limited to API shape.",
+        "symbols": [
+          "UpdateMessageOptions.VisibilityTimeout"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 383,
+            "endLine": 393
+          }
+        ]
+      },
+      {
+        "key": "8bc3f884d74b10ddb5f416e8dd47f7d07700afb677e0902e5944a1be86d11491",
+        "category": "Convenience methods",
+        "subtype": "Single-message peek option shaping",
+        "explanation": "Creates generated peek-message options with NumberOfMessages set to one, without needing to inspect the receiver.",
+        "pattern": "single-item-operation-options",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated formatter has an active item-count assignment, unlike the nearby empty placeholder option formatters.",
+        "symbols": [
+          "PeekMessageOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 415,
+            "endLine": 418
+          }
+        ]
+      },
+      {
+        "key": "dc3dafaa8b8395aa5e49847d14aa91c1bc785a7706dfcc1aacecae8f18743ae8",
+        "category": "Convenience methods",
+        "subtype": "Multi-message peek count option conversion",
+        "explanation": "Returns nil for nil PeekMessagesOptions, otherwise creates generated peek-message options using the supplied NumberOfMessages pointer.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The formatter is implemented in non-generated models.go and maps a public setting to a generated request setting.",
+        "symbols": [
+          "PeekMessagesOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 427,
+            "endLine": 433
+          }
+        ]
+      },
+      {
+        "key": "345ae78c12aad913af9317ed2d9f6df826c54bbc35a8e617a7156dc6c05862b5",
+        "category": "Crypto / signing",
+        "subtype": "SAS URL start time UTC or zero default",
+        "explanation": "Converts an optional SAS URL start time to UTC, returning a zero time.Time when the options or StartTime are nil. This method does not itself create or sign a SAS.",
+        "pattern": "sas-start-time-option",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The formatter has a concrete implementation in non-generated Go source; no behavior of the uncaptured SAS implementation is assumed.",
+        "symbols": [
+          "GetSASURLOptions.format"
+        ],
+        "evidence": [
+          {
+            "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+            "startLine": 456,
+            "endLine": 465
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "97f355dc3a3ff272da58e006a3a047253b12672552587942a11cd2ea445e4ce5",
+        "status": "accepted",
+        "reason": "The handwritten ClientOptions.Audience field and GetAudience implementation explicitly select the default scope or normalize a supplied audience; the cited lines support both behaviors."
+      },
+      {
+        "key": "900e1d02aa4f3e615794fdd5c6b2958340118f2d9dd08cf7d0419ff5d48a100c",
+        "status": "accepted",
+        "reason": "The non-generated generic helper exposes the wrapped typed client; the finding describes only that accessor, not an uncaptured public operation."
+      },
+      {
+        "key": "d4a4a843985dd5e8068d38d25f4e895b7a2ff2c8aaa0251f41020459ad021e5c",
+        "status": "accepted",
+        "reason": "This handwritten accessor returns the shared-key credential retained on Client[T], a distinct credential-access behavior from returning its inner client."
+      },
+      {
+        "key": "d3d2de2e4bdb038ea08e4956541cf477687c55a2e15d098fdff19a0bba2c9f97",
+        "status": "accepted",
+        "reason": "NewClient explicitly constructs the handwritten generic wrapper around an existing client pointer, without claiming any credential is installed."
+      },
+      {
+        "key": "924c6c35354dbbd0c724afd474a3d1ceabb707559cecc6823e3465cf7a53fbec",
+        "status": "accepted",
+        "reason": "The non-generated factory composes the generated service client and stored shared-key credential; the claimed behavior is visible in the cited constructor."
+      },
+      {
+        "key": "d2026ba26e5c72d89071b2871c2e0a0a1317d24f2ebb32caa3d735456b24dd17",
+        "status": "accepted",
+        "reason": "The handwritten constructor creates a QueueClient, an empty MessagesClient and a retained credential in CompositeClient; it does not claim MessagesClient independently implements an operation."
+      },
+      {
+        "key": "145c213187ca8833cef58f35bded299e07e8f60630717eb86a950d122c6b713c",
+        "status": "accepted",
+        "reason": "InnerClients returns the two stored typed client pointers, a distinct handwritten composite-wrapper accessor."
+      },
+      {
+        "key": "65ed6064e216138f725fdbea28131dbe21ae83fafa5d0bb83441d9f3cc70e443",
+        "status": "accepted",
+        "reason": "SharedKeyComposite returns the credential from the handwritten composite wrapper; the proposal does not assert credential creation or signing."
+      },
+      {
+        "key": "cd5ca95d80c640d14b1235ba0def7bf080844be37f9ca1bcddef87533730c260",
+        "status": "accepted",
+        "reason": "The handwritten String method encodes four permission flags in a fixed order, independently of the inverse Parse method."
+      },
+      {
+        "key": "8cadbbcdd01807c84c75df0958f7e89c36d9938a5b038a5bd2f4519300612236",
+        "status": "accepted",
+        "reason": "The handwritten Parse method clears and sets permission flags and returns on an invalid rune; prior flag mutations remain, as described."
+      },
+      {
+        "key": "4b77c2239fb16f3a6decfbac475d9d63549126593d9892a9112be12179b227ac",
+        "status": "accepted",
+        "reason": "The internal exported credential constructor stores the account name and calls SetAccountKey, returning its decoding error when present."
+      },
+      {
+        "key": "76731af8519224ed4b64c774f6079822eba534b5a862ac08b06d86a4043e6112",
+        "status": "accepted",
+        "reason": "The implemented AccountName method exposes the credential's stored name; the non-generated source and exact method range support the narrow finding."
+      },
+      {
+        "key": "aec2d41bffd4b73d248b2b40aed45dc70c850a0b2edaf5e15f05363ac1972f04",
+        "status": "accepted",
+        "reason": "SetAccountKey decodes Base64, propagates a contextual error and atomically stores the decoded bytes, distinct from constructing the credential."
+      },
+      {
+        "key": "8be24b8551451f674d64cc97f4e96547c82c7377f04bb6402528afea158e01ad",
+        "status": "accepted",
+        "reason": "The handwritten method computes and encodes the HMAC, and the exported helper forwards to the same computation; the code supports both cited symbols."
+      },
+      {
+        "key": "0b331e1c7fca51e1c30cf5e1916c6368b8b7f998d37328e44210d13c4abc3364",
+        "status": "accepted",
+        "reason": "The signing-string method assembles the ordered fields and delegates canonicalization to separately cited handwritten routines; the proposal limits its claim to assembly."
+      },
+      {
+        "key": "cba1fb786c157d5fb42082af6df0a5e26a8c80d93b74bd91b0f3eb0635d8c1b0",
+        "status": "rejected",
+        "reason": "getHeader is a primitive exact-key map lookup used inside the already proposed signing-string and signing-policy behavior, not an independently evidenced SDK customization instance."
+      },
+      {
+        "key": "93caad8d3dbe296b6c40538d7333643bb52d376bf2db6ba21350327d0c01e769",
+        "status": "accepted",
+        "reason": "The dedicated handwritten method canonicalizes and sorts x-ms- headers for signing; its separate transformation and cited implementation justify the distinct instance."
+      },
+      {
+        "key": "0e9b1fd3295a04f2156d6cff6a510cefc45df853ea911471915b183c6fdc0e2f",
+        "status": "accepted",
+        "reason": "The dedicated handwritten method canonicalizes URL path and sorted query parameters for signing and returns parse errors; it differs from header canonicalization."
+      },
+      {
+        "key": "b944a5322f94c1b4ed2ed06a3127e47f9091cd8843db15913bef656b8508ad9b",
+        "status": "accepted",
+        "reason": "The handwritten pipeline policy sets a missing date, signs and authorizes a request, and conditionally logs on the precise error/403 branch described; this is separate from the reusable HMAC and canonicalization routines."
+      },
+      {
+        "key": "a86159b0d96906f063028bb336d8de62d126ec87f0f32b68f9d0e5b8843d59ec",
+        "status": "accepted",
+        "reason": "The handwritten constructor stores the supplied account name and delegation key without visible validation, as the proposal states."
+      },
+      {
+        "key": "2da22f12cbd1627accddd4fa6eb5447c11189f5881e7629b0abca03473b08758",
+        "status": "accepted",
+        "reason": "Both cited handwritten functions provide one account-name access behavior for the delegation credential."
+      },
+      {
+        "key": "64c5fc8aee63c3c1d903407323cd55e19a8821cee96ab97c07d57ba8df02ec48",
+        "status": "accepted",
+        "reason": "The cited method decodes the pointed-to delegation key while discarding its decode error, computes HMAC-SHA256 and Base64-encodes it; the other cited symbol forwards that computation."
+      },
+      {
+        "key": "b48f2da7ec5cb8df31da9e8490f7cc999d66b03b553f42b9b0524447ea87aed6",
+        "status": "accepted",
+        "reason": "The method and forwarding helper expose a pointer to the stored delegation key, a distinct accessor from the account-name and signing functions."
+      },
+      {
+        "key": "5fc0134f63a7f9ae92cbba5b8c270aad812f3da448231b08cfba82733a5c5d58",
+        "status": "revised",
+        "reason": "QueueClient is a client, not a model; this handwritten endpoint accessor fits convenience methods rather than model overrides.",
+        "finding": {
+          "key": "5fc0134f63a7f9ae92cbba5b8c270aad812f3da448231b08cfba82733a5c5d58",
+          "category": "Convenience methods",
+          "subtype": "Queue client endpoint accessor",
+          "explanation": "Adds QueueClient.Endpoint, which returns the stored URL.",
+          "pattern": "client-endpoint-accessor",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "internal/generated/queue_client.go has neither a generated header nor a zz_ filename, so the supplied Go guideline treats this implementation as handwritten even inside the generated directory.",
+          "symbols": [
+            "QueueClient.Endpoint"
+          ],
+          "evidence": [
+            {
+              "id": "9fefecdac78524d6485f412193486f4f1c509178dc396d81d47c3bd15acbbbca",
+              "startLine": 10,
+              "endLine": 12
+            }
+          ]
+        }
+      },
+      {
+        "key": "635350ba516d442a0fe97a49b67e6d049b61e807699394382f541840df45a452",
+        "status": "accepted",
+        "reason": "The non-generated-marked file adds a concrete method returning QueueClient's internal azcore client; the category and accessor pattern fit."
+      },
+      {
+        "key": "ac434e44a4642ce9c7258d1f28009620c0c833b3eaf1283c1a23b40aecb25608",
+        "status": "accepted",
+        "reason": "The handwritten constructor initializes QueueClient's internal and URL fields from supplied arguments; the proposal claims no additional pipeline behavior."
+      },
+      {
+        "key": "763da88557db3a309b49c2528894208bb0ae63bedaffb3e2aaef1ec59e3c80c8",
+        "status": "revised",
+        "reason": "ServiceClient is a client rather than a model, so the endpoint accessor belongs under convenience methods.",
+        "finding": {
+          "key": "763da88557db3a309b49c2528894208bb0ae63bedaffb3e2aaef1ec59e3c80c8",
+          "category": "Convenience methods",
+          "subtype": "Service client endpoint accessor",
+          "explanation": "Adds ServiceClient.Endpoint, which returns the stored URL.",
+          "pattern": "client-endpoint-accessor",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "internal/generated/service_client.go lacks a generated header and zz_ prefix; under the supplied Go guideline this method is handwritten despite its directory.",
+          "symbols": [
+            "ServiceClient.Endpoint"
+          ],
+          "evidence": [
+            {
+              "id": "1c6c35f276e732fbc56752eaa867167acafc40146d94c9d0578a7709ce19aefd",
+              "startLine": 14,
+              "endLine": 16
+            }
+          ]
+        }
+      },
+      {
+        "key": "ff631992dd824ccc1fe8c1760955734aa6e2e8c3d33bb612ef273467b5b0f45a",
+        "status": "accepted",
+        "reason": "ServiceClient.InternalClient is an implemented handwritten accessor in a file without Go generation markers; the finding makes only the visible access claim."
+      },
+      {
+        "key": "1766ea5f05c0595a35714b60cfeceff4334a85fd34dcc836b5e726b83ecd65e9",
+        "status": "accepted",
+        "reason": "The method explicitly exposes the unexported generated request builder through a handwritten forwarding adapter, without attributing generated builder logic to it."
+      },
+      {
+        "key": "f5b832a8aaca970d716419a86506565366d6dea4b477b1ad243b0bb4d7caf54c",
+        "status": "accepted",
+        "reason": "The method explicitly exposes the unexported generated response handler through a handwritten adapter; no uncaptured parsing is claimed."
+      },
+      {
+        "key": "3403ba820b4fbb4b066f1d729d5a3bf9b1c2d4684ea0d8b529f3d66e646c9c56",
+        "status": "accepted",
+        "reason": "The non-generated-marked constructor initializes ServiceClient with the supplied azcore client and URL, and its source range supports precisely that behavior."
+      },
+      {
+        "key": "ab084de7f90a9a0e9684dc51ef35074c976514c8d72acfb9f765bb81cee83ffa",
+        "status": "accepted",
+        "reason": "The handwritten factory registers request and challenge callbacks on a bearer policy; the callbacks authorize with stored scopes and invoke the separately proposed parser. The redacted prefix in other evidence is not inferred."
+      },
+      {
+        "key": "0e99214b58c45f7ceccfced33c52a7f723ac52cb0b49d72f7fd5526e9956f8fd",
+        "status": "accepted",
+        "reason": "The handwritten error wrapper implements Error, Unwrap and the NonRetriable marker; the proposal correctly does not infer unobserved runtime retry decisions."
+      },
+      {
+        "key": "b1b30ba1e2418cf8fa8cd46270c175620bc1e3e6b7271d0d8e8b67225c2cc1df",
+        "status": "revised",
+        "reason": "The original description omits that a three-element split passes len(parts) >= 3 but then indexes parts[3], which panics; the replacement states that edge case without asserting URI validation.",
+        "finding": {
+          "key": "b1b30ba1e2418cf8fa8cd46270c175620bc1e3e6b7271d0d8e8b67225c2cc1df",
+          "category": "Auth",
+          "subtype": "Authentication authority tenant segment extraction",
+          "explanation": "parseTenant returns empty for empty input or fewer than three slash-separated parts, removes commas from the part at index 3 otherwise, but panics when the split has exactly three parts because its length guard permits an out-of-range index.",
+          "pattern": "auth-authority-tenant-parsing",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The parseTenant implementation is in non-generated internal/shared/challenge_policy.go; its exact index and guard appear in the cited lines.",
+          "symbols": [
+            "parseTenant"
+          ],
+          "evidence": [
+            {
+              "id": "09c87bb667c62f9e23717bed716c814bc08243a7e9f009c0b76d9b3375a34425",
+              "startLine": 64,
+              "endLine": 76
+            }
+          ]
+        }
+      },
+      {
+        "key": "6a35552b378ed02942f9e0751c6dc3d05ebfbd8cc84e24509e389c03f61d164c",
+        "status": "accepted",
+        "reason": "The separate handwritten challenge parser validates the header and resource, updates scopes and records a tenant segment; it correctly does not reconstruct the redacted literal."
+      },
+      {
+        "key": "90aa79c693fd2f0259d8787fbbe4c1ab94374844fac134577a6bfdb5d84efb6a",
+        "status": "inconclusive",
+        "reason": "The non-generated table initializer is visible, but no checksum consumer or resulting SDK behavior is supplied; this alone does not establish a distinct customization rather than an unused support constant."
+      },
+      {
+        "key": "78576e9d256e50f01148674c18a12ecdc14f3a74d7d453d332f3ca3eac792b87",
+        "status": "inconclusive",
+        "reason": "CopyOptions has the described implementation, but no use site in the supplied evidence shows this generic utility changes a generated API or library operation."
+      },
+      {
+        "key": "f6a3abb843ae49429294e15cd411a547a5226fad068f239a7c00693fa9661c61",
+        "status": "accepted",
+        "reason": "The handwritten connection-string parser builds queue endpoints and selects account-key or SAS configuration with explicit error branches; the proposal confines itself to visible code."
+      },
+      {
+        "key": "fd96e895eba8674acdf0520b853f52f88e0e45480196d916f155d381e5fb33f6",
+        "status": "inconclusive",
+        "reason": "GetClientOptions returns a zero allocation for nil and otherwise the original pointer, but no captured caller shows this generic utility alters a generated operation or public API."
+      },
+      {
+        "key": "66a5cf260d7bba34cfc3c5a6104b43cd69d8981a9a187660dc4d7ca3eb14f791",
+        "status": "inconclusive",
+        "reason": "IP-style host detection is visibly handwritten, but no supplied consumer establishes what SDK endpoint behavior it changes; its generator addressability is also not established by the isolated helper."
+      },
+      {
+        "key": "89b6cde6e837422f5e1d0c8cb676e670099a3037b5fa5c7d65a7be916f9664e2",
+        "status": "accepted",
+        "reason": "The public azqueue constructor forwards to the internal exported constructor, adding a public package entry point distinct from the internal credential implementation in another source path."
+      },
+      {
+        "key": "5e26eca6e57e86073d8affffdf55efe1fdf52d32a9125a556eb9f59bb9321892",
+        "status": "accepted",
+        "reason": "The public ParseURL helper is a handwritten delegating API entry point; the proposal explicitly excludes any behavior of the unsupplied SAS parser."
+      },
+      {
+        "key": "2aaa81fe81b2eb9b70b8344179174bfd9c58c8f249becd0b2db5ba63a35d2ae1",
+        "status": "accepted",
+        "reason": "These are handwritten public option structs, not generated aliases; the proposal correctly avoids asserting actual paging or server-side enforcement without a captured pager."
+      },
+      {
+        "key": "a12c7081bc8e9a708a4ade146b98acd929e3df511eb81572a06ff6d5d09cbb8b",
+        "status": "accepted",
+        "reason": "The formatter visibly fills missing CORS, metrics and logging defaults in pointed-to models before constructing the generated properties value, including the nil-input branch."
+      },
+      {
+        "key": "bf0875312928b3983591e1c344220121bb5b7e2b4f4fed0f4b0f6effe12e92e7",
+        "status": "accepted",
+        "reason": "The handwritten formatter maps public CreateOptions.Metadata to the generated option and preserves nil input."
+      },
+      {
+        "key": "ea3c62b23201f801340ef3284d2bf74b40f378e52a2ea599369148391bdcbc95",
+        "status": "accepted",
+        "reason": "The non-generated formatter maps public SetMetadataOptions.Metadata to its generated counterpart, with the cited nil branch."
+      },
+      {
+        "key": "938ac5b7c27e4362c621ee61f107d4ab928cf8c89cf0ff03a4ecbc8d4ca0ebda",
+        "status": "accepted",
+        "reason": "The formatter passes each ACL entry through formatTime, propagates errors and returns generated options and the ACL list; the separate normalization proposal concerns the helper's distinct conversion."
+      },
+      {
+        "key": "adcfc963f7db0b0b046ae0476ae91533f818cd8a6b925a3f3413227c10b50d33",
+        "status": "accepted",
+        "reason": "formatTime explicitly replaces non-nil Start and Expiry pointers with UTC RFC3339-round-tripped times and propagates parse errors; this normalization differs from extracting ACL options."
+      },
+      {
+        "key": "b90c901b35c44179aeabeec6c2af4b1e5d2528747cde6c93c862168a5eee8577",
+        "status": "accepted",
+        "reason": "The handwritten formatter maps TimeToLive to MessageTimeToLive and forwards VisibilityTimeout, with a supported nil branch."
+      },
+      {
+        "key": "f72bda3ab67fcd13c19f9199d70fb061c6bf9c332ff5fd4bbd0f4f38265a25b9",
+        "status": "accepted",
+        "reason": "The handwritten single-message formatter fixes NumberOfMessages to one for both nil and non-nil options and forwards a provided visibility timeout."
+      },
+      {
+        "key": "6807ced8a4f238b1bd5db5f597edfe70acbe3418a0dcf98e87aee618e3e65a8a",
+        "status": "accepted",
+        "reason": "The multi-message formatter maps both supplied options to generated receive options and returns nil on nil input; unlike the single-item formatter, it does not force a count."
+      },
+      {
+        "key": "5bfdfbf724392ee3bf42db38f10a41e457ec91d5d781a35b8a0114b394dc1772",
+        "status": "revised",
+        "reason": "VisibilityTimeout is a handwritten public field, but no alias is present and its formatter always returns nil; the pattern and generator assessment must not imply it is wired to the generated request.",
+        "finding": {
+          "key": "5bfdfbf724392ee3bf42db38f10a41e457ec91d5d781a35b8a0114b394dc1772",
+          "category": "Model overrides",
+          "subtype": "Public message update visibility timeout field",
+          "explanation": "UpdateMessageOptions declares a public VisibilityTimeout pointer, but its supplied format method returns nil even for non-nil input; the evidence establishes API shape, not transmission of this value.",
+          "pattern": "public-operation-option-field",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "models.go is non-generated and defines the concrete public options struct and formatter, rather than aliasing generated options.",
+          "symbols": [
+            "UpdateMessageOptions.VisibilityTimeout"
+          ],
+          "evidence": [
+            {
+              "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+              "startLine": 383,
+              "endLine": 393
+            }
+          ]
+        }
+      },
+      {
+        "key": "8bc3f884d74b10ddb5f416e8dd47f7d07700afb677e0902e5944a1be86d11491",
+        "status": "accepted",
+        "reason": "The handwritten formatter sets a generated peek request count to one without reading the receiver, a concrete single-message API adaptation."
+      },
+      {
+        "key": "dc3dafaa8b8395aa5e49847d14aa91c1bc785a7706dfcc1aacecae8f18743ae8",
+        "status": "accepted",
+        "reason": "The handwritten multi-message peek formatter forwards the supplied count and returns nil for nil options; it is separate from the single-message count override."
+      },
+      {
+        "key": "345ae78c12aad913af9317ed2d9f6df826c54bbc35a8e617a7156dc6c05862b5",
+        "status": "revised",
+        "reason": "The captured method only normalizes an option and never signs or creates a SAS, so convenience methods is more precise than crypto/signing.",
+        "finding": {
+          "key": "345ae78c12aad913af9317ed2d9f6df826c54bbc35a8e617a7156dc6c05862b5",
+          "category": "Convenience methods",
+          "subtype": "Optional SAS URL start time normalization",
+          "explanation": "GetSASURLOptions.format returns a zero time when the options or StartTime are nil, otherwise it returns the specified start time converted to UTC; no SAS creation or signing is shown.",
+          "pattern": "optional-start-time-normalization",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The format method contains active normalization code in non-generated models.go, but the SAS URL implementation that consumes its result is not supplied.",
+          "symbols": [
+            "GetSASURLOptions.format"
+          ],
+          "evidence": [
+            {
+              "id": "2e71f1b7c2f7373d8784838fd9c3a8c5f3e3f63707cf27b076c48de711089b5b",
+              "startLine": 456,
+              "endLine": 465
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Coverage is partial: 12 of 31 eligible source files among 49 discovered files were captured. Two captured files are explicitly test-only internal/testcommon helpers and are excluded from findings; eligible/captured totals therefore are not production customization counts.",
+      "The identity is the /v2 module declared in go.mod. The blank latestRelease metadata does not establish an absence of a release or justify merging this module with another major version.",
+      "The supplied Go rule treats non-test files without generated headers or zz_ names as handwritten, including the captured internal/generated/queue_client.go and service_client.go extensions. No generation diff was supplied to independently verify provenance beyond that language-specific rule.",
+      "The public queue and service client files, queue error helpers, response definitions and four named SAS files were not sent. Public operation behavior, service paging orchestration, SAS URL assembly and final request/response transformations cannot be fully assessed.",
+      "constants.go and the generated-model type aliases in models.go are not counted as independent behavioral customizations. Empty future-option scaffolding and the empty MessagesClient compatibility placeholder are not counted as standalone behavior.",
+      "The challenge header prefix literal is redacted in the supplied evidence. It was not reconstructed, and the literal-specific normalization step cannot be verified.",
+      "The challenge parser stores a tenant ID, but the captured authorization callbacks pass only scopes. Tenant extraction is not evidence that cross-tenant token acquisition is implemented. No malformed-input safety guarantees are inferred from the tenant parser's visible length check.",
+      "Option formatters establish local conversion and mutation, not that every option reaches a live service. In particular UpdateMessageOptions declares VisibilityTimeout while its captured formatter returns nil; the public operation implementation is not provided.",
+      "HMAC, canonicalization, policy hooks and the CRC64 table are source observations, not cryptographic verification, authentication tests or proof that an uncaptured consumer uses every helper. No SDK or test source was executed.",
+      "Coverage is partial: 12 of 31 eligible files were captured, with eight explicitly skipped files including public service/queue clients, SAS implementations, response types and error codes; no package-wide absence or exhaustive instance count follows.",
+      "The source excerpts establish local code shapes but not all call sites, generated counterparts, whether unused helpers affect operations, or the semantics of the uncaptured SAS parser and public clients.",
+      "The challenge parser's prefix-removal literal is redacted; its value and its precise effect cannot be reconstructed from this request.",
+      "No tests, SDK execution, generator comparison or cross-service recurrence evidence was supplied; accepted and revised findings are AI-reviewed, not verified, and generator addressability is a prospective judgment rather than a measured generator capability.",
+      "Empty placeholder option formatters, generated type/constant aliases, the empty MessagesClient compatibility scaffold and testcommon fixtures were not treated as additional independent customizations."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/storage/azqueue/constants.go",
+      "startLine": 1,
+      "endLine": 15,
+      "provenance": "Go handwritten source",
+      "contentHash": "a147b7e3a8d280b17094acb19f6d3817795d9935b8ab8ab38d1813030d9db687"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/base/clients.go",
+      "startLine": 1,
+      "endLine": 76,
+      "provenance": "Go handwritten source",
+      "contentHash": "5107f80380812d8f371bfa2b176b8dc2f8e5c460c7126b18521ddd4b5bd18886"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/access_policy.go",
+      "startLine": 1,
+      "endLine": 54,
+      "provenance": "Go handwritten source",
+      "contentHash": "217234ce0bd415e39d38ca7e3f9cb5e7169f8cb28ea4dc54f71eed1f00158a8e"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/shared_key_credential.go",
+      "startLine": 1,
+      "endLine": 215,
+      "provenance": "Go handwritten source",
+      "contentHash": "8ec17b7cac22298410b2f11e1a24d224e412d73b30eb3788a7b034c64e4ff32d"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/exported/user_delegation_credential.go",
+      "startLine": 1,
+      "endLine": 62,
+      "provenance": "Go handwritten source",
+      "contentHash": "1b92a4a3001f082c248346ed63331754cbdfd993fc304574426d07957d4c413c"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/generated/queue_client.go",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "Go handwritten source",
+      "contentHash": "3ecbdeb708d963a713fddcca9168b9ef121d40254d8a525528bedef097d8484c"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/generated/service_client.go",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "Go handwritten source",
+      "contentHash": "c62e1b862ba184fddd495c1eb80b4cb9765b65fbef487a648e297ed5bfc49fb0"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/shared/challenge_policy.go",
+      "startLine": 1,
+      "endLine": 112,
+      "provenance": "Go handwritten source",
+      "contentHash": "7f14236d8ccaf91f6adbd53cacc1d13b75722a08ddae291eb404ac0e898b3010"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/shared/shared.go",
+      "startLine": 1,
+      "endLine": 147,
+      "provenance": "Go handwritten source",
+      "contentHash": "490fa16cc18248e532215fd4588d404e685c2d27d2fa2a5218b154c199bef483"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/testcommon/clients_auth.go",
+      "startLine": 1,
+      "endLine": 129,
+      "provenance": "Go handwritten source",
+      "contentHash": "2cf3ef7d5211a447ef24f1d38684d3ebc7da5fa483a9bc6c4dbab38347f8fcd1"
+    },
+    {
+      "path": "sdk/storage/azqueue/internal/testcommon/common.go",
+      "startLine": 1,
+      "endLine": 118,
+      "provenance": "Go handwritten source",
+      "contentHash": "323d901ece7adeed7022e834c5969921afe7d572fe8b32480509a08dfe3ce311"
+    },
+    {
+      "path": "sdk/storage/azqueue/models.go",
+      "startLine": 1,
+      "endLine": 465,
+      "provenance": "Go handwritten source",
+      "contentHash": "3c3bb8b53b4f19a995c3b8b69490aac4f05aef9c195216cb79680fd181da2f81"
+    },
+    {
+      "path": "sdk/storage/azqueue/queue_client.go",
+      "startLine": 1,
+      "endLine": 241,
+      "provenance": "Go handwritten source",
+      "contentHash": "c5710b2602122eec02c7783ee2429f1b94f02a91b1550e5cd45fd5c6f720cf57"
+    },
+    {
+      "path": "sdk/storage/azqueue/queueerror/error_codes.go",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "Go handwritten source",
+      "contentHash": "721a75b16c0fd9177ddb2662c79f31fef5f35e7b9413232fd1db9b185007d3fa"
+    },
+    {
+      "path": "sdk/storage/azqueue/responses.go",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "Go handwritten source",
+      "contentHash": "268e2c1a16d247a57cfc6a7dc84e81f737182a2008f0aef1edfaf799f0c79dbe"
+    },
+    {
+      "path": "sdk/storage/azqueue/sas/account.go",
+      "startLine": 1,
+      "endLine": 223,
+      "provenance": "Go handwritten source",
+      "contentHash": "45291b0c73b7abf846306970e5882d0a685bb02b09b3e9db194096d4a2d676c7"
+    },
+    {
+      "path": "sdk/storage/azqueue/sas/query_params.go",
+      "startLine": 1,
+      "endLine": 527,
+      "provenance": "Go handwritten source",
+      "contentHash": "9dc375574eeaab9d3af1f202b0ab4e0e8e237cffdd4721f614f42ff4ee1ddce6"
+    },
+    {
+      "path": "sdk/storage/azqueue/sas/service.go",
+      "startLine": 1,
+      "endLine": 217,
+      "provenance": "Go handwritten source",
+      "contentHash": "f3f00045a354fccbc676be6b553435f13821cba6b962ade80525d5fcd32f1548"
+    },
+    {
+      "path": "sdk/storage/azqueue/sas/url_parts.go",
+      "startLine": 1,
+      "endLine": 95,
+      "provenance": "Go handwritten source",
+      "contentHash": "e7cce8faa31025567b618901debf561b4834ac3e839c7c10f975ab74b8a6b333"
+    },
+    {
+      "path": "sdk/storage/azqueue/service_client.go",
+      "startLine": 1,
+      "endLine": 220,
+      "provenance": "Go handwritten source",
+      "contentHash": "2fa3525aebfb586667a7021f7acbe8653599bd38b246e90da873fbc5d44c9bdf"
+    }
+  ]
+}
