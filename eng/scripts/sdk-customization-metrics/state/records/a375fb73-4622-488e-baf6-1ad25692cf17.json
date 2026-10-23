@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 1,
+  "id": "a375fb73-4622-488e-baf6-1ad25692cf17",
+  "observedAt": "2026-10-23T19:02:59.593Z",
+  "identity": "python:azure-ai-language-questionanswering:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-language-questionanswering",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/cognitivelanguage/azure-ai-language-questionanswering"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "b8132a0ff28ab875f9b8808db8e6e11e82a9885a"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 52,
+    "eligibleFiles": 26,
+    "capturedFiles": 3,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import Any, List, overload, Optional, Union, Tuple, cast, MutableMapping\nimport copy\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._operations import _QuestionAnsweringClientOperationsMixin as QuestionAnsweringClientOperationsMixinGenerated\nfrom ..models import (\n    AnswersOptions,\n    AnswersFromTextOptions,\n    AnswersResult,\n    AnswersFromTextResult,\n    KnowledgeBaseAnswerContext,\n    QueryFilters,\n    ShortAnswerOptions,\n    TextDocument,\n)\n\nJSON = MutableMapping[str, Any]\n\n\ndef _validate_text_records(records):\n    if not records:\n        raise ValueError(\"Input documents can not be empty or None\")\n    if isinstance(records, str):\n        raise TypeError(\"Input documents cannot be a string.\")\n    if isinstance(records, dict):\n        raise TypeError(\"Input documents cannot be a dict\")\n    if not all(isinstance(x, str) for x in records):\n        if not all(isinstance(x, (dict, TextDocument)) for x in records):\n            raise TypeError(\"Mixing string and dictionary/object document input unsupported.\")\n    request_batch = []\n    for idx, doc in enumerate(records):\n        if isinstance(doc, str):\n            record = {\"id\": str(idx), \"text\": doc}\n            request_batch.append(record)\n        else:\n            request_batch.append(doc)\n    return request_batch\n\n\ndef _get_positional_body(*args, **kwargs):\n    \"\"\"Verify args and kwargs are valid, and then return the positional body, if users passed it in.\n\n    :param args: The arguments passed to the method.\n    :type args: AnswersOptions or dict\n    \"\"\"\n    if len(args) > 1:\n        raise TypeError(\"There can only be one positional argument, which is the POST body of this request.\")\n    if \"options\" in kwargs:\n        raise TypeError(\"The 'options' parameter is positional only.\")\n    return args[0] if args else None\n\n\ndef _verify_qna_id_and_question(query_knowledgebase_options):\n    \"\"\"For query_knowledge_base we require either `question` or `qna_id`.\n\n    :param query_knowledgebase_options: The user-passed AnswersOptions or dict\n    :type query_knowledgebase_options: AnswersOptions or dict\n    \"\"\"\n    try:\n        qna_id = query_knowledgebase_options.qna_id\n        question = query_knowledgebase_options.question\n    except AttributeError:\n        qna_id = query_knowledgebase_options.get(\"qna_id\") or query_knowledgebase_options.get(\"qnaId\")\n        question = query_knowledgebase_options.get(\"question\")\n    if not (qna_id or question):\n        raise TypeError(\"You need to pass in either `qna_id` or `question`.\")\n    if qna_id and question:\n        raise TypeError(\"You can not specify both `qna_id` and `question`.\")\n\n\ndef _handle_metadata_filter_conversion(options_input):\n    options = copy.deepcopy(options_input)\n    filters = options.filters if hasattr(options, \"filters\") else options.get(\"filters\", {})\n    try:\n        if filters and filters.metadata_filter and filters.metadata_filter.metadata:\n            metadata_input = filters.metadata_filter.metadata\n        else:\n            metadata_input = None\n        in_class = True\n    except AttributeError:\n        metadata_input = filters.get(\"metadataFilter\", {}).get(\"metadata\")\n        in_class = False\n    if not metadata_input:\n        return options\n\n    # Handle both MetadataRecord objects and tuples\n    metadata_modified = []\n    for m in metadata_input:\n        if hasattr(m, \"key\") and hasattr(m, \"value\"):\n            # MetadataRecord object\n            metadata_modified.append({\"key\": m.key, \"value\": m.value})\n        else:\n            # Assume it's a tuple or sequence\n            try:\n                if len(m) != 2:\n                    raise ValueError(\"'metadata' must be a sequence of key-value tuples.\")\n                metadata_modified.append({\"key\": m[0], \"value\": m[1]})\n            except (TypeError, AttributeError) as exc:\n                raise ValueError(\n                    \"'metadata' must be a sequence of key-value tuples or MetadataRecord objects.\"\n                ) from exc\n    if in_class:\n        filters.metadata_filter.metadata = metadata_modified\n    else:\n        filters[\"metadataFilter\"][\"metadata\"] = metadata_modified\n    return options\n\n\ndef _get_answers_prepare_options(*args: AnswersOptions, **kwargs: Any) -> Tuple[AnswersOptions, Any]:\n    options = _get_positional_body(*args, **kwargs) or AnswersOptions(\n        qna_id=kwargs.pop(\"qna_id\", None),\n        question=kwargs.pop(\"question\", None),\n        top=kwargs.pop(\"top\", None),\n        user_id=kwargs.pop(\"user_id\", None),\n        confidence_threshold=kwargs.pop(\"confidence_threshold\", None),\n        answer_context=kwargs.pop(\"answer_context\", None),\n        ranker_kind=kwargs.pop(\"ranker_kind\", None),\n        filters=kwargs.pop(\"filters\", None),\n        short_answer_options=kwargs.pop(\"short_answer_options\", None),\n        include_unstructured_sources=kwargs.pop(\"include_unstructured_sources\", None),\n    )\n    _verify_qna_id_and_question(options)\n    return _handle_metadata_filter_conversion(options), kwargs\n\n\ndef _get_answers_from_text_prepare_options(\n    *args: AnswersFromTextOptions, **kwargs: Any\n) -> Tuple[Union[JSON, AnswersFromTextOptions], Any]:\n    default_language = kwargs.pop(\"language\", None)\n    options = _get_positional_body(*args, **kwargs) or AnswersFromTextOptions(\n        question=kwargs.pop(\"question\"),\n        text_documents=kwargs.pop(\"text_documents\"),\n        language=default_language,\n    )\n    try:\n        options = cast(JSON, options)\n        # pylint: disable=unsubscriptable-object,unsupported-assignment-operation\n        options[\"records\"] = _validate_text_records(options[\"records\"])\n        # pylint: disable=no-member,unsupported-assignment-operation\n        options[\"language\"] = options.get(\"language\", None) or default_language\n    except TypeError:\n        options = cast(AnswersFromTextOptions, options)\n        options.text_documents = _validate_text_records(options.text_documents)\n        options.language = options.language or default_language\n    return options, kwargs\n\n\nclass _QuestionAnsweringClientOperationsMixin(QuestionAnsweringClientOperationsMixinGenerated):\n    @overload  # type: ignore # https://github.com/Azure/azure-sdk-for-python/issues/26621\n    # pylint: disable=arguments-renamed\n    def get_answers(\n        self, options: AnswersOptions, *, project_name: str, deployment_name: str, **kwargs: Any\n    ) -> AnswersResult:\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :param options: Positional only. POST body of the request. Provide either\n         `options`, OR individual keyword arguments. If both are provided, only the\n         options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersOptions\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def get_answers(  # pylint: disable=arguments-differ\n        self,\n        *,\n        project_name: str,\n        deployment_name: str,\n        qna_id: Optional[int] = None,\n        question: Optional[str] = None,\n        top: Optional[int] = None,\n        user_id: Optional[str] = None,\n        confidence_threshold: Optional[float] = None,\n        answer_context: Optional[KnowledgeBaseAnswerContext] = None,\n        ranker_kind: Optional[str] = None,\n        filters: Optional[QueryFilters] = None,\n        short_answer_options: Optional[ShortAnswerOptions] = None,\n        include_unstructured_sources: Optional[bool] = None,\n        **kwargs: Any\n    ) -> AnswersResult:\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :keyword qna_id: Exact QnA ID to fetch from the knowledge base, this field takes priority over\n         question.\n        :paramtype qna_id: int\n        :keyword question: User question to query against the knowledge base.\n        :paramtype question: str\n        :keyword top: Max number of answers to be returned for the question.\n        :paramtype top: int\n        :keyword user_id: Unique identifier for the user.\n        :paramtype user_id: str\n        :keyword confidence_threshold: Minimum threshold score for answers, value ranges from 0 to 1.\n        :paramtype confidence_threshold: float\n        :keyword answer_context: Context object with previous QnA's information.\n        :paramtype answer_context: ~azure.ai.language.questionanswering.models.KnowledgeBaseAnswerContext\n        :keyword ranker_kind: Type of ranker to be used. Possible\n         values include: \"Default\", \"QuestionOnly\".\n        :paramtype ranker_kind: str\n        :keyword filters: Filter QnAs based on given metadata list and knowledge base sources.\n        :paramtype filters: ~azure.ai.language.questionanswering.models.QueryFilters\n        :keyword short_answer_options: To configure Answer span prediction feature.\n        :paramtype short_answer_options: ~azure.ai.language.questionanswering.models.ShortAnswerOptions\n        :keyword include_unstructured_sources: (Optional) Flag to enable Query over Unstructured\n         Sources.\n        :paramtype include_unstructured_sources: bool\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint ignore b/c with overloads we need to doc ALL the params in the impl for them to show up in docs\n    # pylint: disable=docstring-keyword-should-match-keyword-only,docstring-missing-param,docstring-should-be-keyword,arguments-renamed\n    @distributed_trace\n    def get_answers(  # pyright: ignore[reportIncompatibleMethodOverride]\n        self, *args: AnswersOptions, **kwargs: Any\n    ) -> AnswersResult:\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersOptions\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :keyword qna_id: Exact QnA ID to fetch from the knowledge base, this field takes priority over\n         question.\n        :paramtype qna_id: int\n        :keyword question: User question to query against the knowledge base.\n        :paramtype question: str\n        :keyword top: Max number of answers to be returned for the question.\n        :paramtype top: int\n        :keyword user_id: Unique identifier for the user.\n        :paramtype user_id: str\n        :keyword confidence_threshold: Minimum threshold score for answers, value ranges from 0 to 1.\n        :paramtype confidence_threshold: float\n        :keyword answer_context: Context object with previous QnA's information.\n        :paramtype answer_context: ~azure.ai.language.questionanswering.models.KnowledgeBaseAnswerContext\n        :keyword ranker_kind: Type of ranker to be used. Possible\n         values include: \"Default\", \"QuestionOnly\".\n        :paramtype ranker_kind: str\n        :keyword filters: Filter QnAs based on given metadata list and knowledge base sources.\n        :paramtype filters: ~azure.ai.language.questionanswering.models.QueryFilters\n        :keyword short_answer_options: To configure Answer span prediction feature.\n        :paramtype short_answer_options: ~azure.ai.language.questionanswering.models.ShortAnswerOptions\n        :keyword include_unstructured_sources: (Optional) Flag to enable Query over Unstructured\n         Sources.\n        :paramtype include_unstructured_sources: bool\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/sample_query_knowledgebase.py\n                :start-after: [START query_knowledgebase]\n                :end-before: [END query_knowledgebase]\n                :language: python\n                :dedent: 4\n                :caption: Answer the specified question using your knowledge base.\n        \"\"\"\n        options, kwargs = _get_answers_prepare_options(*args, **kwargs)\n        return super().get_answers(options, **kwargs)\n\n    @overload  # type: ignore\n    def get_answers_from_text(self, options: AnswersFromTextOptions, **kwargs: Any) -> AnswersFromTextResult:\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersFromTextOptions\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def get_answers_from_text(  # pylint: disable=arguments-differ\n        self,\n        *,\n        question: str,\n        text_documents: List[Union[str, TextDocument]],\n        language: Optional[str] = None,\n        **kwargs: Any\n    ) -> AnswersFromTextResult:\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :keyword question: User question to query against the given text records.\n        :paramtype question: str\n        :keyword text_documents: Text records to be searched for given question.\n        :paramtype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n        :keyword language: BCP-47 language tag (e.g. \"en\", \"es\"). If omitted, the client does not set a\n         value and the service will apply its own default (currently English).\n        :paramtype language: str\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-renamed\n    @distributed_trace\n    def get_answers_from_text(  # pyright: ignore[reportIncompatibleMethodOverride]\n        self, *args: AnswersFromTextOptions, **kwargs: Any\n    ) -> AnswersFromTextResult:\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersFromTextOptions\n        :keyword question: User question to query against the given text records.\n        :paramtype question: str\n        :keyword text_documents: Text records to be searched for given question.\n        :paramtype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n        :keyword language: Language of the text records. This is BCP-47 representation of a language.\n         For example, use \"en\" for English; \"es\" for Spanish etc. If not set, use \"en\" for English as\n         default.\n        :paramtype language: str\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/sample_query_text.py\n                :start-after: [START query_text]\n                :end-before: [END query_text]\n                :language: python\n                :dedent: 4\n                :caption: Answers the specified question using the provided text.\n        \"\"\"\n        # Use only explicit user-provided language (if any); no hidden default attribute\n        _explicit_language = kwargs.pop(\"language\", None)\n        options, kwargs = _get_answers_from_text_prepare_options(\n            *args, language=_explicit_language, **kwargs  # type: ignore\n        )\n        return super().get_answers_from_text(options, **kwargs)  # type: ignore\n\n\n__all__: List[str] = [\n    \"_QuestionAnsweringClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "87779b76142c1c9f5d687fc9d546a5142ca65b2ad5f214db95b37152ee7b3b68",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 370,
+      "kind": "handwritten-marker",
+      "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67"
+    },
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/aio/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import Any, List, overload, Optional, Union\nfrom azure.core.tracing.decorator_async import distributed_trace_async\n\nfrom ._operations import _QuestionAnsweringClientOperationsMixin as QuestionAnsweringClientOperationsMixinGenerated\nfrom ...models import (\n    AnswersOptions,\n    AnswersFromTextOptions,\n    AnswersResult,\n    AnswersFromTextResult,\n    KnowledgeBaseAnswerContext,\n    QueryFilters,\n    ShortAnswerOptions,\n    TextDocument,\n)\nfrom ..._operations._patch import _get_answers_from_text_prepare_options, _get_answers_prepare_options\n\n\nclass _QuestionAnsweringClientOperationsMixin(QuestionAnsweringClientOperationsMixinGenerated):\n    @overload  # type: ignore # https://github.com/Azure/azure-sdk-for-python/issues/26621\n    # pylint: disable=arguments-renamed\n    async def get_answers(\n        self, options: AnswersOptions, *, project_name: str, deployment_name: str, **kwargs: Any\n    ) -> AnswersResult:\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :param options: Positional only. POST body of the request.\n         Provide either `options`, OR individual keyword arguments.\n         If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersOptions\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def get_answers(  # pylint: disable=arguments-differ\n        self,\n        *,\n        project_name: str,\n        deployment_name: str,\n        qna_id: Optional[int] = None,\n        question: Optional[str] = None,\n        top: Optional[int] = None,\n        user_id: Optional[str] = None,\n        confidence_threshold: Optional[float] = None,\n        answer_context: Optional[KnowledgeBaseAnswerContext] = None,\n        ranker_kind: Optional[str] = None,\n        filters: Optional[QueryFilters] = None,\n        short_answer_options: Optional[ShortAnswerOptions] = None,\n        include_unstructured_sources: Optional[bool] = None,\n        **kwargs: Any\n    ) -> AnswersResult:\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :keyword qna_id: Exact QnA ID to fetch from the knowledge base, this field takes priority over\n         question.\n        :paramtype qna_id: int\n        :keyword question: User question to query against the knowledge base.\n        :paramtype question: str\n        :keyword top: Max number of answers to be returned for the question.\n        :paramtype top: int\n        :keyword user_id: Unique identifier for the user.\n        :paramtype user_id: str\n        :keyword confidence_threshold: Minimum threshold score for answers, value ranges from 0 to 1.\n        :paramtype confidence_threshold: float\n        :keyword answer_context: Context object with previous QnA's information.\n        :paramtype answer_context: ~azure.ai.language.questionanswering.models.KnowledgeBaseAnswerContext\n        :keyword ranker_kind: Type of ranker to be used. Possible\n         values include: \"Default\", \"QuestionOnly\".\n        :paramtype ranker_kind: str\n        :keyword filters: Filter QnAs based on given metadata list and knowledge base sources.\n        :paramtype filters: ~azure.ai.language.questionanswering.models.QueryFilters\n        :keyword short_answer_options: To configure Answer span prediction feature.\n        :paramtype short_answer_options: ~azure.ai.language.questionanswering.models.ShortAnswerOptions\n        :keyword include_unstructured_sources: (Optional) Flag to enable Query over Unstructured\n         Sources.\n        :paramtype include_unstructured_sources: bool\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint ignore b/c with overloads we need to doc ALL the params in the impl for them to show up in docs\n    # pylint: disable=docstring-keyword-should-match-keyword-only,docstring-missing-param,docstring-should-be-keyword,arguments-renamed\n    @distributed_trace_async\n    async def get_answers(self, *args, **kwargs) -> AnswersResult:  # type: ignore\n        \"\"\"Answers the specified question using your knowledge base.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersOptions\n        :keyword project_name: The name of the knowledge base project to use.\n        :paramtype project_name: str\n        :keyword deployment_name: The name of the specific deployment of the project to use.\n        :paramtype deployment_name: str\n        :keyword qna_id: Exact QnA ID to fetch from the knowledge base, this field takes priority over\n         question.\n        :paramtype qna_id: int\n        :keyword question: User question to query against the knowledge base.\n        :paramtype question: str\n        :keyword top: Max number of answers to be returned for the question.\n        :paramtype top: int\n        :keyword user_id: Unique identifier for the user.\n        :paramtype user_id: str\n        :keyword confidence_threshold: Minimum threshold score for answers, value ranges from 0 to 1.\n        :paramtype confidence_threshold: float\n        :keyword answer_context: Context object with previous QnA's information.\n        :paramtype answer_context: ~azure.ai.language.questionanswering.models.KnowledgeBaseAnswerContext\n        :keyword ranker_kind: Type of ranker to be used. Possible\n         values include: \"Default\", \"QuestionOnly\".\n        :paramtype ranker_kind: str\n        :keyword filters: Filter QnAs based on given metadata list and knowledge base sources.\n        :paramtype filters: ~azure.ai.language.questionanswering.models.QueryFilters\n        :keyword short_answer_options: To configure Answer span prediction feature.\n        :paramtype short_answer_options: ~azure.ai.language.questionanswering.models.ShortAnswerOptions\n        :keyword include_unstructured_sources: (Optional) Flag to enable Query over Unstructured\n         Sources.\n        :paramtype include_unstructured_sources: bool\n        :return: AnswersResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/async_samples/sample_query_knowledgebase_async.py\n                :start-after: [START query_knowledgebase_async]\n                :end-before: [END query_knowledgebase_async]\n                :language: python\n                :dedent: 4\n                :caption: Answer the specified question using your knowledge base.\n        \"\"\"\n        options, kwargs = _get_answers_prepare_options(*args, **kwargs)\n        return await super().get_answers(options, **kwargs)  # type: ignore\n\n    @overload  # type: ignore\n    async def get_answers_from_text(self, options: AnswersFromTextOptions, **kwargs: Any) -> AnswersFromTextResult:\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersFromTextOptions\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def get_answers_from_text(  # pylint: disable=arguments-differ\n        self,\n        *,\n        question: str,\n        text_documents: List[Union[str, TextDocument]],\n        language: Optional[str] = None,\n        **kwargs: Any\n    ) -> AnswersFromTextResult:\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :keyword question: User question to query against the given text records.\n        :paramtype question: str\n        :keyword text_documents: Text records to be searched for given question.\n        :paramtype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n        :keyword language: Language of the text records. This is BCP-47 representation of a language.\n         For example, use \"en\" for English; \"es\" for Spanish etc. If not set, use \"en\" for English as\n         default.\n        :paramtype language: str\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-renamed\n    @distributed_trace_async\n    async def get_answers_from_text(self, *args, **kwargs) -> AnswersFromTextResult:  # type: ignore\n        \"\"\"Answers the specified question using the provided text in the body.\n\n        :param options: Positional only. POST body of the request. Provide either `options`, OR\n         individual keyword arguments. If both are provided, only the options object will be used.\n        :type options: ~azure.ai.language.questionanswering.models.AnswersFromTextOptions\n        :keyword question: User question to query against the given text records.\n        :paramtype question: str\n        :keyword text_documents: Text records to be searched for given question.\n        :paramtype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n        :keyword language: Language of the text records. This is BCP-47 representation of a language.\n         For example, use \"en\" for English; \"es\" for Spanish etc. If not set, use \"en\" for English as\n         default.\n        :paramtype language: str\n        :return: AnswersFromTextResult\n        :rtype: ~azure.ai.language.questionanswering.models.AnswersFromTextResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/async_samples/sample_query_text_async.py\n                :start-after: [START query_text_async]\n                :end-before: [END query_text_async]\n                :language: python\n                :dedent: 4\n                :caption: Answers the specified question using the provided text.\n        \"\"\"\n        # Use only explicit user-provided language (if any); no hidden default attribute\n        _explicit_language = kwargs.pop(\"language\", None)\n        options, kwargs = _get_answers_from_text_prepare_options(\n            *args, language=_explicit_language, **kwargs  # type: ignore\n        )\n        return await super().get_answers_from_text(options, **kwargs)  # type: ignore\n\n\n__all__: List[str] = [\n    \"_QuestionAnsweringClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "cd84517062f6a19c002a760a83031cf26d7b4ca476ce3e1f636072a2da374f87",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 237,
+      "kind": "handwritten-marker",
+      "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8"
+    },
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/models/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import List, Optional, Tuple, Union, cast, Any, MutableMapping, overload, Mapping\nfrom ._models import (\n    MetadataFilter as MetadataFilterGenerated,\n    AnswersFromTextOptions as AnswersFromTextOptionsGenerated,\n    TextDocument,\n    MetadataRecord\n)\n\nJSON = MutableMapping[str, Any]\n\n\nclass MetadataFilter(MetadataFilterGenerated):\n    \"\"\"Find QnAs that are associated with the given list of metadata.\n\n    :ivar metadata:\n    :vartype metadata: list[tuple[str, str]] or list[~azure.ai.language.questionanswering.models.MetadataRecord]\n    :ivar logical_operation: Operation used to join metadata filters. Possible values include:\n     \"AND\", \"OR\".\n    :vartype logical_operation: str\n    \"\"\"\n    @overload\n    def __init__(\n        self,\n        *,\n        metadata: Optional[List[Tuple[str, str]]] = None,\n        logical_operation: Optional[str] = None,\n        **kwargs: Any\n    ) -> None:  # pragma: no cover - overload definition\n        \"\"\"Overload accepting list of (key, value) tuples.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        *,\n        metadata: Optional[List[MetadataRecord]] = None,\n        logical_operation: Optional[str] = None,\n        **kwargs: Any\n    ) -> None:  # pragma: no cover - overload definition\n        \"\"\"Overload accepting list of MetadataRecord objects.\"\"\"\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:  # pragma: no cover - overload definition\n        \"\"\"Overload accepting raw JSON mapping used during deserialization.\"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - docstring covered by overloads\n        \"\"\"Create a MetadataFilter.\n\n        Accepts either keyword-only parameters (``metadata``/``logical_operation``) or a single\n        raw JSON ``mapping`` positional argument used internally for deserialization.\n        \"\"\"\n        # Mapping form: pass straight through to generated model\n        if args and isinstance(args[0], Mapping):\n            super().__init__(*args, **kwargs)\n            return\n\n        metadata = kwargs.pop(\"metadata\", None)\n        logical_operation = kwargs.pop(\"logical_operation\", None)\n\n        converted: Optional[List[MetadataRecord]]\n        if metadata is not None:\n            converted = []\n            for item in metadata:\n                if isinstance(item, tuple):\n                    converted.append(MetadataRecord(key=item[0], value=item[1]))\n                elif isinstance(item, MetadataRecord):\n                    converted.append(item)\n                else:\n                    raise TypeError(\n                        f\"metadata items must be tuples or MetadataRecord objects, got {type(item)}\"\n                    )\n        else:\n            converted = None\n        super().__init__(metadata=converted, logical_operation=logical_operation, **kwargs)\n\nclass AnswersFromTextOptions(AnswersFromTextOptionsGenerated):\n    \"\"\"The question and text record parameters to answer.\n\n    All required parameters must be populated in order to send to Azure.\n\n    :ivar question: Required. User question to query against the given text records.\n    :vartype question: str\n    :ivar text_documents: Required. Text records to be searched for given question.\n    :vartype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n    :ivar language: Language of the text records. This is BCP-47 representation of a language. For\n     example, use \"en\" for English; \"es\" for Spanish etc. If not set, use \"en\" for English as\n     default.\n    :vartype language: str\n    \"\"\"\n\n    def __init__(\n        self,\n        *,\n        question: str,\n        text_documents: List[Union[str, TextDocument]],\n        language: Optional[str] = None,\n        **kwargs: Any\n    ) -> None:\n        \"\"\"\n        :keyword question: Required. User question to query against the given text records.\n        :paramtype question: str\n        :keyword text_documents: Required. Text records to be searched for given question.\n        :paramtype text_documents: list[str or ~azure.ai.language.questionanswering.models.TextDocument]\n        :keyword language: Language of the text records. This is BCP-47 representation of a language.\n         For example, use \"en\" for English; \"es\" for Spanish etc. If not set, use \"en\" for English as\n         default.\n        :paramtype language: str\n        \"\"\"\n        super().__init__(\n            question=question,\n            text_documents=cast(List[TextDocument], text_documents),\n            language=language,\n            string_index_type=\"UnicodeCodePoint\",\n            **kwargs\n        )\n\n\n__all__: List[str] = [\n    \"MetadataFilter\",\n    \"AnswersFromTextOptions\",\n]\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "c6c94bce6d368d27b220e248ca9701bb079498d94e00040e9c025392fc19dc2d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/models/_patch.py",
+      "startLine": 1,
+      "endLine": 137,
+      "kind": "handwritten-marker",
+      "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-ai-language-questionanswering\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Ai Language Questionanswering Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.35.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.ai.language.questionanswering._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.ai\",\n    \"azure.ai.language\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "730050315073260ca0cdd94320fb4960743fb707902a24f166f7f86bf5ab94be",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/cognitivelanguage/azure-ai-language-questionanswering/pyproject.toml"
+    },
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/tsp-location.yaml",
+      "text": "directory: specification/cognitiveservices/data-plane/LanguageQuestionAnswering\ncommit: 5e36c7f1e3e8710fcaa0e7ae44d8742d9a91e665\nadditionalDirectories: []\nrepo: Azure/azure-rest-api-specs\n\n",
+      "contentHash": "e33565fb443c142bf10f2b74095076de74241aa9cd8e8138c789bef6a109b737",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/cognitivelanguage/azure-ai-language-questionanswering/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "f31c2a2e895bc7e37e5b53a5fedce9cfc4b3acac6977e59da735aa937a297858",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "c805684a427afb5f44b3c93fc7ec0707f5934be670c1bb23c9c3b2fa6300d5d0",
+        "category": "Serialization",
+        "subtype": "String documents to indexed wire records",
+        "explanation": "_validate_text_records rejects falsey inputs and a bare string/dict, permits homogeneous string inputs or dict/TextDocument inputs, converts each string to an id/text dictionary using its enumerated index as a string ID, and retains object/dict records.",
+        "pattern": "string-document-input-normalization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete normalization helper is implemented in the non-empty operations patch and is invoked while preparing input for the generated text-answer operation.",
+        "symbols": [
+          "_validate_text_records"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 30,
+            "endLine": 47
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 145,
+            "endLine": 154
+          }
+        ]
+      },
+      {
+        "key": "89e47e076ca5bf453c82da40f8a641084d18b490a6a9a2052a51e4153111a4a2",
+        "category": "Convenience methods",
+        "subtype": "Single positional body argument enforcement",
+        "explanation": "The shared body-argument helper raises TypeError for more than one positional argument or any options keyword, and returns the sole positional value or None for the convenience-method preparation helpers.",
+        "pattern": "positional-body-argument-validation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The operations _patch.py supplies actual argument-validation logic used by its generated-operation overrides, not only overload documentation.",
+        "symbols": [
+          "_get_positional_body"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 50,
+            "endLine": 60
+          }
+        ]
+      },
+      {
+        "key": "ada0fdc2d4da758a39259c5292b43167a797202273da5feea3a497f1f3780bc0",
+        "category": "Convenience methods",
+        "subtype": "Mutually exclusive truthy question and answer-ID validation",
+        "explanation": "The helper reads qna_id/question attributes or dictionary qna_id/qnaId/question keys and raises TypeError unless exactly one of the question or ID is truthy. This is truthiness-based validation, not a non-None check or evidence that numeric ID zero is accepted.",
+        "pattern": "mutually-exclusive-input-validation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This manually implemented operations-patch helper is explicitly called by the options adapter before the generated answer method.",
+        "symbols": [
+          "_verify_qna_id_and_question"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 63,
+            "endLine": 78
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 132,
+            "endLine": 133
+          }
+        ]
+      },
+      {
+        "key": "23e9ee8ed04462927fa1037c10657d312b2ba6013363456f759f80a89ec9d145",
+        "category": "Serialization",
+        "subtype": "Copied metadata filters normalized to key/value dictionaries",
+        "explanation": "The helper deep-copies the options input, obtains nested metadata via model attributes or camel-case mapping keys, and replaces entries with key/value dictionaries from objects exposing those attributes or two-element sequences. It returns early for absent/falsey metadata and has explicit ValueError paths for invalid sequences.",
+        "pattern": "metadata-pairs-to-wire-records",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-empty operations patch explicitly rewrites filter values before calling the generated operation; this is not generated model serialization inferred from declarations.",
+        "symbols": [
+          "_handle_metadata_filter_conversion"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 81,
+            "endLine": 116
+          }
+        ]
+      },
+      {
+        "key": "f9fce1758c87e3325de0aa91078dee88b7f6c2bf07acc83250e7394113fb4e33",
+        "category": "Convenience methods",
+        "subtype": "Positional body or flattened answer options",
+        "explanation": "The synchronous traced get_answers override uses a shared helper to select a truthy positional body or construct AnswersOptions from keyword parameters, then validates the question/ID choice, converts metadata filters and delegates the prepared body plus remaining kwargs to the generated superclass.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported operations patch subclasses the imported generated mixin and implements an actual overload adapter with shared preparation logic.",
+        "symbols": [
+          "_QuestionAnsweringClientOperationsMixin.get_answers"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 119,
+            "endLine": 133
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 233,
+            "endLine": 237
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 282,
+            "endLine": 283
+          }
+        ]
+      },
+      {
+        "key": "35be459af76d64f17bdc51aa0d538daac34f2c0e95c2e67bcf5274178a4ea8bd",
+        "category": "Convenience methods",
+        "subtype": "Text-answer options assembly and explicit-language fallback",
+        "explanation": "The traced synchronous wrapper uses a supplied truthy body or constructs AnswersFromTextOptions from question/text_documents, normalizes its records in mapping or model form, retains a truthy body language or falls back to the explicit language argument, and delegates to the generated operation. The shown code does not insert a literal English default.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete exported operations-patch override and shared input-preparation function adapt the generated method; they are more than a generated patch skeleton.",
+        "symbols": [
+          "_QuestionAnsweringClientOperationsMixin.get_answers_from_text"
+        ],
+        "evidence": [
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 136,
+            "endLine": 155
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 321,
+            "endLine": 325
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 351,
+            "endLine": 356
+          }
+        ]
+      },
+      {
+        "key": "11fc69965d6255b811b99a68a0986d1173eac5fbfa856e5fa345cfa0367725e3",
+        "category": "Convenience methods",
+        "subtype": "Asynchronous answer options adapter",
+        "explanation": "The async traced get_answers override invokes the shared synchronous options-preparation helper, then awaits the generated superclass with the normalized body and remaining kwargs. That helper constructs flattened options when no truthy positional body is supplied and applies question/ID and filter normalization.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio operations patch exports a generated-mixin subclass with an implemented async method and imports the explicit shared patch helper.",
+        "symbols": [
+          "_QuestionAnsweringClientOperationsMixin.get_answers"
+        ],
+        "evidence": [
+          {
+            "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8",
+            "startLine": 25,
+            "endLine": 28
+          },
+          {
+            "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8",
+            "startLine": 103,
+            "endLine": 104
+          },
+          {
+            "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8",
+            "startLine": 150,
+            "endLine": 151
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 119,
+            "endLine": 133
+          }
+        ]
+      },
+      {
+        "key": "e03cb45748e047d93c7586ca5feb8012ea1bccc13932b236232b8a896de7ec2c",
+        "category": "Convenience methods",
+        "subtype": "Asynchronous text-answer and explicit-language adapter",
+        "explanation": "The async traced get_answers_from_text override removes the explicit language argument, passes it to the shared body/record-normalization helper, and awaits the generated method with the prepared options. Language is retained from a truthy body value or the explicit argument rather than supplied from a hidden client default in this code.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This real async override is defined in the exported aio operations _patch.py and invokes a shared handwritten helper rather than merely re-exporting the generated operation.",
+        "symbols": [
+          "_QuestionAnsweringClientOperationsMixin.get_answers_from_text"
+        ],
+        "evidence": [
+          {
+            "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8",
+            "startLine": 190,
+            "endLine": 191
+          },
+          {
+            "id": "63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8",
+            "startLine": 218,
+            "endLine": 223
+          },
+          {
+            "id": "486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67",
+            "startLine": 136,
+            "endLine": 155
+          }
+        ]
+      },
+      {
+        "key": "c0d54d567c8027704ad31aa638b986520a0bd5f018db0d46d8180230576ec7b8",
+        "category": "Model overrides",
+        "subtype": "Metadata tuple/object construction and mapping passthrough",
+        "explanation": "The MetadataFilter replacement forwards positional mappings directly to the generated constructor; for keyword input it converts tuples using their first two elements into MetadataRecord objects, retains existing MetadataRecord instances, rejects other item types, and forwards metadata/logical_operation. This constructor does not itself enforce exactly two tuple elements.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "models/_patch.py explicitly subclasses the imported generated MetadataFilter, supplies a real overloaded constructor adapter and exports the replacement.",
+        "symbols": [
+          "MetadataFilter.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+            "startLine": 54,
+            "endLine": 82
+          },
+          {
+            "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+            "startLine": 126,
+            "endLine": 129
+          }
+        ]
+      },
+      {
+        "key": "80b22bbfeb98a6bcbb4750defa4d0e3fe83faaa9abc4a21daaed45410293c65d",
+        "category": "Model overrides",
+        "subtype": "Forced Unicode code-point indexing in model construction",
+        "explanation": "The AnswersFromTextOptions replacement constructor forwards question, text_documents and optional language to the generated model while explicitly supplying string_index_type='UnicodeCodePoint'. Its text-document cast is type-only and does not itself perform the separate record conversion.",
+        "pattern": "model-default-value",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported models patch implements a concrete subclass constructor of the imported generated options model with an explicit extra value.",
+        "symbols": [
+          "AnswersFromTextOptions.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+            "startLine": 99,
+            "endLine": 106
+          },
+          {
+            "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+            "startLine": 117,
+            "endLine": 129
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "c805684a427afb5f44b3c93fc7ec0707f5934be670c1bb23c9c3b2fa6300d5d0",
+        "status": "accepted",
+        "reason": "The non-empty operations patch implements the stated input checks and indexed string-to-record conversion in _validate_text_records (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:30-47); its text-answer preparation calls that helper for both mapping and model inputs (same ID:145-154). This is a handwritten input conversion rather than a generated operation."
+      },
+      {
+        "key": "89e47e076ca5bf453c82da40f8a641084d18b490a6a9a2052a51e4153111a4a2",
+        "status": "accepted",
+        "reason": "The actual _get_positional_body implementation in the operations patch raises for multiple positional bodies or an options keyword and returns the sole positional body or None (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:50-60); this is handwritten validation used by the convenience adapters (same ID:119-120,136-140)."
+      },
+      {
+        "key": "ada0fdc2d4da758a39259c5292b43167a797202273da5feea3a497f1f3780bc0",
+        "status": "accepted",
+        "reason": "The patch helper reads model attributes or mapping keys and explicitly rejects zero or two truthy question/ID inputs (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:63-78); _get_answers_prepare_options calls it before delegation (same ID:132-133). The proposal correctly avoids asserting that numeric ID zero is accepted."
+      },
+      {
+        "key": "23e9ee8ed04462927fa1037c10657d312b2ba6013363456f759f80a89ec9d145",
+        "status": "accepted",
+        "reason": "The handwritten helper deep-copies options, accesses model or mapping metadata, converts object properties or length-two sequences to key/value dictionaries, and assigns the converted records (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:81-116). Its caller passes the transformed options to the generated operation (same ID:132-133,282-283)."
+      },
+      {
+        "key": "f9fce1758c87e3325de0aa91078dee88b7f6c2bf07acc83250e7394113fb4e33",
+        "status": "accepted",
+        "reason": "The exported patch subclasses the generated operations mixin, builds an AnswersOptions body from flattened keywords only when the positional body is falsey, and then validates and normalizes it (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:119-133,359-361). The traced get_answers override invokes that helper and the generated superclass (same ID:233-236,282-283), supporting a distinct handwritten convenience adapter."
+      },
+      {
+        "key": "35be459af76d64f17bdc51aa0d538daac34f2c0e95c2e67bcf5274178a4ea8bd",
+        "status": "accepted",
+        "reason": "The shared helper chooses a truthy supplied body or constructs text-answer options, normalizes records and applies the explicit-language fallback for mapping or model input (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:136-155). The exported synchronous traced override passes only its explicitly extracted language to that helper and delegates to the generated superclass (same ID:321-324,351-356,359-361); no literal English default is inserted by the cited code."
+      },
+      {
+        "key": "11fc69965d6255b811b99a68a0986d1173eac5fbfa856e5fa345cfa0367725e3",
+        "status": "accepted",
+        "reason": "The aio patch imports the handwritten shared preparation helper and exports a subclass of the generated mixin (63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8:25-28,226-228). Its traced async get_answers calls the helper and awaits the generated superclass (same ID:103-104,150-151); the helper's option selection, validation and metadata conversion are visible in the synchronous patch (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:119-133)."
+      },
+      {
+        "key": "e03cb45748e047d93c7586ca5feb8012ea1bccc13932b236232b8a896de7ec2c",
+        "status": "accepted",
+        "reason": "The exported aio patch defines a real traced async get_answers_from_text override that extracts explicit language, invokes the shared handwritten options adapter, and awaits the generated superclass (63c07da6970cd0ad192922dea2274eb72ed3ab626f3638f2b96648558d7bb4d8:190-191,218-228). The shared helper implements truthy body-language retention or explicit-language fallback without adding an English literal (486c6b0c33d2fa20fe9bb04858f4f06fc2e3d44a102ed5c4a8b79024e4af1e67:136-155)."
+      },
+      {
+        "key": "c0d54d567c8027704ad31aa638b986520a0bd5f018db0d46d8180230576ec7b8",
+        "status": "accepted",
+        "reason": "The models patch imports the generated MetadataFilter and exports its handwritten replacement (f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969:11-13,21,126-129). Its constructor passes a positional mapping through, converts tuples and retains MetadataRecord objects for keyword metadata, and forwards the result (same ID:54-82). It indexes the first two tuple elements but has no exact-length guard."
+      },
+      {
+        "key": "80b22bbfeb98a6bcbb4750defa4d0e3fe83faaa9abc4a21daaed45410293c65d",
+        "status": "revised",
+        "reason": "The exported handwritten subclass explicitly passes UnicodeCodePoint to the generated model constructor (f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969:11-13,84,117-129). The supplied evidence does not show the generated constructor's default, so characterize the observed injection rather than an independently proven change from a different generated default.",
+        "finding": {
+          "key": "80b22bbfeb98a6bcbb4750defa4d0e3fe83faaa9abc4a21daaed45410293c65d",
+          "category": "Model overrides",
+          "subtype": "Unicode code-point index type supplied by model constructor",
+          "explanation": "The handwritten AnswersFromTextOptions constructor forwards question, text_documents and optional language to its generated base while explicitly supplying string_index_type=\"UnicodeCodePoint\". The text-document cast only affects typing; the generated model's prior default is not shown.",
+          "pattern": "model-default-value",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The models/_patch.py replacement subclasses the imported generated AnswersFromTextOptions, provides a concrete constructor body and is listed in the non-empty __all__.",
+          "symbols": [
+            "AnswersFromTextOptions.__init__"
+          ],
+          "evidence": [
+            {
+              "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+              "startLine": 11,
+              "endLine": 13
+            },
+            {
+              "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+              "startLine": 84,
+              "endLine": 106
+            },
+            {
+              "id": "f195498397a39a33f0843c109adda7512ae915d1cb769abb98804cb25469a969",
+              "startLine": 117,
+              "endLine": 129
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "The partial scan captured three of 26 eligible files. No generated client, model implementations or execution traces were supplied; these findings describe shown patch logic rather than successful wire behavior.",
+      "Some docstrings promise an English default or ID precedence over question, while the shown code leaves an unspecified language as None and rejects two truthy question/ID values. The executable branches, not those claims, are reported.",
+      "Input truthiness, TypeError-based mapping/model fallback and attribute/sequence probes do not establish exhaustive validation for every iterable or malformed object.",
+      "Helpers are reported separately for distinct validation/conversion behavior; generated-operation wrappers group their own option assembly, delegation and tracing rather than counting decorators or overload stubs as independent runtime transformations.",
+      "The models constructor and operation metadata normalizer have different validation rules; the tuple-length check in the latter is not attributed to the former. No absence claims are made.",
+      "Coverage is explicitly partial: three captured source files out of 26 eligible files; this review cannot establish whether other package files contain additional handwritten customizations.",
+      "The supplied evidence does not include the generated operations and model implementations or a before/after regeneration diff; inherited defaults, exact generated baseline and full patch provenance cannot be independently checked. The non-empty exported _patch.py implementations are the positive handwritten signals.",
+      "Source-only review: no runtime behavior or service request/response shapes were verified. Generator-addressability judgments concern reusable shapes, not proof of current TypeSpec or generator support; neither pattern recurrence across services nor reducibility is established here.",
+      "The cited aio methods reuse the synchronous patch helpers; their separate findings concern the aio method symbols and delegation, not duplicate claims that the helper bodies were independently implemented in aio."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 370,
+      "provenance": "Python patch",
+      "contentHash": "87779b76142c1c9f5d687fc9d546a5142ca65b2ad5f214db95b37152ee7b3b68"
+    },
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 237,
+      "provenance": "Python patch",
+      "contentHash": "cd84517062f6a19c002a760a83031cf26d7b4ca476ce3e1f636072a2da374f87"
+    },
+    {
+      "path": "sdk/cognitivelanguage/azure-ai-language-questionanswering/azure/ai/language/questionanswering/models/_patch.py",
+      "startLine": 1,
+      "endLine": 137,
+      "provenance": "Python patch",
+      "contentHash": "c6c94bce6d368d27b220e248ca9701bb079498d94e00040e9c025392fc19dc2d"
+    }
+  ]
+}
