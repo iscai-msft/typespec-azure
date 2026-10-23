@@ -2,7 +2,6 @@ import { stripTypeScriptTypes } from "node:module";
 import { exportGuidelines } from "./guidelines.ts";
 import { randomUUID } from "node:crypto";
 import {
-  copyFile,
   link,
   mkdir,
   readFile,
@@ -48,10 +47,12 @@ interface DatasetOptions {
   runGapMinutes?: number;
 }
 
-export function browserModule(source: string): string {
+// `version` is appended to each import (?v=…) so browsers fetch new code after a publish
+// instead of mixing cached and new modules.
+export function browserModule(source: string, version = ""): string {
   return stripTypeScriptTypes(source, { mode: "strip" }).replace(
     /((?:from|import)\s*\(?\s*["']\.\/[^"']+?)\.ts(["'])/g,
-    "$1.js$2",
+    `$1.js${version ? `?v=${version}` : ""}$2`,
   );
 }
 
@@ -752,17 +753,24 @@ export async function exportData(
     })}\n`,
   );
   await exportGuidelines(outputDirectory);
-  for (const name of ["index.html", "style.css"]) {
-    await copyFile(
-      fileURLToPath(new URL(`./web/${name}`, import.meta.url)),
-      join(outputDirectory, name),
-    );
-  }
-  // The page's modules are TypeScript; browsers get them with types stripped.
-  for (const name of ["app", "data", "languages", "vocabulary", "human-review"]) {
-    const source = await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8");
-    await writeFile(join(outputDirectory, `${name}.js`), browserModule(source));
-  }
+  // The page's modules are TypeScript; browsers get them with types stripped. Every asset URL
+  // carries a version (a hash of the page's code), so a publish is never half-cached.
+  const modules = ["app", "data", "languages", "vocabulary", "human-review"];
+  const sources = new Map<string, string>();
+  for (const name of modules)
+    sources.set(name, await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8"));
+  const style = await readFile(new URL("./web/style.css", import.meta.url), "utf8");
+  const version = digest({ modules: [...sources], style }).slice(0, 12);
+  for (const [name, source] of sources)
+    await writeFile(join(outputDirectory, `${name}.js`), browserModule(source, version));
+  await writeFile(join(outputDirectory, "style.css"), style);
+  const page = await readFile(new URL("./web/index.html", import.meta.url), "utf8");
+  await writeFile(
+    join(outputDirectory, "index.html"),
+    page
+      .replace('href="./style.css"', `href="./style.css?v=${version}"`)
+      .replace('src="./app.js"', `src="./app.js?v=${version}"`),
+  );
 
   return dataset;
 }
