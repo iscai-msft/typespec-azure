@@ -16,6 +16,7 @@ import { ExchangeClient, checkExchange, reviewScans } from "./review.ts";
 import { FileReviewStore, parseReviewers } from "./reviews.ts";
 import { applyReviews, fetchReviews } from "./apply-reviews.ts";
 import { createReviewServer } from "./server.ts";
+import { SPEC_REPO, applyNamespaces, resolveNamespaces } from "./namespaces.ts";
 import {
   GitRepository,
   discoverAll,
@@ -71,9 +72,11 @@ export async function main(args: string[] = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, check-exchange, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
+  const specRepository = () =>
+    new GitRepository(SPEC_REPO, join(resolve(values["repos-dir"]), SPEC_REPO.replace("/", "__")));
   switch (positionals[0]) {
     case "collect": {
       // Targets: the configured starter list, or every discovered library in one plane.
@@ -237,6 +240,7 @@ export async function main(args: string[] = process.argv.slice(2)) {
         reposDirectory: resolve(values["repos-dir"]),
         previous,
         log: (message: string) => console.error(message),
+        specRepository: specRepository(),
       });
       await writeInventory(resolve(values.inventory), inventory);
       const count = (plane: string) =>
@@ -252,6 +256,20 @@ export async function main(args: string[] = process.argv.slice(2)) {
           warnings: inventory.warnings.length,
         }),
       );
+      break;
+    }
+    case "namespaces": {
+      // Fills in service namespaces on the existing inventory, without rediscovering libraries.
+      const inventory = await readInventory(resolve(values.inventory));
+      if (!inventory) throw new Error("No inventory; run discover first");
+      const { namespaces, warnings } = await resolveNamespaces(
+        inventory.libraries,
+        specRepository(),
+        { log: (message: string) => console.error(message) },
+      );
+      applyNamespaces(inventory.libraries, namespaces);
+      await writeInventory(resolve(values.inventory), inventory);
+      console.log(JSON.stringify({ folders: namespaces.size, warnings }));
       break;
     }
     case "validate": {

@@ -381,7 +381,13 @@ export function mergeLibraries(
       id: scan?.identity ?? `library:${key}`,
       language: source.language,
       package: packageName,
-      service: serviceName(found?.spec?.directory) || survey?.service || folderService(source),
+      // The Azure namespace (Azure.AI.DocumentIntelligence) when discovery resolved it, else the
+      // spec project, the tracker's name, or the SDK folder.
+      service:
+        found?.spec?.namespace ||
+        serviceName(found?.spec?.directory) ||
+        survey?.service ||
+        folderService(source),
       repo: source.repo,
       root: source.root,
       plane: found?.plane ?? planeOf(source.language, packageName, source.root),

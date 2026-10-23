@@ -15,6 +15,7 @@ import type {
   Target,
 } from "./web/types.ts";
 import { LANGUAGES, planeOf } from "./web/languages.ts";
+import { applyNamespaces, resolveNamespaces, type SpecRepository } from "./namespaces.ts";
 
 const run = promisify(execFile);
 export const INVENTORY_VERSION = 1;
@@ -114,6 +115,47 @@ export class GitRepository {
     } catch {
       return "";
     }
+  }
+  // Fetches commits (trees only) by hash; returns those now available. Commits that are not
+  // on the remote (force-pushed or from forks) are skipped.
+  async fetchCommits(shas: string[]): Promise<Set<string>> {
+    const fetch = (commits: string[]) =>
+      this.git([
+        "-c",
+        "fetch.negotiationAlgorithm=noop",
+        "fetch",
+        "--quiet",
+        "--no-tags",
+        "--no-write-fetch-head",
+        "--depth",
+        "1",
+        "--filter=blob:none",
+        "origin",
+        ...commits,
+      ]);
+    const unique = [...new Set(shas.filter((sha) => /^[a-f0-9]{40}$/.test(sha)))];
+    for (let index = 0; index < unique.length; index += 100) {
+      const chunk = unique.slice(index, index + 100);
+      try {
+        await fetch(chunk);
+      } catch {
+        for (const sha of chunk) await fetch([sha]).catch(() => {});
+      }
+    }
+    const available = new Set<string>();
+    for (const sha of unique)
+      if (
+        await this.git(["cat-file", "-e", `${sha}^{commit}`]).then(
+          () => true,
+          () => false,
+        )
+      )
+        available.add(sha);
+    return available;
+  }
+  // Blob hash of a file at a commit, or "" if it does not exist.
+  async blobSha(commit: string, path: string): Promise<string> {
+    return this.treeSha(commit, path);
   }
   // Text of the given blobs, fetched in one round trip when missing locally.
   async read(shas: string[]): Promise<Map<string, string>> {
@@ -346,12 +388,15 @@ export async function discoverAll({
       join(reposDirectory as string, language.repo.replace("/", "__")),
     ),
   log = (_message: string) => {},
+  specRepository = null,
 }: {
   reposDirectory?: string;
   languages?: LanguageConfig[];
   previous?: Inventory | null;
   repositoryFor?: (language: LanguageConfig) => Repository;
   log?: (message: string) => void;
+  // Azure/azure-rest-api-specs, for service namespaces (namespaces.ts); none = no namespaces.
+  specRepository?: SpecRepository | null;
 } = {}): Promise<Inventory> {
   const repositories: Inventory["repositories"] = {};
   const libraries: InventoryLibrary[] = [];
@@ -372,6 +417,13 @@ export async function discoverAll({
     libraries,
     warnings,
   };
+  if (specRepository) {
+    const { namespaces, warnings: missing } = await resolveNamespaces(libraries, specRepository, {
+      log,
+    });
+    applyNamespaces(libraries, namespaces);
+    warnings.push(...missing);
+  }
   inventory.changes = inventoryChanges(previous, inventory);
   // Track when each library's folder last changed (between runs) and when it was first seen.
   const before = new Map((previous?.libraries ?? []).map((item) => [libraryKey(item), item]));

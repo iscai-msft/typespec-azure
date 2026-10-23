@@ -266,7 +266,8 @@ export interface ReleaseInfo {
 export interface InventoryLibrary extends Target {
   plane: Plane;
   treeSha: string;
-  spec: { directory: string; commit: string; repo: string } | null;
+  // namespace: the service's Azure namespace (namespaces.ts), when it could be resolved.
+  spec: { directory: string; commit: string; repo: string; namespace?: string } | null;
   tspLocations: string[];
   release: ReleaseInfo | null;
   firstSeen?: string;
