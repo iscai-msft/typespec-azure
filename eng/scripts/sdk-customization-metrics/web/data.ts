@@ -294,6 +294,61 @@ export function specService(directory?: string | null): string {
   return parts.join("/");
 }
 
+// Leading dotted words that are namespaces rather than the service's name
+// (Azure.Security.KeyVault.Keys, Microsoft.CodeTransparency, Analytics.Purview.DataMap).
+const NAMESPACE_WORDS = new Set([
+  "azure",
+  "microsoft",
+  "security",
+  "analytics",
+  "messaging",
+  "monitor",
+]);
+
+// The service name shown on the dashboard and used to count services: the spec project folder
+// without its group or namespace prefixes, so "specification/ai/DocumentIntelligence" and
+// "specification/keyvault/Security.KeyVault.Keys" read "DocumentIntelligence" and "Keys".
+// Deeper folders (keyvault/Administration/BackupRestore) belong to their project. specService
+// (group/project) is still what AI review requests carry.
+export function serviceName(directory?: string | null): string {
+  const parts = specService(directory).split("/").filter(Boolean);
+  if (parts.length < 2) return parts[0] ?? "";
+  const group = parts[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+  const words = parts[1].split(".");
+  while (
+    words.length > 1 &&
+    (NAMESPACE_WORDS.has(words[0].toLowerCase()) ||
+      words[0].toLowerCase().replace(/[^a-z0-9]/g, "") === group)
+  )
+    words.shift();
+  return words.join(".");
+}
+
+// One spelling per service: "datamap" and "DataMap" become "DataMap" (the capitalized
+// spelling, then the most common one).
+function unifyServiceSpelling(rows: LibraryRow[]): LibraryRow[] {
+  const spellings = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const key = row.service.toLowerCase();
+    if (!spellings.has(key)) spellings.set(key, new Map());
+    const counts = spellings.get(key)!;
+    counts.set(row.service, (counts.get(row.service) ?? 0) + 1);
+  }
+  const preferred = new Map(
+    [...spellings].map(([key, counts]) => [
+      key,
+      [...counts].sort(
+        ([a, x], [b, y]) =>
+          Number(b !== b.toLowerCase()) - Number(a !== a.toLowerCase()) ||
+          y - x ||
+          a.localeCompare(b),
+      )[0][0],
+    ]),
+  );
+  for (const row of rows) row.service = preferred.get(row.service.toLowerCase())!;
+  return rows;
+}
+
 // Fallback for libraries without a spec location. Folder-based service name: sdk/<service>/<package>; Go nests deeper, so use the parent folder.
 export function folderService(item: ServiceSource): string {
   const parts = (item.root ?? "").split("/").filter(Boolean);
@@ -316,7 +371,7 @@ export function mergeLibraries(
   const surveys = new Map((tracker?.libraries ?? []).map((item) => [item.key, item]));
   const discovered = new Map((inventory?.libraries ?? []).map((item) => [keyOf(item), item]));
   const keys = [...new Set([...discovered.keys(), ...surveys.keys(), ...scans.keys()])];
-  return keys.map((key) => {
+  const rows = keys.map((key): LibraryRow => {
     const found = discovered.get(key) ?? null;
     const survey = surveys.get(key) ?? null;
     const scan = scans.get(key) ?? null;
@@ -326,7 +381,7 @@ export function mergeLibraries(
       id: scan?.identity ?? `library:${key}`,
       language: source.language,
       package: packageName,
-      service: specService(found?.spec?.directory) || survey?.service || folderService(source),
+      service: serviceName(found?.spec?.directory) || survey?.service || folderService(source),
       repo: source.repo,
       root: source.root,
       plane: found?.plane ?? planeOf(source.language, packageName, source.root),
@@ -339,6 +394,7 @@ export function mergeLibraries(
       scan,
     };
   });
+  return unifyServiceSpelling(rows);
 }
 
 export function filterLibraries(
