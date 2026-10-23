@@ -613,11 +613,13 @@ export async function start() {
     byId<HTMLInputElement>("accepted").checked = params.get("accepted") === "true";
     byId<HTMLInputElement>("fixed").checked = params.get("fixed") !== "false";
     let instance = params.get("instance") ?? "";
-    // "service-specific" was merged into "one-off"; older links keep working.
-    let patternStatus = (params.get("patterns") ?? "reducible").replace(
-      "service-specific",
-      "one-off",
-    );
+    // Statuses from earlier definitions, so older links keep working.
+    const legacyStatus = new Map([
+      ["one-off", "service-specific"],
+      ["spec-candidate", "reducible"],
+    ]);
+    const requestedStatus = params.get("patterns") ?? "reducible";
+    let patternStatus = legacyStatus.get(requestedStatus) ?? requestedStatus;
     let sort = params.get("sort") ?? (tracker ? "customized" : "package");
     let descending = params.has("descending")
       ? params.get("descending") === "true"
@@ -625,6 +627,9 @@ export async function start() {
 
     let codeScope = "";
     let codeLimit = 10;
+    // Reviewed findings page too: 20 at a time (hundreds once every library is reviewed).
+    let findingScope = "";
+    let findingLimit = 20;
     const expandedLibraries = new Set();
     rerender = () => update();
     const update = () => {
@@ -810,7 +815,7 @@ export async function start() {
           "Reducible patterns",
           reviewedLibraries ? number.format(reducible.length) : "N/A",
           reviewedLibraries
-            ? `of ${number.format(scopedPatterns.length)} patterns found`
+            ? `${number.format(reducible.filter((pattern) => pattern.recurring).length)} recur across services · of ${number.format(scopedPatterns.length)} patterns found`
             : "No libraries reviewed yet",
           "featured",
         ),
@@ -847,9 +852,9 @@ export async function start() {
       );
       const statuses: [string, string][] = [
         ["reducible", "Reducible"],
-        ["spec-candidate", "Same service, several languages"],
+        ["needs-judgment", "Needs a human call"],
+        ["service-specific", "Service-specific"],
         ["dormant", "Dormant only"],
-        ["one-off", "One-off or service-specific"],
         ["all", "All patterns"],
       ];
       byId("reducible-filters").replaceChildren(
@@ -925,8 +930,20 @@ export async function start() {
               statusLabel[pattern.status] ?? pattern.status,
               `pill status-${pattern.status}`,
             ),
-            element("div", pattern.reason, "muted pattern-description"),
           );
+          // How strong the case is: seen across services, or one service so far.
+          if (pattern.status === "reducible")
+            status.append(
+              " ",
+              element(
+                "span",
+                pattern.recurring ? "Recurring" : "One service so far",
+                pattern.recurring ? "pill pill-ok" : "pill pill-muted",
+              ),
+            );
+          if (pattern.status === "reducible" && pattern.specFix)
+            status.append(" ", element("span", "Spec fix", "pill status-spec-candidate"));
+          status.append(element("div", pattern.reason, "muted pattern-description"));
           tr.append(
             name,
             element("td", pattern.category),
@@ -1476,7 +1493,32 @@ export async function start() {
           ? "This library has not been scanned yet, so there are no pinned code links. Use the source link above."
           : `No scanned customization files match.${unscanned ? ` ${number.format(unscanned)} matching libraries are not scanned yet.` : ""} Discovery is incomplete; this is not proof of absence.`;
 
-      byId("findings").replaceChildren(...findings.map((item) => renderFinding(item, inspect)));
+      const findingKey = JSON.stringify(filters);
+      if (findingKey !== findingScope) {
+        findingScope = findingKey;
+        findingLimit = 20;
+      }
+      // Keep the inspected finding on the page even when it is further down the list.
+      const shownFindings = Math.max(
+        findingLimit,
+        findings.findIndex((item) => item.id === instance) + 1,
+      );
+      byId("findings").replaceChildren(
+        ...findings.slice(0, shownFindings).map((item) => renderFinding(item, inspect)),
+      );
+      if (findings.length > shownFindings) {
+        const more = element(
+          "button",
+          `Show more customizations (${findings.length - shownFindings} remaining)`,
+          "secondary show-more",
+        );
+        more.type = "button";
+        more.addEventListener("click", () => {
+          findingLimit = shownFindings + 20;
+          update();
+        });
+        byId("findings").append(more);
+      }
       document.querySelector<HTMLDetailsElement>(".reviewed-results")!.open =
         findings.length > 0 || Boolean(filters.status || filters.accepted);
       byId("result-count").textContent = `(${findings.length})`;

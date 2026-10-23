@@ -551,8 +551,10 @@ export const REDUCIBLE_RULES = {
   minServices: 2,
   // A library is dormant when its latest dated release is older than this.
   dormantAfterDays: 365,
-  // A pattern stops being reducible when most reviewed instances say no generator could help.
+  // A pattern is service-specific when most reviewed instances say no generator could help.
   maxServiceSpecificShare: 0.5,
+  // A pattern seen in one service is reducible when most instances say a generator could.
+  minGeneratorShare: 0.5,
 };
 
 // Groups counted findings by pattern and decides which patterns are reducible.
@@ -605,33 +607,35 @@ export function reduciblePatterns(
       const languages = new Set(group.instances.map((item) => item.language));
       const votes: Record<GeneratorAddressable, number> = { yes: 0, no: 0, unclear: 0 };
       for (const item of group.instances) votes[item.generatorAddressable ?? "unclear"]++;
-      const serviceSpecific = votes.no / group.instances.length > rules.maxServiceSpecificShare;
+      const share = (vote: GeneratorAddressable) => votes[vote] / group.instances.length;
       const active = rowsFor.filter((row) => !isDormant(row, now, rules)).length;
-      const unpatterned = group.id === "unpatterned";
+      // Recurring across services is the strongest evidence; one service is enough when the
+      // reviewers judged a generator could produce it. Same service in several languages is
+      // usually fixed in that service's spec.
+      const recurring = services.size >= rules.minServices;
+      const specFix = services.size === 1 && languages.size >= 2;
       let status: string;
       let reason: string;
-      if (unpatterned) {
+      if (group.id === "unpatterned") {
         status = "unknown";
         reason = "No pattern recorded";
-      } else if (serviceSpecific) {
-        // One status for "not worth a generator fix": unique to one library or one service.
-        status = "one-off";
-        reason = `${votes.no} of ${group.instances.length} reviewed instances are service-specific`;
-      } else if (services.size >= rules.minServices && active > 0) {
+      } else if (share("no") > rules.maxServiceSpecificShare) {
+        status = "service-specific";
+        reason = `${votes.no} of ${group.instances.length} reviewed instances are tied to their service`;
+      } else if (active === 0) {
+        status = "dormant";
+        reason = `Only in ${rowsFor.length === 1 ? "a library" : "libraries"} untouched for over a year`;
+      } else if (recurring) {
         status = "reducible";
         reason = `Recurs in ${services.size} services, ${active} active ${active === 1 ? "library" : "libraries"}`;
-      } else if (services.size >= rules.minServices) {
-        status = "dormant";
-        reason = `Recurs in ${services.size} services, but only in dormant libraries`;
-      } else if (languages.size >= 2) {
-        status = "spec-candidate";
-        reason = `One service, repeated in ${languages.size} languages`;
+      } else if (share("yes") > rules.minGeneratorShare) {
+        status = "reducible";
+        reason = specFix
+          ? `One service so far, in ${languages.size} languages; a generator could produce it (or fix it in the spec)`
+          : "One service so far; reviewers judged a generator could produce it";
       } else {
-        status = "one-off";
-        reason =
-          rowsFor.length && rowsFor.every((row) => isDormant(row, now, rules))
-            ? "Only in one dormant library"
-            : "Only in one library";
+        status = "needs-judgment";
+        reason = `Reviewers were unsure a generator could produce it (${votes.unclear} of ${group.instances.length} unclear)`;
       }
       return {
         id: group.id,
@@ -644,6 +648,8 @@ export function reduciblePatterns(
         serviceNames: [...services].sort(),
         languages: [...languages].sort(),
         activeLibraries: active,
+        recurring,
+        specFix,
         votes,
         status,
         reason,
@@ -652,6 +658,7 @@ export function reduciblePatterns(
     .sort(
       (a, b) =>
         (a.status === "reducible" ? 0 : 1) - (b.status === "reducible" ? 0 : 1) ||
+        Number(b.recurring) - Number(a.recurring) ||
         b.activeLibraries - a.activeLibraries ||
         b.services - a.services ||
         b.libraries - a.libraries ||

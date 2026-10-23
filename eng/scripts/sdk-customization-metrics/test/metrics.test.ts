@@ -2083,7 +2083,7 @@ test("review through the exchange: analyst, then independent reviewer, then a va
   assert.equal(result.failed.length, 1);
 });
 
-test("reducible patterns recur across services and are not service-specific", () => {
+test("reducible: general and still relevant; recurring ranks first, one service counts too", () => {
   const now = Date.parse("2026-10-22T00:00:00Z");
   const row = (identity: string, service: string, language: string, latestDate: string) =>
     ({
@@ -2127,6 +2127,8 @@ test("reducible patterns recur across services and are not service-specific", ()
       finding("d", "stable-one-off", "yes", "go"),
       finding("d", "dormant-everywhere", "yes", "go"),
       finding("e", "dormant-everywhere", "yes", "go"),
+      finding("b", "single-generic", "yes", "python"),
+      finding("b", "single-unsure", "unclear", "python"),
       finding("a", "service-quirk", "no"),
       finding("b", "service-quirk", "no", "python"),
       { ...finding("d", "ignored"), counted: false },
@@ -2141,15 +2143,25 @@ test("reducible patterns recur across services and are not service-specific", ()
   assert.equal(byId["auth-audience-option"].status, "reducible");
   assert.equal(byId["auth-audience-option"].name, "Audience option");
   assert.equal(byId["auth-audience-option"].activeLibraries, 2);
-  assert.equal(byId["same-service-twice"].status, "spec-candidate");
-  assert.equal(byId["stable-one-off"].status, "one-off");
-  assert.match(byId["stable-one-off"].reason, /one dormant library/);
+  assert.equal(byId["auth-audience-option"].recurring, true);
+  // One service is enough when reviewers judged a generator could produce it.
+  assert.equal(byId["same-service-twice"].status, "reducible");
+  assert.equal(byId["same-service-twice"].recurring, false);
+  assert.equal(byId["same-service-twice"].specFix, true);
+  assert.equal(byId["single-generic"].status, "reducible");
+  assert.equal(byId["single-generic"].specFix, false);
+  assert.equal(byId["single-unsure"].status, "needs-judgment");
+  // A one-off in a library nobody is touching is not flagged.
+  assert.equal(byId["stable-one-off"].status, "dormant");
   assert.equal(byId["dormant-everywhere"].status, "dormant");
   assert.equal(isDormant(rows[3], now), true);
   assert.equal(isDormant(rows[0], now), false);
   assert.equal(isDormant({} as LibraryRow, now), false);
-  assert.equal(byId["service-quirk"].status, "one-off");
-  assert.match(byId["service-quirk"].reason, /service-specific/);
+  assert.equal(byId["service-quirk"].status, "service-specific");
+  assert.match(byId["service-quirk"].reason, /tied to their service/);
+  // Recurring reducible patterns rank before one-service ones.
+  const order = patterns.map((item) => item.id);
+  assert.ok(order.indexOf("auth-audience-option") < order.indexOf("single-generic"));
   assert.equal(byId.ignored, undefined);
 });
 
