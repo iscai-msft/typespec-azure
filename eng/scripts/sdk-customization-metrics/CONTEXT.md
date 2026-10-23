@@ -68,14 +68,17 @@ the spec `tsp-location.yaml` points at (`namespaces.ts`; 73 data-plane services)
 
 ## Reducible customizations
 
-A pattern (canonical id from `guidelines/patterns.json`) is **reducible** when it recurs
-in at least two services, at least one of those libraries is active (released or changed
-in the last 365 days), and at most half its instances are judged service-specific.
-Other statuses: **spec-candidate** (one service, several languages: fix in the spec),
-**dormant** (only in libraries untouched for a year; "stable" means not touched in a
-while, not GA), **one-off or service-specific** (one status: only one library has it, or most instances
-are judged tied to their service), **unknown**. Defined in
-`guidelines/SKILL.md`; computed in `web/data.ts` (`reduciblePatterns`).
+Owner-agreed definition (October 23, 2026): a customization is **reducible** if a generator or
+TypeSpec feature could provide it in a general way, so future libraries that need it would not
+hand-write it. Per pattern (canonical id from `guidelines/patterns.json`): at least one library
+with it is active (released or changed in the last 365 days; "stable" means not touched in a
+while, not GA), at most half its instances are judged service-specific, and either it recurs in
+two or more services (**Recurring**, ranked first) or most instances say a generator could
+produce it (**One service so far**). One service in several languages adds a **Spec fix** tag.
+Other statuses: **needs a human call** (one service, reviewers mostly unsure),
+**service-specific**, **dormant only**, **unknown**. Computed in `web/data.ts`
+(`reduciblePatterns`). `guidelines/SKILL.md` still states the earlier "two services" rule and
+is updated after the backfill (it is part of every AI review request).
 
 ## Status (October 22, 2026)
 
