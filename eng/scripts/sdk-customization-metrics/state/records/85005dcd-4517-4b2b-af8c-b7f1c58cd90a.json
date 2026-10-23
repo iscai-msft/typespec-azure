@@ -1,0 +1,1029 @@
+{
+  "schemaVersion": 1,
+  "id": "85005dcd-4517-4b2b-af8c-b7f1c58cd90a",
+  "observedAt": "2026-10-23T20:19:37.229Z",
+  "identity": "python:azure-eventgrid:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-eventgrid",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/eventgrid/azure-eventgrid"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "b75cbed05ad213b2c8a242ab516fa0cae29fe097"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 145,
+    "eligibleFiles": 60,
+    "capturedFiles": 5,
+    "skipped": [
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_helpers.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_messaging_shared.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_models.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_policies.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_publisher_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_signature_credential_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_model_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_serialization.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/eventgrid/azure-eventgrid/swagger/postprocess_eventnames.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_operations/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport sys\nfrom typing import (\n    Any,\n    Callable,\n    Dict,\n    List,\n    Optional,\n    TypeVar,\n    Union,\n    TYPE_CHECKING,\n)\n\nfrom azure.core.exceptions import (\n    HttpResponseError,\n    ResourceNotFoundError,\n)\nfrom azure.core.messaging import CloudEvent\nfrom azure.core.tracing.decorator import distributed_trace\nfrom azure.core.pipeline import PipelineResponse\nfrom azure.core.rest import HttpRequest, HttpResponse\n\nfrom ._operations import (\n    EventGridPublisherClientOperationsMixin as PublisherOperationsMixin,\n    EventGridConsumerClientOperationsMixin as ConsumerOperationsMixin,\n)\nfrom ..models._patch import (\n    ReceiveDetails,\n)\nfrom .. import models as _models\nfrom ..models._models import (\n    CloudEvent as InternalCloudEvent,\n)\nfrom .._validation import api_version_validation\n\n\nfrom .._legacy import EventGridEvent\nfrom .._legacy._helpers import _from_cncf_events, _is_eventgrid_event_format, _is_cloud_event\nfrom .._serialization import Serializer\n\nif sys.version_info >= (3, 9):\n    from collections.abc import MutableMapping\nelse:\n    from typing import MutableMapping  # type: ignore\n\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\nT = TypeVar(\"T\")\nClsType = Optional[Callable[[PipelineResponse[HttpRequest, HttpResponse], T, Dict[str, Any]], Any]]\n_SERIALIZER = Serializer()\n_SERIALIZER.client_side_validation = False\n\nif TYPE_CHECKING:\n    from cloudevents.http.event import CloudEvent as CNCFCloudEvent\n\n\nclass EventGridPublisherClientOperationsMixin(PublisherOperationsMixin):\n\n    @distributed_trace\n    def send(\n        self,\n        events: Union[\n            CloudEvent,\n            List[CloudEvent],\n            Dict[str, Any],\n            List[Dict[str, Any]],\n            \"CNCFCloudEvent\",\n            List[\"CNCFCloudEvent\"],\n            EventGridEvent,\n            List[EventGridEvent],\n        ],\n        *,\n        channel_name: Optional[str] = None,\n        content_type: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        \"\"\"Send events to the Event Grid Service.\n\n        :param events: The event(s) to send. If sending to an Event Grid Namespace, the dict, list of dicts,\n         or event(s) should be in the format of a CloudEvent.\n        :type events: CloudEvent or List[CloudEvent] or Dict[str, Any] or List[Dict[str, Any]]\n         or CNCFCloudEvent or List[CNCFCloudEvent] or EventGridEvent or List[EventGridEvent]\n        :keyword channel_name: The name of the channel to send the event to. Event Grid Basic Resource only.\n        :paramtype channel_name: str or None\n        :keyword content_type: The content type of the event. If not specified, the default value is\n         \"application/cloudevents+json; charset=utf-8\".\n        :paramtype content_type: str\n\n        :return: None\n        :rtype: None\n        \"\"\"\n        if self._namespace and channel_name:\n            raise ValueError(\"Channel name is not supported for Event Grid Namespaces.\")\n\n        try:\n            if isinstance(events, dict):\n                events = CloudEvent.from_dict(events)\n            if isinstance(events, list) and isinstance(events[0], dict):\n                events = [CloudEvent.from_dict(e) for e in events]\n        except Exception:  # pylint: disable=broad-except\n            pass\n\n        if self._namespace:\n            kwargs[\"content_type\"] = (\n                content_type if content_type else \"application/cloudevents-batch+json; charset=utf-8\"\n            )\n            if not isinstance(events, list):\n                events = [events]\n\n            if isinstance(events[0], EventGridEvent) or _is_eventgrid_event_format(events[0]):\n                raise TypeError(\"EventGridEvent is not supported for Event Grid Namespaces.\")\n            try:\n                # Try to send via namespace\n                self._publish(self._namespace, _serialize_events(events), **kwargs)\n            except Exception as exception:\n                self._http_response_error_handler(exception)\n                raise exception\n        else:\n            kwargs[\"content_type\"] = content_type if content_type else \"application/json; charset=utf-8\"\n            try:\n                self._publish(events, channel_name=channel_name, **kwargs)\n            except Exception as exception:\n                self._http_response_error_handler(exception)\n                raise exception\n\n    def _http_response_error_handler(self, exception):\n        if isinstance(exception, HttpResponseError):\n            if exception.status_code == 404:\n                raise ResourceNotFoundError(\n                    \"Resource not found. \"\n                    \"For Event Grid Namespaces, please specify the namespace_topic name on the client. \"\n                    \"For Event Grid Basic, do not specify the namespace_topic name.\"\n                ) from exception\n            raise exception\n\n\nclass EventGridConsumerClientOperationsMixin(ConsumerOperationsMixin):\n\n    @distributed_trace\n    def receive(\n        self,\n        *,\n        max_events: Optional[int] = None,\n        max_wait_time: Optional[int] = None,\n        **kwargs: Any,\n    ) -> List[ReceiveDetails]:\n        \"\"\"Receive Batch of Cloud Events from the Event Subscription.\n\n        :keyword max_events: Max Events count to be received. Minimum value is 1, while maximum value\n         is 100 events. The default is None, meaning it will receive one event if available.\n        :paramtype max_events: int\n        :keyword max_wait_time: Max wait time value for receive operation in Seconds. It is the time in\n         seconds that the server approximately waits for the availability of an event and responds to\n         the request. If an event is available, the broker responds immediately to the client. Minimum\n         value is 10 seconds, while maximum value is 120 seconds. The default value is None, meaning it\n         will wait for 60 seconds.\n        :paramtype max_wait_time: int\n        :return: ReceiveDetails list of received events and their broker properties.\n        :rtype: list[~azure.eventgrid.models.ReceiveDetails]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        detail_items = []\n        received_result = self._receive(\n            self._namespace,\n            self._subscription,\n            max_events=max_events,\n            max_wait_time=max_wait_time,\n            **kwargs,\n        )\n        for detail_item in received_result.details:\n            deserialized_cloud_event = CloudEvent.from_dict(detail_item.event)\n            detail_item.event = deserialized_cloud_event\n            detail_items.append(\n                ReceiveDetails(\n                    broker_properties=detail_item.broker_properties,\n                    event=detail_item.event,\n                )\n            )\n        return detail_items\n\n    @distributed_trace\n    def acknowledge(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.AcknowledgeResult:\n        \"\"\"Acknowledge a batch of Cloud Events. The response will include the set of successfully\n        acknowledged lock tokens, along with other failed lock tokens with their corresponding error\n        information. Successfully acknowledged events will no longer be available to be received by any\n        consumer.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: AcknowledgeResult. The AcknowledgeResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.AcknowledgeResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return super()._acknowledge(\n            topic_name=self._namespace,\n            event_subscription_name=self._subscription,\n            lock_tokens=lock_tokens,\n            **kwargs,\n        )\n\n    @api_version_validation(\n        params_added_on={\"2023-10-01-preview\": [\"release_delay\"]},\n    )\n    def release(\n        self,\n        *,\n        lock_tokens: List[str],\n        release_delay: Optional[Union[int, _models.ReleaseDelay]] = None,\n        **kwargs: Any,\n    ) -> _models.ReleaseResult:\n        \"\"\"Release a batch of Cloud Events. The response will include the set of successfully released\n        lock tokens, along with other failed lock tokens with their corresponding error information.\n        Successfully released events can be received by consumers.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :keyword release_delay: Release cloud events with the specified delay in seconds.\n         Known values are: 0, 10, 60, 600, and 3600. Default value is None, indicating no delay.\n        :paramtype release_delay: int or ~azure.eventgrid.models.ReleaseDelay\n        :return: ReleaseResult. The ReleaseResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.ReleaseResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return super()._release(\n            topic_name=self._namespace,\n            event_subscription_name=self._subscription,\n            lock_tokens=lock_tokens,\n            release_delay_in_seconds=release_delay,\n            **kwargs,\n        )\n\n    @distributed_trace\n    def reject(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.RejectResult:\n        \"\"\"Reject a batch of Cloud Events. The response will include the set of successfully rejected lock\n        tokens, along with other failed lock tokens with their corresponding error information.\n        Successfully rejected events will be dead-lettered and can no longer be received by a consumer.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: RejectResult. The RejectResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.RejectResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return super()._reject(\n            topic_name=self._namespace,\n            event_subscription_name=self._subscription,\n            lock_tokens=lock_tokens,\n            **kwargs,\n        )\n\n    @distributed_trace\n    @api_version_validation(\n        method_added_on=\"2023-10-01-preview\",\n        params_added_on={\"2023-10-01-preview\": [\"api_version\", \"content_type\", \"accept\"]},\n    )\n    def renew_locks(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.RenewLocksResult:\n        \"\"\"Renew locks for a batch of Cloud Events. The response will include the set of successfully\n        renewed lock tokens, along with other failed lock tokens with their corresponding error\n        information. Successfully renewed locks will ensure that the associated event is only available\n        to the consumer that holds the renewed lock.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: RenewLocksResult. The RenewLocksResult is compatible with\n         MutableMapping\n        :rtype: ~azure.eventgrid.models.RenewLocksResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return super()._renew_locks(\n            topic_name=self._namespace,\n            event_subscription_name=self._subscription,\n            lock_tokens=lock_tokens,\n            **kwargs,\n        )\n\n\ndef _serialize_events(events):\n    if isinstance(events[0], CloudEvent) or _is_cloud_event(events[0]):\n        # Try to serialize cloud events\n        try:\n            internal_body_list = []\n            for item in events:\n                internal_body_list.append(_serialize_cloud_event(item))\n            return internal_body_list\n        except AttributeError:\n            # Try to serialize CNCF Cloud Events\n            return [_from_cncf_events(e) for e in events]\n    else:\n        # Does not conform to format, try to send\n        return events\n\n\ndef _serialize_cloud_event(cloud_event):\n    data_kwargs = {}\n\n    if isinstance(cloud_event.data, bytes):\n        data_kwargs[\"data_base64\"] = cloud_event.data\n    else:\n        data_kwargs[\"data\"] = cloud_event.data\n\n    internal_event = InternalCloudEvent(\n        id=cloud_event.id,\n        source=cloud_event.source,\n        type=cloud_event.type,\n        specversion=cloud_event.specversion,\n        time=cloud_event.time,\n        dataschema=cloud_event.dataschema,\n        datacontenttype=cloud_event.datacontenttype,\n        subject=cloud_event.subject,\n        **data_kwargs,\n    )\n    if cloud_event.extensions:\n        internal_event.update(cloud_event.extensions)\n    return internal_event\n\n\n__all__: List[str] = [\n    \"EventGridPublisherClientOperationsMixin\",\n    \"EventGridConsumerClientOperationsMixin\",\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "4be3bf6102fdcf01d8a34d9e17d63ef1c1af53c1c38592e20d694c77109f1990",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/azure/eventgrid/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 349,
+      "kind": "handwritten-marker",
+      "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import List, Union, Optional, Any\nfrom azure.core.credentials import AzureKeyCredential, AzureSasCredential, TokenCredential\n\nfrom ._client import (\n    EventGridPublisherClient as InternalEventGridPublisherClient,\n    EventGridConsumerClient as InternalEventGridConsumerClient,\n)\nfrom ._legacy import (\n    EventGridPublisherClient as LegacyEventGridPublisherClient,\n    SystemEventNames,\n    EventGridEvent,\n    generate_sas,\n)\nfrom ._serialization import Deserializer, Serializer\n\n\nDEFAULT_STANDARD_API_VERSION = \"2024-06-01\"\nDEFAULT_BASIC_API_VERSION = \"2018-01-01\"\n\n\nclass EventGridPublisherClient(InternalEventGridPublisherClient):\n    \"\"\"EventGridPublisherClient.\n\n    Sends events to a basic topic, basic domain, or a namespace topic\n    specified during the client initialization.\n\n    A single instance or a list of dictionaries, CloudEvents or EventGridEvents are accepted.\n    If a list is provided, the list must contain only one type of event.\n    If dictionaries are provided and sending to a namespace topic,\n    the dictionary must follow the CloudEvent schema.\n\n    :param endpoint: The endpoint of the Event Grid tier (basic or namespace), e.g.\n     namespaceName1.westus-1.eventgrid.azure.net. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a TokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials.TokenCredential\n    :keyword namespace_topic: The name of the topic to publish events to. Required for Event Grid Namespaces.\n     Default value is None, which is used for Event Grid Basic.\n    :paramtype namespace_topic: str or None\n    :keyword api_version: The API version to use for this operation. Default value for Event Grid Namespace\n     is \"2024-06-01\", default value for Event Grid Basic is \"2018-01-01\".\n     Note that overriding this default value may result in unsupported behavior.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        credential: Union[AzureKeyCredential, AzureSasCredential, \"TokenCredential\"],\n        *,\n        namespace_topic: Optional[str] = None,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        self._namespace = namespace_topic\n        self._credential = credential\n\n        if not self._namespace:\n            self._client = LegacyEventGridPublisherClient(\n                endpoint,\n                credential,\n                api_version=api_version or DEFAULT_BASIC_API_VERSION,\n            )  # type:ignore[assignment]\n            self._publish = self._client.send  # type:ignore[attr-defined]\n        else:\n            if isinstance(credential, AzureSasCredential):\n                raise TypeError(\"SAS token authentication is not supported for Event Grid Namespace.\")\n            super().__init__(\n                endpoint=endpoint,\n                credential=credential,\n                api_version=api_version or DEFAULT_STANDARD_API_VERSION,\n                **kwargs,\n            )\n\n            self._publish = self._send_events\n        self._serialize = Serializer()\n        self._deserialize = Deserializer()\n        self._serialize.client_side_validation = False\n\n    def __repr__(self) -> str:\n        return (\n            f\"<EventGridPublisherClient: namespace_topic={self._namespace}, credential type={type(self._credential)}>\"\n        )\n\n\nclass EventGridConsumerClient(InternalEventGridConsumerClient):\n    \"\"\"EventGridConsumerClient.\n\n    Consumes and manages events from a namespace topic\n    and event subscription specified during the client initialization.\n\n    :param endpoint: The host name of the namespace, e.g.\n     namespaceName1.westus-1.eventgrid.azure.net. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a TokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials.TokenCredential\n    :keyword namespace_topic: The name of the topic to consume events from. Required.\n    :paramtype namespace_topic: str\n    :keyword subscription: The name of the subscription to consume events from. Required.\n    :paramtype subscription: str\n    :keyword api_version: The API version to use for this operation. Default value is \"2024-06-01\".\n     Note that overriding this default value may result in unsupported behavior.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        credential: Union[AzureKeyCredential, \"TokenCredential\"],\n        *,\n        namespace_topic: str,\n        subscription: str,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        self._namespace = namespace_topic\n        self._subscription = subscription\n        self._credential = credential\n        super().__init__(\n            endpoint=endpoint, credential=credential, api_version=api_version or DEFAULT_STANDARD_API_VERSION, **kwargs\n        )\n\n    def __repr__(self) -> str:\n        return f\"<EventGridConsumerClient: namespace_topic={self._namespace}, \\\n            subscription={self._subscription}, credential type={type(self._credential)}>\"\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n\n\n__all__: List[str] = [\n    \"EventGridPublisherClient\",\n    \"EventGridConsumerClient\",\n    \"SystemEventNames\",\n    \"EventGridEvent\",\n    \"generate_sas\",\n]  # Add all objects you want publicly available to users at this package level\n",
+      "contentHash": "55074af7f40a6daf55b4d49244f27b1b6526915b83bc973bfa0d36f29f66db93",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/azure/eventgrid/_patch.py",
+      "startLine": 1,
+      "endLine": 154,
+      "kind": "handwritten-marker",
+      "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_operations/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import List, Union, Any, Optional, Callable, Dict, TypeVar, TYPE_CHECKING\nimport sys\nfrom azure.core.messaging import CloudEvent\nfrom azure.core.exceptions import (\n    HttpResponseError,\n    ResourceNotFoundError,\n)\nfrom azure.core.tracing.decorator_async import distributed_trace_async\nfrom azure.core.pipeline import PipelineResponse\nfrom azure.core.rest import HttpRequest, AsyncHttpResponse\nfrom ...models._patch import ReceiveDetails\nfrom ._operations import (\n    EventGridPublisherClientOperationsMixin as PublisherOperationsMixin,\n    EventGridConsumerClientOperationsMixin as ConsumerOperationsMixin,\n)\nfrom ... import models as _models\nfrom ..._validation import api_version_validation\n\nfrom ..._operations._patch import (\n    _serialize_events,\n)\n\nfrom ..._legacy import EventGridEvent\nfrom ..._legacy._helpers import _is_eventgrid_event_format\n\nif sys.version_info >= (3, 9):\n    from collections.abc import MutableMapping\nelse:\n    from typing import MutableMapping  # type: ignore\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\nT = TypeVar(\"T\")\nClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]\n\nif TYPE_CHECKING:\n    from cloudevents.http.event import CloudEvent as CNCFCloudEvent\n\n\nclass EventGridPublisherClientOperationsMixin(PublisherOperationsMixin):\n\n    @distributed_trace_async\n    async def send(\n        self,\n        events: Union[\n            CloudEvent,\n            List[CloudEvent],\n            Dict[str, Any],\n            List[Dict[str, Any]],\n            \"CNCFCloudEvent\",\n            List[\"CNCFCloudEvent\"],\n            EventGridEvent,\n            List[EventGridEvent],\n        ],\n        *,\n        channel_name: Optional[str] = None,\n        content_type: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        \"\"\"Send events to the Event Grid Service.\n\n        :param events: The event(s) to send. If sending to an Event Grid Namespace, the dict, list of dicts,\n         or event(s) should be in the format of a CloudEvent.\n        :type events: CloudEvent or List[CloudEvent] or Dict[str, Any] or List[Dict[str, Any]]\n         or CNCFCloudEvent or List[CNCFCloudEvent] or EventGridEvent or List[EventGridEvent]\n        :keyword channel_name: The name of the channel to send the event to. Event Grid Basic Resource only.\n        :paramtype channel_name: str or None\n        :keyword content_type: The content type of the event. If not specified, the default value is\n         \"application/cloudevents+json; charset=utf-8\".\n        :paramtype content_type: str\n\n        :return: None\n        :rtype: None\n        \"\"\"\n        if self._namespace and channel_name:\n            raise ValueError(\"Channel name is not supported for Event Grid Namespaces.\")\n\n        # If a cloud event dict, convert to CloudEvent for serializing\n        try:\n            if isinstance(events, dict):\n                events = CloudEvent.from_dict(events)\n            if isinstance(events, list) and isinstance(events[0], dict):\n                events = [CloudEvent.from_dict(e) for e in events]\n        except Exception:  # pylint: disable=broad-except\n            pass\n\n        if self._namespace:\n            kwargs[\"content_type\"] = (\n                content_type if content_type else \"application/cloudevents-batch+json; charset=utf-8\"\n            )\n            if not isinstance(events, list):\n                events = [events]\n\n            if isinstance(events[0], EventGridEvent) or _is_eventgrid_event_format(events[0]):\n                raise TypeError(\"EventGridEvent is not supported for Event Grid Namespaces.\")\n            try:\n                # Try to send via namespace\n                await self._publish(self._namespace, _serialize_events(events), **kwargs)\n            except Exception as exception:\n                self._http_response_error_handler(exception)\n                raise exception\n        else:\n            kwargs[\"content_type\"] = content_type if content_type else \"application/json; charset=utf-8\"\n            try:\n                await self._publish(events, channel_name=channel_name, **kwargs)\n            except Exception as exception:\n                self._http_response_error_handler(exception)\n                raise exception\n\n    def _http_response_error_handler(self, exception):\n        if isinstance(exception, HttpResponseError):\n            if exception.status_code == 404:\n                raise ResourceNotFoundError(\n                    \"Resource not found. \"\n                    \"For Event Grid Namespaces, please specify the namespace_topic name on the client. \"\n                    \"For Event Grid Basic, do not specify the namespace_topic name.\"\n                ) from exception\n            raise exception\n\n\nclass EventGridConsumerClientOperationsMixin(ConsumerOperationsMixin):\n\n    @distributed_trace_async\n    async def receive(\n        self,\n        *,\n        max_events: Optional[int] = None,\n        max_wait_time: Optional[int] = None,\n        **kwargs: Any,\n    ) -> List[ReceiveDetails]:\n        \"\"\"Receive Batch of Cloud Events from the Event Subscription.\n\n        :keyword max_events: Max Events count to be received. Minimum value is 1, while maximum value\n         is 100 events. The default is None, meaning it will receive one event if available.\n        :paramtype max_events: int\n        :keyword max_wait_time: Max wait time value for receive operation in Seconds. It is the time in\n         seconds that the server approximately waits for the availability of an event and responds to\n         the request. If an event is available, the broker responds immediately to the client. Minimum\n         value is 10 seconds, while maximum value is 120 seconds. The default value is None, meaning it\n         will wait for 60 seconds.\n        :paramtype max_wait_time: int\n        :return: ReceiveDetails list of received events and their broker properties.\n        :rtype: list[~azure.eventgrid.models.ReceiveDetails]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        detail_items = []\n        receive_result = await self._receive(\n            self._namespace,\n            self._subscription,\n            max_events=max_events,\n            max_wait_time=max_wait_time,\n            **kwargs,\n        )\n        for detail_item in receive_result.details:\n            deserialized_cloud_event = CloudEvent.from_dict(detail_item.event)\n            detail_item.event = deserialized_cloud_event\n            detail_items.append(\n                ReceiveDetails(\n                    broker_properties=detail_item.broker_properties,\n                    event=detail_item.event,\n                )\n            )\n        return detail_items\n\n    @distributed_trace_async\n    async def acknowledge(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.AcknowledgeResult:\n        \"\"\"Acknowledge a batch of Cloud Events. The response will include the set of successfully\n        acknowledged lock tokens, along with other failed lock tokens with their corresponding error\n        information. Successfully acknowledged events will no longer be available to be received by any\n        consumer.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: AcknowledgeResult. The AcknowledgeResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.AcknowledgeResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return await super()._acknowledge(self._namespace, self._subscription, lock_tokens=lock_tokens, **kwargs)\n\n    @distributed_trace_async\n    @api_version_validation(\n        params_added_on={\"2023-10-01-preview\": [\"release_delay\"]},\n    )\n    async def release(\n        self,\n        *,\n        lock_tokens: List[str],\n        release_delay: Optional[Union[int, _models.ReleaseDelay]] = None,\n        **kwargs: Any,\n    ) -> _models.ReleaseResult:\n        \"\"\"Release a batch of Cloud Events. The response will include the set of successfully released\n        lock tokens, along with other failed lock tokens with their corresponding error information.\n        Successfully released events can be received by consumers.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :keyword release_delay: Release cloud events with the specified delay in seconds.\n         Known values are: 0, 10, 60, 600, and 3600. Default value is None, indicating no delay.\n        :paramtype release_delay: int or ~azure.eventgrid.models.ReleaseDelay\n        :return: ReleaseResult. The ReleaseResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.ReleaseResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return await super()._release(\n            self._namespace,\n            self._subscription,\n            lock_tokens=lock_tokens,\n            release_delay_in_seconds=release_delay,\n            **kwargs,\n        )\n\n    @distributed_trace_async\n    async def reject(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.RejectResult:\n        \"\"\"Reject a batch of Cloud Events. The response will include the set of successfully rejected lock\n        tokens, along with other failed lock tokens with their corresponding error information.\n        Successfully rejected events will be dead-lettered and can no longer be received by a consumer.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: RejectResult. The RejectResult is compatible with MutableMapping\n        :rtype: ~azure.eventgrid.models.RejectResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return await super()._reject(self._namespace, self._subscription, lock_tokens=lock_tokens, **kwargs)\n\n    @distributed_trace_async\n    @api_version_validation(\n        method_added_on=\"2023-10-01-preview\",\n        params_added_on={\"2023-10-01-preview\": [\"api_version\", \"content_type\", \"accept\"]},\n    )\n    async def renew_locks(\n        self,\n        *,\n        lock_tokens: List[str],\n        **kwargs: Any,\n    ) -> _models.RenewLocksResult:\n        \"\"\"Renew lock for batch of Cloud Events. The server responds with an HTTP 200 status code if the\n        request is successfully accepted. The response body will include the set of successfully\n        renewed lockTokens, along with other failed lockTokens with their corresponding error\n        information.\n\n        :keyword lock_tokens: Array of lock tokens of Cloud Events. Required.\n        :paramtype lock_tokens: List[str]\n        :return: RenewLocksResult. The RenewLocksResult is compatible with\n         MutableMapping\n        :rtype: ~azure.eventgrid.models.RenewLocksResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        return await super()._renew_locks(self._namespace, self._subscription, lock_tokens=lock_tokens, **kwargs)\n\n\n__all__: List[str] = [\n    \"EventGridPublisherClientOperationsMixin\",\n    \"EventGridConsumerClientOperationsMixin\",\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "2dfa0003b0f62255234c4c3151da5b3ce8f09142bef3cd155c89b76b11dc3941",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 279,
+      "kind": "handwritten-marker",
+      "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import List, Union, Any, TYPE_CHECKING, Optional\nfrom azure.core.credentials import AzureKeyCredential, AzureSasCredential\n\n\nfrom .._legacy.aio import EventGridPublisherClient as LegacyEventGridPublisherClient\nfrom ._client import (\n    EventGridPublisherClient as InternalEventGridPublisherClient,\n    EventGridConsumerClient as InternalEventGridConsumerClient,\n)\nfrom .._serialization import Deserializer, Serializer\nfrom .._patch import (\n    DEFAULT_BASIC_API_VERSION,\n    DEFAULT_STANDARD_API_VERSION,\n)\n\nif TYPE_CHECKING:\n    from azure.core.credentials_async import AsyncTokenCredential\n\n\nclass EventGridPublisherClient(InternalEventGridPublisherClient):\n    \"\"\"EventGridPublisherClient.\n\n    Sends events to a basic topic, basic domain, or a namespace topic\n    specified during the client initialization.\n\n    A single instance or a list of dictionaries, CloudEvents or EventGridEvents are accepted.\n    If a list is provided, the list must contain only one type of event.\n    If dictionaries are provided and sending to a namespace topic,\n    the dictionary must follow the CloudEvent schema.\n\n    :param endpoint: The host name of the namespace, e.g.\n     namespaceName1.westus-1.eventgrid.azure.net. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a AsyncTokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials_async.AsyncTokenCredential\n    :keyword namespace_topic: The name of the topic to publish events to. Required for Event Grid Namespaces.\n     Default value is None, which is used for Event Grid Basic.\n    :paramtype namespace_topic: str or None\n    :keyword api_version: The API version to use for this operation. Default value for Event Grid Namespace\n     is \"2024-06-01\", default value for Event Grid Basic is \"2018-01-01\".\n     Note that overriding this default value may result in unsupported behavior.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        credential: Union[AzureKeyCredential, AzureSasCredential, \"AsyncTokenCredential\"],\n        *,\n        namespace_topic: Optional[str] = None,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        self._namespace = namespace_topic\n        self._credential = credential\n\n        if not self._namespace:\n            self._client = LegacyEventGridPublisherClient(  # type: ignore[assignment]\n                endpoint, credential, api_version=api_version or DEFAULT_BASIC_API_VERSION, **kwargs\n            )\n            self._publish = self._client.send  # type: ignore[attr-defined]\n        else:\n            if isinstance(credential, AzureSasCredential):\n                raise TypeError(\"SAS token authentication is not supported for Event Grid Namespace.\")\n\n            super().__init__(\n                endpoint=endpoint,\n                credential=credential,\n                api_version=api_version or DEFAULT_STANDARD_API_VERSION,\n                **kwargs,\n            )\n            self._publish = self._send_events\n        self._serialize = Serializer()\n        self._deserialize = Deserializer()\n        self._serialize.client_side_validation = False\n\n    def __repr__(self) -> str:\n        return (\n            f\"<EventGridPublisherClient: namespace_topic={self._namespace}, credential type={type(self._credential)}>\"\n        )\n\n\nclass EventGridConsumerClient(InternalEventGridConsumerClient):\n    \"\"\"EventGridConsumerClient.\n\n    Consumes and manages events from a namespace topic\n    and event subscription specified during the client initialization.\n\n    :param endpoint: The endpoint of the Event Grid tier (basic or namespace), e.g.\n     namespaceName1.westus-1.eventgrid.azure.net. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a AsyncTokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials_async.AsyncTokenCredential\n    :keyword namespace_topic: The name of the topic to consume events from. Required.\n    :paramtype namespace_topic: str\n    :keyword subscription: The name of the subscription to consume events from. Required.\n    :paramtype subscription: str\n    :keyword api_version: The API version to use for this operation. Default value is \"2024-06-01\".\n     Note that overriding this default value may result in unsupported behavior.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        credential: Union[AzureKeyCredential, \"AsyncTokenCredential\"],\n        *,\n        namespace_topic: str,\n        subscription: str,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        self._namespace = namespace_topic\n        self._subscription = subscription\n        self._credential = credential\n        super().__init__(\n            endpoint=endpoint, credential=credential, api_version=api_version or DEFAULT_STANDARD_API_VERSION, **kwargs\n        )\n\n    def __repr__(self) -> str:\n        return f\"<EventGridConsumerClient: namespace_topic={self._namespace}, \\\n            subscription={self._subscription}, credential type={type(self._credential)}>\"\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n\n\n__all__: List[str] = [\n    \"EventGridConsumerClient\",\n    \"EventGridPublisherClient\",\n]  # Add all objects you want publicly available to users at this package level\n",
+      "contentHash": "48f985bc2cf6d0d590dbf31841514e873908562674f0102aad497079d318f494",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 148,
+      "kind": "handwritten-marker",
+      "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/models/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import List, overload, Mapping, Any, Generic, TypeVar\nfrom azure.core.messaging import CloudEvent\nfrom ._models import (\n    ReceiveDetails as InternalReceiveDetails,\n    BrokerProperties as InternalBrokerProperties,\n)\n\nDataType = TypeVar(\"DataType\")\n\n\nclass ReceiveDetails(InternalReceiveDetails, Generic[DataType]):\n    \"\"\"Receive operation details per Cloud Event.\n\n    All required parameters must be populated in order to send to Azure.\n\n    :ivar broker_properties: The Event Broker details. Required.\n    :vartype broker_properties: ~azure.eventgrid.models.BrokerProperties\n    :ivar event: Cloud Event details. Required.\n    :vartype event: ~azure.core.messaging.CloudEvent\n    \"\"\"\n\n    @overload\n    def __init__(\n        self,\n        *,\n        broker_properties: \"BrokerProperties\",\n        event: CloudEvent[DataType],\n    ): ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]):\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pylint: disable=useless-super-delegation\n        super().__init__(*args, **kwargs)\n\n\nclass BrokerProperties(InternalBrokerProperties):\n    \"\"\"Properties of the Event Broker operation.\n\n    All required parameters must be populated in order to send to Azure.\n\n    :ivar lock_token: The token used to lock the event. Required.\n    :vartype lock_token: str\n    :ivar delivery_count: The attempt count for deliverying the event. Required.\n    :vartype delivery_count: int\n    \"\"\"\n\n    @overload\n    def __init__(\n        self,\n        *,\n        lock_token: str,\n        delivery_count: int,\n    ): ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]):\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pylint: disable=useless-super-delegation\n        super().__init__(*args, **kwargs)\n\n\n__all__: List[str] = [\n    \"ReceiveDetails\",\n    \"BrokerProperties\",\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "4292a465996f4f24ad78acee05d0fd8136454158c50286428cd0c78e382b44cd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/azure/eventgrid/models/_patch.py",
+      "startLine": 1,
+      "endLine": 91,
+      "kind": "handwritten-marker",
+      "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/pyproject.toml",
+      "text": "[tool.azure-sdk-build]\npyright = false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "fded80be984bee4e103b99fe3fc116330dda51722842daff546e1dc545e586b0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/pyproject.toml"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/tsp-location.yaml",
+      "text": "cleanup: false\ncommit: 25afa22a250c0ad5a28671003f961b9cd20d60f6\ndirectory: specification/eventgrid/Azure.Messaging.EventGrid\nrepo: Azure/azure-rest-api-specs",
+      "contentHash": "24a4806e1ccea9e83c51d603de80a65783f730c41e6b15c3c435179c73dd4b3f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/eventgrid/azure-eventgrid/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "b16ad23d52c03236eba9df446e2d0a661c2b963162c44ffaf6995fce942eddce",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "1c2f7925dab10df5ff33d27fdfbdd6a4585c36f568dab0df1038fc041992dec0",
+        "category": "Other",
+        "subtype": "Legacy versus namespace publisher construction",
+        "pattern": "client-tier-dispatch",
+        "generatorAddressable": "unclear",
+        "explanation": "The publisher constructor records topic/credential, chooses a legacy publisher with the basic API default and binds _publish to send when the topic is falsey; otherwise it rejects AzureSasCredential, initializes the generated base with the standard API default and binds _publish to _send_events. It also installs serializer/deserializer instances and disables serializer client-side validation. The legacy sync branch does not forward kwargs.",
+        "handwrittenRationale": "This is an implemented constructor of a generated-client subclass exported in root _patch.py's __all__.",
+        "symbols": [
+          "EventGridPublisherClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 25,
+            "endLine": 26
+          },
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 56,
+            "endLine": 88
+          }
+        ]
+      },
+      {
+        "key": "da4e6c82c252f7f685d06b1edb582cc1d369924c989af22eafa8bee0f171f937",
+        "category": "Other",
+        "subtype": "Publisher topic and credential-type representation",
+        "pattern": "client-string-representation",
+        "generatorAddressable": "yes",
+        "explanation": "The publisher repr formats its namespace-topic value and credential type, rather than the credential value.",
+        "handwrittenRationale": "A concrete __repr__ is added by the exported _patch.py client subclass.",
+        "symbols": [
+          "EventGridPublisherClient.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 90,
+            "endLine": 93
+          }
+        ]
+      },
+      {
+        "key": "c80b7ec858bd3d11e889358a3f739e69bb2f57270a41deea130445300c2af94c",
+        "category": "Other",
+        "subtype": "Consumer constructor retains topic/subscription context",
+        "pattern": "client-context-constructor",
+        "generatorAddressable": "yes",
+        "explanation": "The consumer constructor accepts required namespace_topic/subscription keyword arguments, retains them and the credential on the instance, and initializes the generated base with endpoint/credential, the supplied or standard API version and kwargs.",
+        "handwrittenRationale": "The exported generated-client subclass implements this context-storing constructor in _patch.py.",
+        "symbols": [
+          "EventGridConsumerClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 118,
+            "endLine": 133
+          }
+        ]
+      },
+      {
+        "key": "aaa76f19fb9e40a86bcda96a3ca807b1a0e0a176f43ab2dc578081da23883f7b",
+        "category": "Other",
+        "subtype": "Consumer topic, subscription and credential-type representation",
+        "pattern": "client-string-representation",
+        "generatorAddressable": "yes",
+        "explanation": "The consumer repr includes its stored namespace topic, subscription and credential type.",
+        "handwrittenRationale": "The exported patch subclass adds an implemented __repr__.",
+        "symbols": [
+          "EventGridConsumerClient.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 135,
+            "endLine": 137
+          }
+        ]
+      },
+      {
+        "key": "d3d7b20e0553c4461e5045a30089551e37e94555c1cb7d9fddae0d2963866a22",
+        "category": "Multiple content types",
+        "subtype": "Publish adapts event inputs and selects tier-specific request format",
+        "pattern": "event-format-and-tier-dispatch",
+        "generatorAddressable": "unclear",
+        "explanation": "The traced send rejects a namespace channel name, attempts dict-to-CloudEvent conversion while swallowing conversion exceptions, and chooses namespace batch-CloudEvent content type or basic JSON unless overridden. Namespace sends wrap non-list inputs, reject legacy EventGridEvent format using the first event and invoke the serializer before _publish; basic sends forward events/channel_name. Both branches route exceptions through the custom error handler.",
+        "handwrittenRationale": "This full operation override is in an exported _operations/_patch.py subclass of the generated operations mixin.",
+        "symbols": [
+          "EventGridPublisherClientOperationsMixin.send"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 64,
+            "endLine": 81
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 97,
+            "endLine": 129
+          }
+        ]
+      },
+      {
+        "key": "9502e1848fb6e2ecfbd5d1f27045096b6c2e6f6bd6a33b883087c39fbe9e6955",
+        "category": "Retry / error handling",
+        "subtype": "Publisher HTTP 404 translated to topic-selection guidance",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "explanation": "The handler replaces an HttpResponseError with status 404 by a chained ResourceNotFoundError explaining namespace_topic usage for namespace/basic tiers. Other HttpResponseError instances are rethrown; non-HTTP exceptions fall through for send to rethrow.",
+        "handwrittenRationale": "An implemented helper in the exported patch mixin is directly called by the supplied send override.",
+        "symbols": [
+          "EventGridPublisherClientOperationsMixin._http_response_error_handler"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 131,
+            "endLine": 139
+          }
+        ]
+      },
+      {
+        "key": "2f1629484ef5420df5b27e3a6e70cb316d78a70c5eccba4a7c8f3af4af570253",
+        "category": "Convenience methods",
+        "subtype": "Receive unwraps result details into shared CloudEvent wrappers",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced receive invokes _receive with stored topic/subscription and caller limits, converts each detail event with CloudEvent.from_dict, assigns the converted event to the detail, and returns a list of patched ReceiveDetails retaining broker_properties.",
+        "handwrittenRationale": "The exported consumer patch mixin implements a result-converting wrapper over the internal operation.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.receive"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 144,
+            "endLine": 151
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 168,
+            "endLine": 185
+          }
+        ]
+      },
+      {
+        "key": "fd73319d058ed0ed663b57f57c0855df590103ef034b50b0a3bab3d0edc3cdb2",
+        "category": "Convenience methods",
+        "subtype": "Acknowledge supplies stored topic/subscription",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced acknowledge wrapper forwards lock_tokens and kwargs to the generated base _acknowledge, supplying stored namespace/subscription as topic_name and event_subscription_name.",
+        "handwrittenRationale": "A concrete public convenience method is implemented by the exported patch mixin.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.acknowledge"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 187,
+            "endLine": 193
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 205,
+            "endLine": 210
+          }
+        ]
+      },
+      {
+        "key": "1f1d63cc99638b44619cf243bf4ae3fc46592ee770a6fbaf777a8252adcebb46",
+        "category": "Convenience methods",
+        "subtype": "Release adapts delay name and declares version gate",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "Release supplies stored topic/subscription and maps release_delay to release_delay_in_seconds for the base operation. Its api_version_validation decorator declares release_delay added on 2023-10-01-preview; the validator implementation is absent.",
+        "handwrittenRationale": "This concrete wrapper and decorator configuration are in the exported consumer patch mixin.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.release"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 212,
+            "endLine": 221
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 235,
+            "endLine": 241
+          }
+        ]
+      },
+      {
+        "key": "d1cdfe4826297533941ab4f747ea0848f4a772b3ca1f97631389496a5de822d3",
+        "category": "Convenience methods",
+        "subtype": "Reject supplies stored topic/subscription",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced reject forwards lock_tokens and kwargs to base _reject while supplying stored namespace/subscription as named operation parameters.",
+        "handwrittenRationale": "The exported patch mixin adds this concrete public wrapper.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.reject"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 243,
+            "endLine": 249
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 260,
+            "endLine": 265
+          }
+        ]
+      },
+      {
+        "key": "496751a2ba0d9a778984c321248c671915b5395d03a415faad4fbade4fb19495",
+        "category": "Convenience methods",
+        "subtype": "Lock renewal supplies context and declares API-version gates",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced renew_locks forwards stored topic/subscription, lock_tokens and kwargs to base _renew_locks. The version decorator declares the method and api_version/content_type/accept parameters added on 2023-10-01-preview. This is an explicit operation call, not an automatic lock-renewal loop.",
+        "handwrittenRationale": "A concrete wrapper with explicit version metadata is supplied by the exported patch mixin.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.renew_locks"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 267,
+            "endLine": 277
+          },
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 290,
+            "endLine": 295
+          }
+        ]
+      },
+      {
+        "key": "e696ba7fb762957c65b734bba971547cdda724e04c0914c53d300585c981f5e7",
+        "category": "Serialization",
+        "subtype": "Event-list conversion with CNCF fallback",
+        "pattern": "event-batch-format-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "The helper checks the first item for CloudEvent shape, maps items through _serialize_cloud_event and retries the whole list through imported _from_cncf_events if AttributeError occurs. Non-matching inputs are returned unchanged; the CNCF converter's implementation is not supplied.",
+        "handwrittenRationale": "The implemented helper lives in _operations/_patch.py and is directly used by the exported sync/async send overrides.",
+        "symbols": [
+          "_serialize_events"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 298,
+            "endLine": 311
+          }
+        ]
+      },
+      {
+        "key": "cabfee3c6bf4fc0210ca8fd77798ebe199a2441016cacac6872a9b91de686f74",
+        "category": "Serialization",
+        "subtype": "Shared CloudEvent mapped to internal wire model",
+        "pattern": "shared-event-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "The helper puts bytes-valued data in data_base64, other data in data, copies the listed standard CloudEvent attributes into InternalCloudEvent, merges extensions with update and returns that model. The shown code assigns bytes; it does not itself perform base64 encoding.",
+        "handwrittenRationale": "This concrete patch helper is called by the supplied event-list serializer.",
+        "symbols": [
+          "_serialize_cloud_event"
+        ],
+        "evidence": [
+          {
+            "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+            "startLine": 314,
+            "endLine": 335
+          }
+        ]
+      },
+      {
+        "key": "0543b66ed4d91b4d8a7080b322baacf3ec3d88ff11fff67cdc5eaa6979324ebc",
+        "category": "Other",
+        "subtype": "Async legacy versus namespace publisher construction",
+        "pattern": "client-tier-dispatch",
+        "generatorAddressable": "unclear",
+        "explanation": "The aio constructor stores namespace/credential, selects the legacy async publisher with the basic API default and binds send when the namespace is falsey; otherwise it rejects SAS credentials, initializes the generated base with the standard default and binds _send_events. Unlike the shown sync legacy branch, it forwards kwargs to the legacy client. Serializer/deserializer instances are installed with validation disabled.",
+        "handwrittenRationale": "The exported aio/_patch.py subclass implements the generated-client constructor replacement.",
+        "symbols": [
+          "EventGridPublisherClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+            "startLine": 19,
+            "endLine": 22
+          },
+          {
+            "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+            "startLine": 55,
+            "endLine": 85
+          },
+          {
+            "id": "f7eb0d8ca578d2c3ed51d24e1372b5b9e4bf235322df46bade69c80fc23bd8a5",
+            "startLine": 25,
+            "endLine": 26
+          }
+        ]
+      },
+      {
+        "key": "e11726d1142be591a74e70f6a74d41d0dccb8f8822700e4453508cb7214d53dd",
+        "category": "Other",
+        "subtype": "Async publisher topic and credential-type representation",
+        "pattern": "client-string-representation",
+        "generatorAddressable": "yes",
+        "explanation": "The aio publisher repr includes namespace_topic and the stored credential's type.",
+        "handwrittenRationale": "A concrete __repr__ is implemented in the exported async patch subclass.",
+        "symbols": [
+          "EventGridPublisherClient.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+            "startLine": 87,
+            "endLine": 90
+          }
+        ]
+      },
+      {
+        "key": "70d77dfd166dd96d5a6dd9afff572702600ff1d86cb92159089f8eb4c7180a38",
+        "category": "Other",
+        "subtype": "Async consumer retains topic/subscription context",
+        "pattern": "client-context-constructor",
+        "generatorAddressable": "yes",
+        "explanation": "The aio consumer requires namespace_topic and subscription, stores them with its credential, and initializes the generated base using endpoint, credential, supplied-or-standard API version and kwargs.",
+        "handwrittenRationale": "The constructor is implemented by the exported aio patch subclass.",
+        "symbols": [
+          "EventGridConsumerClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+            "startLine": 115,
+            "endLine": 130
+          }
+        ]
+      },
+      {
+        "key": "1e0ca6fc8856cecc2c971466d22f886aa1177011708430ab8634be8d8a7c0626",
+        "category": "Other",
+        "subtype": "Async consumer context representation",
+        "pattern": "client-string-representation",
+        "generatorAddressable": "yes",
+        "explanation": "The aio consumer repr formats its namespace topic, subscription and credential type.",
+        "handwrittenRationale": "The exported aio patch subclass adds this implemented representation.",
+        "symbols": [
+          "EventGridConsumerClient.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+            "startLine": 132,
+            "endLine": 134
+          }
+        ]
+      },
+      {
+        "key": "b44be9887005e325b9ccc554b276dc3ae9c5037daeca11d694e97e1ff2b1f723",
+        "category": "Multiple content types",
+        "subtype": "Async publish adapts formats and dispatches by tier",
+        "pattern": "event-format-and-tier-dispatch",
+        "generatorAddressable": "unclear",
+        "explanation": "The traced async send rejects namespace channel_name, attempts dict conversion with swallowed exceptions, selects namespace batch-CloudEvent or basic JSON content type, wraps non-list namespace inputs and rejects first-item legacy event format. It awaits either serialized namespace publishing or basic publishing with channel_name and routes exceptions through the aio error helper.",
+        "handwrittenRationale": "This is a concrete operation override in the exported aio operations patch mixin.",
+        "symbols": [
+          "EventGridPublisherClientOperationsMixin.send"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 47,
+            "endLine": 64
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 80,
+            "endLine": 113
+          }
+        ]
+      },
+      {
+        "key": "bb75e90b18c5e97205c99695cd82ccf64843f39ed260678bf722052de5214fe9",
+        "category": "Retry / error handling",
+        "subtype": "Async publisher HTTP 404 translated to topic guidance",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "explanation": "The aio publisher helper replaces HttpResponseError status 404 with a chained ResourceNotFoundError containing namespace/basic topic guidance, rethrows other HTTP errors and leaves non-HTTP errors for the caller to rethrow.",
+        "handwrittenRationale": "The aio patch mixin implements this helper, and its supplied async send calls it.",
+        "symbols": [
+          "EventGridPublisherClientOperationsMixin._http_response_error_handler"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 115,
+            "endLine": 123
+          }
+        ]
+      },
+      {
+        "key": "c239401b35fe84f615b164019ca0053f3bf4ca78a4f977b5ae3dc0b2da7b208d",
+        "category": "Convenience methods",
+        "subtype": "Async receive converts and unwraps event details",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced async receive awaits _receive with stored namespace/subscription and limits, converts each detail event via shared CloudEvent.from_dict, replaces the detail event and returns patched ReceiveDetails objects retaining broker properties.",
+        "handwrittenRationale": "The exported aio consumer patch mixin implements the result-converting operation wrapper.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.receive"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 128,
+            "endLine": 135
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 152,
+            "endLine": 169
+          }
+        ]
+      },
+      {
+        "key": "eb56abfe545e86d2b5f1e9042a7c29e8edc1c7083211d60f26dafbedf686125f",
+        "category": "Convenience methods",
+        "subtype": "Async acknowledge forwards stored context",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced aio acknowledge awaits base _acknowledge with stored namespace/subscription, caller lock_tokens and kwargs.",
+        "handwrittenRationale": "The exported aio patch mixin adds a concrete public wrapper.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.acknowledge"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 171,
+            "endLine": 177
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 189,
+            "endLine": 189
+          }
+        ]
+      },
+      {
+        "key": "edc754c046bd21040bc3b3e7dc993d8feba5678329859b7d025a6f1ead0a4f3f",
+        "category": "Convenience methods",
+        "subtype": "Async release maps delay and declares version metadata",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced aio release awaits base _release with stored context and release_delay mapped to release_delay_in_seconds. Its version-validation decorator declares that delay parameter added on 2023-10-01-preview.",
+        "handwrittenRationale": "The exported aio patch mixin supplies the implemented wrapper and decorator configuration.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.release"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 191,
+            "endLine": 201
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 215,
+            "endLine": 221
+          }
+        ]
+      },
+      {
+        "key": "32eb956411e8f50d7789a71aafc1487e66a84603e809c3777fdf5a3bca8ea6a9",
+        "category": "Convenience methods",
+        "subtype": "Async reject forwards stored topic/subscription",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced aio reject awaits base _reject with stored namespace/subscription and caller lock_tokens/kwargs.",
+        "handwrittenRationale": "The exported async operations patch mixin implements this public context-supplying wrapper.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.reject"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 223,
+            "endLine": 229
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 240,
+            "endLine": 240
+          }
+        ]
+      },
+      {
+        "key": "ae1c783e6843bb0e5e27fd4979f776f5c03a4fb7fc33184a2940a3514d9c4ed4",
+        "category": "Convenience methods",
+        "subtype": "Async lock renewal forwards context with version metadata",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "The traced aio renew_locks awaits base _renew_locks with stored namespace/subscription, lock_tokens and kwargs. Its decorator declares the method and api_version/content_type/accept parameters added on 2023-10-01-preview; no background renewal behavior is shown.",
+        "handwrittenRationale": "A concrete wrapper and version configuration are supplied by the exported aio operations patch mixin.",
+        "symbols": [
+          "EventGridConsumerClientOperationsMixin.renew_locks"
+        ],
+        "evidence": [
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 242,
+            "endLine": 252
+          },
+          {
+            "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+            "startLine": 265,
+            "endLine": 265
+          }
+        ]
+      },
+      {
+        "key": "073235c8c874c1b7bdfaf2fb9fc5979a8140bd6cabaf20acdb7056b329b54e75",
+        "category": "Model overrides",
+        "subtype": "Generic receive-details subclass with shared CloudEvent constructor typing",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "explanation": "The exported ReceiveDetails subclass also inherits Generic[DataType] and declares a keyword overload accepting BrokerProperties and azure.core.messaging.CloudEvent[DataType], plus a mapping overload. Its runtime initializer simply delegates to the generated base; no runtime type checking or serialization replacement is established by these declarations.",
+        "handwrittenRationale": "The model patch explicitly exports a generic subclass with a shared CloudEvent typed constructor surface; this is a concrete type-shape customization rather than a re-export or empty patch hook.",
+        "symbols": [
+          "ReceiveDetails"
+        ],
+        "evidence": [
+          {
+            "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661",
+            "startLine": 9,
+            "endLine": 19
+          },
+          {
+            "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661",
+            "startLine": 30,
+            "endLine": 46
+          },
+          {
+            "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661",
+            "startLine": 79,
+            "endLine": 82
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "1c2f7925dab10df5ff33d27fdfbdd6a4585c36f568dab0df1038fc041992dec0",
+        "status": "accepted",
+        "reason": "The exported root patch subclass implements both publisher construction branches, tier-dependent API defaults, SAS rejection in the namespace branch, and publish-method binding at the cited lines. Its sync legacy branch omits kwargs. The generic tier-dispatch pattern and uncertain generator addressability are appropriate."
+      },
+      {
+        "key": "da4e6c82c252f7f685d06b1edb582cc1d369924c989af22eafa8bee0f171f937",
+        "status": "accepted",
+        "reason": "The implemented __repr__ in the exported handwritten client subclass formats the stored namespace topic and credential type without formatting the credential value; the pattern describes a reusable client representation."
+      },
+      {
+        "key": "c80b7ec858bd3d11e889358a3f739e69bb2f57270a41deea130445300c2af94c",
+        "status": "accepted",
+        "reason": "The exported consumer subclass requires namespace_topic and subscription, saves both and the credential, and calls the generated base with the chosen API version; this is a handwritten client-context constructor."
+      },
+      {
+        "key": "aaa76f19fb9e40a86bcda96a3ca807b1a0e0a176f43ab2dc578081da23883f7b",
+        "status": "accepted",
+        "reason": "The exported patch client adds a concrete __repr__ displaying its stored topic, subscription and credential type, matching the reusable client-representation pattern."
+      },
+      {
+        "key": "d3d7b20e0553c4461e5045a30089551e37e94555c1cb7d9fddae0d2963866a22",
+        "status": "accepted",
+        "reason": "The exported operations patch overrides send with explicit input conversion, namespace/basic content-type defaults, conditional format checks and separate publishing paths. Its broad conversion catch and first-element indexing are observed behavior, not inferred successful validation."
+      },
+      {
+        "key": "9502e1848fb6e2ecfbd5d1f27045096b6c2e6f6bd6a33b883087c39fbe9e6955",
+        "status": "revised",
+        "reason": "The code translates a 404 into an existing ResourceNotFoundError; it does not define a custom error type. Rename the reusable pattern to describe response-error translation.",
+        "finding": {
+          "key": "9502e1848fb6e2ecfbd5d1f27045096b6c2e6f6bd6a33b883087c39fbe9e6955",
+          "category": "Retry / error handling",
+          "subtype": "Publisher 404 response translated to contextual not-found error",
+          "explanation": "The publisher helper rethrows non-404 HttpResponseError instances and converts a 404 into a chained ResourceNotFoundError explaining namespace-topic selection; the send override separately rethrows non-HTTP exceptions.",
+          "pattern": "http-404-error-translation",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "An implemented method in the exported synchronous operations patch mixin handles exceptions from its handwritten send override.",
+          "symbols": [
+            "EventGridPublisherClientOperationsMixin._http_response_error_handler"
+          ],
+          "evidence": [
+            {
+              "id": "be74f426cbf16c1fbc8d264d220121dbef3671f13d4c9a849e11f0cdb857efa9",
+              "startLine": 131,
+              "endLine": 139
+            }
+          ]
+        }
+      },
+      {
+        "key": "2f1629484ef5420df5b27e3a6e70cb316d78a70c5eccba4a7c8f3af4af570253",
+        "status": "accepted",
+        "reason": "The exported consumer patch's receive wrapper calls the internal operation with stored context, converts each event using shared CloudEvent.from_dict and returns patched ReceiveDetails objects; this is a typed result-shaping convenience wrapper."
+      },
+      {
+        "key": "fd73319d058ed0ed663b57f57c0855df590103ef034b50b0a3bab3d0edc3cdb2",
+        "status": "accepted",
+        "reason": "The exported patch mixin implements acknowledge as a public wrapper that supplies retained namespace/subscription to the generated private operation and forwards caller lock tokens."
+      },
+      {
+        "key": "1f1d63cc99638b44619cf243bf4ae3fc46592ee770a6fbaf777a8252adcebb46",
+        "status": "accepted",
+        "reason": "The public handwritten release wrapper renames release_delay to release_delay_in_seconds while forwarding context and decorates the call with explicit version metadata; the validator implementation is not supplied and its effects are not asserted."
+      },
+      {
+        "key": "d1cdfe4826297533941ab4f747ea0848f4a772b3ca1f97631389496a5de822d3",
+        "status": "accepted",
+        "reason": "The exported consumer patch supplies stored topic and subscription when its public reject method delegates to the generated private operation."
+      },
+      {
+        "key": "496751a2ba0d9a778984c321248c671915b5395d03a415faad4fbade4fb19495",
+        "status": "accepted",
+        "reason": "The exported public renew_locks wrapper forwards stored context and lock tokens, with explicit version-decorator metadata; the code does not implement background or automatic renewal."
+      },
+      {
+        "key": "e696ba7fb762957c65b734bba971547cdda724e04c0914c53d300585c981f5e7",
+        "status": "accepted",
+        "reason": "The handwritten helper checks the first event, serializes compatible items, falls back to imported CNCF conversion on AttributeError and passes other inputs through; its imported converter is not supplied."
+      },
+      {
+        "key": "cabfee3c6bf4fc0210ca8fd77798ebe199a2441016cacac6872a9b91de686f74",
+        "status": "accepted",
+        "reason": "The handwritten serialization helper constructs the internal wire-model event from shared CloudEvent fields, selects data_base64 for bytes and merges extensions. It assigns bytes, not a demonstrated base64 encoding."
+      },
+      {
+        "key": "0543b66ed4d91b4d8a7080b322baacf3ec3d88ff11fff67cdc5eaa6979324ebc",
+        "status": "revised",
+        "reason": "The async constructor behavior is directly supported, but the sync default-version constants are merely imported by the async patch; the extra sync-file citation unnecessarily broadens the affected source identity. Cite only the async constructor and import.",
+        "finding": {
+          "key": "0543b66ed4d91b4d8a7080b322baacf3ec3d88ff11fff67cdc5eaa6979324ebc",
+          "category": "Other",
+          "subtype": "Async publisher selects legacy or generated namespace client",
+          "explanation": "The async publisher stores topic and credential, binds legacy send with a basic API-version default when the topic is falsey, otherwise rejects SAS credentials and binds the generated namespace send with the standard default. Its legacy call forwards kwargs, and both branches install serializer/deserializer instances with client-side serialization validation disabled.",
+          "pattern": "client-tier-dispatch",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The exported async _patch.py subclass implements both branches in its own constructor; it is not a generated client implementation.",
+          "symbols": [
+            "EventGridPublisherClient.__init__"
+          ],
+          "evidence": [
+            {
+              "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+              "startLine": 19,
+              "endLine": 22
+            },
+            {
+              "id": "dd62e8f989d8ec0c396e06c85334b8a60e33da81c0a9b126fae5cca64076b586",
+              "startLine": 55,
+              "endLine": 85
+            }
+          ]
+        }
+      },
+      {
+        "key": "e11726d1142be591a74e70f6a74d41d0dccb8f8822700e4453508cb7214d53dd",
+        "status": "accepted",
+        "reason": "The exported async publisher patch adds a concrete representation of the stored namespace topic and credential type, not the credential value."
+      },
+      {
+        "key": "70d77dfd166dd96d5a6dd9afff572702600ff1d86cb92159089f8eb4c7180a38",
+        "status": "accepted",
+        "reason": "The exported async consumer patch requires and retains topic/subscription, saves credential, and initializes its generated base with endpoint, credential, API-version default and kwargs."
+      },
+      {
+        "key": "1e0ca6fc8856cecc2c971466d22f886aa1177011708430ab8634be8d8a7c0626",
+        "status": "accepted",
+        "reason": "The exported async consumer patch implements __repr__ with stored topic, subscription and credential type; this is a concrete client representation customization."
+      },
+      {
+        "key": "b44be9887005e325b9ccc554b276dc3ae9c5037daeca11d694e97e1ff2b1f723",
+        "status": "accepted",
+        "reason": "The exported async operations patch overrides send with handwritten event conversion, tier-specific content-type defaults, namespace restrictions and distinct awaited publish calls. No guarantee of successful conversion is inferred from its broad catch."
+      },
+      {
+        "key": "bb75e90b18c5e97205c99695cd82ccf64843f39ed260678bf722052de5214fe9",
+        "status": "revised",
+        "reason": "This helper translates an HTTP 404 into an existing error class rather than introducing a custom error type; the original pattern is inaccurate.",
+        "finding": {
+          "key": "bb75e90b18c5e97205c99695cd82ccf64843f39ed260678bf722052de5214fe9",
+          "category": "Retry / error handling",
+          "subtype": "Async publisher 404 response translated to contextual not-found error",
+          "explanation": "The async publisher helper converts a 404 HttpResponseError into a chained ResourceNotFoundError giving namespace-topic guidance and rethrows other HTTP errors; its caller separately rethrows non-HTTP exceptions.",
+          "pattern": "http-404-error-translation",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The exported async operations patch mixin implements this concrete helper and calls it from its handwritten send method.",
+          "symbols": [
+            "EventGridPublisherClientOperationsMixin._http_response_error_handler"
+          ],
+          "evidence": [
+            {
+              "id": "c3ef5b29148d54d77f0285014e2a6b2b8f9f1f21064c3440ecfbefee1c762a54",
+              "startLine": 115,
+              "endLine": 123
+            }
+          ]
+        }
+      },
+      {
+        "key": "c239401b35fe84f615b164019ca0053f3bf4ca78a4f977b5ae3dc0b2da7b208d",
+        "status": "accepted",
+        "reason": "The exported async receive wrapper awaits the internal operation with stored context and caller limits, converts each detail event into shared CloudEvent and returns patched ReceiveDetails objects."
+      },
+      {
+        "key": "eb56abfe545e86d2b5f1e9042a7c29e8edc1c7083211d60f26dafbedf686125f",
+        "status": "accepted",
+        "reason": "The exported async operations patch implements a public acknowledge wrapper that awaits the generated private operation with retained topic/subscription and caller tokens."
+      },
+      {
+        "key": "edc754c046bd21040bc3b3e7dc993d8feba5678329859b7d025a6f1ead0a4f3f",
+        "status": "accepted",
+        "reason": "The exported async release wrapper passes stored context and renames the delay parameter when awaiting the generated operation; the decorator declares version metadata without establishing the absent validator's implementation."
+      },
+      {
+        "key": "32eb956411e8f50d7789a71aafc1487e66a84603e809c3777fdf5a3bca8ea6a9",
+        "status": "accepted",
+        "reason": "The exported async consumer patch adds a public reject wrapper that awaits the generated private operation with stored namespace/subscription and caller tokens."
+      },
+      {
+        "key": "ae1c783e6843bb0e5e27fd4979f776f5c03a4fb7fc33184a2940a3514d9c4ed4",
+        "status": "accepted",
+        "reason": "The exported async renew_locks wrapper forwards context and tokens to the private operation and declares version metadata; nothing shown performs automatic renewal."
+      },
+      {
+        "key": "073235c8c874c1b7bdfaf2fb9fc5979a8140bd6cabaf20acdb7056b329b54e75",
+        "status": "accepted",
+        "reason": "The explicitly exported ReceiveDetails subclass adds generic CloudEvent constructor typing and a mapping overload while its runtime initializer delegates to the generated base. This changes the public type surface, not demonstrated runtime serialization."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "62c5b19bae45786b7043b40584bb42c7cb56d395c9c414a6c7773faccfd66046",
+        "category": "Model overrides",
+        "subtype": "Typed broker-properties constructor overloads",
+        "explanation": "The exported BrokerProperties subclass adds explicit keyword constructor typing for lock_token and delivery_count and a Mapping overload. Its implemented initializer only forwards arguments to the generated base, so no additional runtime model behavior is established.",
+        "pattern": "model-constructor-overloads",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models/_patch.py subclass is listed in __all__ and declares two constructor overloads; it is not merely the generated patch skeleton or a re-export.",
+        "symbols": [
+          "BrokerProperties"
+        ],
+        "evidence": [
+          {
+            "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661",
+            "startLine": 49,
+            "endLine": 76
+          },
+          {
+            "id": "4b7e52076b2bb15dfd4f7a504a2134c375915ce1ff6605766c329ebb97d00661",
+            "startLine": 79,
+            "endLine": 82
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only five of 60 eligible files from 145 discovered files are captured. Legacy clients, helpers, models, authentication policies, signature policy and postprocessing script were explicitly skipped, so their imported names do not establish findings about their implementations.",
+      "The generated base clients/operations/models and api_version_validation implementation are absent. Calls, declared validation metadata and wrapper source are measured, not complete public wiring, exact service validation or network behavior.",
+      "The exported BrokerProperties subclass shows typed overload declarations and a runtime initializer that only forwards to its base. Without the generated constructor surface, a distinct changed API contract or runtime behavior is not established; it is not counted as a separate customization here.",
+      "Root-patch re-exports of SystemEventNames, EventGridEvent and generate_sas and the no-op patch_sdk hooks are not additional behavioral findings. The module-level _SERIALIZER disables validation, but no use of that particular instance is visible.",
+      "Send and serialization helpers access events[0] and do not visibly handle empty lists uniformly; format helpers and CNCF conversion are missing. Findings describe source branches, not guaranteed support for every advertised input or successful encoding.",
+      "No SDK execution, type checker or generator comparison was performed. Tier dispatch addressability remains unclear; AI-reviewed source evidence does not establish absence elsewhere or runtime correctness.",
+      "This AI review is not human verification. Only five of 60 eligible files were captured (145 discovered); the named skipped legacy helpers, clients, policies, generated-support files and postprocessor were not reviewed, so neither completeness nor package-wide absence is established.",
+      "The generated base clients, operations, models and imported validation/CNCF helpers are not supplied; direct comparisons with generated behavior, validator effects, model runtime semantics and converter internals cannot be verified from this request.",
+      "Generator addressability is a judgment about reusable shapes rather than measured generator support or a demonstrated TypeSpec root cause; the service-specific 404 guidance and tier dispatch remain unclear."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_helpers.py",
+      "startLine": 1,
+      "endLine": 185,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "549c6f6886621a3e0a6af7c3d37ac5ba2bc260f9fda22fb6982f122d8dfd21c4"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_messaging_shared.py",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "15d2bba75501f0ada3be1fde63e59cfbefc77201751a6917318241dc1d463f7c"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_models.py",
+      "startLine": 1,
+      "endLine": 111,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "c403500b5dee626bdef74e22ca5c2fe647b630ce6ba057aef00f5ee705dea4ac"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_policies.py",
+      "startLine": 1,
+      "endLine": 47,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "91176b86a80bd5d0dbab17f2f02b9568f9aa2e0df572b044ee49026c858de2af"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_publisher_client.py",
+      "startLine": 1,
+      "endLine": 267,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "512665f452b57a06261e6d6d4b3f5812535bf9777abffed7883f9883b456c51e"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_legacy/_signature_credential_policy.py",
+      "startLine": 1,
+      "endLine": 34,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d3413e92d693c01b7fe1bcb9748f234aa427a6c444ed37c3022af6f7d81f40c8"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_model_base.py",
+      "startLine": 1,
+      "endLine": 1175,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "68342f367271b3329cd512087f79576c58300bdc74912b81a7379d61c0ff1290"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 349,
+      "provenance": "Python patch",
+      "contentHash": "4be3bf6102fdcf01d8a34d9e17d63ef1c1af53c1c38592e20d694c77109f1990"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_patch.py",
+      "startLine": 1,
+      "endLine": 154,
+      "provenance": "Python patch",
+      "contentHash": "55074af7f40a6daf55b4d49244f27b1b6526915b83bc973bfa0d36f29f66db93"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/_serialization.py",
+      "startLine": 1,
+      "endLine": 2118,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "63dde1c4a5f87a774aecd7ab8d60c5c4159a19c25d561a7ad6dc68f2da6e4037"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 279,
+      "provenance": "Python patch",
+      "contentHash": "2dfa0003b0f62255234c4c3151da5b3ce8f09142bef3cd155c89b76b11dc3941"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 148,
+      "provenance": "Python patch",
+      "contentHash": "48f985bc2cf6d0d590dbf31841514e873908562674f0102aad497079d318f494"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/azure/eventgrid/models/_patch.py",
+      "startLine": 1,
+      "endLine": 91,
+      "provenance": "Python patch",
+      "contentHash": "4292a465996f4f24ad78acee05d0fd8136454158c50286428cd0c78e382b44cd"
+    },
+    {
+      "path": "sdk/eventgrid/azure-eventgrid/swagger/postprocess_eventnames.py",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d72a60699ead264163352f8e7c15dd741372751e573e5b9ed105d6600f0662c6"
+    }
+  ]
+}
