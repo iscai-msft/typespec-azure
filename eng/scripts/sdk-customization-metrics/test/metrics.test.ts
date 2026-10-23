@@ -76,6 +76,7 @@ import {
   reduciblePatterns,
   selectView,
   serviceOf,
+  patternLabel,
   serviceName,
   specService,
   trackerBreakdown,
@@ -2366,4 +2367,11 @@ options:
     ],
   } as unknown as Inventory);
   assert.equal(rows[0].service, "Azure.Security.KeyVault.Keys");
+});
+
+test("pattern ids read as names", () => {
+  assert.equal(patternLabel("binary-stream-event-encoding"), "Binary stream event encoding");
+  assert.equal(patternLabel("lro-operation-id"), "LRO operation ID");
+  assert.equal(patternLabel("sse-typed-event-stream"), "SSE typed event stream");
+  assert.equal(patternLabel("websocket-session-lifecycle"), "WebSocket session lifecycle");
 });

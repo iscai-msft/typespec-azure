@@ -481,6 +481,53 @@ export function trackerBreakdown(rows: LibraryRow[], group = "language") {
 }
 
 // Pattern catalog: canonical patterns with the alias names reviewers have used for them.
+// Words kept in capitals when a pattern id is shown as a name.
+const ACRONYMS = new Set([
+  "ai",
+  "api",
+  "cbor",
+  "csv",
+  "etag",
+  "http",
+  "id",
+  "ids",
+  "json",
+  "jwt",
+  "lro",
+  "sas",
+  "sdk",
+  "sse",
+  "tls",
+  "ttl",
+  "uri",
+  "url",
+  "uuid",
+  "xml",
+]);
+
+// Words with fixed spelling.
+const SPELLINGS: Record<string, string> = {
+  websocket: "WebSocket",
+  oauth: "OAuth",
+  openai: "OpenAI",
+  typespec: "TypeSpec",
+  graphql: "GraphQL",
+};
+
+// "binary-stream-event-encoding" -> "Binary stream event encoding"; "lro-operation-id" ->
+// "LRO operation ID". For pattern ids that are not in the catalog (which has its own names).
+export function patternLabel(id: string): string {
+  const words = id.split("-").filter(Boolean);
+  if (!words.length) return id;
+  return words
+    .map((word, index) => {
+      if (ACRONYMS.has(word)) return word === "ids" ? "IDs" : word.toUpperCase();
+      if (SPELLINGS[word]) return SPELLINGS[word];
+      return index === 0 ? word[0].toUpperCase() + word.slice(1) : word;
+    })
+    .join(" ");
+}
+
 export function patternResolver(catalog?: PatternCatalog | null) {
   const byName = new Map<string, PatternCatalog["patterns"][number]>();
   for (const entry of catalog?.patterns ?? []) {
@@ -491,7 +538,11 @@ export function patternResolver(catalog?: PatternCatalog | null) {
     const entry = name ? byName.get(name) : null;
     return entry
       ? { id: entry.id, name: entry.name ?? entry.id, description: entry.description ?? "" }
-      : { id: name || "unpatterned", name: name || "Unpatterned", description: "" };
+      : {
+          id: name || "unpatterned",
+          name: name ? patternLabel(name) : "Unpatterned",
+          description: "",
+        };
   };
 }
 
