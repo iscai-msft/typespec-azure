@@ -53,6 +53,7 @@ import {
 } from "../store.ts";
 import type { Repository } from "../discover.ts";
 import { applyReviews } from "../apply-reviews.ts";
+import { recase, resolveNamespaces, tspconfigNamespaces } from "../namespaces.ts";
 import {
   canReview,
   FileReviewStore,
@@ -2270,4 +2271,99 @@ test("review server trusts sign-in headers only when told to, and serves only th
   assert.equal(await (await fetch(`${trusted}/`)).text(), "<p>site</p>");
   assert.equal((await fetch(`${trusted}/%2e%2e/%2e%2e/etc/passwd`)).status, 404);
   assert.equal((await fetch(`${trusted}/.auth/login/aad`)).status, 404, "no fake sign-in in Azure");
+});
+
+test("service namespaces come from .NET, then tspconfig (C#, Java, Python), then the folder", async () => {
+  const config = `emit:
+  - "@azure-tools/typespec-autorest"
+options:
+  "@azure-tools/typespec-python":
+    package-name: "azure-data-tables"
+    namespace: "azure.keyvault.keys._generated"
+  "@azure-tools/typespec-java":
+    namespace: com.azure.v2.security.keyvault.keys
+  # "@azure-tools/typespec-csharp":
+  #   namespace: Azure.Wrong
+`;
+  assert.deepEqual(tspconfigNamespaces(config), {
+    "typespec-python": "azure.keyvault.keys._generated",
+    "typespec-python:package-name": "azure-data-tables",
+    "typespec-java": "com.azure.v2.security.keyvault.keys",
+  });
+  const casing = new Map([
+    ["keyvault", "KeyVault"],
+    ["ai", "AI"],
+  ]);
+  assert.equal(
+    recase("com.azure.v2.security.keyvault.keys", casing),
+    "Azure.Security.KeyVault.Keys",
+  );
+  assert.equal(recase("azure.keyvault.keys._generated", casing), "Azure.KeyVault.Keys");
+  assert.equal(recase("com.azure.resourcemanager.foo", casing), "");
+
+  const library = (language: string, pkg: string, directory: string, plane = "data") =>
+    ({
+      language,
+      package: pkg,
+      plane,
+      spec: { directory, commit: "a".repeat(40), repo: "Azure/azure-rest-api-specs" },
+    }) as unknown as InventoryLibrary;
+  const files: Record<string, string> = {
+    "specification/kv/Keys/tspconfig.yaml": `options:\n  "@azure-tools/typespec-java":\n    namespace: com.azure.security.keyvault.keys\n`,
+    "specification/wps/WebPubSub/tspconfig.yaml": `options:\n  "@azure-tools/typespec-csharp":\n    namespace: Azure.Security.Attestation\n  "@azure-tools/typespec-java":\n    namespace: com.azure.messaging.webpubsub\n`,
+  };
+  const repository = {
+    sync: async () => "b".repeat(40),
+    fetchCommits: async (shas: string[]) => new Set(shas),
+    blobSha: async (_commit: string, path: string) => (files[path] ? path : ""),
+    read: async (shas: string[]) => new Map(shas.map((sha) => [sha, files[sha]])),
+  };
+  const { namespaces, warnings } = await resolveNamespaces(
+    [
+      library("dotnet", "Azure.AI.DocumentIntelligence", "specification/ai/DocumentIntelligence/"),
+      library("python", "azure-ai-documentintelligence", "specification/ai/DocumentIntelligence"),
+      library("dotnet", "Azure.Provisioning.KeyVault", "specification/kv/Keys", "provisioning"),
+      library("python", "azure-keyvault-keys", "specification/kv/Keys"),
+      library("go", "azadmin", "specification/kv/Keys/BackupRestore"),
+      library("python", "azure-messaging-webpubsubservice", "specification/wps/WebPubSub"),
+      library(
+        "javascript",
+        "@azure/monitor-ingestion",
+        "specification/monitor/Azure.Monitor.Ingestion",
+      ),
+    ],
+    repository,
+  );
+  assert.equal(
+    namespaces.get("specification/ai/DocumentIntelligence"),
+    "Azure.AI.DocumentIntelligence",
+  );
+  assert.equal(namespaces.get("specification/kv/Keys"), "Azure.Security.KeyVault.Keys");
+  assert.equal(
+    namespaces.get("specification/kv/Keys/BackupRestore"),
+    "Azure.Security.KeyVault.Keys",
+  );
+  assert.equal(namespaces.get("specification/wps/WebPubSub"), "Azure.Messaging.WebPubSub");
+  assert.equal(
+    namespaces.get("specification/monitor/Azure.Monitor.Ingestion"),
+    "Azure.Monitor.Ingestion",
+  );
+  assert.ok(warnings.some((item) => /typespec-csharp says Azure.Security.Attestation/.test(item)));
+
+  const rows = mergeLibraries(null, [], {
+    libraries: [
+      {
+        ...library("python", "azure-keyvault-keys", "specification/kv/Keys"),
+        repo: "Azure/azure-sdk-for-python",
+        root: "sdk/keyvault/azure-keyvault-keys",
+        spec: {
+          directory: "specification/kv/Keys",
+          commit: "",
+          repo: "",
+          namespace: "Azure.Security.KeyVault.Keys",
+        },
+      },
+    ],
+  } as unknown as Inventory);
+  assert.equal(rows[0].service, "Azure.Security.KeyVault.Keys");
 });

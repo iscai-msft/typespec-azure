@@ -192,6 +192,15 @@ repository is one fetch and only manifests and `tsp-location.yaml` files are dow
 There are no GitHub API calls and no rate limits; all five repositories take about 15
 seconds.
 
+Each library's service is named by its Azure namespace (`spec.namespace`, for example
+`Azure.Security.KeyVault.Keys`). `tsp-location.yaml` only gives the spec folder and commit, so
+`namespaces.ts` takes the name from, in order: the .NET package generated from the same spec
+folder; the `typespec-csharp`, `typespec-java` or `typespec-python` namespace in that folder's
+`tspconfig.yaml` (read from azure-rest-api-specs at the pinned commit, Java and Python recased);
+the folder's own name when it is already a namespace; or the parent folder's namespace. Without
+one, the dashboard shows the spec project name. `cli.ts namespaces` refreshes just the namespaces
+of an existing inventory.
+
 For each `tsp-location.yaml` outside test/sample/template folders, the package root is the
 nearest folder that has the language's manifest (and, where configured, matches
 `sdk/<service>/<package>`). Vendored sub-clients inside a package (for example
