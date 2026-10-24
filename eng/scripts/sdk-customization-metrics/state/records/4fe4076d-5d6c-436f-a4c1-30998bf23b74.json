@@ -1,0 +1,1333 @@
+{
+  "schemaVersion": 1,
+  "id": "4fe4076d-5d6c-436f-a4c1-30998bf23b74",
+  "observedAt": "2026-10-24T01:30:08.450Z",
+  "identity": "python:azure-keyvault-certificates:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-keyvault-certificates",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/keyvault/azure-keyvault-certificates"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "29e53f436ab23cc29bee63e251f1ac5d157d045b"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 112,
+    "eligibleFiles": 44,
+    "capturedFiles": 3,
+    "skipped": [
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_client.py",
+        "reason": "Review budget; only lines 1-516 sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_models.py",
+        "reason": "Review budget; only lines 1-701 sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_polling.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/__init__.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/_polling_async.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/_polling.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/async_challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/async_client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/http_challenge_cache.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/http_challenge.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/aio/_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/aio/_polling_async.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_client.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n# pylint:disable=too-many-lines,too-many-public-methods,bad-option-value,delete-operation-wrong-return-type\nimport base64\nfrom functools import partial\nfrom typing import Any, Dict, List, Optional, Union\n\nfrom azure.core.polling import LROPoller\nfrom azure.core.paging import ItemPaged\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._shared import KeyVaultClientBase\nfrom ._shared._polling import DeleteRecoverPollingMethod, KeyVaultOperationPoller\nfrom ._models import (\n    AdministratorContact,\n    KeyVaultCertificate,\n    CertificateProperties,\n    CertificatePolicy,\n    DeletedCertificate,\n    CertificateIssuer,\n    IssuerProperties,\n    CertificateContact,\n    CertificateOperation,\n)\nfrom ._polling import CreateCertificatePoller\n\n\nNO_SAN_OR_SUBJECT = \"You need to set either subject or one of the subject alternative names parameters in the policy\"\n\n\nclass CertificateClient(KeyVaultClientBase):\n    \"\"\"A high-level interface for managing a vault's certificates.\n\n    :param str vault_url: URL of the vault the client will access. This is also called the vault's \"DNS Name\".\n        You should validate that this URL references a valid Key Vault resource. See https://aka.ms/azsdk/blog/vault-uri\n        for details.\n    :param credential: An object which can provide an access token for the vault, such as a credential from\n        :mod:`azure.identity`\n    :type credential: ~azure.core.credentials.TokenCredential\n\n    :keyword api_version: Version of the service API to use. Defaults to the most recent.\n    :paramtype api_version: ~azure.keyvault.certificates.ApiVersion or str\n    :keyword bool verify_challenge_resource: Whether to verify the authentication challenge resource matches the Key\n        Vault domain. Defaults to True.\n\n    Example:\n        .. literalinclude:: ../tests/test_examples_certificates.py\n            :start-after: [START create_certificate_client]\n            :end-before: [END create_certificate_client]\n            :language: python\n            :caption: Create a new ``CertificateClient``\n            :dedent: 4\n    \"\"\"\n\n    # pylint:disable=protected-access\n\n    @distributed_trace\n    def begin_create_certificate(\n        self,\n        certificate_name: str,\n        policy: CertificatePolicy,\n        *,\n        enabled: Optional[bool] = None,\n        tags: Optional[Dict[str, str]] = None,\n        preserve_order: Optional[bool] = None,\n        **kwargs: Any,\n    ) -> LROPoller[Union[KeyVaultCertificate, CertificateOperation]]:\n        \"\"\"Creates a new certificate.\n\n        If this is the first version, the certificate resource is created. This operation requires the\n        certificates/create permission. Waiting on the returned poller requires the certificates/get permission and\n        gives you the certificate if creation is successful, or the CertificateOperation if not -- otherwise, it raises\n        an :class:`~azure.core.exceptions.HttpResponseError`.\n\n        :param str certificate_name: The name of the certificate.\n        :param policy: The management policy for the certificate. Either subject or one of the subject alternative\n            name properties are required.\n        :type policy: ~azure.keyvault.certificates.CertificatePolicy\n\n        :keyword bool enabled: Whether the certificate is enabled for use.\n        :keyword tags: Application specific metadata in the form of key-value pairs.\n        :paramtype tags: dict[str, str]\n        :keyword bool preserve_order: Whether to preserve the order of the certificate chain.\n\n        :returns: An LROPoller for the create certificate operation. Waiting on the poller gives you the certificate if\n            creation is successful, or the CertificateOperation if not.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.certificates.KeyVaultCertificate or\n            ~azure.keyvault.certificates.CertificateOperation]\n\n        :raises ValueError or ~azure.core.exceptions.HttpResponseError:\n            the former if the certificate policy is invalid; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START create_certificate]\n                :end-before: [END create_certificate]\n                :language: python\n                :caption: Create a certificate\n                :dedent: 8\n        \"\"\"\n        if not (\n            policy.san_emails\n            or policy.san_user_principal_names\n            or policy.san_dns_names\n            or policy.san_ip_addresses\n            or policy.san_uris\n            or policy.subject\n            or policy.platform_managed\n        ):\n            raise ValueError(NO_SAN_OR_SUBJECT)\n\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n\n        if enabled is not None:\n            attributes = self._models.CertificateAttributes(enabled=enabled)\n        else:\n            attributes = None\n\n        parameters = self._models.CertificateCreateParameters(\n            certificate_policy=policy._to_certificate_policy_bundle(),\n            certificate_attributes=attributes,\n            tags=tags,\n            preserve_cert_order=preserve_order,\n        )\n\n        pipeline_response, cert_bundle = self._client.create_certificate(\n            certificate_name=certificate_name,\n            parameters=parameters,\n            cls=lambda pipeline_response, deserialized, _: (pipeline_response, deserialized),\n            **kwargs,\n        )\n\n        create_certificate_operation = CertificateOperation._from_certificate_operation_bundle(cert_bundle)\n\n        command = partial(self.get_certificate_operation, certificate_name=certificate_name, **kwargs)\n\n        get_certificate_command = partial(self.get_certificate, certificate_name=certificate_name, **kwargs)\n\n        create_certificate_polling = CreateCertificatePoller(\n            pipeline_response=pipeline_response,\n            get_certificate_command=get_certificate_command,\n            interval=polling_interval\n        )\n\n        def no_op(*_, **__) -> Any:  # The deserialization callback is ignored based on polling implementation\n            pass\n\n        return LROPoller(command, create_certificate_operation, no_op, create_certificate_polling)\n\n    @distributed_trace\n    def get_certificate(self, certificate_name: str, **kwargs: Any) -> KeyVaultCertificate:\n        \"\"\"Gets a certificate with its management policy attached. Requires certificates/get permission.\n\n        Does not accept the version of the certificate as a parameter. To get a specific version of the\n        certificate, call :func:`get_certificate_version`.\n\n        :param str certificate_name: The name of the certificate in the given vault.\n\n        :returns: An instance of KeyVaultCertificate\n        :rtype: ~azure.keyvault.certificates.KeyVaultCertificate\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the certificate doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START get_certificate]\n                :end-before: [END get_certificate]\n                :language: python\n                :caption: Get a certificate\n                :dedent: 8\n        \"\"\"\n        bundle = self._client.get_certificate(\n            certificate_name=certificate_name, certificate_version=\"\", **kwargs\n        )\n        return KeyVaultCertificate._from_certificate_bundle(certificate_bundle=bundle)\n\n    @distributed_trace\n    def get_certificate_version(self, certificate_name: str, version: str, **kwargs: Any) -> KeyVaultCertificate:\n        \"\"\"Gets a specific version of a certificate without returning its management policy.\n\n        Requires certificates/get permission. To get the latest version of the certificate, or to get the certificate's\n        policy as well, call :func:`get_certificate`.\n\n        :param str certificate_name: The name of the certificate in the given vault.\n        :param str version: The version of the certificate.\n\n        :returns: An instance of KeyVaultCertificate\n        :rtype: ~azure.keyvault.certificates.KeyVaultCertificate\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the certificate doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START get_certificate_version]\n                :end-before: [END get_certificate_version]\n                :language: python\n                :caption: Get a certificate with a specific version\n                :dedent: 8\n        \"\"\"\n        bundle = self._client.get_certificate(\n            certificate_name=certificate_name, certificate_version=version, **kwargs\n        )\n        return KeyVaultCertificate._from_certificate_bundle(certificate_bundle=bundle)\n\n    @distributed_trace\n    def begin_delete_certificate(self, certificate_name: str, **kwargs: Any) -> LROPoller[DeletedCertificate]:\n        \"\"\"Delete all versions of a certificate. Requires certificates/delete permission.\n\n        When this method returns Key Vault has begun deleting the certificate. Deletion may take several seconds in a\n        vault with soft-delete enabled. This method therefore returns a poller enabling you to wait for deletion to\n        complete.\n\n        :param str certificate_name: The name of the certificate to delete.\n\n        :returns: A poller for the delete certificate operation. The poller's `result` method returns the\n            :class:`~azure.keyvault.certificates.DeletedCertificate` without waiting for deletion to complete. If the\n            vault has soft-delete enabled and you want to immediately, permanently delete the certificate with\n            :func:`purge_deleted_certificate`, call the poller's `wait` method first. It will block until the deletion\n            is complete. The `wait` method requires certificates/get permission.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.certificates.DeletedCertificate]\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the certificate doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START delete_certificate]\n                :end-before: [END delete_certificate]\n                :language: python\n                :caption: Delete a certificate\n                :dedent: 8\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 2\n        pipeline_response, deleted_cert_bundle = self._client.delete_certificate(\n            certificate_name=certificate_name,\n            cls=lambda pipeline_response, deserialized, _: (pipeline_response, deserialized),\n            **kwargs,\n        )\n        deleted_cert = DeletedCertificate._from_deleted_certificate_bundle(deleted_cert_bundle)\n\n        polling_method = DeleteRecoverPollingMethod(\n            # no recovery ID means soft-delete is disabled, in which case we initialize the poller as finished\n            finished=deleted_cert.recovery_id is None,\n            pipeline_response=pipeline_response,\n            command=partial(self.get_deleted_certificate, certificate_name=certificate_name, **kwargs),\n            final_resource=deleted_cert,\n            interval=polling_interval,\n        )\n\n        return KeyVaultOperationPoller(polling_method)\n\n    @distributed_trace\n    def get_deleted_certificate(self, certificate_name: str, **kwargs: Any) -> DeletedCertificate:\n        \"\"\"Get a deleted certificate. Possible only in a vault with soft-delete enabled.\n\n        Requires certificates/get permission. Retrieves the deleted certificate information plus its attributes, such as\n        retention interval, scheduled permanent deletion, and the current deletion recovery level.\n\n        :param str certificate_name: The name of the certificate.\n\n        :return: The deleted certificate\n        :rtype: ~azure.keyvault.certificates.DeletedCertificate\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the certificate doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START get_deleted_certificate]\n                :end-before: [END get_deleted_certificate]\n                :language: python\n                :caption: Get a deleted certificate\n                :dedent: 8\n        \"\"\"\n        bundle = self._client.get_deleted_certificate(\n            certificate_name=certificate_name, **kwargs\n        )\n        return DeletedCertificate._from_deleted_certificate_bundle(deleted_certificate_bundle=bundle)\n\n    @distributed_trace\n    def purge_deleted_certificate(self, certificate_name: str, **kwargs: Any) -> None:\n        \"\"\"Permanently deletes a deleted certificate. Possible only in vaults with soft-delete enabled.\n\n        Requires certificates/purge permission. Performs an irreversible deletion of the specified certificate, without\n        possibility for recovery. The operation is not available if the\n        :py:attr:`~azure.keyvault.certificates.CertificateProperties.recovery_level` does not specify 'Purgeable'.\n        This method is only necessary for purging a certificate before its\n        :py:attr:`~azure.keyvault.certificates.DeletedCertificate.scheduled_purge_date`.\n\n        :param str certificate_name: The name of the certificate\n\n        :return: None\n        :rtype: None\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        self._client.purge_deleted_certificate(\n            certificate_name=certificate_name, **kwargs\n        )\n\n    @distributed_trace\n    def begin_recover_deleted_certificate(self, certificate_name: str, **kwargs: Any) -> LROPoller[KeyVaultCertificate]:\n        \"\"\"Recover a deleted certificate to its latest version. Possible only in a vault with soft-delete enabled.\n\n        Requires certificates/recover permission. When this method returns Key Vault has begun recovering the\n        certificate. Recovery may take several seconds. This method therefore returns a poller enabling you to wait for\n        recovery to complete. Waiting is only necessary when you want to use the recovered certificate in another\n        operation immediately.\n\n        :param str certificate_name: The name of the deleted certificate to recover\n\n        :returns: A poller for the recovery operation. The poller's `result` method returns the recovered\n            :class:`~azure.keyvault.certificates.KeyVaultCertificate` without waiting for recovery to complete. If you\n            want to use the recovered certificate immediately, call the poller's `wait` method, which blocks until the\n            certificate is ready to use. The `wait` method requires certificate/get permission.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.certificates.KeyVaultCertificate]\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START recover_deleted_certificate]\n                :end-before: [END recover_deleted_certificate]\n                :language: python\n                :caption: Recover a deleted certificate\n                :dedent: 8\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 2\n\n        pipeline_response, recovered_cert_bundle = self._client.recover_deleted_certificate(\n            certificate_name=certificate_name,\n            cls=lambda pipeline_response, deserialized, _: (pipeline_response, deserialized),\n            **kwargs,\n        )\n        recovered_certificate = KeyVaultCertificate._from_certificate_bundle(recovered_cert_bundle)\n        command = partial(self.get_certificate, certificate_name=certificate_name, **kwargs)\n        polling_method = DeleteRecoverPollingMethod(\n            finished=False,\n            pipeline_response=pipeline_response,\n            command=command,\n            final_resource=recovered_certificate,\n            interval=polling_interval\n        )\n\n        return KeyVaultOperationPoller(polling_method)\n\n    @distributed_trace\n    def import_certificate(\n        self,\n        certificate_name: str,\n        certificate_bytes: bytes,\n        *,\n        enabled: Optional[bool] = None,\n        tags: Optional[Dict[str, str]] = None,\n        password: Optional[str] = None,\n        policy: Optional[CertificatePolicy] = None,\n        preserve_order: Optional[bool] = None,\n        **kwargs: Any,\n    ) -> KeyVaultCertificate:\n        \"\"\"Import a certificate created externally. Requires certificates/import permission.\n\n        Imports an existing valid certificate, containing a private key, into Azure Key Vault. The certificate to be\n        imported can be in either PFX or PEM format. If the certificate is in PEM format the PEM file must contain the\n        key as well as x509 certificates, and you must provide a ``policy`` with\n        :attr:`~azure.keyvault.certificates.CertificatePolicy.content_type` of\n        :attr:`~azure.keyvault.certificates.CertificateContentType.pem`.\n\n        :param str certificate_name: The name of the certificate.\n        :param bytes certificate_bytes: Bytes of the certificate object to import. This certificate\n            needs to contain the private key.\n\n        :keyword bool enabled: Whether the certificate is enabled for use.\n        :keyword tags: Application specific metadata in the form of key-value pairs.\n        :paramtype tags: dict[str, str]\n        :keyword str password: If the private key in the passed in certificate is encrypted, it\n            is the password used for encryption.\n        :keyword policy: The management policy for the certificate. Required if importing a PEM-format certificate,\n            with :attr:`~azure.keyvault.certificates.CertificatePolicy.content_type` set to\n            :attr:`~azure.keyvault.certificates.CertificateContentType.pem`.\n        :paramtype policy: ~azure.keyvault.certificates.CertificatePolicy\n        :keyword bool preserve_order: Whether to preserve the order of the certificate chain.\n\n        :returns: The imported KeyVaultCertificate\n        :rtype: ~azure.keyvault.certificates.KeyVaultCertificate\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        if enabled is not None:\n            attributes = self._models.CertificateAttributes(enabled=enabled)\n        else:\n            attributes = None\n        base64_encoded_certificate = base64.b64encode(certificate_bytes).decode(\"utf-8\")\n\n        parameters = self._models.CertificateImportParameters(\n            base64_encoded_certificate=base64_encoded_certificate,\n            password=password,\n            certificate_policy=policy._to_certificate_policy_bundle() if policy else None,\n            certificate_attributes=attributes,\n            tags=tags,\n            preserve_cert_order=preserve_order,\n        )\n\n        bundle = self._client.import_certificate(\n            certificate_name=certificate_name, parameters=parameters, **kwargs\n        )\n        return KeyVaultCertificate._from_certificate_bundle(certificate_bundle=bundle)\n\n    @distributed_trace\n    def get_certificate_policy(self, certificate_name: str, **kwargs: Any) -> CertificatePolicy:\n        \"\"\"Gets the policy for a certificate. Requires certificates/get permission.\n\n        Returns the specified certificate policy resources in the key vault.\n\n        :param str certificate_name: The name of the certificate in a given key vault.\n\n        :return: The certificate policy\n        :rtype: ~azure.keyvault.certificates.CertificatePolicy\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        bundle = self._client.get_certificate_policy(\n            certificate_name=certificate_name, **kwargs\n        )\n        return CertificatePolicy._from_certificate_policy_bundle(certificate_policy_bundle=bundle)\n\n    @distributed_trace\n    def update_certificate_policy(\n        self, certificate_name: str, policy: CertificatePolicy, **kwargs: Any\n    ) -> CertificatePolicy:\n        \"\"\"Updates the policy for a certificate. Requires certificates/update permission.\n\n        Set specified members in the certificate policy. Leaves others as null.\n\n        :param str certificate_name: The name of the certificate in the given vault.\n        :param policy: The policy for the certificate.\n        :type policy: ~azure.keyvault.certificates.CertificatePolicy\n\n        :return: The certificate policy\n        :rtype: ~azure.keyvault.certificates.CertificatePolicy\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        bundle = self._client.update_certificate_policy(\n            certificate_name=certificate_name,\n            certificate_policy=policy._to_certificate_policy_bundle(),\n            **kwargs\n        )\n        return CertificatePolicy._from_certificate_policy_bundle(certificate_policy_bundle=bundle)\n\n    @distributed_trace\n    def update_certificate_properties(\n        self,\n        certificate_name: str,\n        version: Optional[str] = None,\n        *,\n        enabled: Optional[bool] = None,\n        tags: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> KeyVaultCertificate:\n        \"\"\"Change a certificate's properties. Requires certificates/update permission.\n\n        :param str certificate_name: The name of the certificate in the given key vault.\n        :param str version: The version of the certificate.\n\n        :keyword bool enabled: Whether the certificate is enabled for use.\n        :keyword tags: Application specific metadata in the form of key-value pairs.\n        :paramtype tags: dict[str, str]\n\n        :returns: The updated KeyVaultCertificate\n        :rtype: ~azure.keyvault.certificates.KeyVaultCertificate\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_certificates.py\n                :start-after: [START update_certificate]\n                :end-before: [END update_certificate]\n                :language: python\n                :caption: Update a certificate's attributes\n                :dedent: 8\n        \"\"\"\n\n        if enabled is not None:\n            attributes = self._models.CertificateAttributes(enabled=enabled)\n        else:\n            attributes = None\n\n        parameters = self._models.CertificateUpdateParameters(\n            certificate_attributes=attributes, tags=tags\n        )\n\n        bundle = self._client.update_certificate(\n            certificate_name=certificate_name,\n            certificate_version=version or \"\",\n            parameters=parameters,\n            **kwargs\n        )\n        return KeyVaultCertificate._from_certificate_bundle(certificate_bundle=bundle)\n\n    @distributed_trace\n    def backup_certificate(self, certificate_name: str, **kwargs: Any) -> bytes:\n        \"\"\"Back up a certificate in a protected form useable only by Azure Key Vault.\n\n        Requires certificates/backup permission. This is intended to allow copying a certificate from one vault to\n        another. Both vaults must be owned by the same Azure subscription. Also, backup / restore cannot be performed",
+      "contentHash": "2a52ad9bd977c5087ffc32d86ecfce35b4060cef9f6a84406e293f7f63452abe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_client.py",
+      "startLine": 1,
+      "endLine": 516,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_enums.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\n# pylint: disable=enum-must-be-uppercase\n\nfrom enum import Enum\n\nfrom azure.core import CaseInsensitiveEnumMeta\n\n\nclass CertificatePolicyAction(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"The supported action types for the lifetime of a certificate\"\"\"\n\n    email_contacts = \"EmailContacts\"\n    auto_renew = \"AutoRenew\"\n\n\nclass CertificateContentType(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Content type of the secrets as specified in Certificate Policy\"\"\"\n\n    pkcs12 = \"application/x-pkcs12\"\n    pem = \"application/x-pem-file\"\n\n\nclass KeyUsageType(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"The supported types of key usages\"\"\"\n\n    digital_signature = \"digitalSignature\"\n    non_repudiation = \"nonRepudiation\"\n    key_encipherment = \"keyEncipherment\"\n    data_encipherment = \"dataEncipherment\"\n    key_agreement = \"keyAgreement\"\n    key_cert_sign = \"keyCertSign\"\n    crl_sign = \"cRLSign\"\n    encipher_only = \"encipherOnly\"\n    decipher_only = \"decipherOnly\"\n\n\nclass KeyType(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Supported key types\"\"\"\n\n    ec = \"EC\"  #: Elliptic Curve\n    ec_hsm = \"EC-HSM\"  #: Elliptic Curve with a private key which is not exportable from the HSM\n    rsa = \"RSA\"  #: RSA (https://tools.ietf.org/html/rfc3447)\n    rsa_hsm = \"RSA-HSM\"  #: RSA with a private key which is not exportable from the HSM\n    oct = \"oct\"  #: Octet sequence (used to represent symmetric keys)\n    oct_hsm = \"oct-HSM\"  #: Octet sequence with a private key which is not exportable from the HSM\n\n    @classmethod\n    def _missing_(cls, value):\n        for member in cls:\n            if member.value.lower() == value.lower():\n                return member\n        raise ValueError(f\"{value} is not a valid KeyType\")\n\n\nclass KeyCurveName(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Supported elliptic curves\"\"\"\n\n    p_256 = \"P-256\"  #: The NIST P-256 elliptic curve, AKA SECG curve SECP256R1.\n    p_384 = \"P-384\"  #: The NIST P-384 elliptic curve, AKA SECG curve SECP384R1.\n    p_521 = \"P-521\"  #: The NIST P-521 elliptic curve, AKA SECG curve SECP521R1.\n    p_256_k = \"P-256K\"  #: The SECG SECP256K1 elliptic curve.\n\n\nclass WellKnownIssuerNames(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Collection of well-known issuer names\"\"\"\n\n    self = \"Self\"  #: Use this issuer for a self-signed certificate\n    unknown = \"Unknown\"\n    \"\"\"\n    If you use this issuer, you must manually get an x509 certificate from the issuer of your choice.\n    You must then call :func:`~azure.keyvault.certificates.CertificateClient.merge_certificate` to\n    merge the public x509 certificate with your key vault certificate pending object to complete creation.\n    \"\"\"\n",
+      "contentHash": "78fcb5c3910b5cc349c52369a5f677c0f9c3368f9ef75a0c4e5c22713ac9e713",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_enums.py",
+      "startLine": 1,
+      "endLine": 77,
+      "kind": "unknown",
+      "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_models.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n# pylint: disable=too-many-lines,too-many-public-methods\nfrom datetime import datetime\nfrom typing import Any, Dict, Optional, Union, List\n\nfrom ._generated import models\nfrom ._generated.models import PlatformManaged\nfrom ._shared import parse_key_vault_id\nfrom ._enums import (\n    CertificatePolicyAction,\n    KeyUsageType,\n    KeyCurveName,\n    KeyType,\n    CertificateContentType,\n    WellKnownIssuerNames,\n)\n\n\nclass AdministratorContact(object):\n    \"\"\"Details of the organization administrator of the certificate issuer.\n\n    :param first_name: First name of the issuer.\n    :type first_name: str or None\n    :param last_name: Last name of the issuer.\n    :type last_name: str or None\n    :param email: email of the issuer.\n    :type email: str or None\n    :param phone: phone number of the issuer.\n    :type phone: str or None\n    \"\"\"\n\n    def __init__(\n        self,\n        first_name: Optional[str] = None,\n        last_name: Optional[str] = None,\n        email: Optional[str] = None,\n        phone: Optional[str] = None,\n    ) -> None:\n        self._first_name = first_name\n        self._last_name = last_name\n        self._phone = phone\n        self._email = email\n\n    def __repr__(self) -> str:\n        result = (\n            f\"AdministratorContact(first_name={self.first_name}, last_name={self.last_name}, \"\n            + f\"email={self.email}, phone={self.phone})\"\n        )\n        return result[:1024]\n\n    @classmethod\n    def _from_admin_detail(cls, admin_detail: models.AdministratorDetails) -> \"AdministratorContact\":\n        return cls(\n            email=admin_detail.email_address,\n            first_name=admin_detail.first_name,\n            last_name=admin_detail.last_name,\n            phone=admin_detail.phone,\n        )\n\n    @property\n    def email(self) -> Optional[str]:\n        \"\"\"Email address of the issuer.\n\n        :rtype: str or None\"\"\"\n        return self._email\n\n    @property\n    def first_name(self) -> Optional[str]:\n        \"\"\"First name of the issuer.\n\n        :rtype: str or None\"\"\"\n        return self._first_name\n\n    @property\n    def last_name(self) -> Optional[str]:\n        \"\"\"Last name of the issuer.\n\n        :rtype: str or None\"\"\"\n        return self._last_name\n\n    @property\n    def phone(self) -> Optional[str]:\n        \"\"\"Phone number of the issuer.\n\n        :rtype: str or None\"\"\"\n        return self._phone\n\n\nclass CertificateOperationError(object):\n    \"\"\"The key vault server error.\n\n    :param str code: The error code.\n    :param str message: The error message.\n    :param inner_error: The error object itself\n    :type inner_error: ~azure.keyvault.certificates.CertificateOperationError or None\n    \"\"\"\n\n    def __init__(self, code: str, message: str, inner_error: \"Optional[CertificateOperationError]\" = None) -> None:\n        self._code = code\n        self._message = message\n        self._inner_error = inner_error\n\n    def __repr__(self) -> str:\n        return f\"CertificateOperationError({self.code}, {self.message}, {self.inner_error})\"[:1024]\n\n    @classmethod\n    def _from_error_bundle(cls, error_bundle: models.KeyVaultErrorError) -> \"CertificateOperationError\":\n        return cls(\n            code=error_bundle.code,  # type: ignore\n            message=error_bundle.message,  # type: ignore\n            inner_error=cls._from_error_bundle(error_bundle.inner_error) if error_bundle.inner_error else None,\n        )\n\n    @property\n    def code(self) -> str:\n        \"\"\"The error code.\n\n        :returns: The error code.\n        :rtype: str\n        \"\"\"\n        return self._code\n\n    @property\n    def message(self) -> str:\n        \"\"\"The error message.\n\n        :returns: The error message.\n        :rtype: str\n        \"\"\"\n        return self._message\n\n    @property\n    def inner_error(self) -> \"Optional[CertificateOperationError]\":\n        \"\"\"The error itself.\n\n        :returns: The error itself.\n        :rtype: ~azure.keyvault.certificates.CertificateOperationError or None\n        \"\"\"\n        return self._inner_error\n\n\nclass CertificateProperties(object):\n    \"\"\"Certificate properties consists of a certificates metadata.\"\"\"\n\n    def __init__(self, **kwargs: Any) -> None:\n        self._attributes = kwargs.pop(\"attributes\", None)\n        self._id = kwargs.pop(\"cert_id\", None)\n        self._vault_id = KeyVaultCertificateIdentifier(self._id)\n        self._x509_thumbprint = kwargs.pop(\"x509_thumbprint\", None)\n        self._tags = kwargs.pop(\"tags\", None)\n        self._preserve_order = kwargs.pop(\"preserve_order\", False)\n\n    def __repr__(self) -> str:\n        return f\"<CertificateProperties [{self._x509_thumbprint.hex().upper()}]>\"[:1024]\n\n    @classmethod\n    def _from_certificate_bundle(\n        cls,\n        certificate_bundle: Union[\n            models.CertificateBundle,\n            models.DeletedCertificateBundle,\n        ],\n    ) -> \"CertificateProperties\":\n        return cls(\n            attributes=certificate_bundle.attributes,\n            cert_id=certificate_bundle.id,\n            x509_thumbprint=certificate_bundle.x509_thumbprint,\n            tags=certificate_bundle.tags,\n            preserve_order=certificate_bundle.preserve_cert_order,\n        )\n\n    @classmethod\n    def _from_certificate_item(\n        cls,\n        certificate_item: Union[\n            models.CertificateItem,\n            models.DeletedCertificateItem,\n        ],\n    ) -> \"CertificateProperties\":\n        return cls(\n            attributes=certificate_item.attributes,\n            cert_id=certificate_item.id,\n            x509_thumbprint=certificate_item.x509_thumbprint,\n            tags=certificate_item.tags,\n        )\n\n    @property\n    def id(self) -> str:\n        \"\"\"The certificate identifier.\n\n        :returns: The certificate identifier.\n        :rtype: str\n        \"\"\"\n        return self._id\n\n    @property\n    def name(self) -> str:\n        \"\"\"The name of the certificate.\n\n        :returns: The name of the certificate.\n        :rtype: str\n        \"\"\"\n        return self._vault_id.name\n\n    @property\n    def enabled(self) -> Optional[bool]:\n        \"\"\"Whether the certificate is enabled or not.\n\n        :returns: True if the certificate is enabled; False otherwise.\n        :rtype: bool or None\n        \"\"\"\n        return self._attributes.enabled if self._attributes else None\n\n    @property\n    def not_before(self) -> Optional[datetime]:\n        \"\"\"The datetime before which the certificate is not valid.\n\n        :returns: A datetime representing the point in time when the certificate becomes valid.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.not_before if self._attributes else None\n\n    @property\n    def expires_on(self) -> Optional[datetime]:\n        \"\"\"The datetime when the certificate expires.\n\n        :returns: A datetime representing the point in time when the certificate expires.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.expires if self._attributes else None\n\n    @property\n    def created_on(self) -> Optional[datetime]:\n        \"\"\"The datetime when the certificate is created.\n\n        :returns: A datetime representing the certificate's creation time.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.created if self._attributes else None\n\n    @property\n    def updated_on(self) -> Optional[datetime]:\n        \"\"\"The datetime when the certificate was last updated.\n\n        :returns: A datetime representing the time of the certificate's most recent update.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.updated if self._attributes else None\n\n    @property\n    def recoverable_days(self) -> Optional[int]:\n        \"\"\"The number of days the certificate is retained before being deleted from a soft-delete enabled Key Vault.\n\n        :returns: The number of days remaining where the certificate can be restored.\n        :rtype: int or None\n        \"\"\"\n        # recoverable_days was added in 7.1-preview\n        if self._attributes and hasattr(self._attributes, \"recoverable_days\"):\n            return self._attributes.recoverable_days\n        return None\n\n    @property\n    def recovery_level(self) -> Optional[models.DeletionRecoveryLevel]:\n        \"\"\"The deletion recovery level currently in effect for the certificate.\n\n        :returns: The deletion recovery level currently in effect for the certificate.\n        :rtype: models.DeletionRecoveryLevel or None\n        \"\"\"\n        return self._attributes.recovery_level if self._attributes else None\n\n    @property\n    def vault_url(self) -> str:\n        \"\"\"The URL of the vault containing the certificate.\n\n        :returns: The URL of the vault containing the certificate.\n        :rtype: str\n        \"\"\"\n        return self._vault_id.vault_url\n\n    @property\n    def x509_thumbprint(self) -> bytes:\n        \"\"\"The certificate's thumbprint, in bytes.\n\n        To get the thumbprint as a hexadecimal string, call ``.hex()`` on this property.\n\n        :return: The certificate's thumbprint, in bytes.\n        :rtype: bytes\n        \"\"\"\n        return self._x509_thumbprint\n\n    @property\n    def tags(self) -> Optional[Dict[str, str]]:\n        \"\"\"Application specific metadata in the form of key-value pairs.\n\n        :returns: A dictionary of tags attached to the certificate.\n        :rtype: dict[str, str] or None\n        \"\"\"\n        return self._tags\n\n    @property\n    def version(self) -> Optional[str]:\n        \"\"\"The version of the certificate.\n\n        :returns: The version of the certificate.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.version\n\n    @property\n    def preserve_order(self) -> Optional[bool]:\n        \"\"\"Whether the certificate order should be preserved.\n\n        :returns: Specifies whether the certificate chain preserves its original order. The default value is False, \n            which sets the leaf certificate at index 0.\n        :rtype: bool or None\n        \"\"\"\n        return self._preserve_order\n\n\nclass KeyVaultCertificate(object):\n    \"\"\"Consists of a certificate and its attributes\n\n    :param policy: The management policy for the certificate.\n    :type policy: ~azure.keyvault.certificates.CertificatePolicy or None\n    :param properties: The certificate's properties.\n    :type properties: ~azure.keyvault.certificates.CertificateProperties or None\n    :param cer: CER contents of the X509 certificate.\n    :type cer: bytearray or None\n    \"\"\"\n\n    def __init__(\n        self,\n        policy: \"Optional[CertificatePolicy]\" = None,\n        properties: Optional[CertificateProperties] = None,\n        cer: Optional[bytearray] = None,\n        **kwargs: Any,\n    ) -> None:\n        self._properties = properties\n        self._key_id = kwargs.get(\"key_id\", None)\n        self._secret_id = kwargs.get(\"secret_id\", None)\n        self._policy = policy\n        self._cer = cer\n\n    def __repr__(self) -> str:\n        return f\"<KeyVaultCertificate [{self.id}]>\"[:1024]\n\n    @classmethod\n    def _from_certificate_bundle(cls, certificate_bundle: models.CertificateBundle) -> \"KeyVaultCertificate\":\n        # pylint:disable=protected-access\n\n        if certificate_bundle.policy:\n            policy: Optional[CertificatePolicy] = CertificatePolicy._from_certificate_policy_bundle(\n                certificate_bundle.policy\n            )\n        else:\n            policy = None\n\n        return cls(\n            properties=CertificateProperties._from_certificate_bundle(certificate_bundle),\n            key_id=certificate_bundle.kid,\n            secret_id=certificate_bundle.sid,\n            policy=policy,\n            cer=certificate_bundle.cer,  # type: ignore\n        )\n\n    @property\n    def id(self) -> Optional[str]:\n        \"\"\"The certificate identifier.\n\n        :returns: The certificate identifier.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.id if self._properties else None\n\n    @property\n    def name(self) -> Optional[str]:\n        \"\"\"The name of the certificate.\n\n        :returns: The name of the certificate.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.name if self._properties else None\n\n    @property\n    def properties(self) -> Optional[CertificateProperties]:\n        \"\"\"The certificate's properties.\n\n        :returns: The certificate's properties.\n        :rtype: ~azure.keyvault.certificates.CertificateProperties or None\n        \"\"\"\n        return self._properties\n\n    @property\n    def key_id(self) -> Optional[str]:\n        \"\"\"The ID of the key associated with the certificate.\n\n        :returns: The ID of the key associated with the certificate.\n        :rtype: str or None\n        \"\"\"\n        return self._key_id\n\n    @property\n    def secret_id(self) -> Optional[str]:\n        \"\"\"The ID of the secret associated with the certificate.\n\n        :returns: The ID of the secret associated with the certificate.\n        :rtype: str or None\n        \"\"\"\n        return self._secret_id\n\n    @property\n    def policy(self) -> \"Optional[CertificatePolicy]\":\n        \"\"\"The management policy of the certificate.\n\n        :returns: The management policy of the certificate.\n        :rtype: ~azure.keyvault.certificates.CertificatePolicy or None\n        \"\"\"\n        return self._policy\n\n    @property\n    def cer(self) -> Optional[bytearray]:\n        \"\"\"The CER contents of the certificate.\n\n        :returns: The CER contents of the certificate.\n        :rtype: bytearray or None\n        \"\"\"\n        return self._cer\n\n\nclass KeyVaultCertificateIdentifier(object):\n    \"\"\"Information about a KeyVaultCertificate parsed from a certificate ID.\n\n    :param str source_id: the full original identifier of a certificate\n\n    :raises ValueError: if the certificate ID is improperly formatted\n\n    Example:\n        .. literalinclude:: ../tests/test_parse_id.py\n            :start-after: [START parse_key_vault_certificate_id]\n            :end-before: [END parse_key_vault_certificate_id]\n            :language: python\n            :caption: Parse a certificate's ID\n            :dedent: 8\n    \"\"\"\n\n    def __init__(self, source_id: str) -> None:\n        self._resource_id = parse_key_vault_id(source_id)\n\n    @property\n    def source_id(self) -> str:\n        return self._resource_id.source_id\n\n    @property\n    def vault_url(self) -> str:\n        return self._resource_id.vault_url\n\n    @property\n    def name(self) -> str:\n        return self._resource_id.name\n\n    @property\n    def version(self) -> Optional[str]:\n        return self._resource_id.version\n\n\nclass CertificateOperation(object):\n    # pylint:disable=too-many-instance-attributes\n    \"\"\"A certificate operation is returned in case of long running requests.\n\n    :param cert_operation_id: The certificate id.\n    :type cert_operation_id: str or None\n    :param issuer_name: Name of the operation's issuer object or reserved names.\n    :type issuer_name: str or ~azure.keyvault.certificates.WellKnownIssuerNames or None\n    :param certificate_type: Type of certificate requested from the issuer provider.\n    :type certificate_type: str or None\n    :param certificate_transparency: Indicates if the certificate this operation is running for is published to\n        certificate transparency logs. Defaults to False.\n    :type certificate_transparency: bool or None\n    :param csr: The certificate signing request (CSR) that is being used in the certificate operation.\n    :type csr: bytes or None\n    :param cancellation_requested: Indicates if cancellation was requested on the certificate operation. Defaults\n        to False.\n    :type cancellation_requested: bool or None\n    :param status: Status of the certificate operation.\n    :type status: str or None\n    :param status_details: The status details of the certificate operation\n    :type status_details: str or None\n    :param error: Error encountered, if any, during the certificate operation.\n    :type error: ~azure.keyvault.certificates.CertificateOperationError or None\n    :param target: Location which contains the result of the certificate operation.\n    :type target: str or None\n    :param request_id: Identifier for the certificate operation.\n    :type request_id: str or None\n    :param bool preserve_order: Specifies whether the certificate chain preserves its original order. The default\n        value is False, which sets the leaf certificate at index 0.\n    \"\"\"\n\n    def __init__(\n        self,\n        cert_operation_id: Optional[str] = None,\n        issuer_name: Optional[Union[str, WellKnownIssuerNames]] = None,\n        certificate_type: Optional[str] = None,\n        certificate_transparency: Optional[bool] = False,\n        csr: Optional[bytes] = None,\n        cancellation_requested: Optional[bool] = False,\n        status: Optional[str] = None,\n        status_details: Optional[str] = None,\n        error: Optional[CertificateOperationError] = None,\n        target: Optional[str] = None,\n        request_id: Optional[str] = None,\n        preserve_order: Optional[bool] = False,\n    ) -> None:\n        self._id = cert_operation_id\n        self._vault_id = parse_key_vault_id(cert_operation_id) if cert_operation_id else None\n        self._issuer_name = issuer_name\n        self._certificate_type = certificate_type\n        self._certificate_transparency = certificate_transparency\n        self._csr = csr\n        self._cancellation_requested = cancellation_requested\n        self._status = status\n        self._status_details = status_details\n        self._error = error\n        self._target = target\n        self._request_id = request_id\n        self._preserve_order = preserve_order\n\n    def __repr__(self) -> str:\n        return f\"<CertificateOperation [{self.id}]>\"[:1024]\n\n    @classmethod\n    def _from_certificate_operation_bundle(\n        cls, certificate_operation_bundle: models.CertificateOperation\n    ) -> \"CertificateOperation\":\n\n        issuer_parameters = certificate_operation_bundle.issuer_parameters\n        return cls(\n            cert_operation_id=certificate_operation_bundle.id,\n            issuer_name=issuer_parameters.name if issuer_parameters else None,\n            certificate_type=(\n                certificate_operation_bundle.issuer_parameters.certificate_type\n                if certificate_operation_bundle.issuer_parameters\n                else None\n            ),\n            # 2016-10-01 IssuerParameters doesn't have certificate_transparency\n            certificate_transparency=getattr(issuer_parameters, \"certificate_transparency\", None),\n            csr=certificate_operation_bundle.csr,\n            cancellation_requested=certificate_operation_bundle.cancellation_requested,\n            status=certificate_operation_bundle.status,\n            status_details=certificate_operation_bundle.status_details,\n            error=(\n                CertificateOperationError._from_error_bundle(  # pylint: disable=protected-access\n                    certificate_operation_bundle.error\n                )\n                if certificate_operation_bundle.error\n                else None\n            ),\n            target=certificate_operation_bundle.target,\n            request_id=certificate_operation_bundle.request_id,\n            preserve_order=certificate_operation_bundle.preserve_cert_order,\n        )\n\n    @property\n    def id(self) -> Optional[str]:\n        \"\"\"The certificate ID.\n\n        :returns: The certificate ID.\n        :rtype: str or None\n        \"\"\"\n        return self._id\n\n    @property\n    def name(self) -> Optional[str]:\n        \"\"\"The certificate name.\n\n        :returns: The certificate name.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.name if self._vault_id else None\n\n    @property\n    def vault_url(self) -> Optional[str]:\n        \"\"\"URL of the vault performing the certificate operation.\n\n        :returns: URL of the vault performing the certificate operation.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.vault_url if self._vault_id else None\n\n    @property\n    def issuer_name(self) -> Union[str, WellKnownIssuerNames, None]:\n        \"\"\"The name of the certificate issuer.\n\n        :returns: The name of the certificate issuer.\n        :rtype: str or ~azure.keyvault.certificates.WellKnownIssuerNames or None\n        \"\"\"\n        return self._issuer_name\n\n    @property\n    def certificate_type(self) -> Optional[str]:\n        \"\"\"Type of certificate to be requested from the issuer provider.\n\n        :returns: Type of certificate to be requested from the issuer provider.\n        :rtype: str or None\n        \"\"\"\n        return self._certificate_type\n\n    @property\n    def certificate_transparency(self) -> Optional[bool]:\n        \"\"\"Whether certificates generated under this policy should be published to certificate transparency logs.\n\n        :returns: True if the certificates should be published to transparency logs; False otherwise.\n        :rtype: bool or None\n        \"\"\"\n        return self._certificate_transparency\n\n    @property\n    def csr(self) -> Optional[bytes]:\n        \"\"\"The certificate signing request that is being used in this certificate operation.\n\n        :returns: The certificate signing request that is being used in this certificate operation.\n        :rtype: bytes or None\n        \"\"\"\n        return self._csr\n\n    @property\n    def cancellation_requested(self) -> Optional[bool]:\n        \"\"\"Whether cancellation was requested on the certificate operation.\n\n        :returns: True if cancellation was requested; False otherwise.\n        :rtype: bool or None\n        \"\"\"\n        return self._cancellation_requested\n\n    @property\n    def status(self) -> Optional[str]:\n        \"\"\"The operation status.\n\n        :returns: The operation status.\n        :rtype: str or None\n        \"\"\"\n        return self._status\n\n    @property\n    def status_details(self) -> Optional[str]:\n        \"\"\"Details of the operation status.\n\n        :returns: Details of the operation status.\n        :rtype: str or None\n        \"\"\"\n        return self._status_details\n\n    @property\n    def error(self) -> Optional[CertificateOperationError]:\n        \"\"\"Any error associated with the certificate operation.\n\n        :returns: Any error associated with the operation, as a\n            :class:`~azure.keyvault.certificates.CertificateOperationError`.\n        :rtype: ~azure.keyvault.certificates.CertificateOperationError or None\"\"\"\n        return self._error\n\n    @property\n    def target(self) -> Optional[str]:\n        \"\"\"Location which contains the result of the certificate operation.\n\n        :returns: Location which contains the result of the certificate operation.\n        :rtype: str or None\n        \"\"\"\n        return self._target\n\n    @property\n    def request_id(self) -> Optional[str]:\n        \"\"\"Identifier for the certificate operation.\n\n        :returns: Identifier for the certificate operation.\n        :rtype: str or None\n        \"\"\"\n        return self._request_id\n\n    @property\n    def preserve_order(self) -> Optional[bool]:\n        \"\"\"Whether the certificate order should be preserved.\n\n        :returns: Specifies whether the certificate chain preserves its original order. The default value is False,\n            which sets the leaf certificate at index 0.\n        :rtype: bool or None\n        \"\"\"\n        return self._preserve_order\n\n\nclass CertificatePolicy(object):\n    \"\"\"Management policy for a certificate.\n\n    :param issuer_name: Optional. Name of the referenced issuer object or reserved names; for example,\n        :attr:`~azure.keyvault.certificates.WellKnownIssuerNames.self` or\n        :attr:`~azure.keyvault.certificates.WellKnownIssuerNames.unknown`\n    :type issuer_name: str or None\n\n    :keyword subject: The subject name of the certificate. Should be a valid X509 distinguished name. Either subject or",
+      "contentHash": "3c22ff17e8718e07ff3b4a19e0bce7f2a219bce868f76de818a8fc49ad56e5a2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_models.py",
+      "startLine": 1,
+      "endLine": 701,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/pyproject.toml",
+      "text": "[build-system]\nrequires = [\n    \"setuptools>=61.0.0\",\n    \"wheel\",\n]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-keyvault-certificates\"\nauthors = [\n    { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Key Vault Certificates Client Library for Python\"\nkeywords = [\n    \"azure\",\n    \"azure sdk\",\n]\nrequires-python = \">=3.9\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"License :: OSI Approved :: MIT License\",\n]\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.31.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n    \"version\",\n    \"readme\",\n]\n\n[project.license]\ntext = \"MIT License\"\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python/tree/main/sdk\"\n\n[tool.setuptools.dynamic.version]\nattr = \"azure.keyvault.certificates._version.VERSION\"\n\n[tool.setuptools.dynamic.readme]\nfile = [\n    \"README.md\",\n    \"CHANGELOG.md\",\n]\ncontent-type = \"text/markdown\"\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"samples*\",\n    \"tests*\",\n    \"azure\",\n    \"azure.keyvault\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\n    \"py.typed\",\n]\n\n[tool.azure-sdk-build]\npyright = false\n\n[tool.uv.sources.azure-core]\npath = \"../../core/azure-core\"\n\n[tool.uv.sources.azure-identity]\npath = \"../../identity/azure-identity\"\n\n[tool.uv.sources.azure-keyvault-nspkg]\npath = \"../../nspkg/azure-keyvault-nspkg\"\n\n[tool.uv.sources.azure-sdk-tools]\npath = \"../../../eng/tools/azure-sdk-tools\"\n\n[tool.azure-sdk-conda]\nin_bundle = true\nbundle_name = \"azure-keyvault\"\n\n[dependency-groups]\ndev = [\n    \"aiohttp>=3.0\",\n    \"azure-core\",\n    \"azure-identity\",\n    \"azure-keyvault-nspkg\",\n    \"azure-sdk-tools\",\n    \"cryptography>=44.0.2,<47.0.0\",\n    \"parameterized>=0.7.3\",\n    \"pyopenssl\",\n    \"python-dateutil>=2.8.0\",\n]\n\n[packaging]\nauto_update = false\n",
+      "contentHash": "8a1c56f7feeefbeb02524752e6ffb67373be3830b2ce1b9874e2980d419a1790",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-certificates/pyproject.toml"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Certificates\ncommit: 44729a46b902922d8f50a383573f9c6641ce8e74\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n- specification/keyvault/data-plane/Certificates/common\n",
+      "contentHash": "ae6b1f7a2b7ffd75bf3c112918e5a64c112b2e8a56c47a8317081d08d0f2fff7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-certificates/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "e860966722cfbd7fb6150d67f3a2a76463566a42ffdb640fa412e2624384bde6",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "83357c465296e6e5964301119978c6f4560a75275846ad059b36ef68b4442f62",
+        "category": "LRO / polling",
+        "subtype": "Validate a policy and assemble a certificate-creation poller",
+        "explanation": "begin_create_certificate requires a truthy subject, SAN collection or platform_managed flag, defaults a missing/None private polling interval to 5, builds generated request models and retains both pipeline/deserialized responses. It supplies operation and certificate lookup partials, a converted initial operation and a no-op callback to LROPoller with CreateCertificatePoller. The imported polling algorithm is absent.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This unmarked public client is outside _generated and wraps the generated models explicitly imported by the companion handwritten models module; its executable custom poller assembly is visible.",
+        "symbols": [
+          "CertificateClient.begin_create_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 103,
+            "endLine": 152
+          }
+        ]
+      },
+      {
+        "key": "e3c10654fe3c5b34c2261addfc3832e4e63a266a436fb4a0a79697b9dc77c05c",
+        "category": "Convenience methods",
+        "subtype": "Select an empty certificate version and convert the returned bundle",
+        "explanation": "get_certificate delegates to the inner client's get_certificate with certificate_version=\"\" and converts the returned bundle through KeyVaultCertificate._from_certificate_bundle. Service interpretation of the empty version is not implemented locally.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public client wrapper is outside the library's _generated folder and returns the companion handwritten wrapper model.",
+        "symbols": [
+          "CertificateClient.get_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 177,
+            "endLine": 180
+          }
+        ]
+      },
+      {
+        "key": "fe263329199caba1a2fb96a422137f3bdb93d4db1b0f3fe48d136ed5ac5b362d",
+        "category": "Convenience methods",
+        "subtype": "Expose a version-specific certificate lookup adapter",
+        "explanation": "get_certificate_version forwards the supplied version to the same inner lookup and converts its bundle to KeyVaultCertificate. It does not itself remove policy data or validate the version, despite the documented service distinction.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public wrapper outside _generated implements this distinct version-accepting method and public-model conversion.",
+        "symbols": [
+          "CertificateClient.get_certificate_version"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 206,
+            "endLine": 209
+          }
+        ]
+      },
+      {
+        "key": "89159682596d4fb9fac007c19293a5653f781e6e670fec2c773113b3f3840626",
+        "category": "LRO / polling",
+        "subtype": "Seed delete polling from recovery-ID availability",
+        "explanation": "begin_delete_certificate defaults a missing/None private polling interval to 2, requests pipeline plus bundle results, converts the deleted certificate and creates DeleteRecoverPollingMethod. Its finished argument is recovery_id is None, its command looks up the deleted certificate, and its final_resource is the converted object; it returns KeyVaultOperationPoller. Wait/result behavior is delegated to absent polling implementations.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper outside _generated explicitly assembles custom polling arguments rather than merely exposing a generated poller.",
+        "symbols": [
+          "CertificateClient.begin_delete_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 239,
+            "endLine": 258
+          }
+        ]
+      },
+      {
+        "key": "208eda9718cf84d2e9ac2fb0fa9e1ffab750063c85b77ac7a4708527f57f3714",
+        "category": "Convenience methods",
+        "subtype": "Convert deleted-certificate lookup results to the public model",
+        "explanation": "get_deleted_certificate forwards the name and kwargs to the inner client and invokes DeletedCertificate._from_deleted_certificate_bundle on its result; that converter's body is outside the excerpt.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public wrapper outside _generated adapts the lower-level response to a distinct public model.",
+        "symbols": [
+          "CertificateClient.get_deleted_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 283,
+            "endLine": 286
+          }
+        ]
+      },
+      {
+        "key": "809d3c6ad791e7bc76832494e6fa46af4c6303c4fa91bd3f39d43e52ee648d54",
+        "category": "Convenience methods",
+        "subtype": "Expose a traced purge forwarding method with no returned value",
+        "explanation": "purge_deleted_certificate has distributed_trace applied and forwards the certificate name and kwargs to the inner purge operation without returning its result. It implements no local recovery-level check or permanent deletion algorithm.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public client outside _generated provides this executable decorated forwarding surface rather than a re-export.",
+        "symbols": [
+          "CertificateClient.purge_deleted_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 288,
+            "endLine": 289
+          },
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 305,
+            "endLine": 307
+          }
+        ]
+      },
+      {
+        "key": "5b914706d94bd3acf13843d4e9db45068f8f4448961bd57d1ea0bdc46722fe06",
+        "category": "LRO / polling",
+        "subtype": "Assemble recovery polling with an unfinished initial state",
+        "explanation": "begin_recover_deleted_certificate defaults the private polling interval to 2, captures pipeline/bundle responses, converts the recovered certificate, and supplies a get_certificate partial to DeleteRecoverPollingMethod with finished=False and that final_resource. It returns KeyVaultOperationPoller; readiness checks and waiting semantics are not captured.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public wrapper outside _generated implements custom recovery-poller assembly.",
+        "symbols": [
+          "CertificateClient.begin_recover_deleted_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 336,
+            "endLine": 355
+          }
+        ]
+      },
+      {
+        "key": "cb883a934e6f829cae4c17cb2638b4d9b6140f79f1b08f2528f0fd5b3d103cfb",
+        "category": "Serialization",
+        "subtype": "Base64-encode certificate bytes and compose an import request",
+        "explanation": "import_certificate base64-encodes the supplied bytes to a UTF-8 string, optionally constructs enabled attributes and a policy bundle, supplies tags and preserve_cert_order, delegates import and converts the returned certificate bundle. The redacted statement between the captured request arguments is not reconstructed, and PEM/PFX validation or cryptography is not implemented in the cited code.",
+        "pattern": "binary-to-base64-request",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper outside _generated explicitly adapts binary input and generated request models before returning its handwritten public model.",
+        "symbols": [
+          "CertificateClient.import_certificate"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 399,
+            "endLine": 406
+          },
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 408,
+            "endLine": 417
+          }
+        ]
+      },
+      {
+        "key": "a5eb572dd412c987a93a4b10f2498719439ad87ac51457ef54dd353804f41d5f",
+        "category": "Convenience methods",
+        "subtype": "Convert policy lookup results to the public policy wrapper",
+        "explanation": "get_certificate_policy delegates the name and kwargs and converts the result using CertificatePolicy._from_certificate_policy_bundle. The policy class's implementation is outside the supplied excerpt.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public client outside _generated implements the concrete response-wrapper call.",
+        "symbols": [
+          "CertificateClient.get_certificate_policy"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 432,
+            "endLine": 435
+          }
+        ]
+      },
+      {
+        "key": "0adf62fc0f47c5c52d6445d591ce06c081fd99547d92a7d0d19075ae29a8d6a6",
+        "category": "Convenience methods",
+        "subtype": "Adapt public policy input and output around a policy-update call",
+        "explanation": "update_certificate_policy converts the supplied public policy through _to_certificate_policy_bundle, forwards it with the name and kwargs, and converts the response back. No merge or null-preservation algorithm from the documentation is supplied.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper outside _generated adds explicit input/output adaptation around the inner operation.",
+        "symbols": [
+          "CertificateClient.update_certificate_policy"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 454,
+            "endLine": 459
+          }
+        ]
+      },
+      {
+        "key": "88b671e17b53f836b18227fea2b066b690ecaea5449060e7f0aeb36abc8257c1",
+        "category": "Convenience methods",
+        "subtype": "Build an attribute/tag update and normalize a missing version",
+        "explanation": "update_certificate_properties constructs CertificateAttributes only when enabled is not None, creates CertificateUpdateParameters with attributes and tags, passes version or an empty string to the inner update, and converts its bundle to KeyVaultCertificate.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper outside _generated explicitly composes generated request models and a public response conversion.",
+        "symbols": [
+          "CertificateClient.update_certificate_properties"
+        ],
+        "evidence": [
+          {
+            "id": "969141935db9c85f67128299a0e8714244ed4fca54c20750317d4fdea67e201c",
+            "startLine": 494,
+            "endLine": 509
+          }
+        ]
+      },
+      {
+        "key": "ee0702f6b459fab115e4fabaec76a83fc6b02ef1111a5c712a2fe212e0fe51bc",
+        "category": "Model overrides",
+        "subtype": "Expose lowercase-named certificate action enum members",
+        "explanation": "CertificatePolicyAction declares a str/Enum type using CaseInsensitiveEnumMeta with email_contacts mapped to EmailContacts and auto_renew mapped to AutoRenew. The metaclass implementation is imported, not shown.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked public enum module sits outside _generated in the wrapped library; the companion public models import both these enums and explicit _generated models.",
+        "symbols": [
+          "CertificatePolicyAction"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 13,
+            "endLine": 17
+          }
+        ]
+      },
+      {
+        "key": "af4e1e867a81986ecfaf7a88030b8659439223fdee4b67cdbf1bdbedb92d9750",
+        "category": "Model overrides",
+        "subtype": "Expose certificate secret MIME types through a public enum",
+        "explanation": "CertificateContentType declares pkcs12 and pem members with application/x-pkcs12 and application/x-pem-file values and the imported case-insensitive enum metaclass. It does not inspect certificate contents.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This public enum is outside _generated in the wrapped library and is consumed by the handwritten public models module.",
+        "symbols": [
+          "CertificateContentType"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 20,
+            "endLine": 24
+          }
+        ]
+      },
+      {
+        "key": "50ef5abe88a6df9085b2b8aa7a5571d979a1c8ed94911d2ab5b680a5b2044a3f",
+        "category": "Model overrides",
+        "subtype": "Expose snake-case key-usage names with protocol string values",
+        "explanation": "KeyUsageType uses str/Enum and CaseInsensitiveEnumMeta to map nine public snake-case member names to the listed protocol spellings, such as digital_signature to digitalSignature and crl_sign to cRLSign.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public enum source is outside the wrapped library's _generated folder and is imported by its handwritten model layer.",
+        "symbols": [
+          "KeyUsageType"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 27,
+            "endLine": 38
+          }
+        ]
+      },
+      {
+        "key": "a0003042b68b36caf432d39235d876f34bc2e87084c38ec43928c157d477215a",
+        "category": "Model overrides",
+        "subtype": "Expose key-type constants with an explicit case-folding missing-value fallback",
+        "explanation": "KeyType declares six EC/RSA/octet and HSM variants and implements _missing_ by comparing lowercased member values with value.lower(), returning a match or raising ValueError. It has no local guard for inputs lacking lower(); the imported metaclass's behavior is not reproduced.",
+        "pattern": "case-insensitive-enum",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked public enum outside _generated adds an executable fallback in the wrapped model layer, beyond bare re-exporting.",
+        "symbols": [
+          "KeyType",
+          "KeyType._missing_"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 41,
+            "endLine": 56
+          }
+        ]
+      },
+      {
+        "key": "b4fb3388f10a28b819b23ff16c18bfbd375a2723b82cb7f2bf10fc1cb1305c2e",
+        "category": "Model overrides",
+        "subtype": "Expose named elliptic-curve protocol strings",
+        "explanation": "KeyCurveName declares p_256, p_384, p_521 and p_256_k with P-256, P-384, P-521 and P-256K values using the imported case-insensitive enum metaclass. No curve operations are implemented.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public enum lives outside _generated in the library's handwritten wrapper layer and is used by that layer's models.",
+        "symbols": [
+          "KeyCurveName"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 59,
+            "endLine": 65
+          }
+        ]
+      },
+      {
+        "key": "d6c398a4219f7244a80dd8d80d7d2e3dd2ece40d0da768879a8f59f653ce6a6f",
+        "category": "Model overrides",
+        "subtype": "Expose reserved issuer names as a public enum",
+        "explanation": "WellKnownIssuerNames declares self=\"Self\" and unknown=\"Unknown\" using str/Enum and CaseInsensitiveEnumMeta. The surrounding documentation does not implement certificate issuance or merging.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public enum outside _generated is imported by the companion handwritten model layer rather than merely re-exported from generated code.",
+        "symbols": [
+          "WellKnownIssuerNames"
+        ],
+        "evidence": [
+          {
+            "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+            "startLine": 68,
+            "endLine": 72
+          }
+        ]
+      },
+      {
+        "key": "51e9080264625b0097347a14010c160b158b6156aa281f4899dbf19447fa2c3a",
+        "category": "Model overrides",
+        "subtype": "Represent administrator contact data with optional inputs and read-only properties",
+        "explanation": "AdministratorContact stores optional first_name, last_name, email and phone constructor arguments in private fields and exposes property getters without setters in the captured class. This is the public wrapper shape, separate from its bundle conversion and display representation.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked public models module explicitly imports _generated models and implements this object-based wrapper outside that folder.",
+        "symbols": [
+          "AdministratorContact.__init__",
+          "AdministratorContact.email",
+          "AdministratorContact.first_name",
+          "AdministratorContact.last_name",
+          "AdministratorContact.phone"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 35,
+            "endLine": 45
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 63,
+            "endLine": 89
+          }
+        ]
+      },
+      {
+        "key": "191cedbc566a9d8460857a9a690a95c7b67bd975d476c01d665d23929b89bda9",
+        "category": "Model overrides",
+        "subtype": "Format and truncate administrator contact representations",
+        "explanation": "AdministratorContact.__repr__ formats the four public contact fields and truncates the resulting string to 1024 characters; it does not redact these field values locally.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten wrapper around generated models supplies this explicit representation implementation.",
+        "symbols": [
+          "AdministratorContact.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 47,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "a0a69b26d869a75c8a22c500d8c21abd4360e78478ef264352c24d4efb5507ae",
+        "category": "Serialization",
+        "subtype": "Convert generated administrator details to the public contact model",
+        "explanation": "_from_admin_detail creates the public class from generated AdministratorDetails, mapping email_address to email and forwarding first_name, last_name and phone.",
+        "pattern": "model-wrapper-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper explicitly converts its imported _generated model rather than aliasing that type.",
+        "symbols": [
+          "AdministratorContact._from_admin_detail"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 54,
+            "endLine": 61
+          }
+        ]
+      },
+      {
+        "key": "da8d965cbe2f152f9424e38b0ecdd124a3597bfbad2f9c1e65f10b8faceb20b8",
+        "category": "Model overrides",
+        "subtype": "Expose an operation-error data object with nested error access",
+        "explanation": "CertificateOperationError is an object-based data wrapper, not an exception subclass: its constructor stores code, message and optional inner_error and its getters expose those values without captured setters.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public module explicitly wraps _generated models and defines this separate data type outside _generated.",
+        "symbols": [
+          "CertificateOperationError.__init__",
+          "CertificateOperationError.code",
+          "CertificateOperationError.message",
+          "CertificateOperationError.inner_error"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 92,
+            "endLine": 104
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 117,
+            "endLine": 142
+          }
+        ]
+      },
+      {
+        "key": "d896ba58ad29d4d42030ef0faaa3e95985307d7deb2aa1666da03359fc1a30d2",
+        "category": "Model overrides",
+        "subtype": "Format operation-error data with a length limit",
+        "explanation": "CertificateOperationError.__repr__ formats code, message and inner_error and slices the result to 1024 characters.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public error-data wrapper implements this custom representation method.",
+        "symbols": [
+          "CertificateOperationError.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 106,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "6ffff3c226e2e8ff7fdec6861652cd86d1dc721aa432baec25fc190a7d9f9385",
+        "category": "Retry / error handling",
+        "subtype": "Recursively adapt generated operation-error bundles",
+        "explanation": "_from_error_bundle copies code and message from KeyVaultErrorError and recursively creates a public CertificateOperationError only when inner_error is truthy. It returns data rather than raising an exception or implementing retry.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public handwritten model layer explicitly converts the imported generated error type recursively.",
+        "symbols": [
+          "CertificateOperationError._from_error_bundle"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 109,
+            "endLine": 115
+          }
+        ]
+      },
+      {
+        "key": "2e9e2e760b67e940401042d6c571d63a27a11a362223a25c7b49a09cad8e245e",
+        "category": "Model overrides",
+        "subtype": "Expose certificate metadata through stored, identifier-derived and flattened attribute properties",
+        "explanation": "CertificateProperties stores attributes, ID, thumbprint, tags and preserve_order (default False), constructs a KeyVaultCertificateIdentifier and exposes read-only metadata. Name/vault/version delegate to the parsed identifier; enabled/not_before/recovery_level and renamed expires_on/created_on/updated_on project underlying attributes with a None fallback. The separate recoverable_days compatibility guard is not included here.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public object wrapper outside _generated combines generated certificate attributes with a separate identifier abstraction.",
+        "symbols": [
+          "CertificateProperties.__init__",
+          "CertificateProperties.id",
+          "CertificateProperties.name",
+          "CertificateProperties.enabled",
+          "CertificateProperties.not_before",
+          "CertificateProperties.expires_on",
+          "CertificateProperties.created_on",
+          "CertificateProperties.updated_on",
+          "CertificateProperties.recovery_level",
+          "CertificateProperties.vault_url",
+          "CertificateProperties.x509_thumbprint",
+          "CertificateProperties.tags",
+          "CertificateProperties.version",
+          "CertificateProperties.preserve_order"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 148,
+            "endLine": 154
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 190,
+            "endLine": 251
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 265,
+            "endLine": 320
+          }
+        ]
+      },
+      {
+        "key": "adf6d922f8d35b24574a8e0e6d935502de1243767d77293d554c8a3de8ba73ba",
+        "category": "Model overrides",
+        "subtype": "Display an uppercase hexadecimal thumbprint",
+        "explanation": "CertificateProperties.__repr__ calls hex().upper() on the stored thumbprint, formats it in a model label and truncates to 1024 characters. It does not guard a missing or non-byte-like thumbprint.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public model wrapper implements this explicit thumbprint presentation.",
+        "symbols": [
+          "CertificateProperties.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 156,
+            "endLine": 157
+          }
+        ]
+      },
+      {
+        "key": "11b48f76ac878a0cb89c9420138f2979748590823a34fa8305a39b3a4551601f",
+        "category": "Serialization",
+        "subtype": "Convert generated certificate bundles to metadata wrappers",
+        "explanation": "_from_certificate_bundle constructs CertificateProperties from attributes, id, x509_thumbprint, tags and preserve_cert_order, renaming the last input to preserve_order.",
+        "pattern": "model-wrapper-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten wrapper outside _generated explicitly maps generated CertificateBundle/DeletedCertificateBundle members.",
+        "symbols": [
+          "CertificateProperties._from_certificate_bundle"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 159,
+            "endLine": 173
+          }
+        ]
+      },
+      {
+        "key": "d98f3839c4762945699d8193233c56bed1c804c848c04f89f6d2e9dcfce65392",
+        "category": "Serialization",
+        "subtype": "Convert generated certificate list items without a preserve-order argument",
+        "explanation": "_from_certificate_item constructs CertificateProperties from attributes, id, thumbprint and tags of generated certificate/deleted-certificate items. Unlike the bundle converter it supplies no preserve_order, leaving the captured constructor's False default.",
+        "pattern": "model-wrapper-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten wrapper explicitly adapts generated list-item models rather than re-exporting them.",
+        "symbols": [
+          "CertificateProperties._from_certificate_item"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 148,
+            "endLine": 154
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 175,
+            "endLine": 188
+          }
+        ]
+      },
+      {
+        "key": "168ab6bcfd5e3332246a99f1cd4da5708af42a3f4fc62fc38126a9e46609698e",
+        "category": "Model overrides",
+        "subtype": "Guard an optional recovery-retention attribute across model variants",
+        "explanation": "recoverable_days returns the underlying value only when attributes are truthy and have a recoverable_days member; otherwise it returns None. The comment names an older API introduction, but no supported-version matrix is supplied.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten metadata wrapper outside _generated implements an explicit hasattr compatibility branch.",
+        "symbols": [
+          "CertificateProperties.recoverable_days"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 253,
+            "endLine": 263
+          }
+        ]
+      },
+      {
+        "key": "dd5fafbf431b9a05e7d9cdb80c6b8289934c8535c0091c5200a9f38250e41873",
+        "category": "Model overrides",
+        "subtype": "Compose a public certificate object with nullable metadata projections",
+        "explanation": "KeyVaultCertificate stores optional policy, properties and CER data plus keyword key/secret IDs. Its properties expose those fields, and id/name delegate to the nested properties object or return None. No CER parsing or key extraction is implemented here.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public model module explicitly wraps _generated types and implements this separate object composition outside that folder.",
+        "symbols": [
+          "KeyVaultCertificate.__init__",
+          "KeyVaultCertificate.id",
+          "KeyVaultCertificate.name",
+          "KeyVaultCertificate.properties",
+          "KeyVaultCertificate.key_id",
+          "KeyVaultCertificate.secret_id",
+          "KeyVaultCertificate.policy",
+          "KeyVaultCertificate.cer"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 334,
+            "endLine": 345
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 369,
+            "endLine": 430
+          }
+        ]
+      },
+      {
+        "key": "83624147293498729320fe89acd0b4b2a349d90e10882b5c8227de6786a12ed5",
+        "category": "Model overrides",
+        "subtype": "Display the public certificate ID with a length limit",
+        "explanation": "KeyVaultCertificate.__repr__ formats the id projection inside a model label and slices the result to 1024 characters.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten wrapper over generated certificate data defines this concrete representation.",
+        "symbols": [
+          "KeyVaultCertificate.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 347,
+            "endLine": 348
+          }
+        ]
+      },
+      {
+        "key": "e14d72755dc98a74c0bf3b06b15e1b0de6dab902d2314b0b136b74de20c68cd3",
+        "category": "Serialization",
+        "subtype": "Compose public certificate metadata and policy from a generated bundle",
+        "explanation": "_from_certificate_bundle conditionally converts a truthy policy, always delegates metadata conversion, maps kid/sid to key_id/secret_id and forwards CER data to the public constructor. Policy conversion itself is outside the excerpt.",
+        "pattern": "model-wrapper-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public model explicitly adapts the imported generated CertificateBundle into nested public wrappers.",
+        "symbols": [
+          "KeyVaultCertificate._from_certificate_bundle"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 350,
+            "endLine": 367
+          }
+        ]
+      },
+      {
+        "key": "54406c08a6d6fd9b3cd69b77b889123a40b5b75655fcd63191852373b35a9c80",
+        "category": "Model overrides",
+        "subtype": "Expose parsed certificate identifier components",
+        "explanation": "KeyVaultCertificateIdentifier invokes parse_key_vault_id once in its constructor and exposes source_id, vault_url, name and version by forwarding to the returned object's attributes. The imported parser's grammar and validation are absent.",
+        "pattern": "resource-identifier-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public model layer outside _generated defines this concrete identifier adapter rather than re-exporting the shared parser.",
+        "symbols": [
+          "KeyVaultCertificateIdentifier.__init__",
+          "KeyVaultCertificateIdentifier.source_id",
+          "KeyVaultCertificateIdentifier.vault_url",
+          "KeyVaultCertificateIdentifier.name",
+          "KeyVaultCertificateIdentifier.version"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 449,
+            "endLine": 466
+          }
+        ]
+      },
+      {
+        "key": "39413b7bc66c14a699db4eb366d33ec536107d7552a3781d46d2c0488f1286d1",
+        "category": "Model overrides",
+        "subtype": "Expose a certificate-operation data wrapper and conditional identifier projections",
+        "explanation": "CertificateOperation stores the listed operation fields with False defaults for certificate_transparency, cancellation_requested and preserve_order, parses only a truthy operation ID, and provides read-only getters. Name and vault_url return None without a parsed ID. Storing status/error does not itself implement polling or cancellation.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public module wraps explicit _generated models and implements this separate operation-data object outside that folder.",
+        "symbols": [
+          "CertificateOperation.__init__",
+          "CertificateOperation.id",
+          "CertificateOperation.name",
+          "CertificateOperation.vault_url",
+          "CertificateOperation.issuer_name",
+          "CertificateOperation.certificate_type",
+          "CertificateOperation.certificate_transparency",
+          "CertificateOperation.csr",
+          "CertificateOperation.cancellation_requested",
+          "CertificateOperation.status",
+          "CertificateOperation.status_details",
+          "CertificateOperation.error",
+          "CertificateOperation.target",
+          "CertificateOperation.request_id",
+          "CertificateOperation.preserve_order"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 501,
+            "endLine": 528
+          },
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 565,
+            "endLine": 690
+          }
+        ]
+      },
+      {
+        "key": "121dc679c9004b885318a078b28b8c62351a021345d818bddae67377dc093da0",
+        "category": "Model overrides",
+        "subtype": "Display a certificate-operation ID with a length limit",
+        "explanation": "CertificateOperation.__repr__ formats its id property in a model label and truncates the string to 1024 characters.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public operation-data wrapper defines this concrete representation method.",
+        "symbols": [
+          "CertificateOperation.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 530,
+            "endLine": 531
+          }
+        ]
+      },
+      {
+        "key": "1f72100f8ef3734c54bfb9efc3606ce650a9a6aa239639d5cebd31d923233518",
+        "category": "Serialization",
+        "subtype": "Flatten issuer metadata and adapt nested errors from operation bundles",
+        "explanation": "_from_certificate_operation_bundle maps the generated operation fields, conditionally flattens issuer name/type, uses getattr with None for issuer certificate_transparency, recursively converts a truthy error and maps preserve_cert_order to preserve_order. The API-version comment does not establish a complete compatibility matrix.",
+        "pattern": "model-wrapper-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten public operation wrapper explicitly maps and reshapes its imported generated model.",
+        "symbols": [
+          "CertificateOperation._from_certificate_operation_bundle"
+        ],
+        "evidence": [
+          {
+            "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+            "startLine": 533,
+            "endLine": 563
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "83357c465296e6e5964301119978c6f4560a75275846ad059b36ef68b4442f62",
+        "status": "accepted",
+        "reason": "The handwritten public client validates policy fields, composes the generated request, supplies two lookup commands and a no-op callback, and instantiates CreateCertificatePoller at cited lines 103-152. This is one method-level customization, not evidence that the unprovided poller algorithm works as documented."
+      },
+      {
+        "key": "e3c10654fe3c5b34c2261addfc3832e4e63a266a436fb4a0a79697b9dc77c05c",
+        "status": "accepted",
+        "reason": "Lines 177-180 show a handwritten public lookup selecting an empty version and converting the generated bundle to the public wrapper; the service's interpretation of that version is not inferred."
+      },
+      {
+        "key": "fe263329199caba1a2fb96a422137f3bdb93d4db1b0f3fe48d136ed5ac5b362d",
+        "status": "accepted",
+        "reason": "Lines 206-209 show a distinct public version-taking method forwarding the supplied version and wrapping its returned bundle, without implementing the policy behavior described in its docstring."
+      },
+      {
+        "key": "89159682596d4fb9fac007c19293a5653f781e6e670fec2c773113b3f3840626",
+        "status": "accepted",
+        "reason": "Lines 239-258 explicitly configure a handwritten delete poller with the recovery-ID-based initial finished flag, lookup command, converted resource and interval; the polling class's implementation was not supplied."
+      },
+      {
+        "key": "208eda9718cf84d2e9ac2fb0fa9e1ffab750063c85b77ac7a4708527f57f3714",
+        "status": "accepted",
+        "reason": "The public method at lines 283-286 adapts the inner lookup result into DeletedCertificate; the converter body was not supplied, so the claim is limited to invoking it."
+      },
+      {
+        "key": "809d3c6ad791e7bc76832494e6fa46af4c6303c4fa91bd3f39d43e52ee648d54",
+        "status": "accepted",
+        "reason": "This is an executable, traced public forwarding method over the inner purge operation (lines 288-289, 305-307), not a generated re-export; no separate purge algorithm or recovery-level guard is claimed."
+      },
+      {
+        "key": "5b914706d94bd3acf13843d4e9db45068f8f4448961bd57d1ea0bdc46722fe06",
+        "status": "accepted",
+        "reason": "Lines 336-355 explicitly build the recovery polling method with finished=False, a get-certificate command and the converted initial resource in the handwritten client; the omitted polling implementation limits behavioral conclusions."
+      },
+      {
+        "key": "cb883a934e6f829cae4c17cb2638b4d9b6140f79f1b08f2528f0fd5b3d103cfb",
+        "status": "accepted",
+        "reason": "Lines 399-406 and 408-417 support byte-to-base64 encoding, optional request adaptation and response wrapping. Line 407 is redacted, so the finding appropriately does not reconstruct that argument or claim certificate-format validation."
+      },
+      {
+        "key": "a5eb572dd412c987a93a4b10f2498719439ad87ac51457ef54dd353804f41d5f",
+        "status": "accepted",
+        "reason": "The handwritten public method delegates the policy lookup and calls the public wrapper converter at lines 432-435; the converter body falls beyond supplied source."
+      },
+      {
+        "key": "0adf62fc0f47c5c52d6445d591ce06c081fd99547d92a7d0d19075ae29a8d6a6",
+        "status": "accepted",
+        "reason": "Lines 454-459 explicitly convert policy input and output around an inner update operation; the cited method has no locally implemented merge semantics."
+      },
+      {
+        "key": "88b671e17b53f836b18227fea2b066b690ecaea5449060e7f0aeb36abc8257c1",
+        "status": "accepted",
+        "reason": "Lines 494-509 show a handwritten request adapter that conditionally creates attributes, normalizes an absent version to an empty string and wraps the response."
+      },
+      {
+        "key": "ee0702f6b459fab115e4fabaec76a83fc6b02ef1111a5c712a2fe212e0fe51bc",
+        "status": "revised",
+        "reason": "Lines 13-17 support a handwritten string-valued public enum, but no generated counterpart or replacement is shown; the original model-type-replacement pattern asserted more provenance than the evidence permits.",
+        "finding": {
+          "key": "ee0702f6b459fab115e4fabaec76a83fc6b02ef1111a5c712a2fe212e0fe51bc",
+          "category": "Model overrides",
+          "subtype": "Define public string-valued certificate policy actions",
+          "explanation": "CertificatePolicyAction exposes email_contacts and auto_renew as string-valued members using the imported CaseInsensitiveEnumMeta; its implementation and any generated counterpart are not shown.",
+          "pattern": "public-string-enum",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The unmarked public enum is defined outside _generated and imported into the handwritten public model layer.",
+          "symbols": [
+            "CertificatePolicyAction"
+          ],
+          "evidence": [
+            {
+              "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+              "startLine": 13,
+              "endLine": 17
+            }
+          ]
+        }
+      },
+      {
+        "key": "af4e1e867a81986ecfaf7a88030b8659439223fdee4b67cdbf1bdbedb92d9750",
+        "status": "revised",
+        "reason": "The enum values are present at lines 20-24, but there is no evidence of replacing a generated enum; describe the reusable handwritten public-enum shape instead.",
+        "finding": {
+          "key": "af4e1e867a81986ecfaf7a88030b8659439223fdee4b67cdbf1bdbedb92d9750",
+          "category": "Model overrides",
+          "subtype": "Define public string-valued certificate content types",
+          "explanation": "CertificateContentType exposes pkcs12 and pem as string-valued MIME type members using the imported CaseInsensitiveEnumMeta; no content inspection or generated type replacement is shown.",
+          "pattern": "public-string-enum",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "This unmarked enum lives outside _generated and is imported by the public handwritten models.",
+          "symbols": [
+            "CertificateContentType"
+          ],
+          "evidence": [
+            {
+              "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+              "startLine": 20,
+              "endLine": 24
+            }
+          ]
+        }
+      },
+      {
+        "key": "50ef5abe88a6df9085b2b8aa7a5571d979a1c8ed94911d2ab5b680a5b2044a3f",
+        "status": "revised",
+        "reason": "Lines 27-38 show public names mapped to protocol strings, but not a generated type being replaced; the pattern should reflect enum definition rather than unproven replacement.",
+        "finding": {
+          "key": "50ef5abe88a6df9085b2b8aa7a5571d979a1c8ed94911d2ab5b680a5b2044a3f",
+          "category": "Model overrides",
+          "subtype": "Define snake-case public key usages with protocol string values",
+          "explanation": "KeyUsageType maps nine public snake-case enum names to protocol strings, including digital_signature to digitalSignature and crl_sign to cRLSign; no generated counterpart is shown.",
+          "pattern": "public-string-enum",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The enum is explicitly defined outside _generated and imported by the public handwritten models.",
+          "symbols": [
+            "KeyUsageType"
+          ],
+          "evidence": [
+            {
+              "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+              "startLine": 27,
+              "endLine": 38
+            }
+          ]
+        }
+      },
+      {
+        "key": "a0003042b68b36caf432d39235d876f34bc2e87084c38ec43928c157d477215a",
+        "status": "accepted",
+        "reason": "Lines 41-56 contain the handwritten enum and executable _missing_ override comparing lowercased member and input values; the proposal correctly does not claim the unseen metaclass implementation or non-string guards."
+      },
+      {
+        "key": "b4fb3388f10a28b819b23ff16c18bfbd375a2723b82cb7f2bf10fc1cb1305c2e",
+        "status": "revised",
+        "reason": "Lines 59-65 support public string enum members but do not demonstrate replacing a generated curve type; the proposed pattern overstated the evidence.",
+        "finding": {
+          "key": "b4fb3388f10a28b819b23ff16c18bfbd375a2723b82cb7f2bf10fc1cb1305c2e",
+          "category": "Model overrides",
+          "subtype": "Define public string-valued elliptic-curve names",
+          "explanation": "KeyCurveName defines four named elliptic-curve string constants using the imported case-insensitive enum metaclass; no curve operations or generated counterpart appear in the evidence.",
+          "pattern": "public-string-enum",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The public enum is defined in an unmarked module outside _generated and imported into the public handwritten models.",
+          "symbols": [
+            "KeyCurveName"
+          ],
+          "evidence": [
+            {
+              "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+              "startLine": 59,
+              "endLine": 65
+            }
+          ]
+        }
+      },
+      {
+        "key": "d6c398a4219f7244a80dd8d80d7d2e3dd2ece40d0da768879a8f59f653ce6a6f",
+        "status": "revised",
+        "reason": "Lines 68-72 establish a public string enum with reserved issuer names, not a proven replacement of a generated enum; the documentation at lines 73-77 is not executable customization.",
+        "finding": {
+          "key": "d6c398a4219f7244a80dd8d80d7d2e3dd2ece40d0da768879a8f59f653ce6a6f",
+          "category": "Model overrides",
+          "subtype": "Define public string-valued issuer names",
+          "explanation": "WellKnownIssuerNames defines self and unknown with Self and Unknown string values using the imported case-insensitive enum metaclass; no generated replacement or issuer algorithm is shown.",
+          "pattern": "public-string-enum",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "This unmarked public enum is defined outside _generated and imported into the handwritten public models.",
+          "symbols": [
+            "WellKnownIssuerNames"
+          ],
+          "evidence": [
+            {
+              "id": "1b3e09d7bc25423a0d9360b980e15672c02938b08282671ddb0c784d69fe8af3",
+              "startLine": 68,
+              "endLine": 72
+            }
+          ]
+        }
+      },
+      {
+        "key": "51e9080264625b0097347a14010c160b158b6156aa281f4899dbf19447fa2c3a",
+        "status": "accepted",
+        "reason": "The unmarked public model module imports generated types (lines 9-10); lines 35-45 and 63-89 implement the separate contact object's field storage and getters. Its representation and conversion are separately cited behaviors."
+      },
+      {
+        "key": "191cedbc566a9d8460857a9a690a95c7b67bd975d476c01d665d23929b89bda9",
+        "status": "accepted",
+        "reason": "Lines 47-52 implement the model's custom representation and 1024-character slice; the proposal accurately avoids claiming redaction."
+      },
+      {
+        "key": "a0a69b26d869a75c8a22c500d8c21abd4360e78478ef264352c24d4efb5507ae",
+        "status": "accepted",
+        "reason": "Lines 54-61 explicitly adapt a generated AdministratorDetails object into the handwritten contact type, including email_address to email."
+      },
+      {
+        "key": "da8d965cbe2f152f9424e38b0ecdd124a3597bfbad2f9c1e65f10b8faceb20b8",
+        "status": "accepted",
+        "reason": "Lines 92-104 and 117-142 implement a handwritten error-data wrapper's constructor and getters; it is not an exception, nor a retry policy."
+      },
+      {
+        "key": "d896ba58ad29d4d42030ef0faaa3e95985307d7deb2aa1666da03359fc1a30d2",
+        "status": "accepted",
+        "reason": "Lines 106-107 directly implement a truncated string representation for the handwritten error-data object."
+      },
+      {
+        "key": "6ffff3c226e2e8ff7fdec6861652cd86d1dc721aa432baec25fc190a7d9f9385",
+        "status": "revised",
+        "reason": "Lines 109-115 show recursive generated-to-public data conversion, not custom exception construction, raising or retry; Serialization and a conversion-shape pattern describe this instance more precisely.",
+        "finding": {
+          "key": "6ffff3c226e2e8ff7fdec6861652cd86d1dc721aa432baec25fc190a7d9f9385",
+          "category": "Serialization",
+          "subtype": "Recursively convert nested generated error data to a public model",
+          "explanation": "_from_error_bundle copies code and message from a generated KeyVaultErrorError and recursively converts a truthy inner_error to public CertificateOperationError data; it neither raises nor retries.",
+          "pattern": "recursive-error-model-conversion",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The unmarked public model module imports generated models and explicitly adapts their nested error data outside _generated.",
+          "symbols": [
+            "CertificateOperationError._from_error_bundle"
+          ],
+          "evidence": [
+            {
+              "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+              "startLine": 109,
+              "endLine": 115
+            }
+          ]
+        }
+      },
+      {
+        "key": "2e9e2e760b67e940401042d6c571d63a27a11a362223a25c7b49a09cad8e245e",
+        "status": "accepted",
+        "reason": "Constructor lines 148-154 and getter lines 190-251, 265-320 support the handwritten metadata and flattened-attribute model shape; the recovery-retention compatibility branch is separately counted."
+      },
+      {
+        "key": "adf6d922f8d35b24574a8e0e6d935502de1243767d77293d554c8a3de8ba73ba",
+        "status": "accepted",
+        "reason": "Lines 156-157 directly format the thumbprint with hex().upper() and truncate the resulting representation; the proposal notes the absence of a local null guard."
+      },
+      {
+        "key": "11b48f76ac878a0cb89c9420138f2979748590823a34fa8305a39b3a4551601f",
+        "status": "accepted",
+        "reason": "Lines 159-173 adapt generated bundle fields into the public metadata wrapper and explicitly rename preserve_cert_order to preserve_order."
+      },
+      {
+        "key": "d98f3839c4762945699d8193233c56bed1c804c848c04f89f6d2e9dcfce65392",
+        "status": "accepted",
+        "reason": "Lines 175-188 construct the public metadata model from generated list-item attributes, ID, thumbprint and tags; constructor lines 148-154 establish the default preserve_order=False."
+      },
+      {
+        "key": "168ab6bcfd5e3332246a99f1cd4da5708af42a3f4fc62fc38126a9e46609698e",
+        "status": "revised",
+        "reason": "Lines 253-263 check hasattr on generated attributes and return None when unavailable, which is an optional-member compatibility guard, not a property alias or addition.",
+        "finding": {
+          "key": "168ab6bcfd5e3332246a99f1cd4da5708af42a3f4fc62fc38126a9e46609698e",
+          "category": "Model overrides",
+          "subtype": "Guard an optional generated recovery-retention attribute",
+          "explanation": "CertificateProperties.recoverable_days returns the underlying value only when attributes exist and expose recoverable_days; otherwise it returns None. The comment mentions an API version, but a supported-version matrix is absent.",
+          "pattern": "optional-model-attribute-guard",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The unmarked public model layer outside _generated implements this explicit compatibility guard over generated attributes.",
+          "symbols": [
+            "CertificateProperties.recoverable_days"
+          ],
+          "evidence": [
+            {
+              "id": "8665e025d9eba53e9e9b66e98e68021050e7ac6fa50d968cf957893ca45540b6",
+              "startLine": 253,
+              "endLine": 263
+            }
+          ]
+        }
+      },
+      {
+        "key": "dd5fafbf431b9a05e7d9cdb80c6b8289934c8535c0091c5200a9f38250e41873",
+        "status": "accepted",
+        "reason": "Lines 334-345 and 369-430 implement a handwritten public certificate model's field storage, nested ID/name projections and getters without asserting CER parsing or key extraction."
+      },
+      {
+        "key": "83624147293498729320fe89acd0b4b2a349d90e10882b5c8227de6786a12ed5",
+        "status": "accepted",
+        "reason": "Lines 347-348 show a handwritten certificate representation over the ID getter and a 1024-character slice."
+      },
+      {
+        "key": "e14d72755dc98a74c0bf3b06b15e1b0de6dab902d2314b0b136b74de20c68cd3",
+        "status": "accepted",
+        "reason": "Lines 350-367 conditionally convert policy, convert metadata and map generated kid/sid and cer to the public wrapper; the policy converter's implementation is not supplied."
+      },
+      {
+        "key": "54406c08a6d6fd9b3cd69b77b889123a40b5b75655fcd63191852373b35a9c80",
+        "status": "accepted",
+        "reason": "Lines 449-466 implement the public adapter that invokes the shared ID parser and exposes four projections; no claim is made about the imported parser's validation or grammar."
+      },
+      {
+        "key": "39413b7bc66c14a699db4eb366d33ec536107d7552a3781d46d2c0488f1286d1",
+        "status": "accepted",
+        "reason": "Lines 501-528 and 565-690 implement the public operation-data constructor and projections, including optional parsed ID and explicit defaults; getters for status and cancellation are not a polling algorithm."
+      },
+      {
+        "key": "121dc679c9004b885318a078b28b8c62351a021345d818bddae67377dc093da0",
+        "status": "accepted",
+        "reason": "Lines 530-531 implement the handwritten operation model's ID representation and its 1024-character slice."
+      },
+      {
+        "key": "1f72100f8ef3734c54bfb9efc3606ce650a9a6aa239639d5cebd31d923233518",
+        "status": "accepted",
+        "reason": "Lines 533-563 explicitly flatten issuer fields, use getattr for an optional attribute, recursively adapt nested error data and rename preserve_cert_order. The API-version comment is not taken as proof of a compatibility matrix."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only three of 44 eligible files were captured among 112 discovered files. The client excerpt ends at 516 inside backup_certificate documentation and the model excerpt at 701 inside CertificatePolicy documentation; the enum module is complete. Fourteen named budget skips include both truncations and absent polling/auth/base/async modules.",
+      "All evidence metadata says unknown provenance. The concrete public models import ._generated models and implement conversions outside that folder, establishing the wrapped-library pattern under the supplied Python rule; the public client and enum files are in that same outer layer. No generation history or generated counterpart comparison is supplied.",
+      "Custom creation/delete/recovery poller assembly is visible, but imported polling implementations, shared authentication policies, base-client initialization and asynchronous operations are not. Comments about result versus wait timing, soft-delete service semantics and auth challenges are not independently established.",
+      "Client import request line 407 is redacted in the supplied source; its contents and value flow are not inferred. The findings do not parse certificates, perform cryptography or assert successful transport/service behavior.",
+      "Public model storage/getter projections are grouped as each wrapper's API shape; executable representation and generated-bundle conversions are separate. Basic enum declarations are counted under the wrapped-library rule, not because unknown metadata alone proves handwriting; specialist review can challenge this boundary.",
+      "No findings are inferred for backup_certificate, CertificatePolicy, uncaptured DeletedCertificate/issuer classes, shared parsers, collection paging or auth/polling internals. Limited capture does not establish package-wide absence.",
+      "Coverage is partial: three of 44 eligible files were captured, with _client.py limited to lines 1-516 and _models.py to lines 1-701; no absence claims follow for the remaining methods, model bodies, shared/auth code, sync/async polling modules or aio client.",
+      "The captured _client.py import request has a redacted line 407; its contents and effects cannot be reconstructed. The supplied _models.py excerpt ends inside CertificatePolicy documentation.",
+      "Evidence kinds are unknown and no generated folder contents, generation history or generated counterparts are supplied. The unmarked public files and explicit _generated imports support handwritten wrappers, but neither prove individual generated replacements nor establish that underlying generator behavior is absent.",
+      "Imported CaseInsensitiveEnumMeta, parse_key_vault_id, CertificatePolicy and DeletedCertificate converters, polling methods and generated operations were not supplied; runtime semantics and the claims in docstrings and comments are not independently verified.",
+      "The begin_create_certificate method contains both visible policy validation and poller assembly under one source-path-plus-symbol identity. A second finding for the same method would duplicate the original key; the accepted original already records the validation and is counted once.",
+      "No additional distinct, nonduplicate candidate with fully captured executable lines was identified in the three supplied evidence items; this is not a claim about the uncaptured library. Accepted and revised decisions are AI-reviewed, not human-verified, and remain overrideable by a human reviewer."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_client.py",
+      "startLine": 1,
+      "endLine": 1080,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "05a15ba35c336e5d50b6747c0299807f090795da250751f8a6bd757c7f5aa77d"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_enums.py",
+      "startLine": 1,
+      "endLine": 77,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "78fcb5c3910b5cc349c52369a5f677c0f9c3368f9ef75a0c4e5c22713ac9e713"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_models.py",
+      "startLine": 1,
+      "endLine": 1578,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "4231f8d4c3d1293aa6c42e7deb03a9d3706f864ef314714feda40f7efa4a39db"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_polling.py",
+      "startLine": 1,
+      "endLine": 56,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "8702df4db476b45f3840cf62e7dea2cca841542ba0e1fbccfca2457ee791375b"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/__init__.py",
+      "startLine": 1,
+      "endLine": 78,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "e275a1920e6f5bc25affae62fc697ed3393afb7c90fe83e659498243c1056af6"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/_polling.py",
+      "startLine": 1,
+      "endLine": 136,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "3b5f6d745c2c9221fd3a556750ae1b77df823ec42657743d5d95bcb6e74c3a41"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/_polling_async.py",
+      "startLine": 1,
+      "endLine": 80,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d9368e89e86371e3d9d3f76ce33e9e95d3afe0c9980adfaede31a96e58e653ce"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/async_challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 304,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "defa7e7aea25fc4e9287fe0292aa8723e4a4a459f4113f4d5ac969e01e3a2918"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/async_client_base.py",
+      "startLine": 1,
+      "endLine": 117,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "cfbb7e0d4dab1ec2b27e94de66c54572db86e9c10093976cda7b99fe0b30c96b"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 394,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "0749e2e1566942b26d8ea7217a16951962610bf890e90218db0620dc193833fc"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/client_base.py",
+      "startLine": 1,
+      "endLine": 163,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "059a503de8bc75a86f2a9b689a1d14e5fe9c00d1fc981274952aa8e9c7d594ee"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/http_challenge.py",
+      "startLine": 1,
+      "endLine": 186,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "dede11c6c78d00b79fe20db7b9ef5c3c75e0b99a8238d7ae237c48bc4b9fced7"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/_shared/http_challenge_cache.py",
+      "startLine": 1,
+      "endLine": 112,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "1d5c450fe9a3144079bd589d1d6982d10ecf0d2c7437347eb2a1c220e4e03468"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/aio/_client.py",
+      "startLine": 1,
+      "endLine": 1078,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "9929733905db30f48ad72491e4a6da393fc463c5c23e591e89fca0600d2660f1"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-certificates/azure/keyvault/certificates/aio/_polling_async.py",
+      "startLine": 1,
+      "endLine": 57,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "bea6dda8a153157cbc6ba97773e2e5d098df7e284748f7a783e7b00b38cd5a88"
+    }
+  ]
+}
