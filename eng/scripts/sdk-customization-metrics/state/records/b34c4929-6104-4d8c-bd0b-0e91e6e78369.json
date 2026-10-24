@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "id": "b34c4929-6104-4d8c-bd0b-0e91e6e78369",
+  "observedAt": "2026-10-24T02:55:52.815Z",
+  "identity": "python:azure-messaging-webpubsubchatservice:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-messaging-webpubsubchatservice",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/webpubsub/azure-messaging-webpubsubchatservice"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "b1220eee674848f10562bd6890d37cf3755b9b1a"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 85,
+    "eligibleFiles": 50,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import Any, Dict, Optional, TYPE_CHECKING, Union, cast\n\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._shared import (\n    ApiManagementProxy,\n    JwtCredentialPolicy,\n    _parse_connection_string,\n    get_token_by_key,\n)\n\nfrom ._client import WebPubSubChatServiceClient as WebPubSubChatServiceClientGenerated\nfrom ._constants import BuiltInChatRoles\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\n\n_CHAT_CLIENT_ROLES = [\"webpubsub.getGroupState\", \"webpubsub.setGroupState\"]\n\n\nclass WebPubSubChatServiceClient(WebPubSubChatServiceClientGenerated):\n    \"\"\"Client for managing Azure Web PubSub Chat resources.\n\n    :param endpoint: HTTP or HTTPS endpoint for the Web PubSub service instance.\n    :type endpoint: str\n    :param hub: Target hub name.\n    :type hub: str\n    :param credential: Credential used to authenticate requests to the service.\n    :type credential: ~azure.core.credentials.TokenCredential or ~azure.core.credentials.AzureKeyCredential\n    :keyword api_version: The API version to use for Chat service operations.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        hub: str,\n        credential: Union[\"TokenCredential\", AzureKeyCredential],\n        *,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        if not endpoint:\n            raise ValueError(\"Parameter 'endpoint' must not be empty.\")\n        if not hub:\n            raise ValueError(\"Parameter 'hub' must not be empty.\")\n        if credential is None:\n            raise ValueError(\"Parameter 'credential' must not be None.\")\n        endpoint = endpoint.rstrip(\"/\")\n        port = kwargs.pop(\"port\", None)\n        if port:\n            endpoint = f\"{endpoint}:{port}\"\n        if kwargs.get(\"reverse_proxy_endpoint\"):\n            kwargs[\"reverse_proxy_endpoint\"] = kwargs[\"reverse_proxy_endpoint\"].rstrip(\"/\")\n        kwargs[\"origin_endpoint\"] = endpoint\n        if isinstance(credential, AzureKeyCredential):\n            kwargs[\"authentication_policy\"] = JwtCredentialPolicy(\n                credential,\n                origin_endpoint=endpoint,\n                reverse_proxy_endpoint=kwargs.get(\"reverse_proxy_endpoint\"),\n            )\n        if \"proxy_policy\" not in kwargs:\n            kwargs[\"proxy_policy\"] = ApiManagementProxy(**kwargs)\n        if api_version is not None:\n            kwargs[\"api_version\"] = api_version\n        super().__init__(\n            endpoint=endpoint,\n            hub=hub,\n            credential=cast(\"TokenCredential\", credential),\n            **kwargs,\n        )\n\n    @classmethod\n    def from_connection_string(cls, conn_str: str, hub: str, **kwargs: Any) -> \"WebPubSubChatServiceClient\":\n        \"\"\"Create a client from a Web PubSub connection string.\n\n        :param conn_str: Web PubSub connection string.\n        :type conn_str: str\n        :param hub: Target hub name.\n        :type hub: str\n        :return: A Web PubSub Chat service client.\n        :rtype: ~azure.messaging.webpubsubchatservice.WebPubSubChatServiceClient\n        \"\"\"\n        if not conn_str:\n            raise ValueError(\"Parameter 'conn_str' must not be empty.\")\n        parsed = _parse_connection_string(conn_str, **kwargs)\n        credential = AzureKeyCredential(parsed.pop(\"accesskey\"))\n        return cls(hub=hub, credential=credential, **parsed)\n\n    @distributed_trace\n    def get_client_access_token(\n        self,\n        *,\n        user_id: Optional[str] = None,\n        minutes_to_expire: int = 60,\n        **kwargs: Any,\n    ) -> Dict[str, Any]:\n        \"\"\"Generate credentials for a client to connect to Azure Web PubSub.\n\n        :keyword user_id: Optional user ID for the connection.\n        :paramtype user_id: str\n        :keyword minutes_to_expire: Token lifetime in minutes. Defaults to 60.\n        :paramtype minutes_to_expire: int\n        :return: The Web PubSub client endpoint, token, and connection URL.\n        :rtype: dict[str, Any]\n        \"\"\"\n        endpoint = self._config.endpoint.lower().rstrip(\"/\")\n        if not endpoint.startswith((\"http://\", \"https://\")):\n            raise ValueError(\"Endpoint must use HTTP or HTTPS.\")\n        if minutes_to_expire < 1:\n            raise ValueError(\"minutes_to_expire must be at least 1\")\n        path = \"/client/hubs/\"\n        base_url = f\"ws{endpoint[4:]}{path}{self._config.hub}\"\n        if isinstance(self._config.credential, AzureKeyCredential):\n            token = get_token_by_key(\n                endpoint,\n                path,\n                self._config.hub,\n                self._config.credential.key,\n                user_id=user_id,\n                roles=list(_CHAT_CLIENT_ROLES),\n                minutes_to_expire=minutes_to_expire,\n            )\n        else:\n            response = self._generate_client_token(\n                user_id=user_id,\n                role=list(_CHAT_CLIENT_ROLES),\n                minutes_to_expire=minutes_to_expire,\n                **kwargs,\n            )\n            token = response.token\n        return {\n            \"baseUrl\": base_url,\n            \"token\": token,\n            \"url\": f\"{base_url}?access_token={token}\",\n        }\n\n\n__all__: list[str] = [\n    \"BuiltInChatRoles\",\n    \"WebPubSubChatServiceClient\",\n]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "4b1a74e0ab77d2e56f42585c877b68317d7d6c802f7bfd762a0fcf93ecf03be4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/_patch.py",
+      "startLine": 1,
+      "endLine": 163,
+      "kind": "handwritten-marker",
+      "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/aio/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import Any, Dict, Optional, TYPE_CHECKING, Union, cast\n\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.core.tracing.decorator_async import distributed_trace_async\n\nfrom .._patch import _CHAT_CLIENT_ROLES\nfrom .._shared import (\n    ApiManagementProxy,\n    JwtCredentialPolicy,\n    _parse_connection_string,\n    get_token_by_key,\n)\nfrom ._client import WebPubSubChatServiceClient as WebPubSubChatServiceClientGenerated\n\nif TYPE_CHECKING:\n    from azure.core.credentials_async import AsyncTokenCredential\n\n\nclass WebPubSubChatServiceClient(WebPubSubChatServiceClientGenerated):\n    \"\"\"Async client for managing Azure Web PubSub Chat resources.\n\n    :param endpoint: HTTP or HTTPS endpoint for the Web PubSub service instance.\n    :type endpoint: str\n    :param hub: Target hub name.\n    :type hub: str\n    :param credential: Credential used to authenticate requests to the service.\n    :type credential: ~azure.core.credentials_async.AsyncTokenCredential or\n     ~azure.core.credentials.AzureKeyCredential\n    :keyword api_version: The API version to use for Chat service operations.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        hub: str,\n        credential: Union[\"AsyncTokenCredential\", AzureKeyCredential],\n        *,\n        api_version: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        if not endpoint:\n            raise ValueError(\"Parameter 'endpoint' must not be empty.\")\n        if not hub:\n            raise ValueError(\"Parameter 'hub' must not be empty.\")\n        if credential is None:\n            raise ValueError(\"Parameter 'credential' must not be None.\")\n        endpoint = endpoint.rstrip(\"/\")\n        port = kwargs.pop(\"port\", None)\n        if port:\n            endpoint = f\"{endpoint}:{port}\"\n        if kwargs.get(\"reverse_proxy_endpoint\"):\n            kwargs[\"reverse_proxy_endpoint\"] = kwargs[\"reverse_proxy_endpoint\"].rstrip(\"/\")\n        kwargs[\"origin_endpoint\"] = endpoint\n        if isinstance(credential, AzureKeyCredential):\n            kwargs[\"authentication_policy\"] = JwtCredentialPolicy(\n                credential,\n                origin_endpoint=endpoint,\n                reverse_proxy_endpoint=kwargs.get(\"reverse_proxy_endpoint\"),\n            )\n        if \"proxy_policy\" not in kwargs:\n            kwargs[\"proxy_policy\"] = ApiManagementProxy(**kwargs)\n        if api_version is not None:\n            kwargs[\"api_version\"] = api_version\n        super().__init__(\n            endpoint=endpoint,\n            hub=hub,\n            credential=cast(\"AsyncTokenCredential\", credential),\n            **kwargs,\n        )\n\n    @classmethod\n    def from_connection_string(cls, conn_str: str, hub: str, **kwargs: Any) -> \"WebPubSubChatServiceClient\":\n        \"\"\"Create an async client from a Web PubSub connection string.\n\n        :param conn_str: Web PubSub connection string.\n        :type conn_str: str\n        :param hub: Target hub name.\n        :type hub: str\n        :return: An async Web PubSub Chat service client.\n        :rtype: ~azure.messaging.webpubsubchatservice.aio.WebPubSubChatServiceClient\n        \"\"\"\n        if not conn_str:\n            raise ValueError(\"Parameter 'conn_str' must not be empty.\")\n        parsed = _parse_connection_string(conn_str, **kwargs)\n        credential = AzureKeyCredential(parsed.pop(\"accesskey\"))\n        return cls(hub=hub, credential=credential, **parsed)\n\n    @distributed_trace_async\n    async def get_client_access_token(\n        self,\n        *,\n        user_id: Optional[str] = None,\n        minutes_to_expire: int = 60,\n        **kwargs: Any,\n    ) -> Dict[str, Any]:\n        \"\"\"Generate credentials for a client to connect to Azure Web PubSub.\n\n        :keyword user_id: Optional user ID for the connection.\n        :paramtype user_id: str\n        :keyword minutes_to_expire: Token lifetime in minutes. Defaults to 60.\n        :paramtype minutes_to_expire: int\n        :return: The Web PubSub client endpoint, token, and connection URL.\n        :rtype: dict[str, Any]\n        \"\"\"\n        endpoint = self._config.endpoint.lower().rstrip(\"/\")\n        if not endpoint.startswith((\"http://\", \"https://\")):\n            raise ValueError(\"Endpoint must use HTTP or HTTPS.\")\n        if minutes_to_expire < 1:\n            raise ValueError(\"minutes_to_expire must be at least 1\")\n        path = \"/client/hubs/\"\n        base_url = f\"ws{endpoint[4:]}{path}{self._config.hub}\"\n        if isinstance(self._config.credential, AzureKeyCredential):\n            token = get_token_by_key(\n                endpoint,\n                path,\n                self._config.hub,\n                self._config.credential.key,\n                user_id=user_id,\n                roles=list(_CHAT_CLIENT_ROLES),\n                minutes_to_expire=minutes_to_expire,\n            )\n        else:\n            response = await self._generate_client_token(\n                user_id=user_id,\n                role=list(_CHAT_CLIENT_ROLES),\n                minutes_to_expire=minutes_to_expire,\n                **kwargs,\n            )\n            token = response.token\n        return {\n            \"baseUrl\": base_url,\n            \"token\": token,\n            \"url\": f\"{base_url}?access_token={token}\",\n        }\n\n\n__all__: list[str] = [\"WebPubSubChatServiceClient\"]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "ba9d80f460aee9fa74bc2fc566dd32892eac46b23c986228cd80bcfbc1ba35b1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 157,
+      "kind": "handwritten-marker",
+      "id": "001d66e0935cdb419d33c67b0c5db41db79470c8cd270dc5f728221b00792399"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-messaging-webpubsubchatservice\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Web PubSub Chat Service Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"Programming Language :: Python :: 3.14\",\n]\nrequires-python = \">=3.10\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n    \"pyjwt>=2.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.messaging.webpubsubchatservice._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"build*\",\n    \"azure\",\n    \"azure.messaging\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n",
+      "contentHash": "38f09dc35b664b1602c8a104b7f463b30366dcdc977dffd17deb06830529f864",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/webpubsub/azure-messaging-webpubsubchatservice/pyproject.toml"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/README.md",
+      "text": "# Azure Web PubSub Chat service client library for Python\n\n[Azure Web PubSub chat][product_docs] is a managed chat capability built on [Azure Web PubSub][webpubsub_docs]. It provides purpose-built client and server APIs for chat scenarios. Applications use the SDKs to communicate with the Azure service and work with chat-native concepts such as rooms, messages, members, and users. The service handles real-time message delivery and ordering, fan-out across a user's devices and browser tabs, room membership, and message persistence and retrieval.\n\nUse this client library in an application server to:\n\n- Create and manage chat roles and permissions.\n- Create users, rooms, and room memberships.\n- Get room conversations and query persisted message history.\n- Update and delete persisted messages.\n- Generate client access credentials for Chat WebSocket clients.\n\n\n[Source code][source_code]\n| [Package (PyPI)][package]\n| [API reference documentation][api_reference]\n| [Product documentation][product_docs]\n| [Samples][samples]\n| [Changelog][changelog]\n\n## Getting started\n\n### Prerequisites\n\n- Python 3.10 or later.\n- An [Azure subscription][azure_sub].\n- An [Azure Web PubSub resource][create_instance].\n- A Web PubSub hub with [Chat enabled][enable_chat].\n\n### 1. Install the package\n\n```bash\npython -m pip install azure-messaging-webpubsubchatservice\n```\n\nTo use Microsoft Entra ID authentication, also install `azure-identity`:\n\n```bash\npython -m pip install azure-identity\n```\n\n### 2. Create and authenticate a `WebPubSubChatServiceClient`\n\nThe client supports a connection string, an `AzureKeyCredential`, or a Microsoft Entra ID token credential. The hub passed to the client must have Chat enabled.\n\n#### Use a connection string\n\nGet the connection string from the Azure portal or Azure CLI, and store it securely. See [Web PubSub authorization][connection_string] for details.\n\n<!-- SNIPPET:sample_authentication.connection_string_auth -->\n\n```python\nimport os\nfrom azure.messaging.webpubsubchatservice import WebPubSubChatServiceClient\n\nhub = os.environ.get(\"WPS_CHAT_HUB\", \"test_hub\")\nwith WebPubSubChatServiceClient.from_connection_string(\n    os.environ[\"WPS_CHAT_CONNECTION_STRING\"], hub\n) as connection_string_client:\n    print(type(connection_string_client).__name__)\n```\n\n<!-- END SNIPPET -->\n\n#### Use an access key\n\n<!-- SNIPPET:sample_authentication.key_auth -->\n\n```python\nimport os\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.messaging.webpubsubchatservice import WebPubSubChatServiceClient\n\nendpoint = os.environ[\"WPS_CHAT_ENDPOINT\"]\nhub = os.environ.get(\"WPS_CHAT_HUB\", \"test_hub\")\nwith WebPubSubChatServiceClient(\n    endpoint,\n    hub,\n    AzureKeyCredential(os.environ[\"WPS_CHAT_ACCESS_KEY\"]),\n) as key_client:\n    print(type(key_client).__name__)\n```\n\n<!-- END SNIPPET -->\n\n#### Use Microsoft Entra ID\n\nFor recommended passwordless authentication, assign an appropriate Web PubSub data-plane role to the principal and use a credential from the [Azure Identity library][azure_identity]. The following example uses `DefaultAzureCredential`:\n\n<!-- SNIPPET:sample_authentication.entra_auth -->\n\n```python\nimport os\nfrom azure.identity import DefaultAzureCredential\nfrom azure.messaging.webpubsubchatservice import WebPubSubChatServiceClient\n\nendpoint = os.environ[\"WPS_CHAT_ENDPOINT\"]\nhub = os.environ.get(\"WPS_CHAT_HUB\", \"test_hub\")\nwith WebPubSubChatServiceClient(endpoint, hub, DefaultAzureCredential()) as entra_client:\n    print(type(entra_client).__name__)\n```\n\n<!-- END SNIPPET -->\n\nFor more information, see [Authenticate Azure-hosted Python applications][azure_identity_auth] and [Microsoft Entra authorization for Azure Web PubSub][entra_authorization].\n\n## Key concepts\n\n### Client\n\n`WebPubSubChatServiceClient` is the entry point for managing Chat resources in one Web PubSub hub. Create one client for each endpoint and hub combination. The client can be used as a context manager and is safe to reuse for multiple operations.\n\nThe asynchronous client is available from the `azure.messaging.webpubsubchatservice.aio` namespace.\n\n### Hub\n\nA hub is a logical collection of WebSocket connections. A standard hub offers event-based real-time messaging through the Web PubSub subprotocol or a custom subprotocol. A chat hub adds built-in rooms, member management, message persistence, and chat-specific APIs.\n\nThis SDK applies only to chat hubs. Chat must be enabled on the target hub before the SDK can manage roles, users, rooms, members, conversations, or messages.\n\n### Role and permission\n\nA role is a named collection of Chat permissions. User role names start with `user.`, and room role names start with `room.`. Do not combine user and room permissions in one role.\n\nUser roles control operations such as creating rooms. Room roles control what a member can do in a particular room, such as publishing messages or reading message history.\n\n### User\n\nA user represents an application identity that can send and receive messages. In the service API, a user is identified by a user ID and assigned a user role. A human user also has a nickname. Client access credentials associate WebSocket connections with a user ID.\n\n### Room\n\nA room groups users together and is the primary organizational unit for chat interactions. Every room has an automatically created default conversation.\n\n### Room member\n\nA room member represents a user added to a room. Membership controls which users can receive and send messages in the room. In the service API, each room member is assigned a room role.\n\n### Conversation and message history\n\nA conversation is a message thread that belongs to a room. Every room has a default conversation and can contain multiple conversations.\n\nMessages sent to a conversation are delivered in real time to the room's connected members. The chat service manages ordering and persistence, allowing members to load message history after reconnecting or joining later. The service client can list, update, and delete persisted messages.\n\n## Examples\n\nThe following sections show common scenarios. See the [package samples][samples] for complete synchronous and asynchronous programs.\n\n### Generate client access credentials\n\nGenerate credentials that a Chat WebSocket client can use to connect as a specific user:\n\n<!-- SNIPPET:sample_client_access.client_access -->\n\n```python\nimport os\nfrom azure.messaging.webpubsubchatservice import WebPubSubChatServiceClient\n\nconnection_string = os.environ[\"WPS_CHAT_CONNECTION_STRING\"]\nwith WebPubSubChatServiceClient.from_connection_string(\n    connection_string,\n    os.environ.get(\"WPS_CHAT_HUB\", \"test_hub\"),\n) as client:\n    access = client.get_client_access_token(user_id=\"sample-user\")\n    # Give access[\"url\"] to the intended client to connect; it includes the access token.\n    # Print only the token-free base URL here. Do not log access[\"url\"].\n    print(access[\"baseUrl\"])\n```\n\n<!-- END SNIPPET -->\n\nThe returned URL contains an access token. Send it only to the intended client, and do not log or persist it in production.\n\n### Create and list roles\n\n```python\nfrom azure.messaging.webpubsubchatservice.models import ChatPermission, ChatRole\n\nrole_name = \"user.moderator\"\ntry:\n    role = client.create_or_replace_role(\n        role_name,\n        ChatRole(permissions=[ChatPermission.USER_CREATE_ROOM]),\n    )\n    print(role.name, role.permissions)\n\n    for listed_role in client.list_roles():\n        print(listed_role.name)\nfinally:\n    client.delete_role(role_name)\n```\n\n### Create a user, room, and room membership\n\n```python\nfrom azure.messaging.webpubsubchatservice.models import (\n    ChatPermission,\n    ChatRole,\n    ChatRoom,\n    ChatRoomMember,\n    HumanChatUser,\n)\n\nclient.create_or_replace_role(\n    \"user.room_creator\",\n    ChatRole(permissions=[ChatPermission.USER_CREATE_ROOM]),\n)\nclient.create_or_replace_role(\n    \"room.contributor\",\n    ChatRole(permissions=[ChatPermission.ROOM_PUBLISH_MESSAGE]),\n)\nclient.create_or_replace_user(\n    \"alice\",\n    HumanChatUser(nickname=\"Alice\", role_name=\"user.room_creator\"),\n)\nroom = client.create_or_replace_room(\"general\", ChatRoom(title=\"General\"))\nmember = client.create_or_replace_room_member(\n    room.id,\n    \"alice\",\n    ChatRoomMember(role_name=\"room.contributor\"),\n)\nprint(member.user_id, member.role_name)\n```\n\nDelete dependent resources in reverse order when they are no longer needed: room, user, and then roles.\n\n### List persisted messages\n\n```python\nroom = client.get_room(\"general\")\nfor message in client.list_messages(room.default_conversation):\n    print(message.id, message.created_by, message.content.text)\n```\n\n### Use the asynchronous client\n\n```python\nfrom azure.identity.aio import DefaultAzureCredential\nfrom azure.messaging.webpubsubchatservice.aio import WebPubSubChatServiceClient\n\ncredential = DefaultAzureCredential()\nclient = WebPubSubChatServiceClient(endpoint, hub, credential)\ntry:\n    async for role in client.list_roles():\n        print(role.name)\nfinally:\n    await client.close()\n    await credential.close()\n```\n\n## Troubleshooting\n\n### Handle service errors\n\nService operations raise `HttpResponseError` or a more specific subclass when a request fails:\n\n```python\nfrom azure.core.exceptions import HttpResponseError\n\ntry:\n    room = client.get_room(\"room-id\")\nexcept HttpResponseError as error:\n    print(f\"Chat service request failed with status {error.status_code}\")\n```\n\n### Logging\n\nThis library uses the standard Python [logging][python_logging] library. Enable HTTP logging for a client by passing `logging_enable=True`:\n\n```python\nimport logging\nimport sys\n\nfrom azure.identity import DefaultAzureCredential\nfrom azure.messaging.webpubsubchatservice import WebPubSubChatServiceClient\n\nlogger = logging.getLogger(\"azure\")\nlogger.setLevel(logging.DEBUG)\nlogger.addHandler(logging.StreamHandler(stream=sys.stdout))\n\nclient = WebPubSubChatServiceClient(\n    endpoint,\n    hub,\n    DefaultAzureCredential(),\n    logging_enable=True,\n)\n```\n\nHTTP logs can contain sensitive information. Do not enable detailed logging in production without reviewing how logs are collected and protected. For more information, see [Configure logging in the Azure SDK for Python][azure_sdk_logging].\n\n### Authentication and authorization\n\n- Confirm that the endpoint and hub name identify the Web PubSub resource and Chat-enabled hub you intend to use.\n- For Microsoft Entra ID, confirm that the principal has an appropriate Web PubSub data-plane role and that role assignment propagation has completed.\n- Connection-string and access-key authentication are unavailable when local authentication is disabled on the Web PubSub resource.\n\n### Message history\n\nIf a newly sent message does not appear immediately, confirm that the sending user is a room member with publish permission and that message history is enabled for the member's room role.\n\n## Next steps\n\nExplore the [complete package samples][samples] to learn how to:\n\n- Authenticate with a connection string, access key, or Microsoft Entra ID.\n- Manage roles, permissions, users, rooms, and room members.\n- Generate client access credentials.\n- Query, update, and delete message history.\n- Use synchronous and asynchronous clients.\n\n## Additional resources\n\n- [Azure Web PubSub documentation][webpubsub_docs]\n- [Web PubSub Chat documentation][product_docs]\n- [Web PubSub Chat REST API][rest_api]\n- [Azure SDK for Python design guidelines][design_guidelines]\n\n## Contributing\n\nThis project welcomes contributions and suggestions. See the [contributing guide][contributing] for instructions on building, testing, and submitting changes.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information, see the [Code of Conduct FAQ][code_of_conduct_faq] or contact opencode@microsoft.com with questions or comments.\n\n<!-- LINKS -->\n[source_code]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/webpubsub/azure-messaging-webpubsubchatservice\n[package]: https://pypi.org/project/azure-messaging-webpubsubchatservice/\n[api_reference]: https://learn.microsoft.com/python/api/overview/azure/messaging-webpubsubchatservice-readme?view=azure-python-preview\n[product_docs]: https://learn.microsoft.com/azure/azure-web-pubsub/chat-overview\n[samples]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/webpubsub/azure-messaging-webpubsubchatservice/samples\n[changelog]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/webpubsub/azure-messaging-webpubsubchatservice/CHANGELOG.md\n[azure_sub]: https://azure.microsoft.com/free/\n[webpubsub_docs]: https://learn.microsoft.com/azure/azure-web-pubsub/\n[create_instance]: https://learn.microsoft.com/azure/azure-web-pubsub/howto-develop-create-instance\n[enable_chat]: https://learn.microsoft.com/azure/azure-web-pubsub/chat-howto-enable-chat\n[connection_string]: https://learn.microsoft.com/azure/azure-web-pubsub/howto-websocket-connect#authorization\n[azure_identity]: https://pypi.org/project/azure-identity/\n[azure_identity_auth]: https://learn.microsoft.com/azure/developer/python/sdk/authentication-overview\n[entra_authorization]: https://learn.microsoft.com/azure/azure-web-pubsub/concept-azure-ad-authorization\n[python_logging]: https://docs.python.org/3/library/logging.html\n[azure_sdk_logging]: https://learn.microsoft.com/azure/developer/python/sdk/azure-sdk-logging\n[rest_api]: https://learn.microsoft.com/rest/api/webpubsub/dataplane/webpubsubchat/web-pub-sub-chat-service-client\n[design_guidelines]: https://azure.github.io/azure-sdk/python_design.html\n[contributing]: https://github.com/Azure/azure-sdk-for-python/blob/main/CONTRIBUTING.md\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[code_of_conduct_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "e404635838319d84e109156fe1646359168dda3cf8b1aa2d8b08cdbd3e448175",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/webpubsub/azure-messaging-webpubsubchatservice/README.md"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/tsp-location.yaml",
+      "text": "directory: specification/webpubsub/data-plane/WebPubSubChat\ncommit: 15202f7ede10316a7cecc6911f887eb8655f87ce\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\nentrypointFile: client.tsp\n",
+      "contentHash": "90cb00def033138ff5a92176a8badf70e822eeb0c3c53454a15279d356c67be0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/webpubsub/azure-messaging-webpubsubchatservice/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "deadf98f897ddc1defb1173d05e5289bacca9d8bd77255598ac245fb05138510",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "16703194e5ebf0dfa9e23b8f733214837bb51a9dd1ff78a316c7f403aa01e3e6",
+        "category": "Auth",
+        "subtype": "Wire key authentication and proxy configuration into generated client construction",
+        "explanation": "The constructor rejects empty endpoint/hub and a None credential, strips endpoint trailing slashes, appends a truthy port, trims a truthy reverse-proxy endpoint and sets origin_endpoint. For AzureKeyCredential it installs JwtCredentialPolicy with origin/proxy arguments; it defaults proxy_policy only when that key is absent, conditionally forwards api_version and delegates to the generated base. The credential cast is typing-only.",
+        "pattern": "authentication-policy-wiring",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The root _patch.py exports this subclass and supplies a real constructor override over an explicitly imported generated client.",
+        "symbols": [
+          "WebPubSubChatServiceClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4",
+            "startLine": 46,
+            "endLine": 83
+          }
+        ]
+      },
+      {
+        "key": "d901af70dead35a0da1f79c6e3a7e814c75dd66351cb0172e7bd65b9f162187c",
+        "category": "Auth",
+        "subtype": "Construct a hub-scoped client from a connection string",
+        "explanation": "The classmethod rejects an empty connection string, invokes _parse_connection_string with kwargs, removes accesskey from the parsed mapping, wraps it in AzureKeyCredential and constructs cls with hub and the remaining parsed arguments.",
+        "pattern": "connection-string-client-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is an implemented factory on the exported patched client rather than a generated re-export or no-op hook.",
+        "symbols": [
+          "WebPubSubChatServiceClient.from_connection_string"
+        ],
+        "evidence": [
+          {
+            "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4",
+            "startLine": 85,
+            "endLine": 100
+          }
+        ]
+      },
+      {
+        "key": "9fbd989edf1c3a5f29bcad4e2bc7d9f8b273fcc7fdb2a22a2a3b04230f5fedb4",
+        "category": "Auth",
+        "subtype": "Adapt key or service-issued client tokens into a WebSocket access bundle",
+        "explanation": "The traced method lowercases/trims the configured endpoint, requires an HTTP(S) prefix and a lifetime of at least one minute, and builds a ws/wss client/hubs URL. Key credentials delegate to get_token_by_key; other credentials call _generate_client_token and read response.token. Both receive copies of the fixed getGroupState/setGroupState roles. It returns baseUrl, token and a URL with access_token; kwargs reach only the service-operation branch.",
+        "pattern": "client-access-token-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported root patch implements the public method's validation, credential branching, role injection and returned URL shape.",
+        "symbols": [
+          "WebPubSubChatServiceClient.get_client_access_token"
+        ],
+        "evidence": [
+          {
+            "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4",
+            "startLine": 30,
+            "endLine": 30
+          },
+          {
+            "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4",
+            "startLine": 102,
+            "endLine": 148
+          }
+        ]
+      },
+      {
+        "key": "3ed2e9c0b1c2fa3d29717268637a965f46c83915894323befe2c8822bf17a585",
+        "category": "Auth",
+        "subtype": "Configure key-auth and proxy hooks before constructing the generated aio client",
+        "explanation": "The aio constructor performs endpoint/hub/None-credential checks, trims endpoint/proxy trailing slashes, appends a truthy port and sets origin_endpoint. It overrides authentication_policy for key credentials with JwtCredentialPolicy, creates ApiManagementProxy only if proxy_policy is absent, conditionally forwards api_version and calls the generated aio base with a typing cast of credential.",
+        "pattern": "authentication-policy-wiring",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio _patch.py exports a generated-client subclass with substantive initialization rather than empty scaffolding.",
+        "symbols": [
+          "WebPubSubChatServiceClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "001d66e0935cdb419d33c67b0c5db41db79470c8cd270dc5f728221b00792399",
+            "startLine": 43,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "47693d881292e7ebaad36cfb7c25a938665bad16583b6522ffdea3c443e85bda",
+        "category": "Auth",
+        "subtype": "Build the aio hub client from parsed connection-string arguments",
+        "explanation": "The regular classmethod rejects empty conn_str, passes it and kwargs to the shared parser, removes accesskey to construct AzureKeyCredential and returns cls using hub and the remaining parsed mapping. It does not await or implement parsing locally.",
+        "pattern": "connection-string-client-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported aio patch subclass implements this factory over its generated base.",
+        "symbols": [
+          "WebPubSubChatServiceClient.from_connection_string"
+        ],
+        "evidence": [
+          {
+            "id": "001d66e0935cdb419d33c67b0c5db41db79470c8cd270dc5f728221b00792399",
+            "startLine": 82,
+            "endLine": 97
+          }
+        ]
+      },
+      {
+        "key": "1472553b36137cfd5e6d89ef84ee1b0be13e1e7c95b051397f0f5dd439279407",
+        "category": "Auth",
+        "subtype": "Produce the async client's WebSocket bundle using key or awaited service-token paths",
+        "explanation": "The distributed_trace_async method validates HTTP(S) endpoint prefix and minimum lifetime, builds the ws/wss hub URL, and either calls the shared key helper synchronously or awaits _generate_client_token. It supplies the imported two-role list and returns baseUrl/token/url. No signing algorithm is implemented in this method.",
+        "pattern": "client-access-token-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio exported patch adds actual async credential branching and URL/result shaping. The supplied root patch defines its imported role constants.",
+        "symbols": [
+          "WebPubSubChatServiceClient.get_client_access_token"
+        ],
+        "evidence": [
+          {
+            "id": "001d66e0935cdb419d33c67b0c5db41db79470c8cd270dc5f728221b00792399",
+            "startLine": 16,
+            "endLine": 23
+          },
+          {
+            "id": "001d66e0935cdb419d33c67b0c5db41db79470c8cd270dc5f728221b00792399",
+            "startLine": 99,
+            "endLine": 145
+          },
+          {
+            "id": "8194c18e3ec1eec56f81d0a8a69ad757b1f50b2eeea62529869a9bd66ba562d4",
+            "startLine": 30,
+            "endLine": 30
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "16703194e5ebf0dfa9e23b8f733214837bb51a9dd1ff78a316c7f403aa01e3e6",
+        "status": "accepted",
+        "reason": "The exported root patch subclass overrides the generated client's constructor at the cited lines, validates and normalizes inputs, installs a key-credential policy, configures the proxy default, and forwards construction. Auth is the primary purpose of this combined constructor behavior; the reusable policy-wiring pattern and plausible generator support are appropriately qualified."
+      },
+      {
+        "key": "d901af70dead35a0da1f79c6e3a7e814c75dd66351cb0172e7bd65b9f162187c",
+        "status": "accepted",
+        "reason": "The cited root patch classmethod implements the stated connection-string factory and AzureKeyCredential conversion on the exported subclass. It delegates parsing to a helper rather than claiming to implement it; the generic factory pattern and potential generator support are reasonable."
+      },
+      {
+        "key": "9fbd989edf1c3a5f29bcad4e2bc7d9f8b273fcc7fdb2a22a2a3b04230f5fedb4",
+        "status": "accepted",
+        "reason": "The cited root patch defines the two roles and implements the traced access-token adapter: endpoint and lifetime validation, key-versus-service token selection, WebSocket URL shaping, and result mapping. The explanation does not attribute unobserved signing behavior to the method; the reusable adapter pattern is suitable."
+      },
+      {
+        "key": "3ed2e9c0b1c2fa3d29717268637a965f46c83915894323befe2c8822bf17a585",
+        "status": "accepted",
+        "reason": "The exported aio patch subclass implements a distinct async-client constructor at the cited lines, including key-policy injection, proxy defaults, endpoint normalization and generated-base delegation. The category, symbol, reusable pattern and plausible generator addressability match the supplied source."
+      },
+      {
+        "key": "47693d881292e7ebaad36cfb7c25a938665bad16583b6522ffdea3c443e85bda",
+        "status": "accepted",
+        "reason": "The cited aio classmethod has a real body that validates input, delegates parsing to the shared helper and constructs the subclass with an AzureKeyCredential. It is a separately implemented async-client factory, not generated scaffolding."
+      },
+      {
+        "key": "1472553b36137cfd5e6d89ef84ee1b0be13e1e7c95b051397f0f5dd439279407",
+        "status": "accepted",
+        "reason": "The cited aio method imports the role list from the root patch and implements validation, WebSocket URL/result shaping, a synchronous key-helper branch and an awaited service-token branch. Its description correctly avoids asserting that signing occurs in this method, and its pattern describes a reusable adapter shape."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Partial capture: two of 50 eligible files among 85 discovered files are supplied. Both patch files are complete, but empty skip/error lists do not establish exhaustive discovery.",
+      "Exported subclasses and substantive bodies in handwritten-marker patch files provide positive ownership signals. Docstring-only patch_sdk hooks, imports and the BuiltInChatRoles re-export do not add independent instances.",
+      "Shared JwtCredentialPolicy, ApiManagementProxy, connection-string parser and get_token_by_key implementations are absent. These findings establish wiring and delegation, not JWT claims/algorithm, signing correctness, token-scope acquisition, parser rules or proxy rewrite semantics.",
+      "Generated clients/configuration and _generate_client_token are absent. No actual network/service behavior, WebSocket connection, async scheduling guarantee or end-to-end authentication result is established.",
+      "Constructor checks are limited to the visible truthiness/None checks and normalization; strict HTTP(S) prefix validation appears in get_client_access_token. No domain validation, URL escaping or lifetime upper bound is claimed.",
+      "Behaviors within each constructor or token method are grouped, including tracing decorators, proxy/version settings, validation and role/URL shaping. They are not counted again as separate telemetry, crypto or model instances.",
+      "README examples and pyjwt dependency are context only, not proof of custom signing. Generator addressability expresses plausible generic hooks/options/adapter generation rather than existing feature support.",
+      "Coverage is partial: two patch files were captured out of 50 eligible files, so this review cannot establish whether other package files contain customizations.",
+      "The shared parsing, JWT policy, proxy and key-token helpers and generated client implementations are not supplied. Their internal behavior, provenance and any additional customization instances cannot be judged from this evidence.",
+      "The cited patch code supports the six reported behaviors, but generator addressability is a plausibility judgment, not proof that an existing TypeSpec feature or generator implements them. Accepted means AI-reviewed, not human-verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/_patch.py",
+      "startLine": 1,
+      "endLine": 163,
+      "provenance": "Python patch",
+      "contentHash": "4b1a74e0ab77d2e56f42585c877b68317d7d6c802f7bfd762a0fcf93ecf03be4"
+    },
+    {
+      "path": "sdk/webpubsub/azure-messaging-webpubsubchatservice/azure/messaging/webpubsubchatservice/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 157,
+      "provenance": "Python patch",
+      "contentHash": "ba9d80f460aee9fa74bc2fc566dd32892eac46b23c986228cd80bcfbc1ba35b1"
+    }
+  ]
+}
