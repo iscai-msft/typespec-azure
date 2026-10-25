@@ -106,6 +106,8 @@ requests retain their frozen guideline text; reconciliation does not rewrite pri
 - The standalone metrics CI type-check omitted Playwright, already declared by the root
   package and imported by the browser test. Its isolated install now includes the same
   dependency; the browser test remains type-checked without downloading browser binaries.
+  The hosted-review bundle, outside the pnpm workspace, commits its npm lockfile for the
+  existing `npm ci` steps in CI and optional Azure builds.
 - Before moving upstream, decide how append-only state and reviews will be stored; a data
   branch or blob storage is a future architecture decision, not authorization to migrate.
 
