@@ -1,6 +1,6 @@
 # SDK customization metrics: project context
 
-Handoff for another AI or contributor. Updated October 22, 2026. Read
+Handoff for another AI or contributor. Updated October 25, 2026. Read
 [README.md](./README.md) for commands and contracts. This file gives context; it is not
 authorization to deploy, spend money, call AI providers, or change repository settings.
 
@@ -75,28 +75,39 @@ with it is active (released or changed in the last 365 days; "stable" means not 
 while, not GA), at most half its instances are judged service-specific, and either it recurs in
 two or more services (**Recurring**, ranked first) or most instances say a generator could
 produce it (**One service so far**). One service in several languages adds a **Spec fix** tag.
-Other statuses: **needs a human call** (one service, reviewers mostly unsure),
+Missing activity dates count as active. Other statuses: **needs a human call** (one service,
+no majority of yes or no judgments),
 **service-specific**, **dormant only**, **unknown**. Computed in `web/data.ts`
-(`reduciblePatterns`). `guidelines/SKILL.md` still states the earlier "two services" rule and
-is updated after the backfill (it is part of every AI review request).
+(`reduciblePatterns`), with the shared definition in `guidelines/SKILL.md`. Historical
+requests retain their frozen guideline text; reconciliation does not rewrite prior judgments.
 
-## Status (October 22, 2026)
+## Status (October 25, 2026)
 
 - Code is TypeScript (erasable syntax only; Node runs it directly; strict `tsconfig.json`;
-  CI type-checks). Unit tests: 50. Browser smoke test: `test/browser-check.ts`.
-- Pilot AI review of 22 data-plane libraries (in-session, no provider costs): 135
-  accepted findings, 8 rejected, 8 inconclusive. After normalizing services: 12
-  reducible patterns, 3 spec-candidates, 1 dormant, 19 one-off or service-specific. Top
-  reducible: options-unpacking convenience overloads, typed wrappers over protocol
-  methods, auth audience/scope options, alternative model constructors, hiding generated
-  surface. Review coverage is about 10% of data-plane libraries.
-- **Held for the owner:** reviewing the remaining ~200 data-plane libraries (cost
-  decision: roughly 65–75k tokens per library for analyst plus reviewer).
-- Human review works end to end locally (`cli.ts serve`). Azure hosting is written
-  (`azure/main.bicep`, deploy workflow) but not deployed; it needs the owner's one-time
-  setup (README, "Hosting with human review").
-- `state/` is about 57 MB in git. Before moving upstream it should move to a data branch
-  or blob storage, with the database holding reviews.
+  CI type-checks). Unit tests: 52. Browser smoke test: `test/browser-check.ts`.
+- The authorized frozen-evidence backfill is published at personal-fork commit
+  `0c8357f87172f6993dab505311288a8e02409461`: **210/221 scoped data-plane libraries
+  assessed, 11 zero-evidence unknown, zero evidence-bearing pending**. Complete analysis
+  does not mean exhaustive source coverage or human verification.
+- The verified export has 883 append-only scans, 222 identities, 2,699 effective findings,
+  4,111 snippets, 2,233 counted AI-reviewed customizations and zero human overrides.
+  Global missing analysis is 12: the 11 scoped unknowns plus the out-of-scope Go
+  `sdk/ai/azopenai` identity. Do not equate that global count with the 221-library scope.
+- Analysts were manually authored with `copilot/gpt-6.1-sol`; independent fresh-context
+  `copilot/gpt-6-sol` reviews ran strictly sequentially. Initial responses, hashes,
+  disagreements and exhaustive evidence-access attestations were preserved. No configured
+  provider endpoint was called for this file-exchange backfill.
+- Personal-fork Pages run `40237680419` succeeded for that exact commit; downloaded SQLite
+  passed full history, current finding/snippet, cohort and terminal-scope parity. The
+  Java LRO query returns five counted findings with subtypes and commit-pinned snippets.
+- Human review is implemented locally (`cli.ts serve`), with optional Azure hosting
+  templates/workflow. Deployment, sign-in settings, schedules and provider calls still
+  require owner-approved configuration; this reconciliation does not enable them.
+- The standalone metrics CI type-check omitted Playwright, already declared by the root
+  package and imported by the browser test. Its isolated install now includes the same
+  dependency; the browser test remains type-checked without downloading browser binaries.
+- Before moving upstream, decide how append-only state and reviews will be stored; a data
+  branch or blob storage is a future architecture decision, not authorization to migrate.
 
 ## Open questions
 
@@ -109,9 +120,9 @@ is updated after the backfill (it is part of every AI review request).
 
 ```bash
 cd eng/scripts/sdk-customization-metrics
-node --test test/*.test.ts                      # Node 26; on Node 22 add
-                                                # --experimental-strip-types --experimental-sqlite
-npx tsc -p tsconfig.json                        # with typescript 7.0.2 and @types/node
+node --test test/*.test.ts # Node 26; on Node 22 add
+# --experimental-strip-types --experimental-sqlite
+npx tsc -p tsconfig.json # with typescript 7.0.2 and @types/node
 node cli.ts publish --state state --tracker tracker/dataplane-tracker.csv --out SITE
 (cd azure && npm ci && npm run typecheck && npm run build)
 ```

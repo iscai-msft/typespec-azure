@@ -72,7 +72,7 @@ mise exec -- node eng/scripts/sdk-customization-metrics/cli.ts query \
   --db eng/scripts/sdk-customization-metrics/.local/site/metrics.sqlite \
   --sql "SELECT package, module_major, subtype, explanation, snippets_json
          FROM accepted_customizations
-         WHERE language = 'java' AND category = 'LRO'
+         WHERE language = 'java' AND category = 'LRO / polling'
          ORDER BY package, subtype"
 ```
 
@@ -137,8 +137,9 @@ browser afterward. It never publishes its fixture export.
 
 ## Configure AI only after approval
 
-Existing repository agentic workflows use Copilot/gh-aw, but no sanctioned
-general-purpose classification endpoint/model has been chosen for this tool.
+Existing repository agentic workflows use Copilot/gh-aw, but no general-purpose
+classification API endpoint/model has been configured for this tool. The completed
+backfill used the separately approved Copilot file exchange, not this API adapter.
 This slice provides an explicit OpenAI-compatible **chat completions JSON Schema**
 adapter; it does not assume that any provider or model is approved. If the
 approved integration uses another protocol, adapt `ModelClient` before enabling
@@ -254,10 +255,11 @@ to `navigation.ts`; without one, scans still capture source but list no entry po
 
 What counts as a customization, per language, lives in `guidelines/` (published on the
 dashboard's Guidelines page). Every review request carries the library's language guidelines,
-the pattern catalog (`guidelines/patterns.json`) and library facts, so editing a guideline
-re-reviews that language on the next run.
+the pattern catalog (`guidelines/patterns.json`) and library facts. Editing these inputs
+changes future request/cache identities, not historical assessments; an enabled review run
+can assess the evidence under the new inputs.
 
-Scans read with git (`--reader git`) store the library's handwritten code as review evidence,
+Scans read with git (`--reader git`) store candidate customization source as review evidence,
 most telling first, within about 40 KB per library: Python patches, Java customization scripts
 and `custom_*.go` first; then Java members without `@Generated` (cut out as line-range
 excerpts with their annotations); then other handwritten files. Anything over budget is
@@ -279,7 +281,8 @@ Findings carry a `pattern` (kebab-case name of the reusable shape) and `generato
 (yes/no/unclear). The dashboard's **Reducible customizations** section groups accepted
 findings by catalog pattern. A pattern is reducible when a generator or TypeSpec feature could
 provide it generally: at least one library with it is active (released or changed in the last
-12 months), most instances are not judged service-specific, and either it recurs in two or more
+365 days; missing activity dates count as active), at most half its instances are judged
+service-specific, and either it recurs in two or more
 services (Recurring, ranked first; services are counted by Azure namespace) or most instances
 say a generator could produce it (One service so far). One service in several languages adds a
 Spec fix tag. Other statuses: needs a human call (one service, reviewers mostly unsure),
@@ -388,21 +391,18 @@ history. For example:
 SELECT o.observed_at, f.identity, f.category, f.status
 FROM observation_findings f
 JOIN observations o ON o.id = f.observation_id
-WHERE f.counted = 1 AND f.category = 'LRO'
+WHERE f.counted = 1 AND f.category = 'LRO / polling'
 ORDER BY o.observed_at;
 ```
 
 History is only as durable as its persisted source records. The disabled-by-default
-collector's data branch preserves observations when explicitly configured; enabling
-it is not part of dashboard deployment. The personal-fork Pages job also performs a
-public no-AI refresh for its current artifact, but does not commit that refresh to
-history. It snapshots persisted state before refreshing and passes `--history-state`
-to publication; ephemeral refresh records remain downloadable raw scans but do not
-enter the dashboard's observation/trend series. This option requires an immutable
-subset of the exported state. Redeployments do not automatically accumulate those scans. The
-checked-in starter history has no completed real assessments, so deployed
-customization trends deliberately remain insufficient rather than showing sample
-or fabricated values.
+collector preserves observations when explicitly configured; enabling it is not part of
+dashboard deployment. The personal-fork Pages job publishes committed state only and
+does not rescan SDKs or supersede reviewed records with unreviewed refreshes.
+`--history-state` can select an immutable subset of exported state for other publication
+flows. Redeployments alone do not add observations. The completed agent backfill is a
+set of assessments of pinned source, not proof of code changes over time; trends still
+require compatible assessed observations rather than sample or fabricated values.
 
 ## Append a human override
 
@@ -479,7 +479,7 @@ Try it locally (no Azure; reviews are stored as files and everyone is signed in)
 
 ```bash
 TOOL=eng/scripts/sdk-customization-metrics
-SITE=$TOOL/.local/review-site   # git-ignored
+SITE=$TOOL/.local/review-site # git-ignored
 rm -rf $SITE && mkdir -p $SITE && cp $TOOL/web/fork-index.html $SITE/index.html
 node $TOOL/cli.ts publish --state $TOOL/state --tracker $TOOL/tracker/dataplane-tracker.csv \
   --out $SITE --review-api /api

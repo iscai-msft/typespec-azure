@@ -67,32 +67,42 @@ best describes its purpose.
 ## Reducible customizations
 
 The goal is fewer customizations overall, and new libraries that do not repeat old ones. A
-**reducible customization** is one whose _pattern_ could be removed for many libraries at
-once by a generator or TypeSpec change. It is decided per pattern, across libraries:
+**reducible customization** is one whose pattern a generator or TypeSpec feature could
+provide generally, so future libraries that need it would not hand-write it. This is a
+plausible opportunity, not proof of a current generator capability or measured reduction.
+The dashboard decides per pattern using counted findings only:
 
 1. **Pattern.** Every reviewed instance names the reusable shape of what it does (for
    example `auth-audience-option` or `model-to-string`), independent of the service.
    [patterns.json](./patterns.json) is the catalog that merges synonyms; specialists can edit
    it.
-2. **Recurs across services.** The pattern appears in libraries for at least **two different
-   services** (TypeSpec projects).
-3. **Still being repeated.** At least one library with the pattern is **active**: it released
-   or changed in the last 12 months. Patterns found only in dormant libraries are not flagged,
-   since nobody is touching or copying that code.
-4. **Not service-specific.** Most reviewed instances must not be judged inherently
-   service-specific (`generatorAddressable: no`).
+2. **Not mostly service-specific.** More than half the instances saying
+   `generatorAddressable: no` makes the pattern service-specific. Otherwise it can pass
+   this gate, including a tie.
+3. **Still relevant.** At least one library with the pattern is **active**: it released
+   or changed within 365 days. Missing activity dates are treated as active, not evidence
+   of dormancy. Only older dated activity makes a library dormant.
+4. **Generalizable.** The pattern either recurs across at least **two different services**
+   (counted by Azure namespace), or more than half its instances say
+   `generatorAddressable: yes`. One service can therefore be enough.
 
-Everything else is shown but not counted as reducible:
+The rules in `web/data.ts` (`reduciblePatterns`) apply in this order: missing pattern,
+majority service-specific, no active libraries, cross-service recurrence, majority
+generator-addressable, then needs judgment.
 
-| Status                          | Meaning                                                                    |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| Reducible                       | Meets all four rules                                                       |
-| Same service, several languages | One service, repeated in two or more languages: a spec-level fix candidate |
-| Dormant only                    | Recurs across services, but only in dormant libraries                      |
-| One-off                         | Only one library (or one dormant library) has it                           |
-| Service-specific                | Reviewers judged it inherently tied to one service                         |
+| Status                        | Meaning                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| Reducible: Recurring          | Passes the activity and service-specific gates and occurs in at least two services |
+| Reducible: One service so far | Passes those gates and a majority says a generator could produce it                |
+| Needs a human call            | One service without a majority of yes or no judgments                              |
+| Service-specific              | A majority says it is inherently tied to its service                               |
+| Dormant only                  | No associated library is active after the service-specific gate                    |
+| Unknown                       | No pattern is recorded                                                             |
 
-Patterns are ranked by how many active libraries carry them, then by services and instances.
+**Spec fix** is an additional tag for one service appearing in at least two languages,
+not a separate reducibility status or a confirmed root cause. Reducible patterns rank
+first, recurring patterns before single-service ones, then by active libraries, services,
+libraries and instances.
 
 ## Review procedure
 
@@ -100,13 +110,16 @@ Patterns are ranked by how many active libraries carry them, then by services an
 2. Find candidate handwritten code using that file's signals.
 3. Propose one finding per customization instance: category, short subtype, one-sentence
    explanation, affected symbols, evidence lines, and the handwritten signal.
-4. A **separate reviewer**, without the proposer's reasoning, accepts, revises, rejects or
-   marks each proposal inconclusive, and lists anything missed as inconclusive omissions.
+4. A **separate reviewer** in a fresh context receives the original evidence and structured
+   proposals, not the analyst's conversation or private reasoning. It accepts, revises,
+   rejects or marks each proposal inconclusive, and lists anything missed as inconclusive
+   omissions. Accepted and revised findings are **AI-reviewed**, not human-verified.
 5. Human reviewers can correct, reject or add findings; their decisions take precedence.
 
 ## Changing these guidelines
 
-Language specialists own their file. To change a definition, open a pull request against
-that file; the owners listed at its top review it. Changing a language file invalidates the
-AI reviews for that language, so the next weekly run re-reviews them under the new rules.
-To overrule a single finding instead, use the review buttons on the dashboard.
+Language specialists own their file; follow its review process when changing a definition.
+Guideline/catalog changes alter future request/cache inputs; they do not rewrite historical
+assessments. An enabled review run assesses the affected evidence under the new inputs.
+Keep inputs frozen throughout an in-progress cohort and reconcile definitions afterward.
+To overrule a single finding instead, use an evidence-bound human override.
