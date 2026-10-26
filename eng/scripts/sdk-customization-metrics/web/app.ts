@@ -634,7 +634,48 @@ export async function start() {
     let findingLimit = 20;
     const expandedLibraries = new Set();
     rerender = () => update();
+    // Service and library choices follow the plane and language, so a data-plane view does not
+    // offer management services (which would match nothing).
+    let choicesFor = "";
+    const fillChoices = () => {
+      const plane = control("plane").value;
+      const language = control("language").value;
+      const key = `${plane}|${language}`;
+      if (key === choicesFor) return;
+      choicesFor = key;
+      const inScope = allLibraries.filter(
+        (item) => (!plane || item.plane === plane) && (!language || item.language === language),
+      );
+      const refill = (id: string, options: [string, string][]) => {
+        const select = byId<HTMLSelectElement>(id);
+        const current = select.value;
+        select.replaceChildren(select.options[0]);
+        for (const [value, label] of options) {
+          const option = element("option", label);
+          option.value = value;
+          select.append(option);
+        }
+        select.value = options.some(([value]) => value === current) ? current : "";
+      };
+      const scopedServices = [...new Set(inScope.map((item) => item.service))]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+        .map((value): [string, string] => [value, value]);
+      refill("service", scopedServices);
+      refill("q-service", scopedServices);
+      refill(
+        "library",
+        [...inScope]
+          .sort(
+            (a, b) => a.language.localeCompare(b.language) || a.package.localeCompare(b.package),
+          )
+          .map((item): [string, string] => [
+            item.id,
+            `${languageLabel(item.language)} · ${item.package}`,
+          ]),
+      );
+    };
     const update = () => {
+      fillChoices();
       const filters = Object.fromEntries(
         fields.map((id) => [id, control(id).value]),
       ) as unknown as FormFilters;
