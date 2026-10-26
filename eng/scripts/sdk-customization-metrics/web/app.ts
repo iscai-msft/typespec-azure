@@ -259,6 +259,15 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
             `Pattern: ${patternName(item.pattern)} · generator-addressable: ${item.generatorAddressable ?? "unclear"}`,
             "muted",
           ),
+          ...(item.reclassified
+            ? [
+                element(
+                  "p",
+                  `Reclassified from "${patternName(item.reclassified.from)}": ${item.reclassified.note}`,
+                  "muted",
+                ),
+              ]
+            : []),
         ]
       : []),
     element("p", `Handwritten evidence rationale: ${item.handwrittenRationale}`),
@@ -1049,6 +1058,38 @@ export async function start() {
             return tr;
           })(),
         );
+
+      // Pattern names not in the shared catalog yet: a triage list for catalog owners.
+      const catalogIds = new Set(catalog.patterns.map((item) => item.id));
+      const uncatalogued = scopedPatterns
+        .filter((pattern) => pattern.id !== "unpatterned" && !catalogIds.has(pattern.id))
+        .sort((a, b) => b.instances - a.instances || a.name.localeCompare(b.name));
+      byId("uncatalogued").hidden = !uncatalogued.length;
+      byId("uncatalogued-title").textContent =
+        `Patterns not in the catalog (${number.format(uncatalogued.length)})`;
+      byId("uncatalogued-list").replaceChildren(
+        ...uncatalogued.map((pattern) => {
+          const item = element("li");
+          const button = element("button", pattern.name, "library-link library-select");
+          button.type = "button";
+          button.addEventListener("click", () => {
+            control("pattern").value = pattern.id;
+            control("library").value = "";
+            instance = "";
+            update();
+            byId("explorer-title").scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+          item.append(
+            button,
+            element(
+              "span",
+              ` ${pattern.id} · ${pattern.instances} ${pattern.instances === 1 ? "finding" : "findings"} in ${pattern.libraries} ${pattern.libraries === 1 ? "library" : "libraries"} · ${statusLabel[pattern.status] ?? pattern.status}`,
+              "muted",
+            ),
+          );
+          return item;
+        }),
+      );
 
       // Breakdown
       const group = control("group").value;

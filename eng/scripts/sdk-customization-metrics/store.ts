@@ -624,6 +624,44 @@ export function poolDataset(
   };
 }
 
+// Reclassification files (reclassify/*.json): move specific findings to another pattern at
+// publish time, and add the patterns they introduce to the published catalog. Review records
+// are not changed. See reclassify/typed-wrappers.json.
+interface Reclassification {
+  from?: string;
+  patterns: { id: string; name: string; description: string }[];
+  findings: Record<string, { pattern: string; reason: string; note: string }>;
+}
+
+export async function readReclassifications(
+  directory = fileURLToPath(new URL("./reclassify/", import.meta.url)),
+): Promise<Reclassification[]> {
+  let names: string[];
+  try {
+    names = (await readdir(directory)).filter((name) => name.endsWith(".json")).sort();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  return Promise.all(
+    names.map(async (name) => JSON.parse(await readFile(join(directory, name), "utf8"))),
+  );
+}
+
+export function reclassify(findings: FindingRecord[], files: Reclassification[]): FindingRecord[] {
+  const moves = new Map(files.flatMap((file) => Object.entries(file.findings)));
+  return findings.map((item) => {
+    const move = moves.get(item.id);
+    if (!move) return item;
+    return {
+      ...item,
+      pattern: move.pattern,
+      finding: { ...item.finding, pattern: move.pattern },
+      reclassified: { from: item.pattern, reason: move.reason, note: move.note },
+    };
+  });
+}
+
 export async function exportData(
   stateDirectory: string,
   outputDirectory: string,
@@ -631,6 +669,8 @@ export async function exportData(
 ): Promise<Dataset> {
   const { scans, overrides } = await readState(stateDirectory);
   const dataset = effectiveDataset(scans, overrides, options);
+  const reclassifications = await readReclassifications();
+  dataset.findings = reclassify(dataset.findings, reclassifications);
   dataset.historyVersion = 1;
   const historical = options.historyStateDirectory
     ? await readState(options.historyStateDirectory)
@@ -648,7 +688,12 @@ export async function exportData(
       throw new Error("Historical state must be an immutable subset of the exported state");
     }
   }
-  dataset.observations = effectiveObservations(historical.scans, historical.overrides, options);
+  dataset.observations = effectiveObservations(historical.scans, historical.overrides, options).map(
+    (observation) => ({
+      ...observation,
+      findings: reclassify(observation.findings, reclassifications),
+    }),
+  );
   dataset.historySource = options.historyStateDirectory
     ? "persisted-state-before-refresh"
     : "exported-state";
@@ -806,6 +851,15 @@ export async function exportData(
     })}\n`,
   );
   await exportGuidelines(outputDirectory);
+  // Patterns introduced by reclassification files join the published catalog.
+  const extraPatterns = reclassifications.flatMap((file) => file.patterns);
+  if (extraPatterns.length) {
+    const published = join(outputDirectory, "guidelines", "patterns.json");
+    const catalog = JSON.parse(await readFile(published, "utf8"));
+    const known = new Set(catalog.patterns.map((item: { id: string }) => item.id));
+    catalog.patterns.push(...extraPatterns.filter((item) => !known.has(item.id)));
+    await writeFile(published, `${JSON.stringify(catalog, null, 2)}\n`);
+  }
   // The page's modules are TypeScript; browsers get them with types stripped. Every asset URL
   // carries a version (a hash of the page's code), so a publish is never half-cached.
   const modules = ["app", "data", "languages", "vocabulary", "human-review"];
