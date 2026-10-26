@@ -18,6 +18,33 @@ libraries in that scope. The exported database has one additional out-of-scope i
 with missing analysis, so global and scoped missing counts differ. All source coverage
 is bounded, including libraries whose assessments are complete.
 
+## Management-plane run (next)
+
+Scope: the 181 management-plane libraries whose code scan found handwritten code, listed in
+[`review-targets/management.txt`](./review-targets/management.txt) (159 .NET, 21 Java,
+1 Python). Go and Python management libraries are otherwise fully generated; JavaScript is
+excluded because its detection rule still lists every `src/` file. Requests total about
+14 MB (roughly the size of the data-plane backfill).
+
+Everything below applies, with these changes:
+
+- Use `--plane management`, and pick each cohort's identities from that file (or pass
+  `--only @review-targets/management.txt` with `--limit 10`, which takes the next 10 pending
+  ones in order).
+- Commit messages say "management-plane batch N".
+- Use the same analyst and reviewer models as the data-plane run, so the two planes compare.
+
+```bash
+cd eng/scripts/sdk-customization-metrics
+export AM="copilot/gpt-6.1-sol" RM="copilot/gpt-6-sol"
+review() {
+  mise exec -- node cli.ts review --state state --plane management --exchange .local/exchange-mgmt \
+    --analyst-model "$AM" --reviewer-model "$RM" --only @review-targets/management.txt --limit 10
+}
+```
+
+The data-plane sections below describe the completed backfill and the same procedure.
+
 ## Setup (once)
 
 - A clone of `iscai-msft/typespec-azure` on branch `sdk-customization-metrics`.

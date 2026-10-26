@@ -186,7 +186,18 @@ export async function main(args: string[] = process.argv.slice(2)) {
         (item) => values.plane === "all" || item.plane === values.plane,
       );
       const wanted = new Set(libraries.map((item) => `${item.repo}:${item.root}`));
-      const only = values.only ? new Set(values.only.split(",").map((item) => item.trim())) : null;
+      // --only a,b,c or --only @file (one identity or package per line; # comments).
+      const onlyText = values.only?.startsWith("@")
+        ? await readFile(resolve(values.only.slice(1)), "utf8")
+        : values.only;
+      const only = onlyText
+        ? new Set(
+            onlyText
+              .split(/[,\n]/)
+              .map((item) => item.replace(/#.*/, "").trim())
+              .filter(Boolean),
+          )
+        : null;
       const { scans } = await readState(state);
       const latest = new Map<string, Scan>();
       for (const scan of scans)
