@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "id": "d7546418-6fbf-42d6-b0ae-682235215d47",
+  "observedAt": "2026-10-26T15:11:24.998Z",
+  "identity": "dotnet:azure.resourcemanager.servicelinker:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.ServiceLinker",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "364698c53261de88b2402892872e4d3dd8b60bcc"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 241,
+    "eligibleFiles": 223,
+    "capturedFiles": 7,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/MockableServiceLinkerArmResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\nnamespace Azure.ResourceManager.ServiceLinker.Mocking\n{\n    // The TypeSpec emitter currently generates extension-resource entry points only on ArmClient.\n    // Preserve the GA ArmResource mocking surface by forwarding to the generated collection.\n    /// <summary> A class to add extension methods to <see cref=\"ArmResource\"/>. </summary>\n    public partial class MockableServiceLinkerArmResource : ArmResource\n    {\n        /// <summary> Initializes a new instance of the <see cref=\"MockableServiceLinkerArmResource\"/> class for mocking. </summary>\n        protected MockableServiceLinkerArmResource()\n        {\n        }\n\n        internal MockableServiceLinkerArmResource(ArmClient client, ResourceIdentifier id) : base(client, id)\n        {\n        }\n\n        /// <summary> Gets a collection of Linker resources. </summary>\n        public virtual LinkerResourceCollection GetLinkerResources()\n        {\n            return GetCachedClient(client => new LinkerResourceCollection(client, Id));\n        }\n\n        /// <summary> Gets a Linker resource. </summary>\n        public virtual Response<LinkerResource> GetLinkerResource(string linkerName, CancellationToken cancellationToken = default)\n        {\n            return GetLinkerResources().Get(linkerName, cancellationToken);\n        }\n\n        /// <summary> Gets a Linker resource. </summary>\n        public virtual async Task<Response<LinkerResource>> GetLinkerResourceAsync(string linkerName, CancellationToken cancellationToken = default)\n        {\n            return await GetLinkerResources().GetAsync(linkerName, cancellationToken).ConfigureAwait(false);\n        }\n    }\n}\n",
+      "contentHash": "b0d49c740ccd14c1b7c7ec05cba057501866317b08f1febe01fcb3245d626438",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/MockableServiceLinkerArmResource.cs",
+      "startLine": 1,
+      "endLine": 44,
+      "kind": "handwritten-marker",
+      "id": "6e31ce6466fe2ae0af107d7f758638b00f04cd0ac5b22ccfed6e7c7cebcb3fa0"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/ServiceLinkerExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.ResourceManager.ServiceLinker.Mocking;\n\nnamespace Azure.ResourceManager.ServiceLinker\n{\n    // The TypeSpec emitter currently generates extension-resource entry points only on ArmClient.\n    // Preserve the GA ArmResource extensions and their mockable forwarding surface.\n    public static partial class ServiceLinkerExtensions\n    {\n        private static MockableServiceLinkerArmResource GetMockableServiceLinkerArmResource(ArmResource armResource)\n        {\n            return armResource.GetCachedClient(client => new MockableServiceLinkerArmResource(client, armResource.Id));\n        }\n\n        /// <summary> Gets a collection of Linker resources. </summary>\n        public static LinkerResourceCollection GetLinkerResources(this ArmResource armResource)\n        {\n            Argument.AssertNotNull(armResource, nameof(armResource));\n            return GetMockableServiceLinkerArmResource(armResource).GetLinkerResources();\n        }\n\n        /// <summary> Gets a Linker resource. </summary>\n        [ForwardsClientCalls]\n        public static Response<LinkerResource> GetLinkerResource(this ArmResource armResource, string linkerName, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(armResource, nameof(armResource));\n            return GetMockableServiceLinkerArmResource(armResource).GetLinkerResource(linkerName, cancellationToken);\n        }\n\n        /// <summary> Gets a Linker resource. </summary>\n        [ForwardsClientCalls]\n        public static async Task<Response<LinkerResource>> GetLinkerResourceAsync(this ArmResource armResource, string linkerName, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(armResource, nameof(armResource));\n            return await GetMockableServiceLinkerArmResource(armResource).GetLinkerResourceAsync(linkerName, cancellationToken).ConfigureAwait(false);\n        }\n    }\n}\n",
+      "contentHash": "3d8f522ad1373619b31357e6949f70681d71c90b0a140d3715f1fade9cc11fdc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/ServiceLinkerExtensions.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "kind": "handwritten-marker",
+      "id": "9508b6e56d005ebdc1834dbf82b94095fecd652eabb375ccc30049e18c99e747"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/LinkerValidateOperationResult.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ServiceLinker.Models\n{\n    // AutoRest exposed the flattened validation details as IReadOnlyList<T>, while the TypeSpec\n    // emitter exposes IList<T>. Keep the inner generated model mutable and preserve the GA accessor.\n    [CodeGenSuppress(\"ValidationDetail\")]\n    public partial class LinkerValidateOperationResult\n    {\n        /// <summary> The detail of validation result. </summary>\n        public IReadOnlyList<LinkerValidationResultItemInfo> ValidationDetail\n        {\n            get\n            {\n                return Properties is null ? null : (IReadOnlyList<LinkerValidationResultItemInfo>)Properties.ValidationDetail;\n            }\n        }\n    }\n}\n",
+      "contentHash": "791cd15c91353e0eac14037975c30fa003bd070628f5d30a265ab73707b9cb16",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/LinkerValidateOperationResult.cs",
+      "startLine": 1,
+      "endLine": 25,
+      "kind": "handwritten-marker",
+      "id": "546475aa8667205423b7ace208560c3c1a0225602333e00304b1a7b3cab8442e"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAuthInfoBase.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ServiceLinker.Models\n{\n    // Renaming AuthInfoBase changes the generated discriminator fallback to UnknownAuthBaseInfo;\n    // map it back so PersistableModelProxyAttribute retains the GA metadata contract.\n    [CodeGenType(\"UnknownAuthBaseInfo\")]\n    internal partial class UnknownAuthInfoBase\n    {\n    }\n}\n",
+      "contentHash": "09fc0858f1becd2695cd4d118a7053233d63b34d2360f3cbb44ccf3791c1de45",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAuthInfoBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "557c1b8473de5642d0dabc977ddc3f936cc8fed681c4237622174eff371dd9a7"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAzureResourcePropertiesBase.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ServiceLinker.Models\n{\n    // Renaming AzureResourcePropertiesBase changes the generated discriminator fallback name;\n    // map it back so PersistableModelProxyAttribute retains the GA metadata contract.\n    [CodeGenType(\"UnknownAzureResourceBaseProperties\")]\n    internal partial class UnknownAzureResourcePropertiesBase\n    {\n    }\n}\n",
+      "contentHash": "c403636150944d7098ba84175dbfda00de19a22595dc0fad399c05e55443ef4c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAzureResourcePropertiesBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "907ccc75a5c659a6431c9505f1e85d6ce76622145a8b53dc950952ed232b7117"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownSecretInfoBase.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ServiceLinker.Models\n{\n    // Renaming SecretInfoBase changes the generated discriminator fallback to UnknownSecretBaseInfo;\n    // map it back so PersistableModelProxyAttribute retains the GA metadata contract.\n    [CodeGenType(\"UnknownSecretBaseInfo\")]\n    internal partial class UnknownSecretInfoBase\n    {\n    }\n}\n",
+      "contentHash": "56909d94bd252444710947264ca7dd86848bc8bf216d04df7c3da542b69a767d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownSecretInfoBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "862c01166fd931b19ea3ea61c6d719b3188f71c064433768db02da888e3302e7"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownTargetServiceBase.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ServiceLinker.Models\n{\n    // Renaming TargetServiceBase changes the generated discriminator fallback name; map it back\n    // so PersistableModelProxyAttribute retains the GA metadata contract.\n    [CodeGenType(\"UnknownTargetServiceBaseInfo\")]\n    internal partial class UnknownTargetServiceBase\n    {\n    }\n}\n",
+      "contentHash": "5c6b7e1914b5691a46839976990f57222454b74f38a483a2493db1893574375e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownTargetServiceBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "84ff41a7f95f47ee6cf25224103a7fbc45a807a8d5c5e783fcdbac4b212c2e89"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/README.md",
+      "text": "# Microsoft Azure Service Connector management client library for .NET\n\nMicrosoft Azure Service Connector helps you connect Azure compute services to other backing services. This service configures the network settings and connection information (for example, generating environment variables) between compute services and target backing services in management plane. Developers use their preferred SDK or library that consumes the connection information to do data plane operations against the target backing service.\n\nThis library supports managing Microsoft Azure Service Connector resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Service Connector management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.ServiceLinker\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "be69181e135607426dd6f9c21c49a47539054a89e5f39019322a09876375f010",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/README.md"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Azure.ResourceManager.ServiceLinker.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.2.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.1.2</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.ServiceLinker</PackageId>\n    <Description>Microsoft Azure management client SDK for Azure resource provider Microsoft.ServiceLinker.</Description>\n    <PackageTags>azure;management;arm;resource manager;servicelinker</PackageTags>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "4775fd70fa000e95a861a5810a349d9a36373fb250174de7e0992cd5535954aa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Azure.ResourceManager.ServiceLinker.csproj"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/tsp-location.yaml",
+      "text": "directory: specification/servicelinker/resource-manager/Microsoft.ServiceLinker/ServiceLinker\ncommit: 07608d4b1ca2ec6719cda1541c54d5f53f686585\nrepo: cxznmhdcxz/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n",
+      "contentHash": "96f4ed4c4cb0ee06e46bbee020f5c93ae6d8279ae3c0030506e2bc88d638ed67",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/servicelinker/Azure.ResourceManager.ServiceLinker/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/MockableServiceLinkerArmResource.cs",
+      "startLine": 1,
+      "endLine": 44,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "b0d49c740ccd14c1b7c7ec05cba057501866317b08f1febe01fcb3245d626438"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Extensions/ServiceLinkerExtensions.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "3d8f522ad1373619b31357e6949f70681d71c90b0a140d3715f1fade9cc11fdc"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/LinkerValidateOperationResult.cs",
+      "startLine": 1,
+      "endLine": 25,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "791cd15c91353e0eac14037975c30fa003bd070628f5d30a265ab73707b9cb16"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAuthInfoBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "09fc0858f1becd2695cd4d118a7053233d63b34d2360f3cbb44ccf3791c1de45"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownAzureResourcePropertiesBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c403636150944d7098ba84175dbfda00de19a22595dc0fad399c05e55443ef4c"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownSecretInfoBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "56909d94bd252444710947264ca7dd86848bc8bf216d04df7c3da542b69a767d"
+    },
+    {
+      "path": "sdk/servicelinker/Azure.ResourceManager.ServiceLinker/src/Customization/Models/UnknownTargetServiceBase.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "5c6b7e1914b5691a46839976990f57222454b74f38a483a2493db1893574375e"
+    }
+  ]
+}

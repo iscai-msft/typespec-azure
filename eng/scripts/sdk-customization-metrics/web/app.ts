@@ -5,6 +5,7 @@ import {
   filterLibraries,
   historyRows,
   languageLabel,
+  hasHeuristicDetection,
   mergeLibraries,
   patternLabel,
   patternResolver,
@@ -12,6 +13,7 @@ import {
   selectView,
   serviceName,
   trackerBreakdown,
+  unpoolDataset,
 } from "./data.ts";
 import { LANGUAGES, PLANES } from "./languages.ts";
 import { findingReview, libraryReview, loadReviewState, type ReviewState } from "./human-review.ts";
@@ -383,7 +385,7 @@ export function renderTrendChart(
     );
   }
   const labelIndexes = [0, rows.length - 1].filter(
-    (index, position, all) => index >= 0 && all.indexOf(index) === position,
+    (index, position, all) => index >= 0 && index < rows.length && all.indexOf(index) === position,
   );
   for (const index of labelIndexes) {
     chart.append(
@@ -497,7 +499,7 @@ export async function start() {
     );
     if (!response?.ok) response = await fetch("./metrics.json", { cache: "no-store" });
     if (!response.ok) throw new Error(`Metrics download failed: HTTP ${response.status}`);
-    const data: Dataset = await response.json();
+    const data: Dataset = unpoolDataset(await response.json());
     if (
       data.schemaVersion !== 1 ||
       (data.historyVersion !== undefined && data.historyVersion !== 1) ||
@@ -719,8 +721,9 @@ export async function start() {
           : "No manual tracker loaded",
         `${scanned.length} with scanned code${filters.observation ? ` as of ${formatDate(filters.observation)} UTC` : latest ? `, latest ${formatDate(latest)} UTC` : ""}`,
       ].join(" | ");
-      const reviewable = view.scope.filter((item) => !item.excluded).length;
-      if (tracker) {
+      // The manual tracker drives the overview where it covers the libraries in view (data
+      // plane); elsewhere (management, provisioning) the cards come from the code scans.
+      if (tracked.length) {
         const counts = new Map<string, number>();
         for (const row of customized)
           for (const category of row.tracker.categories)
@@ -759,25 +762,44 @@ export async function start() {
           ),
         );
       } else {
+        // Only languages with settled detection rules can say a library is customized.
+        const judged = scanned.filter((row) => !hasHeuristicDetection(row.language));
+        const judgedIds = new Set(judged.map((row) => row.scan!.identity));
+        const withCode = new Set(
+          codeLinks.filter((item) => judgedIds.has(item.identity)).map((item) => item.identity),
+        ).size;
+        const unsettled = scanned.length - judged.length;
+        const notScanned = rows.length - scanned.length;
+        const reviewed = view.assessed.length || view.accepted.length;
         byId("metric-cards").replaceChildren(
           kpi(
-            "Customization entry points",
-            semantic ? "—" : number.format(codeLinks.length),
-            `${new Set(codeLinks.map((item) => item.identity)).size} of ${view.scope.length} libraries have handwritten customization files`,
+            "Libraries with handwritten code",
+            judged.length ? percent(withCode, judged.length) : scanned.length ? "—" : "Not scanned",
+            judged.length
+              ? `${number.format(withCode)} of ${number.format(judged.length)} scanned libraries${unsettled ? ` · ${number.format(unsettled)} JavaScript not judged` : ""}${notScanned ? ` · ${number.format(notScanned)} not scanned` : ""}`
+              : scanned.length
+                ? "Detection rules for these languages are not settled yet"
+                : "No library in this view has been scanned yet",
             "featured",
           ),
           kpi(
-            "Reviewed customizations",
-            view.assessed.length || view.accepted.length
-              ? number.format(view.accepted.length)
-              : "N/A",
-            `${view.unassessed.length} libraries awaiting review`,
+            "Customization entry points",
+            semantic ? "—" : number.format(codeLinks.length),
+            "Handwritten files found by the language guidelines",
           ),
-          kpi("Libraries in view", number.format(rows.length), `${repos.size} repositories`),
           kpi(
-            "Review coverage",
-            percent(view.assessed.length, reviewable),
-            `${view.assessed.length} of ${reviewable} libraries assessed`,
+            "Reviewed customizations",
+            reviewed ? number.format(view.accepted.length) : "Not reviewed",
+            reviewed
+              ? `${view.unassessed.length} libraries awaiting review`
+              : `None of these ${number.format(view.scope.length)} libraries has an AI review yet`,
+          ),
+          kpi(
+            "Fully generated",
+            judged.length ? number.format(judged.length - withCode) : "—",
+            judged.length
+              ? `${percent(judged.length - withCode, judged.length)} of judged libraries have no handwritten code`
+              : "Shown once libraries are scanned",
             "generated",
           ),
         );
@@ -813,7 +835,7 @@ export async function start() {
       byId("reducible-kpis").replaceChildren(
         kpi(
           "Reducible patterns",
-          reviewedLibraries ? number.format(reducible.length) : "N/A",
+          reviewedLibraries ? number.format(reducible.length) : "—",
           reviewedLibraries
             ? `${number.format(reducible.filter((pattern) => pattern.recurring).length)} recur across services · of ${number.format(scopedPatterns.length)} patterns found`
             : "No libraries reviewed yet",
@@ -823,7 +845,7 @@ export async function start() {
           "Reducible instances",
           reviewedLibraries
             ? number.format(reducible.reduce((sum, pattern) => sum + pattern.instances, 0))
-            : "N/A",
+            : "—",
           "Reviewed customizations that follow a reducible pattern",
         ),
         kpi(
@@ -840,7 +862,7 @@ export async function start() {
                     .map((item) => item.identity),
                 ).size,
               )
-            : "N/A",
+            : "—",
           "Libraries that would lose a customization",
         ),
         kpi(
@@ -1049,7 +1071,9 @@ export async function start() {
           ? [
               element("span", "Has customizations", "key key-custom"),
               element("span", "Fully generated", "key key-generated"),
-              ...(anyUntracked ? [element("span", "Not in tracker", "key key-untracked")] : []),
+              ...(anyUntracked
+                ? [element("span", "Not in tracker or scanned", "key key-untracked")]
+                : []),
             ]
           : [
               element(
@@ -1100,7 +1124,7 @@ export async function start() {
               measure === "share"
                 ? row.tracked
                   ? percent(row.customized, row.tracked)
-                  : "Not tracked"
+                  : "Unknown"
                 : `${row.customized} / ${row.libraries}`;
           } else {
             const fill = element(

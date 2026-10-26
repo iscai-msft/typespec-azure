@@ -158,11 +158,13 @@ try {
   // The library matches through its reviewed LRO finding; its files are listed as unclassified.
   assert.equal(await page.locator(".code-link-card").count(), 1);
   assert.match(await page.locator("#code-link-status").innerText(), /not classified yet/);
+  // Without tracker rows in view, the cards come from the scans: share with handwritten
+  // code, entry points, reviewed customizations, fully generated.
   assert.deepEqual(await page.locator("#metric-cards .metric-value").allTextContents(), [
-    "1",
-    "1",
-    "1",
     "100.0%",
+    "1",
+    "1",
+    "0",
   ]);
   assert.equal(await page.locator("#library-rows tr").count(), 1);
   assert.equal(await page.locator(".reviewed-results").getAttribute("open"), "");

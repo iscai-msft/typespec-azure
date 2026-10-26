@@ -1,15 +1,7 @@
 import { stripTypeScriptTypes } from "node:module";
 import { exportGuidelines } from "./guidelines.ts";
 import { randomUUID } from "node:crypto";
-import {
-  link,
-  mkdir,
-  readFile,
-  readdir,
-  rename,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { link, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -22,6 +14,7 @@ import type {
   Override,
   OverrideRequest,
   PackageRecord,
+  PooledDataset,
   Scan,
   Snippet,
 } from "./web/types.ts";
@@ -597,6 +590,40 @@ export async function createOverride(
   return override;
 }
 
+// Stores each distinct package/finding record once (see PooledDataset). Records repeat across
+// observations because most libraries do not change between runs.
+export function poolDataset(
+  dataset: Dataset,
+  shape: (item: PackageRecord) => PackageRecord = (item) => item,
+): PooledDataset {
+  const pool: PooledDataset["pool"] = { packages: {}, findings: {} };
+  const keep = <T>(bucket: Record<string, T>, item: T) => {
+    const key = digest(item).slice(0, 20);
+    bucket[key] ??= item;
+    return key;
+  };
+  const packages = (items: PackageRecord[]) =>
+    items.map((item) => keep(pool.packages, shape(item)));
+  const findings = (items: FindingRecord[]) => items.map((item) => keep(pool.findings, item));
+  const { packages: current, findings: found, observations, ...rest } = dataset;
+  return {
+    ...rest,
+    pooled: 1,
+    packages: packages(current),
+    findings: findings(found),
+    ...(observations
+      ? {
+          observations: observations.map((observation) => ({
+            ...observation,
+            packages: packages(observation.packages),
+            findings: findings(observation.findings),
+          })),
+        }
+      : {}),
+    pool,
+  };
+}
+
 export async function exportData(
   stateDirectory: string,
   outputDirectory: string,
@@ -631,7 +658,9 @@ export async function exportData(
   try {
     db.exec(`
       CREATE TABLE scans (id TEXT PRIMARY KEY, identity TEXT NOT NULL, observed_at TEXT NOT NULL, raw_json TEXT NOT NULL);
-      CREATE TABLE evidence (scan_id TEXT NOT NULL, id TEXT NOT NULL, path TEXT NOT NULL, content_hash TEXT NOT NULL, text TEXT NOT NULL, kind TEXT NOT NULL, source_url TEXT NOT NULL, PRIMARY KEY(scan_id, id));
+      CREATE TABLE evidence_rows (scan_id TEXT NOT NULL, id TEXT NOT NULL, path TEXT NOT NULL, content_hash TEXT NOT NULL, kind TEXT NOT NULL, source_url TEXT NOT NULL, PRIMARY KEY(scan_id, id));
+      CREATE TABLE evidence_texts (content_hash TEXT PRIMARY KEY, text TEXT NOT NULL);
+      CREATE VIEW evidence AS SELECT r.scan_id, r.id, r.path, r.content_hash, t.text, r.kind, r.source_url FROM evidence_rows r JOIN evidence_texts t USING (content_hash);
       CREATE TABLE overrides (id TEXT PRIMARY KEY, scan_id TEXT NOT NULL, created_at TEXT NOT NULL, raw_json TEXT NOT NULL);
       CREATE TABLE packages (identity TEXT PRIMARY KEY, language TEXT NOT NULL, package TEXT NOT NULL, module_major INTEGER NOT NULL, scan_id TEXT NOT NULL, coverage_status TEXT NOT NULL, analysis_status TEXT NOT NULL, raw_json TEXT NOT NULL);
       CREATE TABLE findings (id TEXT PRIMARY KEY, identity TEXT NOT NULL, language TEXT NOT NULL, package TEXT NOT NULL, module_major INTEGER NOT NULL, category TEXT NOT NULL, subtype TEXT NOT NULL, status TEXT NOT NULL, counted INTEGER NOT NULL, explanation TEXT NOT NULL, snippets_json TEXT NOT NULL, raw_json TEXT NOT NULL);
@@ -647,7 +676,16 @@ export async function exportData(
       "INSERT INTO observation_findings VALUES (?, ?, ?, ?, ?, ?)",
     );
     for (const observation of dataset.observations) {
-      insertObservation.run(observation.id, observation.observedAt, JSON.stringify(observation));
+      // Findings are rows of observation_findings; the observation row keeps the rest.
+      insertObservation.run(
+        observation.id,
+        observation.observedAt,
+        JSON.stringify({
+          ...observation,
+          packages: observation.packages.map((item) => item.identity),
+          findings: observation.findings.length,
+        }),
+      );
       for (const finding of observation.findings)
         insertHistoricalFinding.run(
           observation.id,
@@ -655,26 +693,44 @@ export async function exportData(
           finding.category,
           finding.status,
           Number(finding.counted),
-          JSON.stringify(finding),
+          // Snippet text is in the evidence table; history keeps where each snippet is.
+          JSON.stringify({
+            ...finding,
+            snippets: finding.snippets.map(({ text: _text, ...snippet }) => snippet),
+          }),
         );
     }
-    const insertEvidence = db.prepare("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)");
+    // Rescans and reviews repeat the same source text; each text is stored once, and the
+    // evidence view joins it back.
+    const insertEvidence = db.prepare("INSERT INTO evidence_rows VALUES (?, ?, ?, ?, ?, ?)");
+    const insertText = db.prepare("INSERT OR IGNORE INTO evidence_texts VALUES (?, ?)");
     const exportedScans = scans.filter(
       (scan) => options.includeFixtures || scan.provenance.origin !== "fixture",
     );
     const scanIds = new Set(exportedScans.map((scan) => scan.id));
     for (const scan of exportedScans) {
-      insertScan.run(scan.id, scan.identity, scan.observedAt, JSON.stringify(scan));
-      for (const item of scan.evidence)
+      // Source text lives once, in the evidence table; raw_json keeps the rest of the scan.
+      insertScan.run(
+        scan.id,
+        scan.identity,
+        scan.observedAt,
+        JSON.stringify({
+          ...scan,
+          evidence: scan.evidence.map(({ text: _text, ...item }) => item),
+          generationContext: scan.generationContext.map(({ text: _text, ...item }) => item),
+        }),
+      );
+      for (const item of scan.evidence) {
+        insertText.run(item.contentHash, item.text);
         insertEvidence.run(
           scan.id,
           item.id,
           item.path,
           item.contentHash,
-          item.text,
           item.kind,
           item.sourceUrl,
         );
+      }
     }
     const insertOverride = db.prepare("INSERT INTO overrides VALUES (?, ?, ?, ?)");
     for (const override of overrides.filter((item) => scanIds.has(item.scanId))) {
@@ -722,7 +778,11 @@ export async function exportData(
     db.close();
   }
   await rename(temporary, join(outputDirectory, "metrics.sqlite"));
-  await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(dataset, null, 2)}\n`);
+  // metrics.json: the current state in full. History is in metrics.sqlite (observations,
+  // observation_findings) and dashboard.json; repeating it here made the file several times
+  // larger with every run.
+  const { observations: _history, ...current } = dataset;
+  await writeFile(join(outputDirectory, "metrics.json"), `${JSON.stringify(current)}\n`);
   // The page loads a lighter copy: per-file inventories go to diagnostics.json, which is only
   // fetched when someone opens collection diagnostics. metrics.json stays the complete record.
   const light = (item: PackageRecord): PackageRecord => ({
@@ -732,14 +792,7 @@ export async function exportData(
   });
   await writeFile(
     join(outputDirectory, "dashboard.json"),
-    `${JSON.stringify({
-      ...dataset,
-      packages: dataset.packages.map(light),
-      observations: dataset.observations.map((observation) => ({
-        ...observation,
-        packages: observation.packages.map(light),
-      })),
-    })}\n`,
+    `${JSON.stringify(poolDataset(dataset, light))}\n`,
   );
   await writeFile(
     join(outputDirectory, "diagnostics.json"),

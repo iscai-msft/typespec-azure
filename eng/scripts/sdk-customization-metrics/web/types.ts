@@ -13,6 +13,9 @@ export interface LanguageConfig {
   packageName: "directory" | "package.json" | "go.mod";
   rootPattern?: string;
   planes?: Partial<Record<Plane, string>>;
+  // "heuristic": the language's rule for spotting handwritten files is not settled, so its
+  // scans list candidates but do not say whether a library is customized.
+  detection?: "heuristic";
 }
 
 // ---- Collection ----
@@ -246,6 +249,20 @@ export interface Dataset {
   historyVersion?: number;
   observations?: Observation[];
   historySource?: string;
+}
+
+// dashboard.json/metrics.json on disk: each distinct package and finding record is stored once in
+// `pool` and referenced by key from the current state and every observation (most records are
+// unchanged between runs). unpoolDataset (web/data.ts) restores a Dataset.
+export interface PooledDataset extends Omit<Dataset, "packages" | "findings" | "observations"> {
+  pooled: 1;
+  pool: { packages: Record<string, PackageRecord>; findings: Record<string, FindingRecord> };
+  packages: string[];
+  findings: string[];
+  observations?: (Omit<Observation, "packages" | "findings"> & {
+    packages: string[];
+    findings: string[];
+  })[];
 }
 
 export interface Observation extends Dataset {

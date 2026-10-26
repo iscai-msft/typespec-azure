@@ -1,4 +1,5 @@
 import type {
+  PooledDataset,
   CandidateLink,
   Dataset,
   Filters,
@@ -422,8 +423,8 @@ export function filterLibraries(
     if (filters.plane && row.plane !== filters.plane) return false;
     if (filters.service && row.service !== filters.service) return false;
     if (filters.library && row.id !== filters.library) return false;
-    if (filters.customized === "yes" && !row.tracker?.customized) return false;
-    if (filters.customized === "no" && row.tracker?.customized !== false) return false;
+    if (filters.customized === "yes" && customizedAnswer(row) !== true) return false;
+    if (filters.customized === "no" && customizedAnswer(row) !== false) return false;
     if (
       filters.category &&
       !row.tracker?.categories.includes(filters.category) &&
@@ -458,6 +459,18 @@ export function filterLibraries(
 // Portfolio aggregates. Every library counts toward `libraries`; only tracker rows have a
 // customized/fully-generated answer, so untracked libraries stay a separate share, never "no".
 // Category groups exist only for tracked libraries (categories come from the tracker).
+// Languages whose scans cannot say whether a library is customized (see LanguageConfig).
+export const hasHeuristicDetection = (language: string) =>
+  languageById.get(language)?.detection === "heuristic";
+
+// Is this library customized? The tracker's answer, else the code scan's (any handwritten entry
+// point) for languages with settled detection rules; null when neither knows.
+export function customizedAnswer(row: LibraryRow): boolean | null {
+  if (row.tracker) return row.tracker.customized;
+  if (!row.scan?.navigationRecorded || hasHeuristicDetection(row.language)) return null;
+  return (row.scan.customizationLinks?.length ?? 0) > 0;
+}
+
 export function trackerBreakdown(rows: LibraryRow[], group = "language") {
   const groups = new Map<
     string,
@@ -468,8 +481,11 @@ export function trackerBreakdown(rows: LibraryRow[], group = "language") {
       groups.set(key, { key, libraries: 0, tracked: 0, customized: 0, candidates: 0 });
     const entry = groups.get(key)!;
     entry.libraries += 1;
-    if (row.tracker) entry.tracked += 1;
-    if (row.tracker?.customized) entry.customized += 1;
+    // The tracker's answer where there is one; otherwise the code scan's, so planes the tracker
+    // does not cover still get a customized share. `tracked` counts libraries with an answer.
+    const answer = customizedAnswer(row);
+    if (answer !== null) entry.tracked += 1;
+    if (answer) entry.customized += 1;
     entry.candidates += row.scan?.customizationLinks?.length ?? 0;
   };
   for (const row of rows) {
@@ -665,4 +681,34 @@ export function reduciblePatterns(
         b.instances - a.instances ||
         a.name.localeCompare(b.name),
     );
+}
+
+// Restores a pooled dashboard/metrics file (see PooledDataset); a plain Dataset passes through.
+export function unpoolDataset(data: Dataset | PooledDataset): Dataset {
+  if (!("pooled" in data) || data.pooled !== 1) return data as Dataset;
+  const { pool, pooled: _pooled, ...rest } = data;
+  const packageOf = (key: string) => {
+    const item = pool.packages[key];
+    if (!item) throw new Error(`Missing pooled package ${key}`);
+    return item;
+  };
+  const findingOf = (key: string) => {
+    const item = pool.findings[key];
+    if (!item) throw new Error(`Missing pooled finding ${key}`);
+    return item;
+  };
+  return {
+    ...rest,
+    packages: rest.packages.map(packageOf),
+    findings: rest.findings.map(findingOf),
+    ...(rest.observations
+      ? {
+          observations: rest.observations.map((observation) => ({
+            ...observation,
+            packages: observation.packages.map(packageOf),
+            findings: observation.findings.map(findingOf),
+          })),
+        }
+      : {}),
+  } as Dataset;
 }

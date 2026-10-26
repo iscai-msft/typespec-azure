@@ -44,6 +44,7 @@ import {
 } from "../source.ts";
 import {
   append,
+  poolDataset,
   createOverride,
   effectiveDataset,
   effectiveObservations,
@@ -77,6 +78,7 @@ import {
   selectView,
   serviceOf,
   patternLabel,
+  unpoolDataset,
   serviceName,
   specService,
   trackerBreakdown,
@@ -2387,4 +2389,25 @@ test("pattern ids read as names", () => {
   assert.equal(patternLabel("sse-typed-event-stream"), "SSE typed event stream");
   assert.equal(patternLabel("websocket-session-lifecycle"), "WebSocket session lifecycle");
   assert.equal(patternLabel("model-constructor-to-string"), "Model constructor to string");
+});
+
+test("dashboard data stores each distinct record once and restores exactly", () => {
+  const pkg = { identity: "a", sourceFiles: [{ path: "x" }] } as unknown as PackageRecord;
+  const finding = { id: "a:k", snippets: [] } as unknown as FindingRecord;
+  const dataset = {
+    schemaVersion: 1,
+    generatedAt: "t",
+    summary: {},
+    packages: [pkg],
+    findings: [finding],
+    observations: [
+      { id: "o1", observedAt: "1", packages: [pkg], findings: [finding] },
+      { id: "o2", observedAt: "2", packages: [pkg], findings: [] },
+    ],
+  } as unknown as Dataset;
+  const pooled = poolDataset(dataset);
+  assert.equal(Object.keys(pooled.pool.packages).length, 1);
+  assert.equal(Object.keys(pooled.pool.findings).length, 1);
+  assert.deepEqual(unpoolDataset(JSON.parse(JSON.stringify(pooled))), dataset);
+  assert.equal(unpoolDataset(dataset), dataset, "plain datasets pass through");
 });
