@@ -2314,7 +2314,8 @@ options:
     "Azure.Security.KeyVault.Keys",
   );
   assert.equal(recase("azure.keyvault.keys._generated", casing), "Azure.KeyVault.Keys");
-  assert.equal(recase("com.azure.resourcemanager.foo", casing), "");
+  assert.equal(recase("com.azure.resourcemanager.foo", casing), "Azure.ResourceManager.Foo");
+  assert.equal(recase("azure.mgmt.keyvault", casing), "Azure.ResourceManager.KeyVault");
 
   const library = (language: string, pkg: string, directory: string, plane = "data") =>
     ({
@@ -2410,4 +2411,50 @@ test("dashboard data stores each distinct record once and restores exactly", () 
   assert.equal(Object.keys(pooled.pool.findings).length, 1);
   assert.deepEqual(unpoolDataset(JSON.parse(JSON.stringify(pooled))), dataset);
   assert.equal(unpoolDataset(dataset), dataset, "plain datasets pass through");
+});
+
+test("libraries without a namespace take one that matches their package", () => {
+  const row = (language: string, pkg: string, plane: string, namespace = "", directory = "") =>
+    ({
+      language,
+      package: pkg,
+      repo: `Azure/azure-sdk-for-${language}`,
+      root: `sdk/x/${pkg.replace(/\W/g, "-")}`,
+      plane,
+      spec: {
+        directory: directory || `specification/x/${pkg}`,
+        commit: "",
+        repo: "",
+        ...(namespace ? { namespace } : {}),
+      },
+    }) as unknown as InventoryLibrary;
+  const rows = mergeLibraries(null, [], {
+    libraries: [
+      row("dotnet", "Azure.AI.AnomalyDetector", "data", "Azure.AI.AnomalyDetector"),
+      row("dotnet", "Azure.AI.OpenAI", "data", "Azure.AI.OpenAI"),
+      row("dotnet", "Azure.AI.Extensions.OpenAI", "data", "Azure.AI.Extensions.OpenAI"),
+      row("java", "azure-ai-anomalydetector", "data"),
+      row("go", "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai", "data"),
+      row(
+        "python",
+        "azure-mgmt-pineconevectordb",
+        "management",
+        "",
+        "specification/p/Pinecone.VectorDb.Management",
+      ),
+      row(
+        "go",
+        "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/frontdoor/armfrontdoor/v2",
+        "management",
+      ),
+    ],
+  } as unknown as Inventory);
+  const service = (pkg: string) => rows.find((item) => item.package === pkg)!.service;
+  assert.equal(service("azure-ai-anomalydetector"), "Azure.AI.AnomalyDetector");
+  assert.equal(service("github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"), "Azure.AI.OpenAI");
+  assert.equal(service("azure-mgmt-pineconevectordb"), "Azure.ResourceManager.PineconeVectorDb");
+  assert.equal(
+    service("github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/frontdoor/armfrontdoor/v2"),
+    "Azure.ResourceManager.Frontdoor",
+  );
 });

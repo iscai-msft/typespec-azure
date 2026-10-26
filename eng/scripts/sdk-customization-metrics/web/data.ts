@@ -325,6 +325,70 @@ export function serviceName(directory?: string | null): string {
   return words.join(".");
 }
 
+// "azure-ai-anomalydetector", "@azure-rest/ai-content-safety", "azopenai" -> a comparable core.
+function packageCore(name: string): string {
+  // Go module paths end in a major version (armfrontdoor/v2); the package is the segment before.
+  return (
+    name
+      .replace(/\/v\d+$/, "")
+      .split("/")
+      .at(-1) ?? name
+  )
+    .toLowerCase()
+    .replace(/^(?:azure-|az(?=[a-z]))/, "")
+    .replace(/-rest$/, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Libraries without a resolved namespace (not in the inventory, or a spec with no namespace)
+// take the namespace of a library whose namespace matches their package name:
+// java azure-ai-anomalydetector -> Azure.AI.AnomalyDetector (from .NET). Exact matches first,
+// then a unique namespace ending in the package's core (azopenai -> Azure.AI.OpenAI).
+function matchNamespaceByPackage(rows: LibraryRow[]): LibraryRow[] {
+  const isNamespace = (name: string) => /^Azure(\.[A-Z]\w*)+$/.test(name);
+  const keyOf = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/^azure\./, "")
+      .replace(/[^a-z0-9]/g, "");
+  // Namespaces per plane, so "openai" matches the data-plane Azure.AI.OpenAI only.
+  const byPlane = new Map<string, string[]>();
+  for (const row of rows)
+    if (isNamespace(row.service))
+      byPlane.set(row.plane, [...new Set([...(byPlane.get(row.plane) ?? []), row.service])]);
+  for (const row of rows) {
+    if (row.spec?.namespace || isNamespace(row.service)) continue;
+    const management = row.plane === "management";
+    // Management packages: azure-mgmt-x, azure-resourcemanager-x, @azure/arm-x, armx.
+    const core = packageCore(row.package).replace(
+      management ? /^(?:mgmt|resourcemanager|arm)/ : /^$/,
+      "",
+    );
+    if (core.length < 4) continue;
+    const namespaces = byPlane.get(row.plane) ?? [];
+    const target = management ? `resourcemanager${core}` : core;
+    const exact = namespaces.find((name) => keyOf(name) === target);
+    const ending = namespaces.filter((name) => keyOf(name).endsWith(core));
+    // Several candidates: the shortest is the plain service (Azure.AI.OpenAI over
+    // Azure.AI.Extensions.OpenAI), if only one is that short.
+    const shortest = ending.filter(
+      (name) => name.length === Math.min(...ending.map((item) => item.length)),
+    );
+    let match = exact ?? (shortest.length === 1 ? shortest[0] : undefined);
+    if (!match && management) {
+      // Name it like .NET does, keeping the spec folder's casing when it spells the same words
+      // (Pinecone.VectorDb.Management -> PineconeVectorDb).
+      const folder = (row.spec?.directory.split("/").filter(Boolean).at(-1) ?? "")
+        .replace(/\.Management$/i, "")
+        .replace(/[^A-Za-z0-9]/g, "");
+      const name = folder.toLowerCase() === core ? folder : core[0].toUpperCase() + core.slice(1);
+      match = `Azure.ResourceManager.${name}`;
+    }
+    if (match) row.service = match;
+  }
+  return rows;
+}
+
 // One spelling per service: "datamap" and "DataMap" become "DataMap" (the capitalized
 // spelling, then the most common one).
 function unifyServiceSpelling(rows: LibraryRow[]): LibraryRow[] {
@@ -401,7 +465,7 @@ export function mergeLibraries(
       scan,
     };
   });
-  return unifyServiceSpelling(rows);
+  return unifyServiceSpelling(matchNamespaceByPackage(rows));
 }
 
 export function filterLibraries(

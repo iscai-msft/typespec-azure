@@ -67,16 +67,25 @@ export function namespaceCasing(names: string[]): Map<string, string> {
 }
 
 // com.azure.v2.security.keyvault.keys -> Azure.Security.KeyVault.Keys (Java), and
-// azure.keyvault.keys._generated -> Azure.KeyVault.Keys (Python).
+// azure.keyvault.keys._generated -> Azure.KeyVault.Keys (Python). Management namespaces follow
+// .NET: com.azure.resourcemanager.quota and azure.mgmt.quota -> Azure.ResourceManager.Quota.
 export function recase(name: string, casing: Map<string, string>): string {
   let words = name.split(".").filter(Boolean);
   if (words[0] === "com") words = words.slice(1);
   if (words[0] !== "azure") return "";
   const rest = words.slice(1).filter((word) => !/^v\d+$/.test(word) && !word.startsWith("_"));
-  if (!rest.length || rest[0] === "resourcemanager" || rest[0] === "mgmt") return "";
+  if (["resourcemanager", "mgmt"].includes(rest[0] ?? "")) {
+    rest.shift();
+    if (!rest.length) return "";
+    rest.unshift("ResourceManager");
+  }
+  if (!rest.length) return "";
   return [
     "Azure",
-    ...rest.map((word) => casing.get(word.toLowerCase()) ?? word[0].toUpperCase() + word.slice(1)),
+    ...rest.map((word) => {
+      const cased = casing.get(word.toLowerCase()) ?? word;
+      return cased[0].toUpperCase() + cased.slice(1);
+    }),
   ].join(".");
 }
 export const fromJavaNamespace = recase;
