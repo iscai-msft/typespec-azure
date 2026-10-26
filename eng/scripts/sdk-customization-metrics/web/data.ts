@@ -631,10 +631,8 @@ export const REDUCIBLE_RULES = {
   minServices: 2,
   // A library is dormant when its latest dated release is older than this.
   dormantAfterDays: 365,
-  // A pattern is service-specific when most reviewed instances say no generator could help.
-  maxServiceSpecificShare: 0.5,
-  // A pattern seen in one service is reducible when most instances say a generator could.
-  minGeneratorShare: 0.5,
+  // Service-specific / generator-addressable are decided by yes vs no judgments only
+  // (reduciblePatterns); unclear judgments do not count either way.
 };
 
 // Groups counted findings by pattern and decides which patterns are reducible.
@@ -687,7 +685,8 @@ export function reduciblePatterns(
       const languages = new Set(group.instances.map((item) => item.language));
       const votes: Record<GeneratorAddressable, number> = { yes: 0, no: 0, unclear: 0 };
       for (const item of group.instances) votes[item.generatorAddressable ?? "unclear"]++;
-      const share = (vote: GeneratorAddressable) => votes[vote] / group.instances.length;
+      // Only yes/no judgments count; "unclear" pushes a pattern neither way.
+      const decided = votes.yes + votes.no;
       const active = rowsFor.filter((row) => !isDormant(row, now, rules)).length;
       // Recurring across services is the strongest evidence; one service is enough when the
       // reviewers judged a generator could produce it. Same service in several languages is
@@ -699,23 +698,26 @@ export function reduciblePatterns(
       if (group.id === "unpatterned") {
         status = "unknown";
         reason = "No pattern recorded";
-      } else if (share("no") > rules.maxServiceSpecificShare) {
+      } else if (decided === 0) {
+        status = "needs-judgment";
+        reason = `No reviewer said whether a generator could produce it (${votes.unclear} unclear)`;
+      } else if (votes.no > votes.yes) {
         status = "service-specific";
-        reason = `${votes.no} of ${group.instances.length} reviewed instances are tied to their service`;
+        reason = `${votes.no} of ${decided} yes/no judgments say it is tied to its service`;
       } else if (active === 0) {
         status = "dormant";
         reason = `Only in ${rowsFor.length === 1 ? "a library" : "libraries"} untouched for over a year`;
       } else if (recurring) {
         status = "reducible";
         reason = `Recurs in ${services.size} services, ${active} active ${active === 1 ? "library" : "libraries"}`;
-      } else if (share("yes") > rules.minGeneratorShare) {
+      } else if (votes.yes > votes.no) {
         status = "reducible";
         reason = specFix
           ? `One service so far, in ${languages.size} languages; a generator could produce it (or fix it in the spec)`
           : "One service so far; reviewers judged a generator could produce it";
       } else {
         status = "needs-judgment";
-        reason = `Reviewers were unsure a generator could produce it (${votes.unclear} of ${group.instances.length} unclear)`;
+        reason = `One service, and reviewers were split on whether a generator could produce it (${votes.yes} yes, ${votes.no} no, ${votes.unclear} unclear)`;
       }
       return {
         id: group.id,

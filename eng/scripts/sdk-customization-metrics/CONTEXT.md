@@ -72,9 +72,8 @@ Owner-agreed definition (October 23, 2026): a customization is **reducible** if 
 TypeSpec feature could provide it in a general way, so future libraries that need it would not
 hand-write it. Per pattern (canonical id from `guidelines/patterns.json`): at least one library
 with it is active (released or changed in the last 365 days; "stable" means not touched in a
-while, not GA), at most half its instances are judged service-specific, and either it recurs in
-two or more services (**Recurring**, ranked first) or most instances say a generator could
-produce it (**One service so far**). One service in several languages adds a **Spec fix** tag.
+while, not GA), "no" does not outnumber "yes" among its yes/no judgments (unclear ones are ignored; none at all means needs a human call), and either it recurs in
+two or more services (**Recurring**, ranked first) or "yes" outnumbers "no" (**One service so far**). One service in several languages adds a **Spec fix** tag.
 Missing activity dates count as active. Other statuses: **needs a human call** (one service,
 no majority of yes or no judgments),
 **service-specific**, **dormant only**, **unknown**. Computed in `web/data.ts`

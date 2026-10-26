@@ -2131,6 +2131,18 @@ test("reducible: general and still relevant; recurring ranks first, one service 
       finding("e", "dormant-everywhere", "yes", "go"),
       finding("b", "single-generic", "yes", "python"),
       finding("b", "single-unsure", "unclear", "python"),
+      // Recurs in two services, but nobody said yes or no: a human call, not reducible.
+      finding("a", "recurring-unsure", "unclear"),
+      finding("b", "recurring-unsure", "unclear", "python"),
+      // Unclear judgments don't dilute the "no": 2 no vs 0 yes is service-specific.
+      finding("a", "mostly-unclear-but-no", "no"),
+      finding("b", "mostly-unclear-but-no", "no", "python"),
+      finding("a", "mostly-unclear-but-no", "unclear"),
+      finding("b", "mostly-unclear-but-no", "unclear", "python"),
+      finding("b", "mostly-unclear-but-no", "unclear", "python"),
+      // One service, split yes/no: a human call.
+      finding("b", "single-split", "yes", "python"),
+      finding("b", "single-split", "no", "python"),
       finding("a", "service-quirk", "no"),
       finding("b", "service-quirk", "no", "python"),
       { ...finding("d", "ignored"), counted: false },
@@ -2153,6 +2165,9 @@ test("reducible: general and still relevant; recurring ranks first, one service 
   assert.equal(byId["single-generic"].status, "reducible");
   assert.equal(byId["single-generic"].specFix, false);
   assert.equal(byId["single-unsure"].status, "needs-judgment");
+  assert.equal(byId["recurring-unsure"].status, "needs-judgment");
+  assert.equal(byId["mostly-unclear-but-no"].status, "service-specific");
+  assert.equal(byId["single-split"].status, "needs-judgment");
   // A one-off in a library nobody is touching is not flagged.
   assert.equal(byId["stable-one-off"].status, "dormant");
   assert.equal(byId["dormant-everywhere"].status, "dormant");
@@ -2160,7 +2175,7 @@ test("reducible: general and still relevant; recurring ranks first, one service 
   assert.equal(isDormant(rows[0], now), false);
   assert.equal(isDormant({} as LibraryRow, now), false);
   assert.equal(byId["service-quirk"].status, "service-specific");
-  assert.match(byId["service-quirk"].reason, /tied to their service/);
+  assert.match(byId["service-quirk"].reason, /tied to its service/);
   // Recurring reducible patterns rank before one-service ones.
   const order = patterns.map((item) => item.id);
   assert.ok(order.indexOf("auth-audience-option") < order.indexOf("single-generic"));

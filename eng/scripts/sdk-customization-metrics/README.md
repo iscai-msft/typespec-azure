@@ -283,8 +283,7 @@ findings by catalog pattern. A pattern is reducible when a generator or TypeSpec
 provide it generally: at least one library with it is active (released or changed in the last
 365 days; missing activity dates count as active), at most half its instances are judged
 service-specific, and either it recurs in two or more
-services (Recurring, ranked first; services are counted by Azure namespace) or most instances
-say a generator could produce it (One service so far). One service in several languages adds a
+services (Recurring, ranked first; services are counted by Azure namespace) or "yes" outnumbers "no" (One service so far). One service in several languages adds a
 Spec fix tag. Other statuses: needs a human call (one service, reviewers mostly unsure),
 service-specific, and dormant only. The rules live in `web/data.ts` (`reduciblePatterns`).
 
