@@ -89,6 +89,7 @@ const server = createServer(async (request, response) => {
     "/languages.js": ["languages.js", "text/javascript"],
     "/vocabulary.js": ["vocabulary.js", "text/javascript"],
     "/human-review.js": ["human-review.js", "text/javascript"],
+    "/tracking.js": ["tracking.js", "text/javascript"],
     "/style.css": ["style.css", "text/css"],
     "/metrics.json": ["metrics.json", "application/json"],
     "/dashboard.json": ["dashboard.json", "application/json"],

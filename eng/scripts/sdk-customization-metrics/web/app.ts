@@ -15,11 +15,23 @@ import {
   trackerBreakdown,
   unpoolDataset,
 } from "./data.ts";
-import { LANGUAGES, PLANES } from "./languages.ts";
+import { LANGUAGES, PLANES, languageById } from "./languages.ts";
+import {
+  COVERAGE_LABELS,
+  TRACKING_LABELS,
+  closedAt,
+  markerLine,
+  newIssueUrl,
+  parseIssueUrl,
+  trackingStatus,
+  type TrackingStatus,
+} from "./tracking.ts";
 import { findingReview, libraryReview, loadReviewState, type ReviewState } from "./human-review.ts";
 import type {
   CandidateLink,
   Dataset,
+  FeatureCoverage,
+  FeatureMap,
   Filters,
   FindingRecord,
   Inventory,
@@ -27,8 +39,11 @@ import type {
   PackageRecord,
   PatternCatalog,
   Snippet,
+  TrackedItem,
   Tracker,
   TrackerLibrary,
+  TrackingData,
+  TrackingTarget,
 } from "./types.ts";
 export { filterCodeLinks, filterFindings } from "./data.ts";
 
@@ -57,6 +72,212 @@ let patternName = (id: string) => patternLabel(id);
 // Human review: loaded once at start; rerender redraws the page after a review is submitted.
 let reviewState: ReviewState | null = null;
 let rerender = () => {};
+
+// Issue tracking (tracking.json) and the feature each pattern needs (tracking-features.json),
+// both optional; loaded once at start.
+let tracking: TrackingData | null = null;
+let features: FeatureMap | null = null;
+let resolvePatternId = (id: string) => id;
+
+const linkedItems = (match: (target: TrackingTarget) => boolean): TrackedItem[] =>
+  (tracking?.items ?? []).filter((item) => item.targets.some(match));
+const patternItems = (id: string) =>
+  linkedItems((target) => Boolean(target.pattern) && resolvePatternId(target.pattern!) === id);
+
+function featureFor(patternId: string) {
+  const entry = features?.patterns[patternId];
+  if (!entry) return null;
+  return { ...entry, feature: features!.features[entry.feature] ?? null };
+}
+
+function trackingPill(status: TrackingStatus | "untracked") {
+  return element("span", TRACKING_LABELS[status], `pill tracking-${status}`);
+}
+
+function coveragePill(coverage: FeatureCoverage) {
+  return element("span", COVERAGE_LABELS[coverage], `pill coverage-${coverage}`);
+}
+
+// "typespec#123" links with the item's state, plus pull requests on linked issues.
+function issueList(items: TrackedItem[]) {
+  const list = element("span", undefined, "issue-list");
+  for (const item of items) {
+    const state =
+      item.state === "unknown" ? "" : item.kind === "pull" ? `PR ${item.state}` : item.state;
+    const link = externalLink(item.url, `${item.repo.split("/")[1]}#${item.number}`);
+    link.className = `issue-link issue-${item.state}`;
+    link.title = [
+      item.title,
+      state,
+      item.assignees.length ? `assigned to ${item.assignees.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    list.append(link);
+    for (const pull of item.pullRequests.filter((entry) => entry.state !== "closed")) {
+      const pr = externalLink(pull.url, `PR ${pull.repo.split("/")[1]}#${pull.number}`);
+      pr.className = `issue-link issue-${pull.state}`;
+      pr.title = `${pull.title} · ${pull.draft ? "draft" : pull.state}`;
+      list.append(pr);
+    }
+  }
+  return list;
+}
+
+interface IssueDraft {
+  heading: string;
+  title: string;
+  body: string;
+  target: TrackingTarget;
+  repos: { repo: string; label: string }[];
+  defaultRepo: string;
+}
+
+// Repositories offered for an issue: TypeSpec/TCGC, the languages' emitters, the spec repo
+// and the languages' SDK repos. The default follows what the feature map says is missing.
+function issueRepos(languages: string[], coverage: FeatureCoverage | null) {
+  const repos: { repo: string; label: string }[] = [
+    { repo: "Azure/typespec-azure", label: "TCGC and Azure libraries (Azure/typespec-azure)" },
+    { repo: "microsoft/typespec", label: "TypeSpec core and emitters (microsoft/typespec)" },
+  ];
+  for (const id of languages) {
+    const language = languageById.get(id as never);
+    if (language?.emitterRepo && !repos.some((item) => item.repo === language.emitterRepo))
+      repos.push({
+        repo: language.emitterRepo,
+        label: `${language.label} emitter (${language.emitterRepo})`,
+      });
+  }
+  repos.push({
+    repo: "Azure/azure-rest-api-specs",
+    label: "Spec change (Azure/azure-rest-api-specs)",
+  });
+  for (const id of languages) {
+    const language = languageById.get(id as never);
+    if (!language) continue;
+    const existing = repos.find((item) => item.repo === language.repo);
+    // .NET: the emitter and the SDK share Azure/azure-sdk-for-net.
+    if (existing) existing.label = `${language.label} emitter and SDK (${language.repo})`;
+    else repos.push({ repo: language.repo, label: `${language.label} SDK (${language.repo})` });
+  }
+  const sdk = languageById.get(languages[0] as never)?.repo;
+  const defaultRepo =
+    coverage === "exists" || coverage === "spec-fix"
+      ? "Azure/azure-rest-api-specs"
+      : coverage === "not-generator" && sdk
+        ? sdk
+        : "Azure/typespec-azure";
+  return { repos, defaultRepo };
+}
+
+const dashboardLink = (params: Record<string, string>) =>
+  `${location.origin}${location.pathname}?${new URLSearchParams(params)}`;
+
+// "File an issue" opens GitHub's own new-issue page, prefilled; the person files it under their
+// account. "Already tracked" gives the marker line to comment on an existing issue instead.
+function openIssueDialog(draft: IssueDraft) {
+  let dialog = document.getElementById("issue-dialog") as HTMLDialogElement | null;
+  if (!dialog) {
+    dialog = element("dialog", undefined, "issue-dialog") as HTMLDialogElement;
+    dialog.id = "issue-dialog";
+    document.body.append(dialog);
+  }
+  const marker = markerLine(draft.target);
+  const form = element("form", undefined, "issue-form");
+  form.method = "dialog";
+  const heading = element("h2", draft.heading);
+  const repoLabel = element("label", "Repository");
+  const repo = element("select");
+  for (const item of draft.repos) {
+    const option = element("option", item.label);
+    option.value = item.repo;
+    repo.append(option);
+  }
+  repo.value = draft.defaultRepo;
+  repoLabel.append(repo);
+  const titleLabel = element("label", "Title");
+  const title = element("input");
+  title.value = draft.title;
+  titleLabel.append(title);
+  const bodyLabel = element("label", "Description");
+  const body = element("textarea");
+  body.rows = 12;
+  body.value = draft.body;
+  bodyLabel.append(body);
+  const open = externalLink("#", "Open prefilled issue on GitHub");
+  open.className = "button-link";
+  const refresh = () => {
+    open.href = newIssueUrl({ repo: repo.value, title: title.value, body: body.value, marker });
+  };
+  for (const input of [repo, title, body]) input.addEventListener("input", refresh);
+  refresh();
+  const note = element(
+    "p",
+    "GitHub opens with this text filled in; you review and submit it under your own account. The last line links the issue back here; keep it.",
+    "muted",
+  );
+  const existing = element("details", undefined, "definition");
+  existing.append(element("summary", "Already tracked in another issue or PR?"));
+  const urlLabel = element("label", "Issue or pull request URL");
+  const url = element("input");
+  url.placeholder = "https://github.com/owner/repo/issues/123";
+  urlLabel.append(url);
+  const steps = element("div", undefined, "muted");
+  const showSteps = () => {
+    const ref = parseIssueUrl(url.value);
+    steps.replaceChildren();
+    if (!url.value.trim()) return;
+    if (!ref) {
+      steps.append(element("p", "Paste a github.com issue or pull request link.", "warning"));
+      return;
+    }
+    const code = element("code", marker, "marker-line");
+    const copy = element("button", "Copy", "secondary small");
+    copy.type = "button";
+    copy.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(marker).then(() => (copy.textContent = "Copied"));
+    });
+    steps.append(
+      element("p", "Add this line in a comment (or the description) of that issue:"),
+      code,
+      " ",
+      copy,
+      " ",
+      externalLink(ref.url, `Open ${ref.repo.split("/")[1]}#${ref.number}`),
+      element(
+        "p",
+        `The dashboard finds it on its next publish. Without access to comment there, add {"url": "${ref.url}", ${Object.entries(
+          draft.target,
+        )
+          .map(([key, value]) => `"${key}": "${value}"`)
+          .join(", ")}} to tracking/links.json by pull request.`,
+      ),
+    );
+  };
+  url.addEventListener("input", showSteps);
+  existing.append(
+    element(
+      "p",
+      "Link it instead of filing a duplicate. Comments count, so this works on issues you did not write.",
+    ),
+    urlLabel,
+    steps,
+  );
+  const close = element("button", "Close", "secondary");
+  close.value = "close";
+  const actions = element("div", undefined, "dialog-actions");
+  actions.append(open, close);
+  form.append(heading, repoLabel, titleLabel, bodyLabel, note, actions, existing);
+  dialog.replaceChildren(form);
+  dialog.showModal();
+}
+
+function trackButtons(draft: () => IssueDraft) {
+  const button = element("button", "File or link issue", "secondary small");
+  button.type = "button";
+  button.addEventListener("click", () => openIssueDialog(draft()));
+  return button;
+}
 
 // The filter form: one string per control, plus the "accepted" checkbox.
 type FormFilters = Required<
@@ -317,6 +538,50 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
     details.append(summary, sourceLink(snippet), pre);
     article.append(details);
   }
+  const items = linkedItems((target) => target.finding === item.id);
+  const track = element("p", undefined, "tracking-line");
+  if (items.length) track.append(trackingPill(trackingStatus(items)), " ", issueList(items), " ");
+  track.append(
+    trackButtons(() => {
+      const pattern = item.pattern ? patternName(item.pattern) : "";
+      const feature = item.pattern ? featureFor(resolvePatternId(item.pattern)) : null;
+      const language = languageById.get(item.language);
+      const { repos } = issueRepos([item.language], feature?.coverage ?? null);
+      const toEmitter = feature && ["gap", "partial"].includes(feature.coverage);
+      return {
+        heading: "Track this customization",
+        title: `[${item.package}] ${item.category}: ${item.subtype}`,
+        body: [
+          `**Library:** ${languageLabel(item.language)} \`${item.package}\``,
+          item.explanation,
+          item.symbols.length
+            ? `**Symbols:** ${item.symbols.map((name) => `\`${name}\``).join(", ")}`
+            : "",
+          pattern
+            ? `**Pattern:** ${pattern}${feature ? ` (${COVERAGE_LABELS[feature.coverage].toLowerCase()}${feature.feature && feature.coverage !== "not-generator" ? `: ${feature.feature.name}` : ""})` : ""}`
+            : "",
+          item.snippets.length
+            ? `**Source:**\n${item.snippets
+                .slice(0, 5)
+                .map(
+                  (snippet) =>
+                    `- [${snippet.path}#L${snippet.startLine}-L${snippet.endLine}](${snippet.sourceUrl})`,
+                )
+                .join("\n")}`
+            : "",
+          `Dashboard: ${dashboardLink({ library: item.identity, instance: item.id })}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+        target: { finding: item.id, library: item.identity },
+        repos,
+        defaultRepo: toEmitter
+          ? (language?.emitterRepo ?? "Azure/typespec-azure")
+          : (language?.repo ?? repos[0].repo),
+      };
+    }),
+  );
+  article.append(track);
   if (reviewState) article.append(findingReview(item, reviewState, rerender));
   return article;
 }
@@ -545,6 +810,22 @@ export async function start() {
     if (catalogResponse?.ok) catalog = await catalogResponse.json();
     const resolvePattern = patternResolver(catalog);
     patternName = (id) => resolvePattern(id).name;
+    resolvePatternId = (id) => resolvePattern(id).id;
+    // Issue tracking and the feature map are optional; the page works without them.
+    const trackingResponse = await fetch("./tracking.json", { cache: "no-store" }).catch(
+      () => null,
+    );
+    if (trackingResponse?.ok) {
+      const candidate = await trackingResponse.json();
+      if (candidate.trackingVersion === 1 && Array.isArray(candidate.items)) tracking = candidate;
+    }
+    const featuresResponse = await fetch("./tracking-features.json", { cache: "no-store" }).catch(
+      () => null,
+    );
+    if (featuresResponse?.ok) {
+      const candidate = await featuresResponse.json();
+      if (candidate.version === 1 && candidate.patterns) features = candidate;
+    }
     reviewState = await loadReviewState(catalog.patterns.map((item) => item.id));
     const allLibraries = mergeLibraries(tracker, data.packages, inventory);
     const languages = LANGUAGES.map((language) => language.id);
@@ -631,6 +912,8 @@ export async function start() {
     ]);
     const requestedStatus = params.get("patterns") ?? "reducible";
     let patternStatus = legacyStatus.get(requestedStatus) ?? requestedStatus;
+    // Tracking filter on the Reducible table: "", "untracked", or a tracking status.
+    let trackingFilter = params.get("tracking") ?? "";
     let sort = params.get("sort") ?? (tracker ? "customized" : "package");
     let descending = params.has("descending")
       ? params.get("descending") === "true"
@@ -730,6 +1013,7 @@ export async function start() {
       if (!byId<HTMLInputElement>("fixed").checked) query.set("fixed", "false");
       if (instance) query.set("instance", instance);
       if (patternStatus !== "reducible") query.set("patterns", patternStatus);
+      if (trackingFilter) query.set("tracking", trackingFilter);
       query.set("sort", sort);
       query.set("descending", String(descending));
       history.replaceState(null, "", `${location.pathname}${query.size ? `?${query}` : ""}`);
@@ -878,6 +1162,9 @@ export async function start() {
         ),
       );
       const reducible = scopedPatterns.filter((pattern) => pattern.status === "reducible");
+      const patternTracking = new Map(
+        scopedPatterns.map((pattern) => [pattern.id, trackingStatus(patternItems(pattern.id))]),
+      );
       const reviewedLibraries = planeRows.filter(
         (row) => row.scan && row.scan.analysisStatus === "complete",
       ).length;
@@ -916,6 +1203,18 @@ export async function start() {
           "Libraries that would lose a customization",
         ),
         kpi(
+          "Tracked in an issue",
+          reducible.length
+            ? percent(
+                reducible
+                  .filter((pattern) => patternTracking.get(pattern.id) !== "untracked")
+                  .reduce((sum, pattern) => sum + pattern.instances, 0),
+                reducible.reduce((sum, pattern) => sum + pattern.instances, 0),
+              )
+            : "—",
+          `of reducible instances · ${number.format(reducible.filter((pattern) => patternTracking.get(pattern.id) !== "untracked").length)} of ${number.format(reducible.length)} patterns have an issue, ${number.format(reducible.filter((pattern) => patternTracking.get(pattern.id) === "in-progress").length)} with a PR open`,
+        ),
+        kpi(
           "Review coverage",
           percent(reviewedLibraries, scannedLibraries),
           `${number.format(reviewedLibraries)} of ${number.format(scannedLibraries)} scanned libraries reviewed`,
@@ -945,8 +1244,40 @@ export async function start() {
           return chip;
         }),
       );
-      const listed = scopedPatterns.filter(
+      const statusListed = scopedPatterns.filter(
         (pattern) => patternStatus === "all" || pattern.status === patternStatus,
+      );
+      const trackingChoices: [string, string][] = [
+        ["", "Any tracking"],
+        ["untracked", TRACKING_LABELS.untracked],
+        ["open", TRACKING_LABELS.open],
+        ["in-progress", TRACKING_LABELS["in-progress"]],
+        ["done", TRACKING_LABELS.done],
+        ["not-planned", TRACKING_LABELS["not-planned"]],
+        ["unknown", TRACKING_LABELS.unknown],
+      ];
+      byId("reducible-tracking").replaceChildren(
+        ...trackingChoices
+          .map(([id, label]) => {
+            const count = id
+              ? statusListed.filter((pattern) => patternTracking.get(pattern.id) === id).length
+              : statusListed.length;
+            // Rare statuses appear only when something has them.
+            if (["not-planned", "unknown"].includes(id) && !count && trackingFilter !== id)
+              return null;
+            const chip = element("button", `${label} (${count})`, "chip");
+            chip.type = "button";
+            chip.setAttribute("aria-pressed", String(trackingFilter === id));
+            chip.addEventListener("click", () => {
+              trackingFilter = id;
+              update();
+            });
+            return chip;
+          })
+          .filter((chip) => chip !== null),
+      );
+      const listed = statusListed.filter(
+        (pattern) => !trackingFilter || patternTracking.get(pattern.id) === trackingFilter,
       );
       const statusLabel = Object.fromEntries(statuses);
       byId("reducible-status").replaceChildren(
@@ -955,6 +1286,14 @@ export async function start() {
           reviewedLibraries
             ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries. Unreviewed libraries are not counted either way.${filters.category ? ` Showing patterns with reviewed “${filters.category}” findings; counts and status cover all of each pattern's instances.` : ""}`
             : "No library has been AI-reviewed yet, so no patterns are known.",
+        ),
+        element(
+          "span",
+          tracking?.refreshedAt
+            ? ` Issue status as of ${formatDate(tracking.refreshedAt)} UTC.`
+            : tracking?.items.length
+              ? " Issue status was not refreshed for this publish; linked issues show as Linked."
+              : "",
         ),
       );
       if (filters.pattern) {
@@ -971,6 +1310,101 @@ export async function start() {
         });
         byId("reducible-status").append(" ", clear);
       }
+      const identityRows = new Map(
+        planeRows.filter((row) => row.scan).map((row) => [row.scan!.identity, row]),
+      );
+      const patternFindings = (id: string) =>
+        snapshot.findings.filter(
+          (item) =>
+            item.counted && planeIds.has(item.identity) && resolvePattern(item.pattern).id === id,
+        );
+      // Generator support, linked issues, and an action to file or link one.
+      const patternTrackingCell = (pattern: (typeof scopedPatterns)[number]) => {
+        const cell = element("td", undefined, "tracking-cell");
+        const feature = featureFor(pattern.id);
+        if (feature) {
+          cell.append(coveragePill(feature.coverage));
+          if (feature.feature && feature.coverage !== "not-generator") {
+            const name = element("div", feature.feature.name, "muted pattern-description");
+            name.title = [feature.feature.whyShort, feature.note].filter(Boolean).join(" ");
+            cell.append(name);
+          }
+        }
+        const items = patternItems(pattern.id);
+        const state = patternTracking.get(pattern.id) ?? "untracked";
+        const line = element("div", undefined, "tracking-line");
+        line.append(trackingPill(state));
+        if (items.length) line.append(" ", issueList(items));
+        cell.append(line);
+        // A closed issue whose pattern still shows up in libraries scanned since it closed.
+        const closed = state === "done" ? closedAt(items) : null;
+        if (closed) {
+          const since = new Set(
+            patternFindings(pattern.id)
+              .filter((item) => (identityRows.get(item.identity)?.scan?.observedAt ?? "") > closed)
+              .map((item) => item.identity),
+          ).size;
+          if (since)
+            cell.append(
+              element(
+                "div",
+                `Still in ${since} ${since === 1 ? "library" : "libraries"} scanned after it closed`,
+                "pill pill-pending",
+              ),
+            );
+        }
+        cell.append(
+          trackButtons(() => {
+            const found = patternFindings(pattern.id);
+            const perLibrary = new Map<string, number>();
+            for (const item of found)
+              perLibrary.set(item.identity, (perLibrary.get(item.identity) ?? 0) + 1);
+            const libraryLines = [...perLibrary]
+              .sort((a, b) => b[1] - a[1])
+              .map(([identity, count]) => {
+                const row = identityRows.get(identity);
+                const label = row
+                  ? `${languageLabel(row.language)} \`${row.package}\``
+                  : `\`${identity}\``;
+                const link = dashboardLink({
+                  plane: filters.plane ?? "",
+                  library: row?.id ?? "",
+                  pattern: pattern.id,
+                });
+                return `- [${label}](${link}): ${count} ${count === 1 ? "instance" : "instances"}`;
+              });
+            const shown = libraryLines.slice(0, 15);
+            if (libraryLines.length > shown.length)
+              shown.push(`- …and ${libraryLines.length - shown.length} more (see the dashboard)`);
+            const info = feature?.feature;
+            const support = feature
+              ? `**Generator support:** ${COVERAGE_LABELS[feature.coverage]}${info && feature.coverage !== "not-generator" ? `: ${info.name}` : ""}.${info?.whyShort ? ` ${info.whyShort.replace(/([^.])$/, "$1.")}` : ""}${feature.note ? `\n\n${feature.note}` : ""}`
+              : "";
+            const { repos, defaultRepo } = issueRepos(pattern.languages, feature?.coverage ?? null);
+            return {
+              heading: `Track “${pattern.name}”`,
+              title:
+                feature?.coverage === "gap" && info
+                  ? `[Feature] ${info.name}: removes handwritten “${pattern.name}” code`
+                  : `Handwritten “${pattern.name}” customizations in ${perLibrary.size} ${perLibrary.size === 1 ? "library" : "libraries"}`,
+              body: [
+                `**Customization pattern:** ${pattern.name} (\`${pattern.id}\`)`,
+                pattern.description,
+                `**Where it shows up:** ${pattern.instances} reviewed instances in ${pattern.activeLibraries} active libraries across ${pattern.services} ${pattern.services === 1 ? "service" : "services"} (${pattern.languages.map(languageLabel).join(", ")}). Dashboard status: ${statusLabel[pattern.status] ?? pattern.status}${pattern.status === "reducible" ? (pattern.recurring ? ", recurring" : ", one service so far") : ""}.`,
+                support,
+                `**Libraries**\n${shown.join("\n")}`,
+                `Details, evidence and source links: ${dashboardLink({ plane: filters.plane ?? "", pattern: pattern.id })}`,
+              ]
+                .filter(Boolean)
+                .join("\n\n"),
+              target: { pattern: pattern.id },
+              repos,
+              defaultRepo,
+            };
+          }),
+        );
+        return cell;
+      };
       byId("reducible-rows").replaceChildren(
         ...listed.map((pattern) => {
           const tr = element("tr");
@@ -1024,6 +1458,7 @@ export async function start() {
             element("td", String(pattern.activeLibraries), "num"),
             element("td", String(pattern.instances), "num"),
             status,
+            patternTrackingCell(pattern),
           );
           return tr;
         }),
@@ -1053,7 +1488,7 @@ export async function start() {
               });
               td.append(all);
             }
-            td.colSpan = 7;
+            td.colSpan = 8;
             tr.append(td);
             return tr;
           })(),
@@ -1498,6 +1933,69 @@ export async function start() {
             ? `${selectedLibrary.scan.customizationLinks?.length ?? 0} entry points at ${selectedLibrary.scan.commit.slice(0, 7)} · ${formatDate(selectedLibrary.scan.observedAt)} UTC`
             : "Not scanned yet — add it to targets.json to get pinned code links",
         );
+        // Issues for this library or its findings, and issues for the patterns it uses.
+        const identity = selectedLibrary.id;
+        const libraryFindings = snapshot.findings.filter(
+          (item) => item.identity === identity && item.counted,
+        );
+        const findingIds = new Set(libraryFindings.map((item) => item.id));
+        const libraryPatterns = new Set(
+          libraryFindings.map((item) => resolvePattern(item.pattern).id),
+        );
+        const direct = linkedItems(
+          (target) =>
+            target.library === identity ||
+            Boolean(target.finding && findingIds.has(target.finding)),
+        );
+        const viaPatterns = linkedItems(
+          (target) =>
+            Boolean(target.pattern) &&
+            !target.library &&
+            !target.finding &&
+            libraryPatterns.has(resolvePatternId(target.pattern!)),
+        ).filter((item) => !direct.includes(item));
+        const trackingNode = element("div", undefined, "tracking-line");
+        if (direct.length)
+          trackingNode.append(trackingPill(trackingStatus(direct)), " ", issueList(direct));
+        if (viaPatterns.length)
+          trackingNode.append(
+            element("span", direct.length ? " · Its patterns: " : "Its patterns: ", "muted"),
+            issueList(viaPatterns),
+          );
+        if (!direct.length && !viaPatterns.length)
+          trackingNode.append(element("span", "No linked issues ", "muted"));
+        trackingNode.append(
+          " ",
+          trackButtons(() => {
+            const language = languageById.get(selectedLibrary.language);
+            const lines = libraryFindings.slice(0, 25).map((item) => {
+              const pattern = resolvePattern(item.pattern);
+              const feature = featureFor(pattern.id);
+              const source = item.snippets[0];
+              return `- **${item.category}: ${item.subtype}** (pattern “${pattern.name}”${feature ? `, ${COVERAGE_LABELS[feature.coverage].toLowerCase()}` : ""})${source ? ` [source](${source.sourceUrl})` : ""}`;
+            });
+            if (libraryFindings.length > lines.length)
+              lines.push(
+                `- …and ${libraryFindings.length - lines.length} more (see the dashboard)`,
+              );
+            const { repos } = issueRepos([selectedLibrary.language], null);
+            return {
+              heading: `Track ${selectedLibrary.package}`,
+              title: `[${selectedLibrary.package}] Handwritten customizations to remove`,
+              body: [
+                `**Library:** ${languageLabel(selectedLibrary.language)} \`${selectedLibrary.package}\` (${selectedLibrary.service})`,
+                libraryFindings.length
+                  ? `**Reviewed customizations (${libraryFindings.length})**\n${lines.join("\n")}`
+                  : "No reviewed customizations yet.",
+                `Dashboard: ${dashboardLink({ plane: selectedLibrary.plane, library: identity })}`,
+              ].join("\n\n"),
+              target: { library: identity },
+              repos,
+              defaultRepo: language?.repo ?? repos[0].repo,
+            };
+          }),
+        );
+        fact("Tracking", trackingNode);
         card.append(facts);
         if (selectedLibrary.scan && reviewState)
           card.append(libraryReview(selectedLibrary.scan, reviewState, rerender));

@@ -37,6 +37,7 @@ go-ahead and that repository's normal review.
 | Tracker    | The owner's manual survey of 206 data-plane libraries (customized yes/no, what). Approved for publication               | `tracker/dataplane-tracker.csv`                        |
 | Scans      | Append-only, commit-pinned evidence per library plus AI analysis                                                        | `state/records/*.json` (`collect`, `review`)           |
 | Overrides  | Human decisions bound to exact evidence text                                                                            | `state/overrides/*.json` (`override`, `apply-reviews`) |
+| Tracking   | Issues/PRs linked to patterns, libraries or findings (marker lines or a links file), and the feature each pattern needs | `tracking/` (`track`, published as `tracking.json`)    |
 | Guidelines | Per-language rules for what counts as handwritten, the categories, the reducible definition, and a pattern catalog      | `guidelines/` (published at `guidelines.html`)         |
 
 Inventory today: 1,334 libraries (221 data plane, 1,038 management, 75 .NET

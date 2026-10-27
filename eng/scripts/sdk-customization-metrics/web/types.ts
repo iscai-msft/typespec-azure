@@ -8,6 +8,8 @@ export interface LanguageConfig {
   id: LanguageId;
   label: string;
   repo: string;
+  // Where this language's TypeSpec emitter takes issues (offered by "File an issue").
+  emitterRepo?: string;
   sourceExtensions: string[];
   manifests: string[];
   packageName: "directory" | "package.json" | "go.mod";
@@ -343,6 +345,78 @@ export interface LibraryRow {
 export interface PatternCatalog {
   catalogVersion?: number;
   patterns: { id: string; name?: string; description?: string; aliases?: string[] }[];
+}
+
+// Issues and pull requests that track customizations (tracking.ts; published as tracking.json).
+// A target is a pattern (canonical id), a library (identity) or a single finding (id).
+export interface TrackingTarget {
+  pattern?: string;
+  library?: string;
+  finding?: string;
+}
+
+export interface TrackingLink extends TrackingTarget {
+  url: string;
+  note?: string;
+}
+
+export interface TrackedPullRequest {
+  url: string;
+  repo: string;
+  number: number;
+  title: string;
+  state: "open" | "closed" | "merged";
+  draft: boolean;
+}
+
+export interface TrackedItem {
+  url: string;
+  repo: string;
+  number: number;
+  kind: "issue" | "pull";
+  title: string;
+  // "unknown" when the status could not be read (offline publish, or an API error).
+  state: "open" | "closed" | "merged" | "unknown";
+  // GitHub's reason for a closed issue: "completed" or "not_planned".
+  stateReason?: string;
+  draft?: boolean;
+  assignees: string[];
+  labels: string[];
+  updatedAt?: string;
+  closedAt?: string;
+  // Pull requests that mention the issue (GitHub cross-references).
+  pullRequests: TrackedPullRequest[];
+  targets: TrackingTarget[];
+  // Where the link came from: tracking/links.json, or a marker line in the issue or a comment.
+  sources: ("file" | "marker")[];
+  error?: string;
+}
+
+export interface TrackingData {
+  trackingVersion: 1;
+  refreshedAt: string | null;
+  items: TrackedItem[];
+  errors: string[];
+}
+
+export type FeatureCoverage = "exists" | "partial" | "gap" | "spec-fix" | "not-generator";
+
+// tracking/features.json: which TypeSpec/TCGC/emitter feature would remove each pattern.
+export interface FeatureMap {
+  version: 1;
+  features: Record<
+    string,
+    {
+      name: string;
+      kind: string;
+      coverage: FeatureCoverage;
+      what?: string;
+      closestExisting?: string;
+      whyShort?: string;
+      doc?: string;
+    }
+  >;
+  patterns: Record<string, { feature: string; coverage: FeatureCoverage; note?: string }>;
 }
 
 // Shared filter state (URL parameters).

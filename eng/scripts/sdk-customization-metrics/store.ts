@@ -862,7 +862,7 @@ export async function exportData(
   }
   // The page's modules are TypeScript; browsers get them with types stripped. Every asset URL
   // carries a version (a hash of the page's code), so a publish is never half-cached.
-  const modules = ["app", "data", "languages", "vocabulary", "human-review"];
+  const modules = ["app", "data", "languages", "vocabulary", "human-review", "tracking"];
   const sources = new Map<string, string>();
   for (const name of modules)
     sources.set(name, await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8"));

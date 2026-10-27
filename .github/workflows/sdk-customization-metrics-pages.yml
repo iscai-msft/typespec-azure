@@ -29,11 +29,22 @@ jobs:
           node-version: "26"
       - name: Test discovery, scanning, review, overrides, queries, and publication
         run: node --test eng/scripts/sdk-customization-metrics/test/*.test.ts
+      - name: Read the status of linked issues and pull requests (read-only)
+        # Finds issues carrying a "sdk-customization-metrics:" marker line plus the entries in
+        # tracking/links.json. A failure publishes the links with unknown status instead.
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node eng/scripts/sdk-customization-metrics/cli.ts track \
+            --out "$RUNNER_TEMP/tracking.json"
       - name: Assemble fork landing page and isolated dashboard route
         env:
           # When the hosted review site exists, this read-only copy links to it.
           REVIEW_SITE: ${{ vars.SDK_METRICS_REVIEW_SITE }}
         run: |
+          TRACKING=""
+          if [ -s "$RUNNER_TEMP/tracking.json" ]; then TRACKING="$RUNNER_TEMP/tracking.json"; fi
           mkdir "$RUNNER_TEMP/sdk-metrics-site"
           cp eng/scripts/sdk-customization-metrics/web/fork-index.html \
             "$RUNNER_TEMP/sdk-metrics-site/index.html"
@@ -43,7 +54,8 @@ jobs:
             --state eng/scripts/sdk-customization-metrics/state \
             --tracker eng/scripts/sdk-customization-metrics/tracker/dataplane-tracker.csv \
             --out "$RUNNER_TEMP/sdk-metrics-site" \
-            ${REVIEW_SITE:+--review-site "${REVIEW_SITE%/}/sdk-customization-metrics/"}
+            ${REVIEW_SITE:+--review-site "${REVIEW_SITE%/}/sdk-customization-metrics/"} \
+            ${TRACKING:+--tracking "$TRACKING"}
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ runner.temp }}/sdk-metrics-site

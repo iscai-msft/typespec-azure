@@ -593,6 +593,39 @@ If the TME subscription is deleted, recreate everything with the steps above; th
 reviews already applied are in git (`state/overrides`), so only reviews still pending are
 lost.
 
+## Tracking issues and pull requests
+
+The Reducible table, each library and each finding show the issues and pull requests that
+track them, and a **File or link issue** button.
+
+- **File an issue.** The button opens GitHub's own new-issue page with the title and
+  description filled in (pattern, where it shows up, the feature that would remove it, the
+  libraries, a dashboard link). You choose the repository, edit, and submit it under your
+  own account. The site never writes to GitHub. The suggested repository follows
+  [`tracking/features.json`](./tracking/features.json): a missing or partial feature goes to
+  TCGC (Azure/typespec-azure), a decorator that exists but is unused goes to the spec repo,
+  a library or finding goes to its SDK repository; emitter repositories are in
+  `web/languages.ts` (`emitterRepo`).
+- **How issues link back.** The description ends with a marker line such as
+  `sdk-customization-metrics: pattern=lro-custom-poller` (also `library=<identity>` or
+  `finding=<id>`). To link an existing issue or PR, add that line in a comment on it; the
+  dialog's "Already tracked?" section gives the line to copy. Without comment access, add
+  `{"url": "...", "pattern": "..."}` to [`tracking/links.json`](./tracking/links.json) by
+  pull request.
+- **Status.** `cli.ts track --out tracking.json` searches the Azure and microsoft orgs (and
+  this fork) for marker lines, reads each linked issue's state, assignees and the pull
+  requests that mention it, using read-only GitHub REST calls (`GITHUB_TOKEN` or `GH_TOKEN`
+  if set). `publish --tracking tracking.json` publishes it; without it, links from the file
+  are published with unknown status. The Pages workflow runs both on every publish.
+- **Statuses.** PR open (a linked or mentioning pull request is open), Open, Done (closed as
+  completed or merged), Not planned, Untracked. A Done pattern that still shows up in
+  libraries scanned after the issue closed is flagged. The "Tracked in an issue" figure is
+  the share of reducible instances whose pattern has any linked issue.
+
+`tracking/features.json` was drafted by an AI mapping of pattern descriptions and samples to
+the TCGC documentation (October 2026); its coverage calls are judgments, so correct them by
+pull request.
+
 ## Optional private legacy import
 
 ```sh

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
@@ -16,6 +16,7 @@ import { ExchangeClient, checkExchange, reviewScans } from "./review.ts";
 import { FileReviewStore, parseReviewers } from "./reviews.ts";
 import { applyReviews, fetchReviews } from "./apply-reviews.ts";
 import { createReviewServer } from "./server.ts";
+import { readLinks, refreshTracking } from "./tracking.ts";
 import { SPEC_REPO, applyNamespaces, resolveNamespaces } from "./namespaces.ts";
 import {
   GitRepository,
@@ -68,11 +69,16 @@ export async function main(args: string[] = process.argv.slice(2)) {
       port: { type: "string", default: "4280" },
       "review-api": { type: "string" },
       "review-site": { type: "string" },
+      links: {
+        type: "string",
+        default: new URL("./tracking/links.json", import.meta.url).pathname,
+      },
+      tracking: { type: "string" },
     },
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, check-exchange, namespaces, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   const specRepository = () =>
@@ -316,8 +322,23 @@ export async function main(args: string[] = process.argv.slice(2)) {
         ...(values["history-state"]
           ? { historyStateDirectory: resolve(values["history-state"]) }
           : {}),
+        ...(values.tracking ? { tracking: resolve(values.tracking) } : {}),
       });
       console.log(JSON.stringify(dataset.summary));
+      break;
+    }
+    case "track": {
+      // Reads the status of linked issues and pull requests from GitHub (read-only) and writes
+      // tracking.json for `publish --tracking`. Token: GITHUB_TOKEN or GH_TOKEN, if set.
+      if (!args.includes("--out")) throw new Error("track requires --out tracking.json");
+      const data = await refreshTracking({
+        links: await readLinks(resolve(values.links)),
+        token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined,
+        log: (message) => console.error(message),
+      });
+      await writeFile(resolve(values.out), `${JSON.stringify(data, null, 2)}\n`);
+      console.log(JSON.stringify({ items: data.items.length, errors: data.errors.length }));
+      for (const error of data.errors) console.error(`  ${error}`);
       break;
     }
     case "override":

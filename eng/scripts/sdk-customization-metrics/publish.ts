@@ -1,4 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { offlineTracking, readLinks } from "./tracking.ts";
 import { join, resolve } from "node:path";
 import { exportData, readState } from "./store.ts";
 import { exportInventory } from "./discover.ts";
@@ -19,6 +21,8 @@ export async function publishSite(
     historyStateDirectory?: string;
     runGapMinutes?: number;
     config?: SiteConfig;
+    // A `cli.ts track` result; without one, links from tracking/links.json with unknown status.
+    tracking?: string;
   } = {},
 ) {
   const root = resolve(websiteDirectory);
@@ -43,6 +47,18 @@ export async function publishSite(
     JSON.stringify(await readReviewLog(stateDirectory)),
   );
   await writeFile(join(output, "config.json"), JSON.stringify(options.config ?? {}));
+  // Issue tracking: statuses (tracking.json) and which feature would remove each pattern.
+  const trackingDirectory = new URL("./tracking/", import.meta.url);
+  const tracking = options.tracking
+    ? await readFile(options.tracking, "utf8")
+    : JSON.stringify(
+        offlineTracking(await readLinks(fileURLToPath(new URL("links.json", trackingDirectory)))),
+      );
+  await writeFile(join(output, "tracking.json"), tracking);
+  await writeFile(
+    join(output, "tracking-features.json"),
+    await readFile(new URL("features.json", trackingDirectory)),
+  );
   if (!(await readFile(join(root, "index.html"))).equals(homepage)) {
     throw new Error("Existing website homepage changed while adding the dashboard");
   }
