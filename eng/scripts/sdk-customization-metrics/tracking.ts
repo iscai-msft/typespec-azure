@@ -76,10 +76,12 @@ async function searchMarkers(
   github: GitHub,
   scope: string[],
   errors: string[],
+  log: (message: string) => void,
 ): Promise<Map<string, TrackingTarget[]>> {
   const found = new Map<string, TrackingTarget[]>();
   // Search ignores punctuation, so this matches the words; parseMarkers checks the real line.
-  const query = `"${MARKER.replace(/:$/, "")}" in:body,comments ${scope.join(" ")}`;
+  // No in: qualifier: by default issue search covers titles, bodies and comments.
+  const query = `"${MARKER.replace(/:$/, "")}" ${scope.join(" ")}`;
   for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
     let result: { items: any[]; total_count: number };
     try {
@@ -106,7 +108,9 @@ async function searchMarkers(
           errors.push(`${ref.url} comments: ${(error as Error).message}`);
         }
       if (targets.length) found.set(ref.url, targets);
+      else log(`Tracking: ${ref.url} matched the search but has no marker line`);
     }
+    if (page === 1) log(`Tracking: search "${query}" matched ${result.total_count} issues`);
     if (result.items.length < 100 || page * 100 >= result.total_count) break;
   }
   return found;
@@ -240,7 +244,9 @@ export async function refreshTracking({
 }: RefreshOptions): Promise<TrackingData> {
   const github = new GitHub(fetchImpl, token);
   const errors: string[] = [];
-  const markers = searchScope.length ? await searchMarkers(github, searchScope, errors) : new Map();
+  const markers = searchScope.length
+    ? await searchMarkers(github, searchScope, errors, log)
+    : new Map();
   log(`Tracking: ${markers.size} issues with markers, ${links.length} links in the file`);
   const items: TrackedItem[] = [];
   for (const { url, targets, sources } of collectLinks(links, markers).values()) {

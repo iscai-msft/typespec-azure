@@ -331,14 +331,38 @@ export async function main(args: string[] = process.argv.slice(2)) {
       // Reads the status of linked issues and pull requests from GitHub (read-only) and writes
       // tracking.json for `publish --tracking`. Token: GITHUB_TOKEN or GH_TOKEN, if set.
       if (!args.includes("--out")) throw new Error("track requires --out tracking.json");
+      const messages: string[] = [];
       const data = await refreshTracking({
         links: await readLinks(resolve(values.links)),
         token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined,
-        log: (message) => console.error(message),
+        log: (message) => {
+          console.error(message);
+          messages.push(message);
+        },
       });
       await writeFile(resolve(values.out), `${JSON.stringify(data, null, 2)}\n`);
       console.log(JSON.stringify({ items: data.items.length, errors: data.errors.length }));
       for (const error of data.errors) console.error(`  ${error}`);
+      // In GitHub Actions, also as annotations on the run, readable without the log.
+      if (process.env.GITHUB_ACTIONS === "true") {
+        const escape = (text: string) =>
+          text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+        const lines = data.items.map(
+          (item) =>
+            `${item.repo}#${item.number} ${item.state}${item.sources.length ? ` [${item.sources.join(",")}]` : ""}: ${item.targets
+              .map((target) =>
+                Object.entries(target)
+                  .map(([key, value]) => `${key}=${value}`)
+                  .join(" "),
+              )
+              .join("; ")}`,
+        );
+        console.log(
+          `::notice title=Issue tracking::${escape(`${data.items.length} linked issues/PRs, ${data.errors.length} errors\n${[...messages, ...lines].join("\n")}`)}`,
+        );
+        if (data.errors.length)
+          console.log(`::warning title=Issue tracking errors::${escape(data.errors.join("\n"))}`);
+      }
       break;
     }
     case "override":
