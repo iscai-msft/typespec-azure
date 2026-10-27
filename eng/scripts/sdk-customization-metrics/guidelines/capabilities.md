@@ -82,6 +82,11 @@ or Java unions, Go overloads) usually has a generatable idiomatic alternative (a
 type, overloads, distinct functions), which makes it an `emitter-gap`. Reserve
 `language-limitation` for behavior with no reasonable generated form in the language.
 
+When an `emitter-gap` depends on the language's architects accepting a generated
+alternative (a union wrapper type in C# or Java, per-type functions in Go), end the note
+with "Needs <Language> design sign-off." If the architects decide no generated form is
+acceptable, the entry becomes `language-limitation`, with their decision as the note.
+
 ## Recording
 
 ```json

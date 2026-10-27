@@ -722,7 +722,7 @@
         "go": {
           "support": "emitter-gap",
           "confidence": "high",
-          "note": "Distinct per-type or preset-argument functions are idiomatic but only one function binds to an operation."
+          "note": "Distinct per-type or preset-argument functions are idiomatic but only one function binds to an operation. Needs Go design sign-off."
         }
       }
     },
@@ -1479,12 +1479,12 @@
         "java": {
           "support": "emitter-gap",
           "confidence": "low",
-          "note": "Java also lacks unions and falls back to BinaryData; a generated wrapper is expressible but no instances observed."
+          "note": "Java also lacks unions and falls back to BinaryData; a generated wrapper is expressible but no instances observed. Needs Java design sign-off."
         },
         "dotnet": {
           "support": "emitter-gap",
           "confidence": "high",
-          "note": "C# lacks union types, but a generated wrapper with typed accessors and JSON codec is expressible; it is not generated."
+          "note": "C# lacks union types, but a generated wrapper with typed accessors and JSON codec is expressible; it is not generated. Needs .NET design sign-off."
         },
         "javascript": {
           "support": "supported",
@@ -1494,7 +1494,7 @@
         "go": {
           "support": "emitter-gap",
           "confidence": "low",
-          "note": "Go falls back to any or an interface; a typed wrapper is expressible but no instances observed."
+          "note": "Go falls back to any or an interface; a typed wrapper is expressible but no instances observed. Needs Go design sign-off."
         }
       }
     },
@@ -1670,9 +1670,120 @@
           "note": "System.Text.Json converters are .NET-specific."
         }
       }
+    },
+    "P_armResourceModel": {
+      "name": "ARM resource/collection model for non-standard operations (mgmt emitters)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Let a spec bind operations the mgmt emitter cannot infer to a resource or collection: extension resources at a fixed scope, per-type resources over one parameterized operation (DNS record types), collections without a list op, resources without PATCH (tag helpers via PUT), and a resource's data type; emitters then generate the resource/collection classes, accessors, enumeration, Exists/GetIfExists, tag helpers and REST-client plumbing.",
+      "closestExisting": "ARM resource decorators (@armResourceOperations, @armResourceRead/List/Action, @extensionResource, @singleton, @armResourceCheckExistence) and ARM legacy decorators (@armOperationRoute, @customAzureResource, @renamePathParameter)",
+      "whyShort": "the mgmt emitter infers resources and collections from standard operation shapes; nothing binds a non-standard operation, fixed extension scope or per-type data model to a resource",
+      "doc": "website/src/content/docs/docs/howtos/ARM/resource-type.mdx; website/src/content/docs/docs/howtos/ARM/resource-operations.md",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Python mgmt SDKs expose operation groups, not resource/collection objects, so these shapes are never hand-written."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Fluent mgmt libraries generate resource interfaces with define/update/refresh and tag helpers for standard resources; non-standard scopes and operations fall back to operation-group methods."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates Resource/Collection/extension classes from ARM decorators; fixed extension scopes, per-type resources over one operation, collections without a list op and PUT-only tag updates are hand-written."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "JS mgmt SDKs expose operation groups, not resource/collection objects."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Go mgmt SDKs generate per-operation-group clients; there are no resource/collection objects."
+        }
+      }
+    },
+    "P_propertyShape": {
+      "name": "Generated property shape (mutability, nullability, read-only collections, flattened accessors)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Let a spec pin a model property's client shape: settable vs get-only, nullable vs not, read-only vs mutable collection, and flattened accessors that lazily create the nested envelope on write (including polymorphic envelopes).",
+      "closestExisting": "Legacy @flattenProperty; @visibility (read-only properties become get-only / read-only collections)",
+      "whyShort": "flattening and visibility decide the shape; nothing pins a flattened property's setter, nullability or collection interface",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Model attributes are plain mutable fields with Optional typing; there is no setter/nullability/collection-interface form to pin."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Fluent mgmt models flatten 'properties' into getters/setters; setter presence follows visibility and nullability follows boxed types, with no per-property override."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Flattened properties are generated; settable/nullable/IReadOnlyList forms and lazy envelope creation on set cannot be chosen per property."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Models are plain interfaces; there are no accessors or flattening to shape."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Struct fields are always settable pointer fields and are not flattened."
+        }
+      }
+    },
+    "P_csharpModelSerialization": {
+      "name": "C# ModelReaderWriter surface (context registration, IJsonModel/IPersistableModel on derived and adapted types)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Generate the ModelReaderWriter context entries for every serializable type a library exposes (including ARM common types such as SubResource, WritableSubResource, ResponseError) and IJsonModel/IPersistableModel implementations for derived or adapted public models.",
+      "closestExisting": "@useSystemTextJsonConverter (C# only); @alternateType with external types",
+      "whyShort": "the C# emitter registers and implements serialization for types it generates, not for external common types or handwritten derived/adapted models",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "java": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "high",
+          "note": "IJsonModel/IPersistableModel and the context are generated for generated models; external common types and derived/adapted models need handwritten registration or bridges."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        }
+      }
     }
   },
   "patterns": {
+    "accepted-operation-preparation-adapter": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium LRO preparation with dependencies."
+    },
     "alternative-input-forms": {
       "feature": "P_overloads",
       "coverage": "gap",
@@ -1711,6 +1822,36 @@
     "argument-validation": {
       "feature": "javaValidation",
       "coverage": "partial"
+    },
+    "arm-client-extension-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden ArmClient extensions kept with the previous GA signature."
+    },
+    "arm-resource-accessor": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource/collection accessors for resources the emitter did not generate."
+    },
+    "arm-resource-contract": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten resource surface for resources kept from the previous GA (same library as the no-op writers)."
+    },
+    "arm-resource-handle-factory": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden resource-handle factory kept for a legacy resource wrapper."
+    },
+    "arm-resource-type-metadata": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Obsolete ResourceType field kept on a legacy resource wrapper."
+    },
+    "arm-tag-resource-update-fallback": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers falling back to a PUT with converted content; no PATCH to generate from."
     },
     "attestation-token-validation": {
       "feature": "NG",
@@ -1787,10 +1928,28 @@
       "coverage": "partial",
       "note": "@alternateType(unknown) gives BinaryData in C#; typed accessors over it are handwritten."
     },
-    "bound-resource-operation-overload": {
-      "feature": "clientInit",
+    "boolean-as-json-string-codec": {
+      "feature": "encode",
       "coverage": "partial",
-      "note": "Mgmt C# resource-bound overloads; @clientInitialization elevates the names, but mgmt resource classes are generated by the mgmt emitter's own resource model."
+      "note": "Boolean written as a JSON string; @encode(string) is documented for numerics only.",
+      "languages": {
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "@encode(string) on boolean is not documented for any emitter.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        }
+      }
+    },
+    "boolean-string-json-reader": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Lenient reader accepting a boolean or a \"true\" string."
+    },
+    "bound-resource-operation-overload": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
     },
     "cached-subclient-factory": {
       "feature": "clientInit",
@@ -1805,6 +1964,23 @@
     "callback-subscription-with-replay": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "cancellation-aware-pagination": {
+      "feature": "paging",
+      "coverage": "partial",
+      "note": "Generated pagers ignore the enumerator cancellation token; emitter fix.",
+      "languages": {
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Generated collection results do not honor the async enumerator's cancellation token."
+        }
+      }
+    },
+    "cancellation-token-request-context": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Internal helper for handwritten convenience methods."
     },
     "cbor-cose-parsing": {
       "feature": "NG",
@@ -1844,6 +2020,11 @@
     "client-context-property": {
       "feature": "P_clientProps",
       "coverage": "gap"
+    },
+    "client-diagnostics-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Diagnostics plumbing for handwritten resource operations; goes away once they are generated."
     },
     "client-endpoint-accessor": {
       "feature": "P_clientProps",
@@ -1897,6 +2078,11 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "client-side-id-generation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Client-side id generation for a hosted server."
+    },
     "client-side-request-batching": {
       "feature": "NG",
       "coverage": "not-generator"
@@ -1910,13 +2096,34 @@
       "coverage": "partial",
       "note": "Clone-for-snapshot/version is close to a parent accessor with a parameter; URL rewriting stays handwritten."
     },
+    "closed-enum-api": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden closed enums kept from the previous GA; the numeric capacity-level enum could instead be a closed enum in the spec."
+    },
+    "closed-enum-string-codec": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String codecs for the handwritten legacy closed enums; generated automatically for spec-defined enums."
+    },
     "cloud-aware-client": {
       "feature": "P_audience",
       "coverage": "gap"
     },
+    "collection-enumerable-interface": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on collections the emitter did not generate; existing collection-enumerable-pageable-facade (NG) is the same."
+    },
     "collection-enumerable-pageable-facade": {
-      "feature": "NG",
-      "coverage": "not-generator"
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
+    },
+    "collection-enumeration-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on handwritten per-record-type collections."
     },
     "completed-result-task-adapter": {
       "feature": "NG",
@@ -1936,6 +2143,11 @@
       "feature": "matchConditions",
       "coverage": "partial",
       "note": "MatchConditions generated in Python/C#/Java; missing: raw if_none_match kept for back-compat, create-only (If-None-Match: *) variants, typed ETag on mgmt delete; Go/TS keep raw headers."
+    },
+    "conditional-resource-id-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated resources."
     },
     "connected-session-factory": {
       "feature": "NG",
@@ -2000,6 +2212,11 @@
       "coverage": "not-generator",
       "note": "needs-judgment"
     },
+    "custom-resource-data-binding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Binds a per-record-type resource to its data type (CodeGenResourceData)."
+    },
     "custom-response-classifier": {
       "feature": "P_responseProjection",
       "coverage": "gap",
@@ -2036,6 +2253,11 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "data-returning-pageable-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "List returns data models because the item type was not recognized as a resource."
+    },
     "datetime-input-coercion": {
       "feature": "NG",
       "coverage": "not-generator",
@@ -2045,6 +2267,11 @@
       "feature": "encode",
       "coverage": "partial",
       "note": "@encode covers rfc3339/rfc7231/unix/duration seconds; exact fractional-digit formats, floating seconds and relative-or-absolute unions are not."
+    },
+    "defaulted-child-resource-definition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium definition flow with defaults."
     },
     "delete-not-found-suppression": {
       "feature": "P_responseProjection",
@@ -2086,6 +2313,11 @@
       "feature": "P_ctorOptions",
       "coverage": "gap"
     },
+    "dependent-resource-definition-staging": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium dependent-resource staging."
+    },
     "diagnostic-scope-request-execution": {
       "feature": "tracing",
       "coverage": "exists"
@@ -2093,6 +2325,11 @@
     "diagnostics-logging-allowlist": {
       "feature": "P_logAllowlist",
       "coverage": "gap"
+    },
+    "disabled-obsolete-api-stub": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Obsolete(error) stubs for operations removed from the service, kept so old callers get a compile error."
     },
     "disposed-client-guard": {
       "feature": "NG",
@@ -2105,6 +2342,21 @@
     "download-stream-response-wrapper": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "editor-hidden-model-property": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public property kept from the previous GA."
+    },
+    "editor-hidden-model-type": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public type kept from the previous GA."
+    },
+    "empty-string-as-missing": {
+      "feature": "emptyString",
+      "coverage": "exists",
+      "note": "@deserializeEmptyStringAsNull on the resource-id property."
     },
     "empty-string-resource-id-deserialization": {
       "feature": "emptyString",
@@ -2221,6 +2473,11 @@
       "coverage": "gap",
       "note": "Named method calling a generic op with a fixed payload/flag; needs a second method bound to the same operation."
     },
+    "fixed-record-type-paging-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Per-record-type resources over one list operation parameterized by record type."
+    },
     "flags-enum-api": {
       "feature": "P_flags",
       "coverage": "gap"
@@ -2229,6 +2486,21 @@
       "feature": "P_flags",
       "coverage": "gap",
       "note": "Boolean options -> ordered include list."
+    },
+    "flattened-collection-setter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden setter kept on a flattened collection property for back-compat."
+    },
+    "format-content-type-mapping": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "Public format value mapped to a content-type header; emitters don't expose a content-type union as a typed public value."
+    },
+    "generated-extension-forwarding": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Suppressed extension methods re-added as hidden forwarders with the previous GA signature."
     },
     "generated-type-rename": {
       "feature": "clientName",
@@ -2248,10 +2520,25 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "handwritten-enum-definition": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Public enum with no generated counterpart, presumably kept from the previous GA."
+    },
     "handwritten-public-model": {
       "feature": "P_modelProjection",
       "coverage": "gap",
       "note": "Public options/result models defined by hand instead of the generated one."
+    },
+    "handwritten-resource-operation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Get/report operations written by hand because the emitter did not attach them."
+    },
+    "handwritten-resource-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Whole ArmResource class written by hand."
     },
     "hide-generated-surface": {
       "feature": "access",
@@ -2353,19 +2640,64 @@
       "feature": "javaValidation",
       "coverage": "partial"
     },
+    "integer-json-string-codec": {
+      "feature": "encode",
+      "coverage": "exists",
+      "note": "@encode(string) on the integer property.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "@encode(string) on an integer is generated as a long written as a JSON string.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        }
+      }
+    },
     "internal-model-accessor-bridge": {
       "feature": "NG",
       "coverage": "not-generator",
       "note": "Java hooks for handwritten code."
+    },
+    "internal-model-type-rename": {
+      "feature": "clientName",
+      "coverage": "partial",
+      "note": "Renames an emitter-synthesized Unknown* discriminator type, which has no TypeSpec node."
+    },
+    "internal-type-name-mapping": {
+      "feature": "clientName",
+      "coverage": "partial",
+      "note": "Renames an emitter-synthesized Unknown* discriminator type, which has no TypeSpec node."
+    },
+    "invariant-object-string-conversion": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Value conversion supporting the legacy object-valued dictionary view."
     },
     "json-string-typed-value": {
       "feature": "NG",
       "coverage": "not-generator",
       "note": "Type chosen by content type at runtime."
     },
+    "lazy-management-collection-accessor": {
+      "feature": "clientInit",
+      "coverage": "partial",
+      "note": "Fluent premium manager facade; fluent-lite managers generate the same lazy accessors.",
+      "languages": {
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Fluent-lite managers generate lazily cached collection accessors; premium managers hand-write them over the facade."
+        }
+      }
+    },
     "lazy-public-model-export": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "lazy-resource-rest-client": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
     },
     "legacy-enum-compatibility": {
       "feature": "P_backCompat",
@@ -2378,6 +2710,11 @@
     "legacy-overload-compatibility": {
       "feature": "P_backCompat",
       "coverage": "gap"
+    },
+    "list-signature-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Cancellation-only list overloads kept after optional filters were added."
     },
     "lock-guarded-shared-state": {
       "feature": "NG",
@@ -2454,6 +2791,11 @@
         }
       }
     },
+    "lro-operation-startup-override": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Delete keeps the previous GA's typed ArmOperation<T> return; see lro-return-type-compatibility."
+    },
     "lro-operation-wrapper": {
       "feature": "P_lroPolling",
       "coverage": "partial",
@@ -2467,14 +2809,39 @@
       "feature": "P_backCompat",
       "coverage": "gap"
     },
+    "lro-start-model-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "CreateOrUpdate keeps accepting the previous GA's data model and converts it to the new one."
+    },
     "lro-status-field-selection": {
       "feature": "lro",
       "coverage": "exists",
       "note": "@lroStatus on the status property; adoption gap unless the status is a resource state (then state-based polling)."
     },
+    "managed-identity-dependency-binding": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium task-graph dependency."
+    },
     "manual-http-request-builder": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "manual-resource-operation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Delete LRO written by hand because the emitter did not attach it."
+    },
+    "mapped-writable-model-property": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Property made settable on an internal model."
+    },
+    "match-conditions-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden overloads with separate ifMatch/ifNoneMatch kept from the previous GA beside the MatchConditions overload."
     },
     "message-encoding-policy": {
       "feature": "NG",
@@ -2484,6 +2851,11 @@
       "feature": "P_backCompat",
       "coverage": "gap",
       "note": "needs-judgment"
+    },
+    "method-overload-forwarding": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden prior-version overloads forwarding to the overload that gained optional parameters."
     },
     "milliseconds-timespan-property": {
       "feature": "specFix",
@@ -2503,6 +2875,21 @@
         }
       }
     },
+    "mockable-resource-accessor": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Generated resource accessor suppressed and re-implemented by hand."
+    },
+    "mockable-resource-extension-forwarder": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Subscription/ArmResource extension methods for operations the emitter did not attach to a resource."
+    },
+    "mockable-resource-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden Get forwarders kept for the previous GA method names."
+    },
     "model-alternate-constructors": {
       "feature": "P_modelCtors",
       "coverage": "gap"
@@ -2515,6 +2902,31 @@
       "feature": "NG",
       "coverage": "not-generator",
       "note": "Lookup/aggregation ergonomics."
+    },
+    "model-collection-materialization": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Protected constructor kept from the previous GA on an abstract model."
+    },
+    "model-collection-property-replacement": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened list given a clear-and-add setter."
+    },
+    "model-constructor-accessibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Protected parameterless constructors on abstract models kept from the previous GA."
+    },
+    "model-constructor-browsability": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public parameterless constructors kept from the previous GA."
+    },
+    "model-constructor-visibility-override": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Public parameterless constructor kept from the previous GA in place of the generated one."
     },
     "model-copy-update-helper": {
       "feature": "NG",
@@ -2532,6 +2944,16 @@
     "model-enable-flag-handling": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "model-enum-compatibility-conversion": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Implicit conversions between renamed enum types for back-compat."
+    },
+    "model-explicit-property-constructor": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden/protected constructors kept with the previous GA's parameter list."
     },
     "model-factory-method": {
       "feature": "P_backCompat",
@@ -2553,23 +2975,78 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "model-input-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Data-to-update-content adapter used by the handwritten tag fallback."
+    },
     "model-json-interface-bridge": {
       "feature": "stjConverter",
       "coverage": "exists"
+    },
+    "model-json-serialization-bridge": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten derived types kept over renamed generated models, with JSON delegated to the base."
     },
     "model-property-alias": {
       "feature": "P_propertyAlias",
       "coverage": "partial",
       "note": "Pure renames are @clientName; aliases kept beside the new name and computed properties are not expressible."
     },
+    "model-property-compatibility-projection": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Legacy property projecting new ID lists onto the previous GA's SubResource arrays."
+    },
+    "model-property-mutability": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened properties re-exposed with a setter that lazily creates the envelope."
+    },
     "model-property-readonly-dictionary-view": {
       "feature": "P_propertyAlias",
       "coverage": "gap"
+    },
+    "model-property-type-override": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Use the ARM common-types ManagedServiceIdentity in the spec so the shared type is emitted."
     },
     "model-property-typed-projection": {
       "feature": "alternateType",
       "coverage": "partial",
       "note": "@alternateType on a property covers scalar swaps (string -> url); custom value types (Point, RouterValue) are not covered."
+    },
+    "model-property-wire-name": {
+      "feature": "clientName",
+      "coverage": "exists",
+      "note": "@clientName on the property keeps the wire name."
+    },
+    "model-property-wire-name-metadata": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden properties kept from the previous GA with explicit wire names."
+    },
+    "model-reader-writer-adapter": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Handwritten IPersistableModel delegating to ModelReaderWriter with the package context."
+    },
+    "model-reader-writer-context-registration": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "ModelReaderWriterBuildable entries for types the generated context omits."
+    },
+    "model-reader-writer-registration": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "ModelReaderWriterBuildable entries for ARM common types the context omits."
+    },
+    "model-readonly-collection-view": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened lists exposed as IReadOnlyList."
     },
     "model-request-content-conversion": {
       "feature": "streaming",
@@ -2594,9 +3071,36 @@
       "coverage": "gap",
       "note": "needs-judgment"
     },
+    "model-surface-definition": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten data-model properties for resources kept from the previous GA (same library as the no-op writers)."
+    },
+    "model-time-range-value": {
+      "feature": "alternateType",
+      "coverage": "partial",
+      "note": "ISO 8601 interval string projected to a custom value type; not an external type today."
+    },
     "model-to-string": {
       "feature": "P_modelDisplay",
       "coverage": "gap"
+    },
+    "model-type-client-factory": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Multi-call composition choosing a client from service info."
+    },
+    "model-type-extensibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Removes final from a generated Java model, presumably because the previous GA type was extensible.",
+      "languages": {
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No spec or emitter option keeps a model non-final; only Java AST customization can."
+        }
+      }
     },
     "model-type-rename": {
       "feature": "clientName",
@@ -2644,6 +3148,11 @@
       "coverage": "not-generator",
       "note": "Composes several service calls."
     },
+    "multi-client-manager-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium manager composition."
+    },
     "multipart-batch-request": {
       "feature": "NG",
       "coverage": "not-generator",
@@ -2659,10 +3168,30 @@
       "coverage": "partial",
       "note": "Multiple content types on one op; emitters vary in choosing at runtime."
     },
+    "nested-model-state-initialization": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Helper sets a deeply nested property, creating missing envelopes."
+    },
     "next-link-handling": {
       "feature": "paging",
       "coverage": "partial",
       "note": "Next-link/continuation-token paging exists; raw next links needing extra headers, recursive ACL continuation and header-borne tokens are handwritten."
+    },
+    "no-op-json-writer": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Empty JSON writers on a type kept for back-compat; intent not visible in the code."
+    },
+    "no-op-model-writer": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Empty JSON writers on types the service no longer returns, kept so the previous GA surface compiles."
+    },
+    "null-collection-as-empty-array": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Writes an empty array for a null collection."
     },
     "null-empty-deserialization-hook": {
       "feature": "emptyString",
@@ -2675,10 +3204,50 @@
         }
       }
     },
+    "nullable-backed-value-property": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Non-nullable getter over nullable storage."
+    },
+    "nullable-model-property-bridge": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened property exposed as nullable with lazy envelope creation."
+    },
+    "nullable-model-property-override": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened property re-exposed as nullable."
+    },
+    "nullable-response-return-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "nullable-string-conversion": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Internal helper."
+    },
+    "object-string-dictionary-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Object-valued dictionary view kept over a property that is now string-valued."
+    },
     "odata-tagged-template": {
       "feature": "NG",
       "coverage": "not-generator",
       "note": "needs-judgment"
+    },
+    "operation-name-alias": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden old method names forwarding to renamed generated methods."
+    },
+    "operation-options-bag": {
+      "feature": "override",
+      "coverage": "exists",
+      "note": "@override bundling the optional query parameters into an options model."
     },
     "operation-options-extension": {
       "feature": "NG",
@@ -2717,6 +3286,11 @@
           "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/headasboolgroup"
         }
       }
+    },
+    "optional-resource-get": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
     },
     "ordered-flag-string-codec": {
       "feature": "P_flags",
@@ -2758,19 +3332,58 @@
         }
       }
     },
+    "pageable-construction-wrapper": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Binds the custom single-page pageables; goes with @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "pageable-operation-wrapper": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable on value-array list operations.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
     "pageable-projection-factory": {
       "feature": "P_modelProjection",
       "coverage": "gap"
+    },
+    "pageable-result-item-type-replacement": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "List item type replaced (resource vs data) by suppressing the generated signature."
     },
     "paged-item-model-projection": {
       "feature": "P_modelProjection",
       "coverage": "gap",
       "note": "Pager items mapped to public models."
     },
+    "paging-parameter-reorder-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Overload preserving the previous GA's top/skip parameter order."
+    },
     "parameter-value-conversion": {
       "feature": "specFix",
       "coverage": "spec-fix",
       "note": "Parameters typed as string in the spec; should be enum/extensible union/uuid/duration."
+    },
+    "parent-embedded-collection-pager": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Child collection served from the parent's embedded list because there is no list operation."
     },
     "partial-failure-reporting": {
       "feature": "NG",
@@ -2783,6 +3396,11 @@
     "permission-string-codec": {
       "feature": "P_flags",
       "coverage": "gap"
+    },
+    "persistable-model-json-bridge": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Handwritten IPersistableModel on adapted models."
     },
     "polymorphic-base-type-override": {
       "feature": "hierarchy",
@@ -2840,6 +3458,11 @@
         }
       }
     },
+    "protocol-port-cache-projection": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium cached projection."
+    },
     "proxy-jwt-rejection-guard": {
       "feature": "NG",
       "coverage": "not-generator",
@@ -2864,10 +3487,30 @@
       "coverage": "not-generator",
       "note": "Python send_request URL formatting."
     },
+    "readonly-collection-model-member": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden read-only collection kept from the previous GA."
+    },
+    "readonly-list-property-projection": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened list exposed as IReadOnlyList."
+    },
+    "readonly-model-contract": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden model kept from the previous GA."
+    },
     "realtime-signaling-bridge": {
       "feature": "NG",
       "coverage": "not-generator",
       "note": "needs-judgment"
+    },
+    "receipt-verification": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Cryptographic verification."
     },
     "request-body-encoding": {
       "feature": "convenience",
@@ -2882,6 +3525,11 @@
       "feature": "clientDefault",
       "coverage": "partial",
       "note": "Header with a default value; Legacy @clientDefaultValue (not Python)."
+    },
+    "request-gzip-compression": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Request compression is a pipeline policy; the Java comment suggests moving it to core."
     },
     "request-parameter-reshaping": {
       "feature": "override",
@@ -2915,28 +3563,187 @@
         }
       }
     },
+    "request-precondition-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden separate-precondition overload kept from the previous GA beside the MatchConditions overload."
+    },
     "request-precondition-validation": {
       "feature": "javaValidation",
       "coverage": "partial",
       "note": "Only Java has client-side-validations; most checks are unsupported-option rejections."
     },
+    "required-model-properties-guard": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened accessors over a polymorphic properties bag that cannot be lazily created."
+    },
+    "resource-client-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-collection-iteration": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on a handwritten collection."
+    },
+    "resource-data-serialization-bridge": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-data-serialization-delegation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-data-to-request-content": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "CreateOrUpdate/Update keep accepting resource data and convert it to the separate request model."
+    },
+    "resource-data-type-binding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Binds each per-record-type resource to its data type (CodeGenResourceData)."
+    },
+    "resource-existence-response-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Exists on a handwritten collection; generated for collections the emitter recognizes."
+    },
     "resource-extension-forwarder": {
-      "feature": "NG",
-      "coverage": "not-generator",
-      "note": "needs-judgment"
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
+    },
+    "resource-extension-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Subscription extension for an operation the emitter did not attach to a resource."
+    },
+    "resource-id-deserialization-guard": {
+      "feature": "emptyString",
+      "coverage": "exists",
+      "note": "@deserializeEmptyStringAsNull on resource-id properties; see empty-string-resource-id-deserialization."
     },
     "resource-id-parsing": {
       "feature": "P_identifiers",
       "coverage": "gap"
+    },
+    "resource-identifier-builder": {
+      "feature": "P_identifiers",
+      "coverage": "partial",
+      "note": "C# mgmt CreateResourceIdentifier for handwritten resources; ARM has armResourceIdentifier.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates CreateResourceIdentifier for resources it recognizes; handwritten for unrecognized resources and composite segments (perimeterGuid.associationName)."
+        }
+      }
+    },
+    "resource-identifier-construction": {
+      "feature": "P_identifiers",
+      "coverage": "partial",
+      "note": "C# mgmt CreateResourceIdentifier for handwritten resources; ARM has armResourceIdentifier.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates CreateResourceIdentifier for resources it recognizes; handwritten for unrecognized resources and composite segments (perimeterGuid.associationName)."
+        }
+      }
     },
     "resource-identifier-factory": {
       "feature": "P_identifiers",
       "coverage": "partial",
       "note": "ARM has armResourceIdentifier; the factory helpers are C# mgmt."
     },
+    "resource-identifier-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden three-argument CreateResourceIdentifier kept after a path segment was added."
+    },
     "resource-identifier-parser": {
       "feature": "P_identifiers",
       "coverage": "gap"
+    },
+    "resource-identifier-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated collections."
+    },
+    "resource-identity-type-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium identity workflow."
+    },
+    "resource-list-alias-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Previous list method names (GetDeletedWorkspaces) forwarding to the generated list methods."
+    },
+    "resource-model-conversion": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Shared data model converted to a project-scoped resource data type."
+    },
+    "resource-model-serialization-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-parent-type-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated collections."
+    },
+    "resource-rest-client-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-role-assignment-helper-bridge": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium role-assignment workflow."
+    },
+    "resource-scope-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Extension resources at a fixed billing scope exposed as tenant extensions that build the scope id."
+    },
+    "resource-tag-helper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "AddTag/SetTags/RemoveTag on resources the emitter did not give tag helpers."
+    },
+    "resource-tag-management": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers choosing tag-resource vs PUT update; generated only when the update shape is recognized."
+    },
+    "resource-tag-operation-helpers": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "AddTag/SetTags/RemoveTag on resources the emitter did not give tag helpers."
+    },
+    "resource-type-api-version-lookup": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-type-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-type check generated for emitter-generated resources."
+    },
+    "resource-update-response-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Update written by hand to return the typed resource."
     },
     "response-headers-to-model": {
       "feature": "P_responseProjection",
@@ -3011,6 +3818,16 @@
       "coverage": "partial",
       "note": "@responseAsBool covers the HEAD cases (not Go); envelope unwrapping, header projection and 304 -> None are not expressible."
     },
+    "response-value-existence-check": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Exists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "rest-client-api-version-selection": {
+      "feature": "apiVersion",
+      "coverage": "partial",
+      "note": "Different api-versions per operation group in one package are not expressible."
+    },
     "retry-policy-tuning": {
       "feature": "NG",
       "coverage": "not-generator",
@@ -3020,10 +3837,20 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "sas-token-generation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "SAS signing is runtime crypto; see shared-key-request-signing for the auth scheme."
+    },
     "schema-validator-extension-contract": {
       "feature": "NG",
       "coverage": "not-generator",
       "note": "needs-judgment"
+    },
+    "scoped-collection-get-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Get-by-name shortcuts on each scope for a multi-scope resource collection."
     },
     "scoped-subclient-factory": {
       "feature": "clientInit",
@@ -3059,6 +3886,16 @@
         }
       }
     },
+    "server-host-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Hosted server framework, not a client."
+    },
+    "service-certificate-trust-validation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "TLS trust and certificate pinning."
+    },
     "shared-key-credential-type": {
       "feature": "P_authSchemes",
       "coverage": "gap"
@@ -3066,6 +3903,30 @@
     "shared-key-request-signing": {
       "feature": "P_authSchemes",
       "coverage": "gap"
+    },
+    "single-page-array-adapter": {
+      "feature": "paging",
+      "coverage": "partial",
+      "note": "Response root is a bare JSON array; @markAsPageable needs an items property, so a spec change is also needed.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "@markAsPageable covers value-wrapped lists; a bare top-level array response is not covered."
+        }
+      }
+    },
+    "single-page-pageable": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
     },
     "single-page-pageable-adapter": {
       "feature": "paging",
@@ -3099,9 +3960,43 @@
         }
       }
     },
+    "single-response-pageable-adapter": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "single-response-terminal-pager": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
     "singleton-resource-lifecycle": {
       "feature": "NG",
       "coverage": "not-generator"
+    },
+    "snapshot-lifecycle-contract": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Hosted server framework extension points."
+    },
+    "sse-keepalive-writer": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Server-side SSE writer."
     },
     "sse-typed-event-stream": {
       "feature": "streaming",
@@ -3157,6 +4052,11 @@
       "feature": "P_errors",
       "coverage": "gap"
     },
+    "status-to-nullable-response": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
+    },
     "stream-request-content-overload": {
       "feature": "P_overloads",
       "coverage": "gap",
@@ -3174,6 +4074,63 @@
       "coverage": "not-generator",
       "note": "needs-judgment"
     },
+    "string-etag-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String If-Match overloads kept from the previous GA beside the generated ETag overloads."
+    },
+    "string-location-overload-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden string-location overloads kept beside the AzureLocation-typed ones."
+    },
+    "string-precondition-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String If-Match/If-None-Match overloads kept from the previous GA beside the generated ETag/MatchConditions overloads."
+    },
+    "string-to-guid-operation-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden string overloads kept beside the Guid-typed subscription parameter."
+    },
+    "subclient-accessor": {
+      "feature": "clientInit",
+      "coverage": "exists",
+      "note": "Operation-group getter missing from the Java client interface; generated for declared groups.",
+      "languages": {
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Operation-group getters are generated on the client interface for declared groups."
+        }
+      }
+    },
+    "tag-resource-unsupported-update-fallback": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers for resources without a PATCH; generated only when the update shape is recognized."
+    },
+    "telemetry-metrics-pipeline-lifecycle": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
+    "telemetry-model-projection": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Runtime telemetry objects to wire models; service-specific logic."
+    },
+    "telemetry-outcome-counters": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
+    "telemetry-reason-classification": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
     "traced-convenience-method": {
       "feature": "tracing",
       "coverage": "exists",
@@ -3188,10 +4145,35 @@
       "feature": "NG",
       "coverage": "not-generator"
     },
+    "typed-argument-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "AzureLocation overload of CreateResourceIdentifier beside the string one; likely a previous-GA signature."
+    },
+    "typed-collection-paging-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Per-record-type collection over one list operation parameterized by record type."
+    },
     "typed-delete-operation": {
       "feature": "convenience",
       "coverage": "partial",
       "note": "Typed convenience missing for one mgmt delete."
+    },
+    "typed-model-deserialization-hooks": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Protected model-typed create hooks added beside the generated deserializer."
+    },
+    "typed-pageable-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Suppressed list signatures re-implemented over the generated collection result."
+    },
+    "typed-pageable-construction": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden typed pageable methods kept with the previous GA signature."
     },
     "typed-path-parameter-replacement": {
       "feature": "alternateType",
