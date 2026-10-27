@@ -1,6 +1,6 @@
 # SDK customization metrics: project context
 
-Handoff for another AI or contributor. Updated October 25, 2026. Read
+Handoff for another AI or contributor. Updated October 27, 2026. Read
 [README.md](./README.md) for commands and contracts. This file gives context; it is not
 authorization to deploy, spend money, call AI providers, or change repository settings.
 
@@ -69,52 +69,64 @@ the spec `tsp-location.yaml` points at (`namespaces.ts`; 73 data-plane services)
 
 ## Reducible customizations
 
-Owner-agreed definition (October 23, 2026): a customization is **reducible** if a generator or
-TypeSpec feature could provide it in a general way, so future libraries that need it would not
-hand-write it. Per pattern (canonical id from `guidelines/patterns.json`): at least one library
-with it is active (released or changed in the last 365 days; "stable" means not touched in a
-while, not GA), "no" does not outnumber "yes" among its yes/no judgments (unclear ones are ignored; none at all means needs a human call), and either it recurs in
-two or more services (**Recurring**, ranked first) or "yes" outnumbers "no" (**One service so far**). One service in several languages adds a **Spec fix** tag.
-Missing activity dates count as active. Other statuses: **needs a human call** (one service,
-no majority of yes or no judgments),
-**service-specific**, **dormant only**, **unknown**. Computed in `web/data.ts`
-(`reduciblePatterns`), with the shared definition in `guidelines/SKILL.md`. Historical
-requests retain their frozen guideline text; reconciliation does not rewrite prior judgments.
+Owner-agreed definition (October 23, 2026; per-language rule October 27): a customization is
+**reducible** if a generator or TypeSpec feature could provide it in a general way, so future
+libraries that need it would not hand-write it. Per pattern (canonical id from
+`guidelines/patterns.json`), using only yes/no judgments (unclear ones count neither way):
+"no" outnumbering "yes" makes it **service-specific**; otherwise, if no library with it is
+active (released or changed in 365 days) it is **dormant only**; otherwise it is reducible if
+it recurs in two or more services (**Recurring**, ranked first) or "yes" outnumbers "no"
+(**One service so far**). No yes/no judgment, or a one-service tie, **needs a human call**.
+One service in several languages adds a **Spec fix** tag. Instances in a language that cannot
+express the pattern (`language-limitation` in `tracking/features.json`, criteria in
+`guidelines/capabilities.md`) are left out of the decision and counts; none are marked so far,
+since a generatable alternative (a wrapper type, overloads, per-type functions) is an emitter
+gap, flagged "Needs <Language> design sign-off" where architects must accept it. Computed in
+`web/data.ts` (`reduciblePatterns`); shared definition in `guidelines/SKILL.md`.
 
-## Status (October 25, 2026)
+## Generator features and issue tracking
+
+- `tracking/features.json` maps every pattern (361) to the TypeSpec/TCGC/emitter feature that
+  would remove it (51 features, 3 proposed for the management plane), whether that feature
+  exists, partly exists or is missing, and per-language support. Drafted by AI from TCGC docs
+  and emitter tests; emitter owners are to review their language's column.
+- Issues and PRs link to a pattern, library or finding through a marker line in the issue or
+  any comment (`sdk-customization-metrics: pattern=<id>`) or `tracking/links.json`.
+  `cli.ts track` reads their status read-only on every Pages publish and reports what it found
+  as an annotation on the run. "File or link issue" opens GitHub's prefilled new-issue page;
+  the site never writes to GitHub. First linked issue: Azure/typespec-azure#1167.
+- `reclassify/typed-wrappers.json` re-homes 165 "typed convenience over a protocol method"
+  findings to the pattern that names why the wrapper exists; applied at publish, raw records
+  unchanged.
+
+## Status (October 27, 2026)
 
 - Code is TypeScript (erasable syntax only; Node runs it directly; strict `tsconfig.json`;
-  CI type-checks). Unit tests: 52. Browser smoke test: `test/browser-check.ts`.
-- The authorized frozen-evidence backfill is published at personal-fork commit
-  `0c8357f87172f6993dab505311288a8e02409461`: **210/221 scoped data-plane libraries
-  assessed, 11 zero-evidence unknown, zero evidence-bearing pending**. Complete analysis
-  does not mean exhaustive source coverage or human verification.
-- The verified export has 883 append-only scans, 222 identities, 2,699 effective findings,
-  4,111 snippets, 2,233 counted AI-reviewed customizations and zero human overrides.
-  Global missing analysis is 12: the 11 scoped unknowns plus the out-of-scope Go
-  `sdk/ai/azopenai` identity. Do not equate that global count with the 221-library scope.
-- Analysts were manually authored with `copilot/gpt-6.1-sol`; independent fresh-context
-  `copilot/gpt-6-sol` reviews ran strictly sequentially. Initial responses, hashes,
-  disagreements and exhaustive evidence-access attestations were preserved. No configured
-  provider endpoint was called for this file-exchange backfill.
-- Personal-fork Pages run `40237680419` succeeded for that exact commit; downloaded SQLite
-  passed full history, current finding/snippet, cohort and terminal-scope parity. The
-  Java LRO query returns five counted findings with subtypes and commit-pinned snippets.
-- Human review is implemented locally (`cli.ts serve`), with optional Azure hosting
-  templates/workflow. Deployment, sign-in settings, schedules and provider calls still
-  require owner-approved configuration; this reconciliation does not enable them.
-- The standalone metrics CI type-check omitted Playwright, already declared by the root
-  package and imported by the browser test. Its isolated install now includes the same
-  dependency; the browser test remains type-checked without downloading browser binaries.
-  The hosted-review bundle, outside the pnpm workspace, commits its npm lockfile for the
-  existing `npm ci` steps in CI and optional Azure builds.
-- Before moving upstream, decide how append-only state and reviews will be stored; a data
-  branch or blob storage is a future architecture decision, not authorization to migrate.
+  CI type-checks). Unit tests: 64. Browser smoke test: `test/browser-check.ts`.
+- **Data plane:** 210 of 221 scoped libraries AI-reviewed (11 have no captured evidence).
+  200 patterns: 162 reducible (129 recurring), 18 need a human call, 12 service-specific,
+  8 dormant; 2,085 reducible instances.
+- **Management plane:** all 1,038 libraries scanned; 181 have handwritten code (.NET 159,
+  Java 21, Python 1; Go none; JavaScript not judged) and all 181 are AI-reviewed (batches
+  1-19, same models as the data plane). 209 patterns: 195 reducible (63 recurring), 14 need
+  a human call; 2,120 reducible instances. 161 pattern names are not in the catalog yet; a
+  merge proposal awaits the owner's review.
+- Reviews used `copilot/gpt-6.1-sol` analysts and fresh-context `copilot/gpt-6-sol`
+  reviewers through the file exchange; no provider endpoint was called. AI-reviewed is not
+  human-verified; a 40-finding accuracy sample is waiting to be marked up.
+- JavaScript detection: a layout-based rule is drafted (management 213 → 0 customized,
+  data 46 → 38) but not wired in until the JS specialists answer its open questions.
+- Human review and the Azure hosting templates exist; deployment, sign-in settings,
+  schedules and provider calls still require owner-approved configuration.
+- Scan history in `state/` is large and lives on the dashboard branch; moving it (data
+  branch or blob storage) is an open decision before moving upstream.
 
 ## Open questions
 
 - Guideline owners per language (placeholders in `guidelines/*.md`).
-- JavaScript detection is a heuristic; confirm with the JS specialists.
+- JavaScript detection: confirm the drafted layout-based rule with the JS specialists.
+- Emitter owners to review their column of per-language generator support.
+- Whether issues can be linked to a whole category, and whether that counts for its patterns.
 - Sign-in tenant for reviewers: an app registration in the Microsoft tenant is likely
   needed so corporate accounts can sign in.
 

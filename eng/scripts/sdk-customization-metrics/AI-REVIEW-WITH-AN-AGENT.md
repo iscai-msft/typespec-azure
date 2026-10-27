@@ -18,7 +18,10 @@ libraries in that scope. The exported database has one additional out-of-scope i
 with missing analysis, so global and scoped missing counts differ. All source coverage
 is bounded, including libraries whose assessments are complete.
 
-## Management-plane run (next)
+## Management-plane run (complete)
+
+Completed October 27, 2026 in 19 batches: all 181 libraries in the list have completed
+assessments. A new management run needs its own explicitly selected scope.
 
 Scope: the 181 management-plane libraries whose code scan found handwritten code, listed in
 [`review-targets/management.txt`](./review-targets/management.txt) (159 .NET, 21 Java,

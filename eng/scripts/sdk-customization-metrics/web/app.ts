@@ -1131,7 +1131,7 @@ export async function start() {
             "Reviewed customizations",
             reviewed ? number.format(view.accepted.length) : "Not reviewed",
             reviewed
-              ? `${view.unassessed.length} libraries awaiting review`
+              ? `${number.format(view.unassessed.filter((item) => item.customizationLinks?.length && !hasHeuristicDetection(item.language)).length)} libraries with handwritten code awaiting review`
               : `None of these ${number.format(view.scope.length)} libraries has an AI review yet`,
           ),
           kpi(
@@ -1195,7 +1195,7 @@ export async function start() {
           "Reviewed customizations that follow a reducible pattern",
         ),
         kpi(
-          "Active libraries affected",
+          "Libraries affected",
           reviewedLibraries
             ? number.format(
                 new Set(
@@ -1203,6 +1203,7 @@ export async function start() {
                     .filter(
                       (item) =>
                         item.counted &&
+                        inScope.has(item.identity) &&
                         !languageLimited(item, resolvePattern(item.pattern).id) &&
                         reducible.some((pattern) => pattern.id === resolvePattern(item.pattern).id),
                     )
