@@ -6,7 +6,15 @@
 //     ("File an issue" on the dashboard adds it; anyone can comment it on an existing issue);
 //   - an entry in tracking/links.json, edited by pull request.
 // The refresh job reads each linked issue's status from GitHub; the page rolls them up.
-import type { FeatureCoverage, TrackedItem, TrackingLink, TrackingTarget } from "./types.ts";
+import type {
+  FeatureCoverage,
+  FeatureMap,
+  LanguageCapability,
+  LanguageSupport,
+  TrackedItem,
+  TrackingLink,
+  TrackingTarget,
+} from "./types.ts";
 
 export const MARKER = "sdk-customization-metrics:";
 const KEYS = ["pattern", "library", "finding"] as const;
@@ -154,3 +162,23 @@ export function newIssueUrl({
   }
   return url;
 }
+
+// One language's capability for a pattern: the pattern's own entry, else its feature's.
+export function languageCapability(
+  features: FeatureMap | null,
+  patternId: string,
+  language: string,
+): LanguageCapability | null {
+  const pattern = features?.patterns[patternId];
+  if (!pattern) return null;
+  const key = language as keyof NonNullable<typeof pattern.languages>;
+  return pattern.languages?.[key] ?? features!.features[pattern.feature]?.languages?.[key] ?? null;
+}
+
+export const SUPPORT_LABELS: Record<LanguageSupport, string> = {
+  supported: "Supported",
+  partial: "Partly supported",
+  "emitter-gap": "Emitter gap",
+  "language-limitation": "Language limitation",
+  "not-applicable": "Not applicable",
+};

@@ -76,27 +76,33 @@ The dashboard decides per pattern using counted findings only:
    example `auth-audience-option` or `model-to-string`), independent of the service.
    [patterns.json](./patterns.json) is the catalog that merges synonyms; specialists can edit
    it.
-2. **Not mostly service-specific.** More than half the instances saying
-   `generatorAddressable: no` makes the pattern service-specific. Otherwise it can pass
-   this gate, including a tie.
-3. **Still relevant.** At least one library with the pattern is **active**: it released
+2. **Only yes/no judgments count.** `generatorAddressable: unclear` pushes a pattern neither
+   way. A pattern with no yes/no judgment at all needs a human call.
+3. **Not mostly service-specific.** More "no" than "yes" makes the pattern
+   service-specific. A tie passes this gate.
+4. **Still relevant.** At least one library with the pattern is **active**: it released
    or changed within 365 days. Missing activity dates are treated as active, not evidence
    of dormancy. Only older dated activity makes a library dormant.
-4. **Generalizable.** The pattern either recurs across at least **two different services**
-   (counted by Azure namespace), or more than half its instances say
-   `generatorAddressable: yes`. One service can therefore be enough.
+5. **Generalizable.** The pattern either recurs across at least **two different services**
+   (counted by Azure namespace), or "yes" outnumbers "no". One service can therefore be
+   enough.
+6. **Per language.** Instances in a language that cannot express the pattern idiomatically
+   (`language-limitation` in [capabilities.md](./capabilities.md), for example union return
+   types in C#) are left out of the decision and the counts. Judge `generatorAddressable`
+   for the library's own language with the same criteria.
 
-The rules in `web/data.ts` (`reduciblePatterns`) apply in this order: missing pattern,
-majority service-specific, no active libraries, cross-service recurrence, majority
-generator-addressable, then needs judgment.
+The rules in `web/data.ts` (`reduciblePatterns`) apply in this order: language limitation,
+missing pattern, no yes/no judgment, majority service-specific, no active libraries,
+cross-service recurrence, majority generator-addressable, then needs judgment.
 
 | Status                        | Meaning                                                                            |
 | ----------------------------- | ---------------------------------------------------------------------------------- |
 | Reducible: Recurring          | Passes the activity and service-specific gates and occurs in at least two services |
-| Reducible: One service so far | Passes those gates and a majority says a generator could produce it                |
-| Needs a human call            | One service without a majority of yes or no judgments                              |
-| Service-specific              | A majority says it is inherently tied to its service                               |
+| Reducible: One service so far | Passes those gates and "yes" outnumbers "no"                                       |
+| Needs a human call            | No yes/no judgment, or one service with yes and no tied                            |
+| Service-specific              | "No" outnumbers "yes"                                                              |
 | Dormant only                  | No associated library is active after the service-specific gate                    |
+| Language limitation           | Only in languages that cannot express it                                           |
 | Unknown                       | No pattern is recorded                                                             |
 
 **Spec fix** is an additional tag for one service appearing in at least two languages,

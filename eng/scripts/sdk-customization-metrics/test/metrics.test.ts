@@ -2473,3 +2473,43 @@ test("libraries without a namespace take one that matches their package", () => 
     "Azure.ResourceManager.Frontdoor",
   );
 });
+
+test("reducible: instances in a language that cannot express the pattern are not counted", () => {
+  const rows = [
+    { service: "One", language: "python", release: null, scan: { identity: "p" } },
+    { service: "Two", language: "dotnet", release: null, scan: { identity: "d" } },
+    { service: "Three", language: "dotnet", release: null, scan: { identity: "d2" } },
+  ] as unknown as LibraryRow[];
+  const finding = (identity: string, language: string, pattern: string) =>
+    ({
+      identity,
+      language,
+      pattern,
+      generatorAddressable: "yes",
+      counted: true,
+      category: "Other",
+    }) as unknown as FindingRecord;
+  const limited = (item: FindingRecord) => item.language === "dotnet";
+  const byId = Object.fromEntries(
+    reduciblePatterns(
+      [
+        finding("p", "python", "union-return"),
+        finding("d", "dotnet", "union-return"),
+        finding("d", "dotnet", "dotnet-only"),
+        finding("d2", "dotnet", "dotnet-only"),
+      ],
+      rows,
+      null,
+      undefined,
+      undefined,
+      limited,
+    ).map((pattern) => [pattern.id, pattern]),
+  );
+  // Python's instance decides; the .NET one is shown as limited, not counted.
+  assert.equal(byId["union-return"].status, "reducible");
+  assert.equal(byId["union-return"].instances, 1);
+  assert.equal(byId["union-return"].services, 1);
+  assert.deepEqual(byId["union-return"].limitedLanguages, ["dotnet"]);
+  assert.equal(byId["dotnet-only"].status, "language-limitation");
+  assert.equal(byId["dotnet-only"].instances, 2);
+});

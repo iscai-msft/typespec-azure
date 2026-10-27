@@ -231,3 +231,26 @@ test("the committed tracking files are valid", async () => {
     assert.ok(coverages.includes(entry.coverage), `${id}: coverage ${entry.coverage}`);
   }
 });
+
+test("per-language capabilities use the documented values", async () => {
+  const map: FeatureMap = JSON.parse(
+    await readFile(new URL("../tracking/features.json", import.meta.url), "utf8"),
+  );
+  const supports = ["supported", "partial", "emitter-gap", "language-limitation", "not-applicable"];
+  const languages = ["python", "java", "dotnet", "javascript", "go"];
+  const entries = [
+    ...Object.entries(map.features).map(([id, entry]) => [id, entry.languages] as const),
+    ...Object.entries(map.patterns).map(([id, entry]) => [id, entry.languages] as const),
+  ];
+  for (const [id, byLanguage] of entries)
+    for (const [language, capability] of Object.entries(byLanguage ?? {})) {
+      assert.ok(languages.includes(language), `${id}: unknown language ${language}`);
+      assert.ok(
+        supports.includes(capability!.support),
+        `${id}/${language}: ${capability!.support}`,
+      );
+      assert.ok(["high", "medium", "low"].includes(capability!.confidence), `${id}/${language}`);
+      if (capability!.support !== "supported" || capability!.confidence !== "high")
+        assert.ok(capability!.note, `${id}/${language} needs a note`);
+    }
+});

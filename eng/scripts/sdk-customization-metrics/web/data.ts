@@ -657,6 +657,9 @@ export function reduciblePatterns(
   catalog: PatternCatalog | null = null,
   rules = REDUCIBLE_RULES,
   now = Date.now(),
+  // Instances in a language that cannot express the pattern (guidelines/capabilities.md):
+  // shown, but left out of the decision and the counts.
+  limited: (finding: FindingRecord, patternId: string) => boolean = () => false,
 ) {
   const resolve = patternResolver(catalog);
   const byIdentity = new Map(
@@ -664,27 +667,39 @@ export function reduciblePatterns(
   );
   const groups = new Map<
     string,
-    Required<ResolvedPattern> & { instances: FindingRecord[]; categories: Map<string, number> }
+    Required<ResolvedPattern> & {
+      instances: FindingRecord[];
+      limitedInstances: FindingRecord[];
+      categories: Map<string, number>;
+    }
   >();
   for (const finding of findings) {
     if (!finding.counted) continue;
     const pattern = resolve(finding.pattern);
     if (!groups.has(pattern.id))
-      groups.set(pattern.id, { ...pattern, instances: [], categories: new Map() });
+      groups.set(pattern.id, {
+        ...pattern,
+        instances: [],
+        limitedInstances: [],
+        categories: new Map(),
+      });
     const group = groups.get(pattern.id)!;
-    group.instances.push(finding);
+    if (limited(finding, pattern.id)) group.limitedInstances.push(finding);
+    else group.instances.push(finding);
     group.categories.set(finding.category, (group.categories.get(finding.category) ?? 0) + 1);
   }
   return [...groups.values()]
     .map((group) => {
-      const libraries = new Set(group.instances.map((item) => item.identity));
+      // A pattern seen only where the language rules it out is still described by those.
+      const counted = group.instances.length ? group.instances : group.limitedInstances;
+      const libraries = new Set(counted.map((item) => item.identity));
       const rowsFor = [...libraries]
         .map((identity) => byIdentity.get(identity))
         .filter((row): row is LibraryRow => Boolean(row));
       const services = new Set(rowsFor.map((row) => row.service));
-      const languages = new Set(group.instances.map((item) => item.language));
+      const languages = new Set(counted.map((item) => item.language));
       const votes: Record<GeneratorAddressable, number> = { yes: 0, no: 0, unclear: 0 };
-      for (const item of group.instances) votes[item.generatorAddressable ?? "unclear"]++;
+      for (const item of counted) votes[item.generatorAddressable ?? "unclear"]++;
       // Only yes/no judgments count; "unclear" pushes a pattern neither way.
       const decided = votes.yes + votes.no;
       const active = rowsFor.filter((row) => !isDormant(row, now, rules)).length;
@@ -693,9 +708,15 @@ export function reduciblePatterns(
       // usually fixed in that service's spec.
       const recurring = services.size >= rules.minServices;
       const specFix = services.size === 1 && languages.size >= 2;
+      const limitedLanguages = [
+        ...new Set(group.limitedInstances.map((item) => item.language)),
+      ].sort();
       let status: string;
       let reason: string;
-      if (group.id === "unpatterned") {
+      if (!group.instances.length) {
+        status = "language-limitation";
+        reason = `Only in ${limitedLanguages.map(languageLabel).join(", ")}, which cannot express it idiomatically`;
+      } else if (group.id === "unpatterned") {
         status = "unknown";
         reason = "No pattern recorded";
       } else if (decided === 0) {
@@ -724,11 +745,13 @@ export function reduciblePatterns(
         name: group.name,
         description: group.description,
         category: [...group.categories].sort((a, b) => b[1] - a[1])[0][0],
-        instances: group.instances.length,
+        instances: counted.length,
         libraries: libraries.size,
         services: services.size,
         serviceNames: [...services].sort(),
         languages: [...languages].sort(),
+        limitedLanguages,
+        limitedInstances: group.limitedInstances.length,
         activeLibraries: active,
         recurring,
         specFix,

@@ -19,7 +19,9 @@ import { LANGUAGES, PLANES, languageById } from "./languages.ts";
 import {
   COVERAGE_LABELS,
   TRACKING_LABELS,
+  SUPPORT_LABELS,
   closedAt,
+  languageCapability,
   markerLine,
   newIssueUrl,
   parseIssueUrl,
@@ -83,6 +85,10 @@ const linkedItems = (match: (target: TrackingTarget) => boolean): TrackedItem[] 
   (tracking?.items ?? []).filter((item) => item.targets.some(match));
 const patternItems = (id: string) =>
   linkedItems((target) => Boolean(target.pattern) && resolvePatternId(target.pattern!) === id);
+
+// Instances in a language that cannot express their pattern are not counted as reducible.
+const languageLimited = (finding: FindingRecord, patternId: string) =>
+  languageCapability(features, patternId, finding.language)?.support === "language-limitation";
 
 function featureFor(patternId: string) {
   const entry = features?.patterns[patternId];
@@ -1150,6 +1156,9 @@ export async function start() {
         snapshot.findings.filter((item) => planeIds.has(item.identity)),
         planeRows,
         catalog,
+        undefined,
+        undefined,
+        languageLimited,
       );
       const inScope = new Set(rows.filter((row) => row.scan).map((row) => row.scan!.identity));
       const scopedPatterns = patterns.filter((pattern) =>
@@ -1194,6 +1203,7 @@ export async function start() {
                     .filter(
                       (item) =>
                         item.counted &&
+                        !languageLimited(item, resolvePattern(item.pattern).id) &&
                         reducible.some((pattern) => pattern.id === resolvePattern(item.pattern).id),
                     )
                     .map((item) => item.identity),
@@ -1226,6 +1236,7 @@ export async function start() {
         ["needs-judgment", "Needs a human call"],
         ["service-specific", "Service-specific"],
         ["dormant", "Dormant only"],
+        ["language-limitation", "Language limitation"],
         ["all", "All patterns"],
       ];
       byId("reducible-filters").replaceChildren(
@@ -1234,6 +1245,8 @@ export async function start() {
             id === "all"
               ? scopedPatterns.length
               : scopedPatterns.filter((pattern) => pattern.status === id).length;
+          // Language limitation is rare by definition; show it only when something has it.
+          if (id === "language-limitation" && !count && patternStatus !== id) return "";
           const chip = element("button", `${label} (${count})`, "chip");
           chip.type = "button";
           chip.setAttribute("aria-pressed", String(patternStatus === id));
@@ -1392,6 +1405,17 @@ export async function start() {
                 pattern.description,
                 `**Where it shows up:** ${pattern.instances} reviewed instances in ${pattern.activeLibraries} active libraries across ${pattern.services} ${pattern.services === 1 ? "service" : "services"} (${pattern.languages.map(languageLabel).join(", ")}). Dashboard status: ${statusLabel[pattern.status] ?? pattern.status}${pattern.status === "reducible" ? (pattern.recurring ? ", recurring" : ", one service so far") : ""}.`,
                 support,
+                pattern.languages
+                  .concat(pattern.limitedLanguages ?? [])
+                  .map((language) => {
+                    const capability = languageCapability(features, pattern.id, language);
+                    return capability
+                      ? `- ${languageLabel(language)}: ${SUPPORT_LABELS[capability.support]}${capability.note ? ` (${capability.note})` : ""}`
+                      : "";
+                  })
+                  .filter(Boolean)
+                  .join("\n")
+                  .replace(/^(?=.)/, "**By language:**\n"),
                 `**Libraries**\n${shown.join("\n")}`,
                 `Details, evidence and source links: ${dashboardLink({ plane: filters.plane ?? "", pattern: pattern.id })}`,
               ]
@@ -1424,10 +1448,25 @@ export async function start() {
           if (pattern.description)
             name.append(element("div", pattern.description, "muted pattern-description"));
           const langs = element("td");
+          // Each language's capability for this pattern (guidelines/capabilities.md) as a hint;
+          // languages that cannot express it are shown struck through and are not counted.
+          const languageTag = (language: string, limitedHere: boolean) => {
+            const capability = languageCapability(features, pattern.id, language);
+            const tag = element(
+              "span",
+              languageLabel(language),
+              `language-tag lang-${language}${limitedHere ? " lang-limited" : ""}${capability ? ` support-${capability.support}` : ""}`,
+            );
+            if (capability)
+              tag.title = `${languageLabel(language)}: ${SUPPORT_LABELS[capability.support]} (${capability.confidence} confidence)${capability.note ? `. ${capability.note}` : ""}`;
+            return tag;
+          };
+          const shownLimited = pattern.status === "language-limitation";
           langs.append(
-            ...pattern.languages.map((language) =>
-              element("span", languageLabel(language), `language-tag lang-${language}`),
-            ),
+            ...pattern.languages.map((language) => languageTag(language, shownLimited)),
+            ...(shownLimited
+              ? []
+              : pattern.limitedLanguages.map((language) => languageTag(language, true))),
           );
           const status = element("td");
           status.append(

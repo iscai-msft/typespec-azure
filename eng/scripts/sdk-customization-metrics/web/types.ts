@@ -401,6 +401,17 @@ export interface TrackingData {
 
 export type FeatureCoverage = "exists" | "partial" | "gap" | "spec-fix" | "not-generator";
 
+// Whether one language's generator could produce a feature (guidelines/capabilities.md).
+export type LanguageSupport =
+  "supported" | "partial" | "emitter-gap" | "language-limitation" | "not-applicable";
+
+export interface LanguageCapability {
+  support: LanguageSupport;
+  confidence: "high" | "medium" | "low";
+  note?: string;
+  source?: string;
+}
+
 // tracking/features.json: which TypeSpec/TCGC/emitter feature would remove each pattern.
 export interface FeatureMap {
   version: 1;
@@ -414,9 +425,19 @@ export interface FeatureMap {
       closestExisting?: string;
       whyShort?: string;
       doc?: string;
+      languages?: Partial<Record<LanguageId, LanguageCapability>>;
     }
   >;
-  patterns: Record<string, { feature: string; coverage: FeatureCoverage; note?: string }>;
+  patterns: Record<
+    string,
+    {
+      feature: string;
+      coverage: FeatureCoverage;
+      note?: string;
+      // Overrides the feature's entry for languages where this pattern differs.
+      languages?: Partial<Record<LanguageId, LanguageCapability>>;
+    }
+  >;
 }
 
 // Shared filter state (URL parameters).

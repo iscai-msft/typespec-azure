@@ -169,6 +169,7 @@ export async function exportGuidelines(
       file: `${language.id}.md`,
       label: language.label,
     })),
+    [{ id: "capabilities", file: "capabilities.md", label: "Language capabilities" }],
   );
   const sections: string[] = [];
   for (const entry of files) {
