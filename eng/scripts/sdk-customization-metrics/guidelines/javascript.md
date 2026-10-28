@@ -44,3 +44,5 @@ did not produce. Libraries use one of these layouts:
 
 - For modular libraries without a `generated/` folder, how can a generated `src/` file be
   told apart from a handwritten one?
+- A draft answer, a rule based on folder layout with its results and open questions, is in
+  [javascript-detection-draft.md](./javascript-detection-draft.md). The scanner does not use it yet.
