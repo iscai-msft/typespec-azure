@@ -564,6 +564,7 @@ export function trackerBreakdown(rows: LibraryRow[], group = "language") {
 // Words kept in capitals when a pattern id is shown as a name.
 const ACRONYMS = new Set([
   "ai",
+  "arm",
   "api",
   "cbor",
   "csv",

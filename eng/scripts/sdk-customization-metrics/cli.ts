@@ -17,6 +17,7 @@ import { FileReviewStore, parseReviewers } from "./reviews.ts";
 import { applyReviews, fetchReviews } from "./apply-reviews.ts";
 import { createReviewServer } from "./server.ts";
 import { readLinks, refreshTracking } from "./tracking.ts";
+import { writeLanguageTables } from "./tracking/language-tables.ts";
 import { SPEC_REPO, applyNamespaces, resolveNamespaces } from "./namespaces.ts";
 import {
   GitRepository,
@@ -78,7 +79,7 @@ export async function main(args: string[] = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, check-exchange, namespaces, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   const specRepository = () =>
@@ -365,6 +366,10 @@ export async function main(args: string[] = process.argv.slice(2)) {
       }
       break;
     }
+    case "language-tables":
+      // Renders tracking/languages/<language>.md from tracking/features.json for owner review.
+      for (const path of await writeLanguageTables()) console.log(path);
+      break;
     case "override":
       if (!values.input) throw new Error("--input override-request.json required");
       console.log(JSON.stringify(await createOverride(state, await readJson(values.input))));

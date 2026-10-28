@@ -254,3 +254,13 @@ test("per-language capabilities use the documented values", async () => {
         assert.ok(capability!.note, `${id}/${language} needs a note`);
     }
 });
+
+test("per-language review tables match tracking/features.json", async () => {
+  const { renderLanguageTables } = await import("../tracking/language-tables.ts");
+  for (const [path, text] of await renderLanguageTables())
+    assert.equal(
+      await readFile(path, "utf8").catch(() => ""),
+      text,
+      `${path} is out of date: run cli.ts language-tables`,
+    );
+});
