@@ -626,6 +626,27 @@ track them, and a **File or link issue** button.
 the TCGC documentation (October 2026); its coverage calls are judgments, so correct them by
 pull request.
 
+## Handwritten share of code
+
+Besides "is this library customized?", the dashboard tracks how much of the code is
+handwritten: the overview's **Handwritten code** figure and the **Handwritten share of code**
+chart under Trends.
+
+- **What is counted:** code lines (non-blank, not only a comment; Python docstrings count as
+  comments) in each library's source files that scans consider eligible, so tests, samples and
+  build output are excluded. Handwritten lines are the files the scan identified as handwritten;
+  for Java files that mix generated and handwritten members, only the members without
+  `@Generated`. JavaScript libraries with a `generated/` copy are counted once, from `src/`.
+  JavaScript is left out of the share while its detection is a heuristic.
+- **Where it is stored:** `state/line-counts.json`, per library and commit, separate from the
+  append-only scan records. `collect` (git reader) counts new scans from the files it already
+  downloaded; `cli.ts count-lines --plane data|management|all [--latest-only]` counts scans that
+  have no count yet, at each scan's own commit.
+- **Reading it:** the share also moves when an emitter makes generated code bigger or smaller,
+  so the history table shows handwritten lines next to the percentage. An observation where not
+  every library in scope was counted is a gap, not a value. Compare languages separately;
+  verbosity differs a lot between them.
+
 ## Optional private legacy import
 
 ```sh

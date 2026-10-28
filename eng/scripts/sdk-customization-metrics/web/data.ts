@@ -201,6 +201,32 @@ export function breakdownTable(view: SelectedView, group: BreakdownGroup = "lang
   }
   return [...rows.values()].map((item) => ({ ...item, libraries: item.libraries.size }));
 }
+// Handwritten share of code lines over packages with line counts. Languages whose detection is
+// a heuristic (JavaScript) are left out, as in the customized-library numbers.
+export function lineShare(
+  packages: {
+    language: string;
+    excluded?: boolean;
+    lines?: { handwritten: number; generated: number };
+  }[],
+) {
+  const countable = packages.filter(
+    (item) => !item.excluded && !hasHeuristicDetection(item.language),
+  );
+  const counted = countable.filter((item) => item.lines);
+  const handwritten = counted.reduce((sum, item) => sum + item.lines!.handwritten, 0);
+  const total = counted.reduce(
+    (sum, item) => sum + item.lines!.handwritten + item.lines!.generated,
+    0,
+  );
+  return {
+    handwritten,
+    total,
+    counted: counted.length,
+    missing: countable.length - counted.length,
+  };
+}
+
 export function historyRows(
   observations: Observation[],
   filters: Filters = {},
@@ -246,6 +272,13 @@ export function historyRows(
         view.scope.every((item) => item.excluded || item.navigationRecorded !== false)
           ? view.candidates.length
           : null,
+      // Only comparable when every library in scope has a line count at that observation.
+      ...(() => {
+        const share = lineShare(view.scope);
+        return share.counted && !share.missing && share.total
+          ? { handwrittenLines: share.handwritten, totalLines: share.total }
+          : { handwrittenLines: null, totalLines: null };
+      })(),
       added: [...ids].filter((id) => !previous.has(id)).length,
       removed: [...previous].filter((id) => !ids.has(id)).length,
       cohort: fixed ? "fixed intersection" : "available libraries",

@@ -1,3 +1,4 @@
+import { lineKey, readLineCounts } from "./lines.ts";
 import { stripTypeScriptTypes } from "node:module";
 import { exportGuidelines } from "./guidelines.ts";
 import { randomUUID } from "node:crypto";
@@ -694,6 +695,13 @@ export async function exportData(
       findings: reclassify(observation.findings, reclassifications),
     }),
   );
+  // Lines of code per library at its scan's commit (state/line-counts.json), when counted.
+  const lineCounts = (await readLineCounts(stateDirectory)).counts;
+  for (const packages of [dataset.packages, ...dataset.observations.map((item) => item.packages)])
+    for (const item of packages) {
+      const count = lineCounts[lineKey(item.identity, item.commit)];
+      if (count) item.lines = count;
+    }
   dataset.historySource = options.historyStateDirectory
     ? "persisted-state-before-refresh"
     : "exported-state";

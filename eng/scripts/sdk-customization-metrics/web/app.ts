@@ -6,6 +6,7 @@ import {
   historyRows,
   languageLabel,
   hasHeuristicDetection,
+  lineShare,
   mergeLibraries,
   patternLabel,
   patternResolver,
@@ -303,7 +304,13 @@ type FormFilters = Required<
 > & { accepted: boolean };
 
 // A measured history point; null means "not measured", never zero.
-type TrendRow = { observedAt: string; candidates: number | null; accepted: number | null };
+type TrendRow = {
+  observedAt: string;
+  candidates: number | null;
+  accepted: number | null;
+  share?: number | null;
+};
+type TrendSeries = { key: "candidates" | "accepted" | "share"; label: string; className: string };
 
 // diagnostics.json: per-package file inventories, fetched when the diagnostics panel opens.
 type Diagnostics = {
@@ -600,6 +607,7 @@ function svg(tag: string, attributes: Record<string, string | number> = {}, text
   return node;
 }
 const number = new Intl.NumberFormat("en-US");
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const percent = (part: number, whole: number) =>
   whole ? `${((part / whole) * 100).toFixed(1)}%` : "N/A";
 function formatDate(value: string) {
@@ -614,7 +622,11 @@ function niceMax(value: number) {
 
 export function renderTrendChart(
   rows: TrendRow[],
-  { showCandidates = true }: { showCandidates?: boolean } = {},
+  {
+    showCandidates = true,
+    series: custom,
+    format = (value: number) => number.format(value),
+  }: { showCandidates?: boolean; series?: TrendSeries[]; format?: (value: number) => string } = {},
 ) {
   const width = 640;
   const height = 240;
@@ -622,23 +634,26 @@ export function renderTrendChart(
   const right = 16;
   const top = 14;
   const bottom = 34;
-  const series = [
-    {
-      key: "candidates" as const,
-      label: "Entry points",
-      className: "series-candidates",
-      show: showCandidates,
-    },
-    {
-      key: "accepted" as const,
-      label: "Reviewed customizations",
-      className: "series-accepted",
-      show: true,
-    },
-  ].filter((item) => item.show);
+  const series: TrendSeries[] =
+    custom ??
+    [
+      {
+        key: "candidates" as const,
+        label: "Entry points",
+        className: "series-candidates",
+        show: showCandidates,
+      },
+      {
+        key: "accepted" as const,
+        label: "Reviewed customizations",
+        className: "series-accepted",
+        show: true,
+      },
+    ].filter((item) => item.show);
+  const value = (row: TrendRow, key: TrendSeries["key"]) => row[key] ?? null;
   const values = rows
-    .flatMap((row) => series.map((item) => row[item.key]))
-    .filter((value): value is number => value !== null);
+    .flatMap((row) => series.map((item) => value(row, item.key)))
+    .filter((item): item is number => item !== null);
   const chart = svg("svg", {
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
@@ -654,13 +669,13 @@ export function renderTrendChart(
     left + (rows.length < 2 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
   const y = (value: number) => top + plotHeight - (value / max) * plotHeight;
   for (let tick = 0; tick <= 4; tick++) {
-    const value = (max / 4) * tick;
+    const level = (max / 4) * tick;
     chart.append(
-      svg("line", { x1: left, x2: width - right, y1: y(value), y2: y(value), class: "grid" }),
+      svg("line", { x1: left, x2: width - right, y1: y(level), y2: y(level), class: "grid" }),
       svg(
         "text",
-        { x: left - 8, y: y(value) + 4, class: "axis-label", "text-anchor": "end" },
-        number.format(value),
+        { x: left - 8, y: y(level) + 4, class: "axis-label", "text-anchor": "end" },
+        format(level),
       ),
     );
   }
@@ -685,22 +700,24 @@ export function renderTrendChart(
     // Missing measurements break the line; they are never drawn as zero.
     let path = "";
     rows.forEach((row, index) => {
-      const value = row[item.key];
-      if (value === null) return;
-      const previous = index > 0 ? rows[index - 1][item.key] : null;
-      path += `${previous === null ? "M" : "L"}${x(index).toFixed(1)},${y(value).toFixed(1)}`;
+      const current = value(row, item.key);
+      if (current === null) return;
+      const previous = index > 0 ? value(rows[index - 1], item.key) : null;
+      path += `${previous === null ? "M" : "L"}${x(index).toFixed(1)},${y(current).toFixed(1)}`;
     });
     if (path) chart.append(svg("path", { d: path, class: `line ${item.className}` }));
     rows.forEach((row, index) => {
-      const value = row[item.key];
-      if (value === null) return;
+      const current = value(row, item.key);
+      if (current === null) return;
       const point = svg("circle", {
         cx: x(index),
-        cy: y(value),
+        cy: y(current),
         r: 4,
         class: `point ${item.className}`,
       });
-      point.append(svg("title", {}, `${formatDate(row.observedAt)} UTC · ${item.label}: ${value}`));
+      point.append(
+        svg("title", {}, `${formatDate(row.observedAt)} UTC · ${item.label}: ${format(current)}`),
+      );
       chart.append(point);
     });
   }
@@ -1061,6 +1078,15 @@ export async function start() {
           : "No manual tracker loaded",
         `${scanned.length} with scanned code${filters.observation ? ` as of ${formatDate(filters.observation)} UTC` : latest ? `, latest ${formatDate(latest)} UTC` : ""}`,
       ].join(" | ");
+      // Share of code lines that are handwritten, across scanned libraries with a line count.
+      const share = lineShare(scanned.map((row) => row.scan!));
+      const shareCard = kpi(
+        "Handwritten code",
+        share.total ? percent(share.handwritten, share.total) : "—",
+        share.total
+          ? `${compact.format(share.handwritten)} of ${compact.format(share.total)} code lines in ${number.format(share.counted)} ${share.counted === 1 ? "library" : "libraries"}${share.missing ? ` · ${number.format(share.missing)} not counted yet` : ""}${scanned.some((row) => hasHeuristicDetection(row.language)) ? " · JavaScript not counted" : ""}`
+          : "Line counts appear once libraries are counted",
+      );
       // The manual tracker drives the overview where it covers the libraries in view (data
       // plane); elsewhere (management, provisioning) the cards come from the code scans.
       if (tracked.length) {
@@ -1082,6 +1108,7 @@ export async function start() {
               : "None of these libraries are in the tracker yet",
             "featured",
           ),
+          shareCard,
           kpi(
             "Libraries in view",
             number.format(rows.length),
@@ -1122,6 +1149,7 @@ export async function start() {
                 : "No library in this view has been scanned yet",
             "featured",
           ),
+          shareCard,
           kpi(
             "Customization entry points",
             semantic ? "—" : number.format(codeLinks.length),
@@ -2306,6 +2334,13 @@ export async function start() {
               row.accepted === null ? "N/A — not assessed" : String(row.accepted),
               "num",
             ),
+            element(
+              "td",
+              row.totalLines
+                ? `${percent(row.handwrittenLines!, row.totalLines)} (${compact.format(row.handwrittenLines!)})`
+                : "N/A",
+              "num",
+            ),
             element("td", `+${row.added} / −${row.removed}`, "num"),
           );
           return tr;
@@ -2319,6 +2354,23 @@ export async function start() {
           })),
           { showCandidates },
         ),
+      );
+      // Handwritten share of code lines, where every library in scope was counted.
+      const shareRows = observationRows.map((row) => ({
+        observedAt: row.observedAt,
+        candidates: null,
+        accepted: null,
+        share: row.totalLines ? (100 * row.handwrittenLines!) / row.totalLines : null,
+      }));
+      const shareMeasured = shareRows.filter((row) => row.share !== null).length;
+      byId("share-status").textContent = shareMeasured
+        ? `Handwritten share of code lines (non-blank, non-comment; tests and samples excluded; JavaScript not counted).${shareMeasured < shareRows.length ? ` ${shareRows.length - shareMeasured} observations are gaps: not every library in them was counted.` : ""} Generated code size also moves with emitter versions, so read it with the line counts in the table.`
+        : "Handwritten share of code lines appears once the libraries in view are counted.";
+      byId("share-chart").replaceChildren(
+        renderTrendChart(shareRows, {
+          series: [{ key: "share", label: "Handwritten code", className: "series-share" }],
+          format: (value) => `${value.toFixed(value < 10 ? 1 : 0)}%`,
+        }),
       );
 
       // Diagnostics

@@ -18,6 +18,13 @@ import { applyReviews, fetchReviews } from "./apply-reviews.ts";
 import { createReviewServer } from "./server.ts";
 import { readLinks, refreshTracking } from "./tracking.ts";
 import { writeLanguageTables } from "./tracking/language-tables.ts";
+import {
+  backfillLineCounts,
+  countLibraryLines,
+  lineKey,
+  readLineCounts,
+  writeLineCounts,
+} from "./lines.ts";
 import { SPEC_REPO, applyNamespaces, resolveNamespaces } from "./namespaces.ts";
 import {
   GitRepository,
@@ -75,11 +82,12 @@ export async function main(args: string[] = process.argv.slice(2)) {
         default: new URL("./tracking/links.json", import.meta.url).pathname,
       },
       tracking: { type: "string" },
+      "latest-only": { type: "boolean", default: false },
     },
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, check-exchange, namespaces, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, count-lines, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   const specRepository = () =>
@@ -109,9 +117,18 @@ export async function main(args: string[] = process.argv.slice(2)) {
       if (!["github-api", "git"].includes(values.reader as string))
         throw new Error("--reader must be github-api or git");
       const repositories = new Map<string, GitRepository>();
+      // Lines of code are counted from the files each git scan already downloaded.
+      const lineCounts = await readLineCounts(state);
       const source =
         values.reader === "git"
           ? new GitSource({
+              onScanned: (scan, texts) => {
+                lineCounts.counts[lineKey(scan.identity, scan.commit)] = countLibraryLines(
+                  scan.target,
+                  texts,
+                  scan.navigation ?? [],
+                );
+              },
               repositoryFor: (repo: string) => {
                 if (!repositories.has(repo))
                   repositories.set(
@@ -174,6 +191,7 @@ export async function main(args: string[] = process.argv.slice(2)) {
           }),
         );
       }
+      if (values.reader === "git") await writeLineCounts(state, lineCounts);
       console.log(JSON.stringify({ scanned: targets.length - skipped, skipped, failures }));
       // Preserve and export every failed scan before reporting a failed job.
       if (failures) process.exitCode = 1;
@@ -364,6 +382,46 @@ export async function main(args: string[] = process.argv.slice(2)) {
         if (data.errors.length)
           console.log(`::warning title=Issue tracking errors::${escape(data.errors.join("\n"))}`);
       }
+      break;
+    }
+    case "count-lines": {
+      // Counts handwritten and generated lines of code for scans that have none yet, at each
+      // scan's commit (--latest-only: each library's latest scan). --plane data|management|all.
+      const { scans } = await readState(state);
+      const inventory = await readInventory(resolve(values.inventory));
+      const planeOf = new Map(
+        (inventory?.libraries ?? []).map((item) => [
+          `${item.language}:${item.package}`,
+          item.plane,
+        ]),
+      );
+      const selected = scans.filter(
+        (scan) =>
+          values.plane === "all" ||
+          (planeOf.get(`${scan.target.language}:${scan.target.package}`) ?? "data") ===
+            values.plane,
+      );
+      const repositories = new Map<string, GitRepository>();
+      const store = await readLineCounts(state);
+      const result = await backfillLineCounts(
+        selected,
+        (repo) => {
+          if (!repositories.has(repo))
+            repositories.set(
+              repo,
+              new GitRepository(repo, join(resolve(values["repos-dir"]), repo.replace("/", "__"))),
+            );
+          return repositories.get(repo)!;
+        },
+        store,
+        {
+          latestOnly: values["latest-only"],
+          log: (message) => console.error(message),
+          save: () => writeLineCounts(state, store),
+        },
+      );
+      console.log(JSON.stringify({ ...result, failed: result.failed.length }));
+      for (const item of result.failed.slice(0, 20)) console.error(`  ${item}`);
       break;
     }
     case "language-tables":

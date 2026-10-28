@@ -50,6 +50,16 @@ export interface ContextFile {
   sourceUrl: string;
 }
 
+// Code lines in a library at one commit (lines.ts): non-blank, non-comment lines of its
+// eligible source files, split into handwritten and generated.
+export interface LineCount {
+  method: string;
+  handwritten: number;
+  generated: number;
+  files: number;
+  handwrittenFiles: number;
+}
+
 export interface NavigationLink {
   path: string;
   startLine: number;
@@ -205,6 +215,8 @@ export interface PackageRecord extends Target {
   coverage: Coverage;
   sourceFiles?: { id?: string; path: string; kind: string; startLine: number; endLine: number }[];
   navigationRecorded?: boolean;
+  // Code lines at this scan's commit, when counted (state/line-counts.json).
+  lines?: LineCount;
   customizationLinks: CustomizationLink[];
   analysisStatus: Analysis["status"];
   assessmentVersion: Record<string, unknown>;

@@ -501,9 +501,19 @@ export class GitHubSource {
 export class GitSource {
   repositoryFor: (repo: string) => GitRepositoryReader;
   commits: Map<string, Promise<string>>;
-  constructor({ repositoryFor }: { repositoryFor: (repo: string) => GitRepositoryReader }) {
+  // Called after each successful scan with the texts of the files it downloaded (by path),
+  // e.g. to count lines of code without downloading them again.
+  onScanned?: (scan: Scan, texts: Map<string, string>) => void;
+  constructor({
+    repositoryFor,
+    onScanned,
+  }: {
+    repositoryFor: (repo: string) => GitRepositoryReader;
+    onScanned?: (scan: Scan, texts: Map<string, string>) => void;
+  }) {
     this.repositoryFor = repositoryFor;
     this.commits = new Map();
+    this.onScanned = onScanned;
   }
   async commitOf(repo: string): Promise<string> {
     if (!this.commits.has(repo)) this.commits.set(repo, this.repositoryFor(repo).sync());
@@ -558,6 +568,12 @@ export class GitSource {
         review: { budget: 40000, maxChunk: 24000 },
         ...limits,
       });
+      if (this.onScanned) {
+        const byPath = new Map<string, string>();
+        for (const entry of wanted)
+          if (texts.has(entry.sha)) byPath.set(entry.path, texts.get(entry.sha) as string);
+        this.onScanned(scan, byPath);
+      }
     } catch (error) {
       scan.coverage.status = "failed";
       scan.coverage.errors.push((error as Error).message);
