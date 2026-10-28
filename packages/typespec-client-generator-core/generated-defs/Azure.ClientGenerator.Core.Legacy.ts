@@ -9,6 +9,28 @@ import type {
 } from "@typespec/compiler";
 
 /**
+ * Common typed options bag for the `scope` argument accepted by scoped TCGC decorators.
+ *
+ * Every scoped decorator's own options model can extend this base so new, decorator-specific
+ * settings can be added over time without breaking the legacy plain-string scope argument.
+ *
+ * **Supported language identifiers:** `csharp`, `python`, `java`, `javascript`, `go`, and other language
+ * emitter names (derived from the emitter package name, e.g., `@azure-tools/typespec-csharp` → `csharp`).
+ *
+ * **Valid patterns for `scope`:**
+ * - Single language: `"python"`
+ * - Multiple languages (comma-separated): `"python, java"`
+ * - Negation to exclude languages: `"!csharp"` or `"!(java, python)"`
+ */
+export interface DecoratorOptions {
+  /**
+   * Specifies the target language emitters that a decorator should apply to. If not set, the
+   * decorator applies to all language emitters by default.
+   */
+  readonly scope?: string;
+}
+
+/**
  * Change the base type of a model in the client SDK.
  *
  * This decorator updates the model returned from TCGC so that, in the
@@ -154,7 +176,7 @@ export type HierarchyBuildingDecorator = (
   context: DecoratorContext,
   target: Model,
   value: Model,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -177,7 +199,7 @@ export type HierarchyBuildingDecorator = (
 export type FlattenPropertyDecorator = (
   context: DecoratorContext,
   target: ModelProperty,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -213,7 +235,7 @@ export type FlattenPropertyDecorator = (
 export type MarkAsLroDecorator = (
   context: DecoratorContext,
   target: Operation,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -247,7 +269,7 @@ export type MarkAsLroDecorator = (
 export type MarkAsPageableDecorator = (
   context: DecoratorContext,
   target: Operation,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -278,7 +300,7 @@ export type MarkAsPageableDecorator = (
 export type DisablePageableDecorator = (
   context: DecoratorContext,
   target: Operation,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -306,7 +328,7 @@ export type NextLinkVerbDecorator = (
   context: DecoratorContext,
   target: Operation,
   verb: Type,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 /**
@@ -354,7 +376,7 @@ export type ClientDefaultValueDecorator = (
   context: DecoratorContext,
   target: ModelProperty,
   value: string | boolean | Numeric,
-  scope?: string,
+  scope?: DecoratorOptions | string,
 ) => DecoratorValidatorCallbacks | void;
 
 export type AzureClientGeneratorCoreLegacyDecorators = {

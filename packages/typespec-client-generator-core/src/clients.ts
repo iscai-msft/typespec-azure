@@ -1,6 +1,11 @@
 import { createDiagnosticCollector, type Diagnostic, getDoc, getSummary } from "@typespec/compiler";
 import { $ } from "@typespec/compiler/typekit";
-import { getServers, type HttpServer } from "@typespec/http";
+import {
+  type Authentication,
+  getAuthentication,
+  getServers,
+  type HttpServer,
+} from "@typespec/http";
 import {
   getClientInitializationOptions,
   getClientNameOverride,
@@ -42,6 +47,14 @@ function getVersionsEnum(context: TCGCContext, client: SdkClient): SdkEnumType |
     return undefined;
   }
   return context.getPackageVersionSdkEnum().get(client.services[0]);
+}
+
+function getClientAuthentication(
+  context: TCGCContext,
+  client: SdkClient,
+): Authentication | undefined {
+  const service = client.services[0];
+  return service ? getAuthentication(context.program, service) : undefined;
 }
 
 function getEndpointTypeFromSingleServer<
@@ -161,6 +174,7 @@ function getSdkEndpointParameter<TServiceOperation extends SdkServiceOperation =
       access: "public",
       usage: UsageFlags.None,
       variantTypes: types,
+      variants: new Map(types.map((type) => [Symbol("variant"), type])),
       name: createGeneratedName(context, service, "Endpoint"),
       isGeneratedName: true,
       isExactName: false,
@@ -217,6 +231,9 @@ export function createSdkClientType<TServiceOperation extends SdkServiceOperatio
     clientInitialization: diagnostics.pipe(
       createSdkClientInitializationType(context, client, parent),
     ),
+    // Multiple services currently use the first service for client-level endpoint and credential
+    // metadata. Keep authentication aligned with that behavior.
+    authentication: getClientAuthentication(context, client),
     decorators: client.type ? diagnostics.pipe(getTypeDecorators(context, client.type)) : [],
     parent,
     crossLanguageDefinitionId: getCrossLanguageDefinitionId(context, clientType),

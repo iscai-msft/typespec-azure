@@ -4,7 +4,7 @@ import {
   $linter as ResourceManagerLinter,
 } from "@azure-tools/typespec-azure-resource-manager";
 import type { LinterDefinition } from "@typespec/compiler";
-import { fail, ok } from "node:assert";
+import { fail, ok, strictEqual } from "node:assert";
 import { describe, it } from "vitest";
 import { $linter } from "../src/index.js";
 
@@ -51,13 +51,77 @@ describe("expect all rules to be defined", () => {
     });
   });
 
-  it("client-sdk configures C# naming rules", () => {
+  it("client-sdk configures SDK naming rules", () => {
     const ruleset = $linter.ruleSets?.["client-sdk"];
     ok(ruleset);
     ok(ruleset.enable?.["@azure-tools/typespec-client-generator-core/csharp-no-url-suffix"]);
     ok(ruleset.enable?.["@azure-tools/typespec-client-generator-core/csharp-model-suffix"]);
+    strictEqual(
+      ruleset.enable?.["@azure-tools/typespec-client-generator-core/get-operation-name"],
+      false,
+    );
+    strictEqual(
+      ruleset.enable?.["@azure-tools/typespec-client-generator-core/use-correct-verb"],
+      false,
+    );
     ok(
       ruleset.disable?.["@azure-tools/typespec-client-generator-core/csharp-use-standard-acronyms"],
     );
+  });
+
+  it("keeps combined SDK naming guidance opt-in", () => {
+    const ruleName = "@azure-tools/typespec-client-generator-core/use-correct-verb";
+    strictEqual($linter.ruleSets?.["client-sdk"].enable?.[ruleName], false);
+    for (const rulesetName of ["data-plane", "resource-manager"]) {
+      strictEqual($linter.ruleSets?.[rulesetName].enable?.[ruleName], undefined);
+      strictEqual($linter.ruleSets?.[rulesetName].disable?.[ruleName], undefined);
+    }
+    for (const oldName of ["use-create-for-put", "use-update-for-patch", "use-delete-for-delete"]) {
+      for (const ruleset of Object.values($linter.ruleSets ?? {})) {
+        strictEqual(
+          ruleset.enable?.[`@azure-tools/typespec-client-generator-core/${oldName}`],
+          undefined,
+        );
+        strictEqual(
+          ruleset.disable?.[`@azure-tools/typespec-client-generator-core/${oldName}`],
+          undefined,
+        );
+      }
+    }
+  });
+
+  it("keeps RPaaS extension-routing guidance opt-in in the general Azure rulesets", () => {
+    const ruleName = "@azure-tools/typespec-azure-resource-manager/use-scope-for-extension-routing";
+    strictEqual($linter.ruleSets?.["resource-manager"].enable?.[ruleName], false);
+    for (const ruleset of Object.values($linter.ruleSets ?? {})) {
+      ok(!ruleset.enable?.[ruleName]);
+    }
+  });
+
+  it("keeps ARM response status guidance opt-in", () => {
+    const ruleName = "@azure-tools/typespec-azure-resource-manager/use-standard-response-codes";
+    strictEqual($linter.ruleSets?.["resource-manager"].enable?.[ruleName], false);
+    strictEqual($linter.ruleSets?.["data-plane"].enable?.[ruleName], undefined);
+    strictEqual(
+      ResourceManagerLinter.rules.filter((rule) => rule.name === "use-standard-response-codes")
+        .length,
+      1,
+    );
+    ok(
+      !ResourceManagerLinter.rules.some((rule) => rule.name === "use-standard-get-response-codes"),
+    );
+    strictEqual(
+      $linter.ruleSets?.["resource-manager"].enable?.[
+        "@azure-tools/typespec-azure-resource-manager/use-standard-get-response-codes"
+      ],
+      undefined,
+    );
+  });
+
+  it("keeps redundant summary guidance opt-in", () => {
+    const ruleName = "@azure-tools/typespec-azure-core/no-redundant-summary";
+    for (const rulesetName of ["data-plane", "resource-manager"]) {
+      strictEqual($linter.ruleSets?.[rulesetName].enable?.[ruleName], false);
+    }
   });
 });

@@ -13,6 +13,7 @@ import {
   type Program,
   reportDeprecated,
   resolvePath,
+  sanitizePathSegment,
   type Service,
 } from "@typespec/compiler";
 import {
@@ -128,6 +129,7 @@ export function resolveAutorestOptions(
     skipExampleCopying: resolvedOptions["skip-example-copying"],
     typeNameStrategy: resolvedOptions["type-name-strategy"],
     serviceYaml: resolvedOptions["service-yaml"] ?? "auto",
+    examplesFormat: resolvedOptions["examples-format"] ?? "auto",
   };
 }
 
@@ -137,6 +139,7 @@ function getEmitterContext(
   options: ResolvedAutorestEmitterOptions,
   multiService: boolean = false,
   version?: string,
+  versions?: readonly string[],
 ): AutorestEmitterContext {
   const tcgcSdkContext = createTCGCContext(program, "@azure-tools/typespec-autorest");
   tcgcSdkContext.enableLegacyHierarchyBuilding = true;
@@ -147,6 +150,7 @@ function getEmitterContext(
     tcgcSdkContext,
     proxy: createDocumentProxy(program, service, options, version),
     version: version,
+    versions,
     multiService: multiService,
   };
 }
@@ -234,6 +238,12 @@ export async function getAllServicesAtAllVersions(
       };
       serviceRecords.push(serviceRecord);
 
+      // The full, unfiltered version order is required to resolve unified examples: `since`
+      // selection needs every version even when only a single `--version` is being emitted.
+      const versionOrder = versions.snapshots
+        .map((snapshot) => snapshot.version?.value)
+        .filter((value): value is string => typeof value === "string");
+
       for (const record of filteredVersions) {
         const context: AutorestEmitterContext = getEmitterContext(
           program,
@@ -241,6 +251,7 @@ export async function getAllServicesAtAllVersions(
           options,
           services.length > 1,
           record.version?.value,
+          versionOrder,
         );
 
         const results = await getVersionSnapshotDocument(
@@ -292,6 +303,7 @@ async function getVersionSnapshotDocument(
     options,
     multiService,
     context.version,
+    context.versions,
   );
   const document = await getOpenAPIForService(newContext, options);
 
@@ -483,8 +495,12 @@ async function emitOutput(
     newLine: options.newLine,
   });
 
-  // Copy examples to the output directory
-  if (result.operationExamples.length > 0 && !options.skipExampleCopying) {
+  // Copy examples to the output directory. Examples materialized from the unified `examples.yaml`
+  // format are always written, since there is no on-disk source file to reference instead.
+  if (
+    result.operationExamples.length > 0 &&
+    (!options.skipExampleCopying || result.examplesGenerated)
+  ) {
     const examplesPath = resolvePath(getDirectoryPath(result.outputFile), "examples");
     await program.host.mkdirp(examplesPath);
     for (const { examples } of result.operationExamples) {
@@ -519,10 +535,10 @@ export function resolveOutputFile(
     "azure-resource-provider-folder": azureResourceProviderFolder,
     "service-name":
       multipleServices || azureResourceProviderFolder
-        ? getNamespaceFullName(service.type)
+        ? sanitizePathSegment(getNamespaceFullName(service.type))
         : undefined,
     "version-status": version && (version.includes("preview") ? "preview" : "stable"),
-    version,
+    version: version && sanitizePathSegment(version),
     feature,
   });
 

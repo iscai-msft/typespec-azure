@@ -7,6 +7,7 @@ import { compositionOverInheritanceRule } from "./rules/composition-over-inherit
 import { friendlyNameRule } from "./rules/friendly-name.js";
 import { knownEncodingRule } from "./rules/known-encoding.js";
 import { longRunningOperationsRequirePollingOperation } from "./rules/lro-polling-operation.js";
+import { noBooleanRule } from "./rules/no-boolean.js";
 import { noCaseMismatchRule } from "./rules/no-case-mismatch.js";
 import { noClosedLiteralUnionRule } from "./rules/no-closed-literal-union.js";
 import { noEnumRule } from "./rules/no-enum.js";
@@ -22,6 +23,7 @@ import { noOpenapiClientExtensionsRule } from "./rules/no-openapi-client-extensi
 import { noOpenAPIRule } from "./rules/no-openapi.js";
 import { noPrivateUsage } from "./rules/no-private-usage.js";
 import { noQueryExplodeRule } from "./rules/no-query-explode.js";
+import { noRedundantSummaryRule } from "./rules/no-redundant-summary.js";
 import { noResponseBodyRule } from "./rules/no-response-body.js";
 import { noRouteParameterNameMismatchRule } from "./rules/no-route-parameter-name-mismatch.js";
 import { noRpcPathParamsRule } from "./rules/no-rpc-path-params.js";
@@ -49,6 +51,7 @@ const rules = [
   byosRule,
   casingRule,
   compositionOverInheritanceRule,
+  noBooleanRule,
   knownEncodingRule,
   longRunningOperationsRequirePollingOperation,
   noCaseMismatchRule,
@@ -65,6 +68,7 @@ const rules = [
   noOpenAPIRule,
   noUnnamedTypesRule,
   noHeaderExplodeRule,
+  noRedundantSummaryRule,
   preventFormatRule,
   noMultipleDiscriminatorRule,
   preventRestLibraryInterfaces,

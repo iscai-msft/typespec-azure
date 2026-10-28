@@ -22,6 +22,7 @@ import type {
 } from "@typespec/compiler";
 import { unsafe_Realm } from "@typespec/compiler/experimental";
 import {
+  type Authentication,
   type HttpAuth,
   type HttpOperation,
   type HttpOperationResponse,
@@ -65,7 +66,9 @@ export interface TCGCContext {
   disableUsageAccessPropagationToBase: boolean;
   flattenUnionAsEnum?: boolean;
   enableLegacyHierarchyBuilding?: boolean;
+  convertDiscriminatedUnionsToModels?: boolean;
 
+  __discriminatedUnionModels?: Map<Union, Model>;
   __referencedTypeCache: Map<Type, SdkModelType | SdkEnumType | SdkUnionType | SdkNullableType>;
   __arrayDictionaryCache: Map<Type, SdkDictionaryType | SdkArrayType>;
   __methodParameterCache: Map<ModelProperty, SdkMethodParameter>;
@@ -230,6 +233,8 @@ export interface SdkClientType<
   summary?: string;
   /** Client initialization way. */
   clientInitialization: SdkClientInitializationType;
+  /** HTTP authentication requirements declared on the service. */
+  authentication?: Authentication;
   /** Methods of the client. */
   methods: SdkMethod<TServiceOperation>[];
   /** API versions supported for current type. */
@@ -539,7 +544,22 @@ export interface SdkUnionType<TValueType extends SdkTypeBase = SdkType> extends 
   /** Full qualified namespace. */
   namespace: string;
   kind: "union";
+  /** SDK types of the alternatives, in the same order as `variants.values()`. */
   variantTypes: TValueType[];
+  /**
+   * Maps variant keys to SDK types, in the same iteration order as `variantTypes`.
+   * Declared alternatives retain TypeSpec source order and their original string or symbol keys.
+   * String keys are declared names without casing transformations; symbols identify unnamed/default variants.
+   * Synthesized alternatives use new, unique symbol keys.
+   * Explicit null alternatives are excluded and represented by an `SdkNullableType` wrapper.
+   * Distinct keys may reference the same SDK type.
+   */
+  variants: Map<string | symbol, TValueType>;
+  /**
+   * Type declared by the union's `extends` clause. This constrains the variants but does not imply inheritance.
+   * Usage, access, and serialization information propagate to this referenced type.
+   */
+  baseType?: SdkType;
   /** Unique ID for the current type. */
   crossLanguageDefinitionId: string;
   /** Whether the type has public or private accessibility. */
@@ -1173,7 +1193,7 @@ interface SdkLroServiceMethodOptions {
  * Long running operation metadata.
  */
 export interface SdkLroServiceMetadata {
-  /** LRO metadata from TypeSpec core library */
+  /** Core-compatible raw metadata with TCGC-selected client result fields. */
   __raw: LroMetadata;
   /** Legacy `finalStateVia` value */
   finalStateVia: FinalStateValue;
@@ -1427,10 +1447,20 @@ export type SdkHttpPackage = SdkPackage<SdkHttpOperation>;
 
 export type LanguageScopes = "dotnet" | "java" | "python" | "javascript" | "go" | string;
 
+/**
+ * A typed options bag accepted by scoped TCGC decorators, mirroring the `.tsp` `DecoratorOptions`
+ * model. Decorator-specific options bags can extend this to add their own settings.
+ */
+export interface DecoratorOptions {
+  scope?: LanguageScopes;
+}
+
 interface SdkExampleBase {
   kind: string;
+  /** Unique example name within the operation. */
   name: string;
   doc: string;
+  /** Path to the source JSON or YAML file, with `#id` appended for YAML examples with an explicit ID. */
   filePath: string;
   rawExample: any;
 }
