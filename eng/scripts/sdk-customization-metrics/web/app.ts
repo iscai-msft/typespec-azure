@@ -1199,6 +1199,21 @@ export async function start() {
         const [top, topCount] =
           [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ??
           (["N/A", 0] as [string, number]);
+        // The pattern on the most libraries among reviewed customizations in view: the reason
+        // behind the code, where the tracker's categories only say where it sits.
+        const libraryCount = new Map<string, Set<string>>();
+        for (const item of view.accepted) {
+          const id = resolvePattern(item.pattern).id;
+          if (id === "unpatterned") continue;
+          if (!libraryCount.has(id)) libraryCount.set(id, new Set());
+          libraryCount.get(id)!.add(item.identity);
+        }
+        const [topId, topLibraries] = [...libraryCount].sort(
+          (a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]),
+        )[0] ?? ["", new Set<string>()];
+        const topReason = topId
+          ? { name: resolvePattern(topId).name, libraries: topLibraries.size }
+          : null;
         const services = new Set(rows.map((row) => row.service)).size;
         const langs = new Set(rows.map((row) => row.language)).size;
         byId("metric-cards").replaceChildren(
@@ -1216,13 +1231,23 @@ export async function start() {
             number.format(rows.length),
             `${services} ${services === 1 ? "service" : "services"} · ${langs} ${langs === 1 ? "language" : "languages"}`,
           ),
-          kpi(
-            filters.category ? "Selected category" : "Most common customization",
-            filters.category || top,
-            filters.category
-              ? `${number.format(customized.length)} ${customized.length === 1 ? "library" : "libraries"} · ${percent(customized.length, tracked.length)}`
-              : `${number.format(topCount)} ${topCount === 1 ? "library" : "libraries"} · ${percent(topCount, tracked.length)} of tracked`,
-          ),
+          filters.category
+            ? kpi(
+                "Selected category",
+                filters.category,
+                `${number.format(customized.length)} ${customized.length === 1 ? "library" : "libraries"} · ${percent(customized.length, tracked.length)}`,
+              )
+            : topReason
+              ? kpi(
+                  "Most common reason",
+                  topReason.name,
+                  `${number.format(topReason.libraries)} ${topReason.libraries === 1 ? "library" : "libraries"} (reviewed customizations) · tracker's top category: ${top} (${number.format(topCount)})`,
+                )
+              : kpi(
+                  "Most common customization",
+                  top,
+                  `${number.format(topCount)} ${topCount === 1 ? "library" : "libraries"} · ${percent(topCount, tracked.length)} of tracked`,
+                ),
           kpi(
             "Fully generated",
             number.format(tracked.length - customized.length),

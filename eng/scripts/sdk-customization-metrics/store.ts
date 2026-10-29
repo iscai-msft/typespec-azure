@@ -631,7 +631,9 @@ export function poolDataset(
 interface Reclassification {
   from?: string;
   patterns: { id: string; name: string; description: string }[];
-  findings: Record<string, { pattern: string; reason: string; note: string }>;
+  // `category`, when set, also moves the finding to another category (e.g. a "Convenience
+  // methods" finding that is really model or auth work).
+  findings: Record<string, { pattern: string; reason: string; note: string; category?: string }>;
 }
 
 export async function readReclassifications(
@@ -654,11 +656,20 @@ export function reclassify(findings: FindingRecord[], files: Reclassification[])
   return findings.map((item) => {
     const move = moves.get(item.id);
     if (!move) return item;
+    const category = move.category ?? item.category;
     return {
       ...item,
       pattern: move.pattern,
-      finding: { ...item.finding, pattern: move.pattern },
-      reclassified: { from: item.pattern, reason: move.reason, note: move.note },
+      category,
+      finding: { ...item.finding, pattern: move.pattern, category },
+      reclassified: {
+        from: item.pattern,
+        reason: move.reason,
+        note: move.note,
+        ...(move.category && move.category !== item.category
+          ? { fromCategory: item.category }
+          : {}),
+      },
     };
   });
 }

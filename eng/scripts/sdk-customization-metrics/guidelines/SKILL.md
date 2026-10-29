@@ -40,11 +40,21 @@ language has its own file, owned by that language's specialists:
    feature, a generator bug, backward compatibility) is an optional, clearly labeled
    hypothesis.
 7. **Unsure is a valid answer.** Mark a proposal inconclusive instead of forcing a category.
+8. **Name the reason, not the place.** Category and pattern describe why the code exists. A
+   handwritten public method is "Convenience methods" only when no more specific reason
+   applies; first check whether it is a model override, auth, pagination, streaming or
+   another category. Likewise the pattern names the reason a method was written (reshaped
+   parameters, an overload from simple inputs, the previous GA signature, a client-level
+   parameter, a mapping to a handwritten model), not just that it wraps another method:
+   `convenience-typed-wrapper` (typed method over a protocol method) and
+   `convenience-options-unpacking` are last resorts. Protocol methods are a generator
+   fallback, so a typed wrapper over one always has a more specific reason.
 
 ## Categories
 
 Use the most specific category that applies; a behavior that fits several gets the one that
-best describes its purpose.
+best describes its purpose. "Convenience methods" is for helpers whose purpose is
+convenience itself; see rule 8.
 
 | Category               | Use for                                                                          |
 | ---------------------- | -------------------------------------------------------------------------------- |

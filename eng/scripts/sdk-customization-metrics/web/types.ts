@@ -239,7 +239,7 @@ export interface FindingRecord {
   subtype: string;
   pattern: string;
   // Set when a reclassification file (reclassify/) moved this finding to another pattern.
-  reclassified?: { from: string; reason: string; note: string };
+  reclassified?: { from: string; reason: string; note: string; fromCategory?: string };
   generatorAddressable: GeneratorAddressable;
   explanation: string;
   rootCauseHypothesis: string;
