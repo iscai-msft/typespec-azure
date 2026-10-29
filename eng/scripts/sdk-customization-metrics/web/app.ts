@@ -1111,7 +1111,8 @@ export async function start() {
         identities,
       };
       const view = selectView(snapshot, scanFilters);
-      const findings = filterFindings(view.findings, { search: filters.search }).filter(
+      const beforePattern = filterFindings(view.findings, { search: filters.search });
+      const findings = beforePattern.filter(
         (item) => !filters.pattern || resolvePattern(item.pattern).id === filters.pattern,
       );
       // Code links belong to matching libraries; they are files, not classified instances.
@@ -2319,8 +2320,33 @@ export async function start() {
         byId("findings").append(more);
       }
       document.querySelector<HTMLDetailsElement>(".reviewed-results")!.open =
-        findings.length > 0 || Boolean(filters.status || filters.accepted);
-      byId("result-count").textContent = `(${findings.length})`;
+        findings.length > 0 ||
+        Boolean(filters.status || filters.accepted) ||
+        (Boolean(filters.pattern) && beforePattern.length > 0);
+      byId("result-count").textContent = filters.pattern
+        ? `(${findings.length} of ${beforePattern.length})`
+        : `(${findings.length})`;
+      // Say when the list is narrowed to one pattern, with a way back to everything.
+      const filterNote = byId("findings-filter");
+      filterNote.replaceChildren();
+      filterNote.hidden = !filters.pattern;
+      if (filters.pattern) {
+        const where = filters.library ? " in this library" : "";
+        const text = element("span");
+        text.append(
+          `Showing ${findings.length} of ${beforePattern.length} customizations${where}: filtered to pattern `,
+          element("strong", resolvePattern(filters.pattern).name),
+          ".",
+        );
+        filterNote.append(text);
+        const all = element("button", `Show all ${beforePattern.length}`, "secondary small");
+        all.type = "button";
+        all.addEventListener("click", () => {
+          control("pattern").value = "";
+          update();
+        });
+        filterNote.append(all);
+      }
       byId("findings").classList.toggle("empty-state", findings.length === 0);
       if (!findings.length)
         byId("findings").append(
