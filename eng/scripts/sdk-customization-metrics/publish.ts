@@ -47,6 +47,9 @@ export async function publishSite(
     JSON.stringify(await readReviewLog(stateDirectory)),
   );
   await writeFile(join(output, "config.json"), JSON.stringify(options.config ?? {}));
+  // Code health from SDK repository history (cli.ts quality), when computed.
+  const quality = await readFile(join(stateDirectory, "quality.json"), "utf8").catch(() => "");
+  if (quality) await writeFile(join(output, "quality.json"), quality);
   // Issue tracking: statuses (tracking.json) and which feature would remove each pattern.
   const trackingDirectory = new URL("./tracking/", import.meta.url);
   const tracking = options.tracking

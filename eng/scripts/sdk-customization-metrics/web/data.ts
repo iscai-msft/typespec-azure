@@ -1,4 +1,5 @@
 import type {
+  LibraryHealth,
   PooledDataset,
   CandidateLink,
   Dataset,
@@ -834,4 +835,93 @@ export function unpoolDataset(data: Dataset | PooledDataset): Dataset {
         }
       : {}),
   } as Dataset;
+}
+
+const median = (values: number[]) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
+// Code health over a set of libraries (quality.json entries with their current line counts).
+// Handwritten splits leave out languages whose detection is a heuristic (JavaScript).
+export function healthSummary(
+  entries: {
+    language: string;
+    health: LibraryHealth;
+    lines?: { handwritten: number; generated: number };
+  }[],
+) {
+  const judged = entries.filter((item) => !hasHeuristicDetection(item.language));
+  const regenerations = entries.flatMap((item) => item.health.regenerations);
+  const judgedRegenerations = judged.flatMap((item) => item.health.regenerations);
+  const withLines = judged.filter((item) => item.lines);
+  const handwrittenLoc = withLines.reduce((sum, item) => sum + item.lines!.handwritten, 0);
+  const totalLoc = withLines.reduce(
+    (sum, item) => sum + item.lines!.handwritten + item.lines!.generated,
+    0,
+  );
+  const months = new Map<
+    string,
+    {
+      handwrittenLines: number;
+      handwrittenCommits: number;
+      bugFixes: number;
+      bugFixesHandwritten: number;
+      regenerations: number;
+      leadDays: number[];
+    }
+  >();
+  const month = (key: string) => {
+    if (!months.has(key))
+      months.set(key, {
+        handwrittenLines: 0,
+        handwrittenCommits: 0,
+        bugFixes: 0,
+        bugFixesHandwritten: 0,
+        regenerations: 0,
+        leadDays: [],
+      });
+    return months.get(key)!;
+  };
+  for (const item of judged)
+    for (const [key, value] of Object.entries(item.health.months)) {
+      const entry = month(key);
+      entry.handwrittenLines += value.handwrittenLines;
+      entry.handwrittenCommits += value.handwrittenCommits;
+      entry.bugFixes += value.bugFixes;
+      entry.bugFixesHandwritten += value.bugFixesHandwritten;
+    }
+  for (const regeneration of regenerations) {
+    const entry = month(regeneration.date.slice(0, 7));
+    entry.regenerations++;
+    if (regeneration.leadDays !== null) entry.leadDays.push(regeneration.leadDays);
+  }
+  const handwrittenLines = judged.reduce((sum, item) => sum + item.health.handwrittenLines, 0);
+  return {
+    libraries: entries.length,
+    regenerations: regenerations.length,
+    leadDays: median(
+      regenerations.flatMap((item) => (item.leadDays === null ? [] : [item.leadDays])),
+    ),
+    judgedRegenerations: judgedRegenerations.length,
+    handwrittenInCommit: judgedRegenerations.filter((item) => item.handwrittenInCommit).length,
+    handwrittenFollowUp: judgedRegenerations.filter(
+      (item) => !item.handwrittenInCommit && item.handwrittenFollowUp,
+    ).length,
+    handwrittenCommits: judged.reduce((sum, item) => sum + item.health.handwrittenCommits, 0),
+    handwrittenLines,
+    // Lines changed in handwritten code per 1,000 current handwritten lines, over the window.
+    churnPerKloc: handwrittenLoc ? (1000 * handwrittenLines) / handwrittenLoc : null,
+    codeShare: totalLoc ? handwrittenLoc / totalLoc : null,
+    bugFixes: judged.reduce((sum, item) => sum + item.health.bugFixes, 0),
+    bugFixesHandwritten: judged.reduce(
+      (sum, item) => sum + item.health.bugFixesTouchingHandwritten,
+      0,
+    ),
+    months: [...months]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => ({ month: key, ...value, leadDays: median(value.leadDays) })),
+  };
 }

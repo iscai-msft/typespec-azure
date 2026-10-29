@@ -112,6 +112,13 @@ jobs:
           printf '%s' "$AI_CONFIG" > "$RUNNER_TEMP/metrics-ai.json"
           node "$TOOL/cli.ts" review --state "$TOOL/state" --plane data \
             --ai-config "$RUNNER_TEMP/metrics-ai.json"
+      - name: Code health from the last year of SDK repository history (data plane)
+        id: quality
+        if: ${{ !inputs.reviews_only }}
+        continue-on-error: true
+        run: |
+          node "$TOOL/cli.ts" quality --state "$TOOL/state" --plane data \
+            --history-dir "$RUNNER_TEMP/sdk-history"
       - name: Apply human reviews submitted on the hosted site (only when configured)
         id: reviews
         if: vars.SDK_METRICS_REVIEW_SITE != ''
@@ -129,6 +136,7 @@ jobs:
           if [ -d "$TOOL/state/overrides" ]; then git add -- "$TOOL/state/overrides"; fi
           if [ -f "$TOOL/state/review-log.json" ]; then git add -- "$TOOL/state/review-log.json"; fi
           if [ -f "$TOOL/state/line-counts.json" ]; then git add -- "$TOOL/state/line-counts.json"; fi
+          if [ -f "$TOOL/state/quality.json" ]; then git add -- "$TOOL/state/quality.json"; fi
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -6,6 +6,7 @@ import {
   historyRows,
   languageLabel,
   hasHeuristicDetection,
+  healthSummary,
   lineShare,
   mergeLibraries,
   patternLabel,
@@ -35,6 +36,7 @@ import type {
   Dataset,
   FeatureCoverage,
   FeatureMap,
+  QualityStore,
   Filters,
   FindingRecord,
   Inventory,
@@ -79,6 +81,8 @@ let rerender = () => {};
 // Issue tracking (tracking.json) and the feature each pattern needs (tracking-features.json),
 // both optional; loaded once at start.
 let tracking: TrackingData | null = null;
+// Code health from SDK repository history (quality.json), optional.
+let quality: QualityStore | null = null;
 let features: FeatureMap | null = null;
 let resolvePatternId = (id: string) => id;
 
@@ -599,6 +603,99 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
   return article;
 }
 
+// Code health section: figures, monthly churn, and a per-language table.
+function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
+  const section = byId("health-title").closest("section")!;
+  section.hidden = !quality;
+  if (!quality) return;
+  const all = healthSummary(entries);
+  const pct = (part: number, whole: number) => (whole ? percent(part, whole) : "—");
+  byId("health-status").textContent = entries.length
+    ? `${number.format(all.libraries)} libraries in view, history since ${quality.since} (computed ${formatDate(quality.computedAt)} UTC).`
+    : "No library in view has history computed yet.";
+  byId("health-kpis").replaceChildren(
+    kpi(
+      "Regeneration lead time",
+      all.leadDays === null ? "—" : `${all.leadDays.toFixed(1)} days`,
+      `Median from spec commit to SDK commit · ${number.format(all.regenerations)} regenerations`,
+      "featured",
+    ),
+    kpi(
+      "Regenerations with handwritten edits",
+      pct(all.handwrittenInCommit, all.judgedRegenerations),
+      `Handwritten files changed in the same pull request${all.handwrittenFollowUp ? ` · another ${pct(all.handwrittenFollowUp, all.judgedRegenerations)} within ${14} days` : ""}`,
+    ),
+    kpi(
+      "Handwritten churn",
+      all.churnPerKloc === null ? "—" : number.format(Math.round(all.churnPerKloc)),
+      `Lines changed per 1,000 handwritten lines · ${compact.format(all.handwrittenLines)} lines in ${number.format(all.handwrittenCommits)} commits`,
+    ),
+    kpi(
+      "Bug fixes in handwritten code",
+      pct(all.bugFixesHandwritten, all.bugFixes),
+      `${number.format(all.bugFixesHandwritten)} of ${number.format(all.bugFixes)} bug-fix commits${all.codeShare !== null ? ` · ${percent(all.codeShare * 100, 100)} of code is handwritten` : ""}`,
+    ),
+  );
+  byId("health-chart").replaceChildren(
+    renderTrendChart(
+      // The month the history was computed in is partial, so it is left off the chart.
+      all.months
+        .filter((item) => item.month < quality!.computedAt.slice(0, 7))
+        .map((item) => ({
+          observedAt: `${item.month}-01T00:00:00Z`,
+          candidates: null,
+          accepted: null,
+          share: item.handwrittenLines,
+        })),
+      {
+        series: [
+          { key: "share", label: "Handwritten lines changed", className: "series-accepted" },
+        ],
+        format: (value) => compact.format(value),
+      },
+    ),
+  );
+  const languages = [...new Set(entries.map((item) => item.language))].sort();
+  byId("health-rows").replaceChildren(
+    ...languages.map((language) => {
+      const summary = healthSummary(entries.filter((item) => item.language === language));
+      const judged = !hasHeuristicDetection(language);
+      const tr = element("tr");
+      tr.append(
+        element("td", languageLabel(language)),
+        element("td", number.format(summary.libraries), "num"),
+        element("td", number.format(summary.regenerations), "num"),
+        element("td", summary.leadDays === null ? "—" : summary.leadDays.toFixed(1), "num"),
+        element(
+          "td",
+          judged ? pct(summary.handwrittenInCommit, summary.judgedRegenerations) : "Not judged",
+          "num",
+        ),
+        element(
+          "td",
+          judged && summary.churnPerKloc !== null
+            ? number.format(Math.round(summary.churnPerKloc))
+            : "—",
+          "num",
+        ),
+        element(
+          "td",
+          judged
+            ? `${pct(summary.bugFixesHandwritten, summary.bugFixes)} of ${number.format(summary.bugFixes)}`
+            : "Not judged",
+          "num",
+        ),
+        element(
+          "td",
+          judged && summary.codeShare !== null ? percent(summary.codeShare * 100, 100) : "—",
+          "num",
+        ),
+      );
+      return tr;
+    }),
+  );
+}
+
 const SVG = "http://www.w3.org/2000/svg";
 function svg(tag: string, attributes: Record<string, string | number> = {}, text?: string) {
   const node = document.createElementNS(SVG, tag) as SVGElement;
@@ -841,6 +938,11 @@ export async function start() {
     if (trackingResponse?.ok) {
       const candidate = await trackingResponse.json();
       if (candidate.trackingVersion === 1 && Array.isArray(candidate.items)) tracking = candidate;
+    }
+    const qualityResponse = await fetch("./quality.json", { cache: "no-store" }).catch(() => null);
+    if (qualityResponse?.ok) {
+      const candidate = await qualityResponse.json();
+      if (candidate.version === 1 && candidate.libraries) quality = candidate;
     }
     const featuresResponse = await fetch("./tracking-features.json", { cache: "no-store" }).catch(
       () => null,
@@ -2273,6 +2375,21 @@ export async function start() {
             "This instance is outside the current observation or filter scope. Clear filters or choose its observation.",
           ),
         );
+
+      // Code health for the libraries in view (quality.json).
+      renderHealth(
+        rows.flatMap((row) =>
+          row.scan && quality?.libraries[row.scan.identity]
+            ? [
+                {
+                  language: row.language,
+                  health: quality.libraries[row.scan.identity],
+                  ...(row.scan.lines ? { lines: row.scan.lines } : {}),
+                },
+              ]
+            : [],
+        ),
+      );
 
       // History (scan observations; the tracker is a single snapshot)
       const historyFilters = {

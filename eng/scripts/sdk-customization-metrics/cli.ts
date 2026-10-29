@@ -25,6 +25,17 @@ import {
   readLineCounts,
   writeLineCounts,
 } from "./lines.ts";
+import {
+  QUALITY_METHOD,
+  computeHealth,
+  historyCommits,
+  readHistoryBlobs,
+  specCommitDates,
+  syncHistory,
+  type QualityLibrary,
+  type QualityStore,
+} from "./quality.ts";
+import { hasHeuristicDetection } from "./web/data.ts";
 import { SPEC_REPO, applyNamespaces, resolveNamespaces } from "./namespaces.ts";
 import {
   GitRepository,
@@ -83,11 +94,16 @@ export async function main(args: string[] = process.argv.slice(2)) {
       },
       tracking: { type: "string" },
       "latest-only": { type: "boolean", default: false },
+      since: { type: "string" },
+      "history-dir": {
+        type: "string",
+        default: "eng/scripts/sdk-customization-metrics/.local/history",
+      },
     },
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, count-lines, check-exchange, namespaces, import-legacy, query, schema",
+      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, count-lines, quality, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   const specRepository = () =>
@@ -422,6 +438,85 @@ export async function main(args: string[] = process.argv.slice(2)) {
       );
       console.log(JSON.stringify({ ...result, failed: result.failed.length }));
       for (const item of result.failed.slice(0, 20)) console.error(`  ${item}`);
+      break;
+    }
+    case "quality": {
+      // Code health from each SDK repository's recent history: handwritten churn, where bug
+      // fixes land, regeneration lead time and friction. Writes state/quality.json.
+      const since =
+        values.since ?? new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+      const inventory = await readInventory(resolve(values.inventory));
+      if (!inventory) throw new Error("No inventory; run discover first");
+      const { scans } = await readState(state);
+      const latest = new Map<string, Scan>();
+      for (const scan of scans)
+        if (
+          scan.coverage.status !== "failed" &&
+          (!latest.has(scan.identity) || latest.get(scan.identity)!.observedAt < scan.observedAt)
+        )
+          latest.set(scan.identity, scan);
+      const byPackage = new Map(
+        [...latest.values()].map((scan) => [
+          `${scan.target.language}:${scan.target.package}`,
+          scan,
+        ]),
+      );
+      const libraries: QualityLibrary[] = [];
+      for (const item of inventory.libraries) {
+        if (values.plane !== "all" && item.plane !== values.plane) continue;
+        const scan = byPackage.get(`${item.language}:${item.package}`);
+        if (!scan) continue;
+        libraries.push({
+          identity: scan.identity,
+          target: scan.target,
+          handwritten: hasHeuristicDetection(item.language)
+            ? null
+            : new Set((scan.navigation ?? []).map((link) => link.path)),
+          javaMemberFiles: new Set(
+            (scan.navigation ?? [])
+              .filter((link) => link.provenance.startsWith("Java members without @Generated"))
+              .map((link) => link.path),
+          ),
+        });
+      }
+      const historyDir = resolve(values["history-dir"]);
+      const specDir = join(historyDir, "Azure__azure-rest-api-specs");
+      const specSince = new Date(Date.parse(since) - 180 * 86400000).toISOString().slice(0, 10);
+      await syncHistory(specDir, "Azure/azure-rest-api-specs", specSince);
+      const store: QualityStore = {
+        version: 1,
+        method: QUALITY_METHOD,
+        since,
+        computedAt: new Date().toISOString(),
+        heads: {},
+        libraries: {},
+      };
+      const repos = [...new Set(libraries.map((item) => item.target.repo))].sort();
+      for (const repo of repos) {
+        const members = libraries.filter((item) => item.target.repo === repo);
+        const directory = join(historyDir, repo.replace("/", "__"));
+        const head = await syncHistory(directory, repo, since);
+        store.heads[repo] = head;
+        const commits = await historyCommits(
+          directory,
+          head,
+          members.map((item) => item.target.root),
+          since,
+        );
+        const health = await computeHealth(
+          members,
+          commits,
+          (shas) => readHistoryBlobs(directory, shas),
+          (shas) => specCommitDates(specDir, shas),
+        );
+        Object.assign(store.libraries, health);
+        console.error(`${repo}: ${members.length} libraries, ${commits.length} commits`);
+      }
+      store.libraries = Object.fromEntries(
+        Object.entries(store.libraries).sort(([a], [b]) => a.localeCompare(b)),
+      );
+      await writeFile(join(state, "quality.json"), `${JSON.stringify(store, null, 1)}\n`);
+      console.log(JSON.stringify({ libraries: Object.keys(store.libraries).length, since }));
       break;
     }
     case "language-tables":

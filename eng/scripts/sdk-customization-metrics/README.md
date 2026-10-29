@@ -647,6 +647,29 @@ chart under Trends.
   every library in scope was counted is a gap, not a value. Compare languages separately;
   verbosity differs a lot between them.
 
+## Code health
+
+The **Code health** section shows what customizations cost over time, from the last 12 months of
+each SDK repository's history (`cli.ts quality --plane data`, written to `state/quality.json`;
+blob-less history clones, only small files downloaded):
+
+- **Regeneration lead time:** for commits that point a library's `tsp-location.yaml` at a new
+  spec commit (not its first generation), the time from that spec commit to the SDK commit.
+- **Regenerations with handwritten edits:** the share of those commits that also changed the
+  library's handwritten files (SDK repos squash-merge, so this is the same pull request), plus
+  edits in the next 14 days before another regeneration.
+- **Handwritten churn:** lines added and removed in the library's current handwritten files, per
+  1,000 handwritten lines. For Java files that mix generated and handwritten members, only
+  changes to the handwritten members count; whitespace-only changes never count.
+- **Bug fixes in handwritten code:** bug-fix commits (judged from the title) that touched
+  handwritten code. Generated-code bugs are fixed by regenerating, so compare this with the
+  handwritten share of code rather than reading it alone.
+
+Commits touching more than 10 libraries (engineering-system sweeps) are left out of churn and
+bug fixes, and JavaScript is left out of the handwritten splits while its detection is a
+heuristic. Handwritten files are each library's current ones. Read these as health signals over
+time and within a language, not as targets.
+
 ## Optional private legacy import
 
 ```sh

@@ -452,6 +452,47 @@ export interface FeatureMap {
   >;
 }
 
+// Code health from SDK repository history (quality.ts; published as quality.json).
+export interface Regeneration {
+  sha: string;
+  date: string;
+  specCommit: string;
+  leadDays: number | null;
+  // Handwritten files changed in the regeneration commit itself (the same PR, as SDK repos
+  // squash-merge), and in later commits before the next regeneration within FRICTION_DAYS.
+  handwrittenInCommit: boolean;
+  handwrittenFollowUp: boolean;
+}
+
+export interface LibraryHealth {
+  commits: number;
+  handwrittenCommits: number;
+  handwrittenLines: number;
+  generatedCommits: number;
+  bugFixes: number;
+  bugFixesTouchingHandwritten: number;
+  regenerations: Regeneration[];
+  // Month (YYYY-MM) -> counts, for trends.
+  months: Record<
+    string,
+    {
+      handwrittenCommits: number;
+      handwrittenLines: number;
+      bugFixes: number;
+      bugFixesHandwritten: number;
+    }
+  >;
+}
+
+export interface QualityStore {
+  version: 1;
+  method: string;
+  since: string;
+  computedAt: string;
+  heads: Record<string, string>;
+  libraries: Record<string, LibraryHealth>;
+}
+
 // Shared filter state (URL parameters).
 export interface Filters {
   language?: string;
