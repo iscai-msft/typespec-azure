@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "ad5aecd1-84f6-4903-9ba1-2dd3b9220fc2",
+  "observedAt": "2026-10-30T17:46:36.780Z",
+  "identity": "dotnet:azure.provisioning.frontdoor:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Provisioning.FrontDoor",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/frontdoor/Azure.Provisioning.FrontDoor"
+  },
+  "commit": "46c60441441d5e4d6ef965b6ce6560c717cc5307",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "411f7cfa2200e48c1757b2273710503db747beb2"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 135,
+    "eligibleFiles": 125,
+    "capturedFiles": 1,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/frontdoor/Azure.Provisioning.FrontDoor/src/Custom/FrontDoorResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Provisioning.FrontDoor;\n\n[CodeGenType(\"FrontDoor\")]\npublic partial class FrontDoorResource\n{\n}\n",
+      "contentHash": "de42db3a3eb08aea2ac28693679c450e90dae8ff42462d34ca6255e690504d07",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/frontdoor/Azure.Provisioning.FrontDoor/src/Custom/FrontDoorResource.cs",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "handwritten-marker",
+      "id": "adc63253c17c605710947ee36c9435b6a2a17ed774cad1c340f3eac324c32ba1"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/frontdoor/Azure.Provisioning.FrontDoor/README.md",
+      "text": "# Azure Provisioning FrontDoor client library for .NET\n\nAzure.Provisioning.FrontDoor simplifies declarative resource provisioning in .NET.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/ ):\n\n```dotnetcli\ndotnet add package Azure.Provisioning.FrontDoor --prerelease\n```\n\n### Prerequisites\n\n> You must have an [Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\n## Key concepts\n\nThis library allows you to specify your infrastructure in a declarative style using dotnet.  You can then use azd to deploy your infrastructure to Azure directly without needing to write or maintain bicep or arm templates.\n\n## Examples\n\n### Create a basic Front Door\n\nThis template creates a basic Front Door configuration with a single backend, single default path match /* and no custom domain.\n\n```C# Snippet:FrontDoorBasic\nInfrastructure infra = new();\n\nProvisioningParameter frontDoorName =\n    new(nameof(frontDoorName), typeof(string))\n    {\n        Description = \"The name of the frontdoor resource.\"\n    };\ninfra.Add(frontDoorName);\n\nProvisioningParameter backendAddress =\n    new(nameof(backendAddress), typeof(string))\n    {\n        Description = \"The hostname of the backend. Must be an IP address or FQDN.\"\n    };\ninfra.Add(backendAddress);\n\nProvisioningVariable frontEndEndpointName =\n    new(nameof(frontEndEndpointName), typeof(string))\n    {\n        Value = \"frontEndEndpoint\"\n    };\ninfra.Add(frontEndEndpointName);\n\nProvisioningVariable loadBalancingSettingsName =\n    new(nameof(loadBalancingSettingsName), typeof(string))\n    {\n        Value = \"loadBalancingSettings\"\n    };\ninfra.Add(loadBalancingSettingsName);\n\nProvisioningVariable healthProbeSettingsName =\n    new(nameof(healthProbeSettingsName), typeof(string))\n    {\n        Value = \"healthProbeSettings\"\n    };\ninfra.Add(healthProbeSettingsName);\n\nProvisioningVariable routingRuleName =\n    new(nameof(routingRuleName), typeof(string))\n    {\n        Value = \"routingRule\"\n    };\ninfra.Add(routingRuleName);\n\nProvisioningVariable backendPoolName =\n    new(nameof(backendPoolName), typeof(string))\n    {\n        Value = \"backendPool\"\n    };\ninfra.Add(backendPoolName);\n\nFrontDoorResource frontDoor =\n    new(nameof(frontDoor), FrontDoorResource.ResourceVersions.V2025_11_01)\n    {\n        Name = frontDoorName,\n        Location = new AzureLocation(\"global\"),\n        EnabledState = FrontDoorEnabledState.Enabled,\n        LoadBalancingSettings =\n        {\n            new FrontDoorLoadBalancingSettingsData\n            {\n                Name = loadBalancingSettingsName,\n                SampleSize = 4,\n                SuccessfulSamplesRequired = 2\n            }\n        },\n        HealthProbeSettings =\n        {\n            new FrontDoorHealthProbeSettingsData\n            {\n                Name = healthProbeSettingsName,\n                Path = \"/\",\n                Protocol = FrontDoorProtocol.Http,\n                IntervalInSeconds = 120\n            }\n        },\n        BackendPools =\n        {\n            new FrontDoorBackendPool\n            {\n                Name = backendPoolName,\n                Backends =\n                {\n                    new FrontDoorBackend\n                    {\n                        Address = backendAddress,\n                        BackendHostHeader = backendAddress,\n                        HttpPort = 80,\n                        HttpsPort = 443,\n                        Weight = 50,\n                        Priority = 1,\n                        EnabledState = BackendEnabledState.Enabled\n                    }\n                },\n                LoadBalancingSettingsId = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/loadBalancingSettings\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new IdentifierExpression(loadBalancingSettingsName.BicepIdentifier)),\n                HealthProbeSettingsId = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/healthProbeSettings\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new IdentifierExpression(healthProbeSettingsName.BicepIdentifier))\n            }\n        },\n        RoutingRules =\n        {\n            new RoutingRuleData\n            {\n                Name = routingRuleName,\n                FrontendEndpoints =\n                {\n                    new WritableSubResource\n                    {\n                        Id = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/frontEndEndpoints\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new IdentifierExpression(frontEndEndpointName.BicepIdentifier))\n                    }\n                },\n                AcceptedProtocols = { FrontDoorProtocol.Http, FrontDoorProtocol.Https },\n                PatternsToMatch = { \"/*\" },\n                RouteConfiguration = new ForwardingConfiguration\n                {\n                    ForwardingProtocol = FrontDoorForwardingProtocol.MatchRequest,\n                    BackendPoolId = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/backEndPools\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new IdentifierExpression(backendPoolName.BicepIdentifier))\n                },\n                EnabledState = RoutingRuleEnabledState.Enabled\n            }\n        }\n    };\ninfra.Add(frontDoor);\n\ninfra.Add(new ProvisioningOutput(\"name\", typeof(string)) { Value = new MemberExpression(new IdentifierExpression(frontDoor.BicepIdentifier), \"name\") }); // TODO -- update this to use the expression conversion\ninfra.Add(new ProvisioningOutput(\"resourceGroupName\", typeof(string)) { Value = BicepFunction.GetResourceGroup().Name });\ninfra.Add(new ProvisioningOutput(\"resourceId\", typeof(string)) { Value = frontDoor.Id });\n```\n\n### Create a Front Door with HTTP to HTTPS redirection\n\nThis template creates a basic Front Door configuration for HTTP to HTTPS redirection, single default path match '/*' and no custom domain.\n\n```C# Snippet:FrontDoorRedirect\nInfrastructure infra = new();\n\nProvisioningParameter frontDoorName =\n    new(nameof(frontDoorName), typeof(string))\n    {\n        Description = \"The name of the frontdoor resource.\"\n    };\ninfra.Add(frontDoorName);\n\nProvisioningParameter backendAddress =\n    new(nameof(backendAddress), typeof(string))\n    {\n        Description = \"The hostname of the backend. Must be an IP address or FQDN.\"\n    };\ninfra.Add(backendAddress);\n\nFrontDoorResource frontDoor =\n    new(nameof(frontDoor), FrontDoorResource.ResourceVersions.V2025_11_01)\n    {\n        Name = frontDoorName,\n        Location = new AzureLocation(\"global\"),\n        EnabledState = FrontDoorEnabledState.Enabled,\n        LoadBalancingSettings =\n        {\n            new FrontDoorLoadBalancingSettingsData\n            {\n                Name = \"loadBalancingSettings1\",\n                SampleSize = 4,\n                SuccessfulSamplesRequired = 2\n            }\n        },\n        HealthProbeSettings =\n        {\n            new FrontDoorHealthProbeSettingsData\n            {\n                Name = \"healthProbeSettings1\",\n                Path = \"/\",\n                Protocol = FrontDoorProtocol.Http,\n                IntervalInSeconds = 120\n            }\n        },\n        BackendPools =\n        {\n            new FrontDoorBackendPool\n            {\n                Name = \"backendPool1\",\n                Backends =\n                {\n                    new FrontDoorBackend\n                    {\n                        Address = backendAddress,\n                        BackendHostHeader = backendAddress,\n                        HttpPort = 80,\n                        HttpsPort = 443,\n                        Weight = 50,\n                        Priority = 1,\n                        EnabledState = BackendEnabledState.Enabled\n                    }\n                },\n                LoadBalancingSettingsId = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/loadBalancingSettings\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new StringLiteralExpression(\"loadBalancingSettings1\")),\n                HealthProbeSettingsId = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/healthProbeSettings\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new StringLiteralExpression(\"healthProbeSettings1\"))\n            }\n        },\n        RoutingRules =\n        {\n            new RoutingRuleData\n            {\n                Name = \"httptohttps\",\n                FrontendEndpoints =\n                {\n                    new WritableSubResource\n                    {\n                        Id = new FunctionCallExpression(new IdentifierExpression(\"resourceId\"), new StringLiteralExpression(\"Microsoft.Network/frontDoors/frontendEndpoints\"), new IdentifierExpression(frontDoorName.BicepIdentifier), new StringLiteralExpression(\"frontendEndpoint1\"))\n                    }\n                },\n                AcceptedProtocols = { FrontDoorProtocol.Http },\n                PatternsToMatch = { \"/*\" },\n                RouteConfiguration = new RedirectConfiguration\n                {\n                    RedirectProtocol = FrontDoorRedirectProtocol.HttpsOnly,\n                    RedirectType = FrontDoorRedirectType.Moved\n                },\n                EnabledState = RoutingRuleEnabledState.Enabled\n            }\n        }\n    };\ninfra.Add(frontDoor);\n```\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "8a13ab467a57e489210da3ad5ae370265a04f2691f0113147e6303858dd29adb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/frontdoor/Azure.Provisioning.FrontDoor/README.md"
+    },
+    {
+      "path": "sdk/frontdoor/Azure.Provisioning.FrontDoor/src/Azure.Provisioning.FrontDoor.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>Azure.Provisioning.FrontDoor simplifies declarative resource provisioning in .NET.</Description>\n    <Version>1.0.0-beta.3</Version>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Provisioning\" />\n  </ItemGroup>\n\n</Project>",
+      "contentHash": "fb295e026b4495ccea1d58caaf49614cce714cac7460a3e04499111f6842e18a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/frontdoor/Azure.Provisioning.FrontDoor/src/Azure.Provisioning.FrontDoor.csproj"
+    },
+    {
+      "path": "sdk/frontdoor/Azure.Provisioning.FrontDoor/tsp-location.yaml",
+      "text": "directory: specification/frontdoor/resource-manager/Microsoft.Network/FrontDoor\ncommit: 3f7e0c0fcd7e22d7c8dcda816258ae05eabb14f8\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-provisioning-emitter-package.json\"\n",
+      "contentHash": "9ed47f6f16b4713ccfb6f266b9f242b33d890802712423fec525ba4969f164a7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/frontdoor/Azure.Provisioning.FrontDoor/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/frontdoor/Azure.Provisioning.FrontDoor/src/Custom/FrontDoorResource.cs",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "de42db3a3eb08aea2ac28693679c450e90dae8ff42462d34ca6255e690504d07"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "c9a7ceba-5ca2-4f97-8b89-71c0b4234850",
+  "observedAt": "2026-10-26T15:08:51.133Z",
+  "identity": "dotnet:azure.resourcemanager.previewalertrule:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.PreviewAlertRule",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "27b9cf04babdd3a5092ac64f515a1c7267ec9927"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 78,
+    "eligibleFiles": 69,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing Azure.Core;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.PreviewAlertRule.Models\n{\n    // Background:\n    //\n    // `LogAlertRule` is an input-only request-body shape sent through\n    // `PreviewAlertRuleRequest.Properties.ScheduledQueryRuleProperties`. The\n    // TypeSpec model wraps its scalar fields (description, displayName,\n    // severity, enabled, evaluationFrequency, windowSize, overrideQueryTimeRange)\n    // inside an inner `properties` envelope. The C# MPG generator's\n    // implicit-flatten then emits those scalars on `LogAlertRule` as\n    // **getter-only** delegations to an `internal` `Properties` envelope, and\n    // the generated public constructor does NOT initialize that envelope.\n    //\n    // Two consequences without this customization:\n    //   1. Callers cannot configure a `LogAlertRule` (every scalar setter is\n    //      missing), so the model is unusable.\n    //   2. Even *reading* a scalar (e.g. `rule.Description`) throws a\n    //      `NullReferenceException` because the public constructor leaves the\n    //      internal `Properties` envelope null.\n    //\n    // The spec-side fixes that have been applied in `client.tsp`\n    // (`@@usage(LogAlertRuleResource, Usage.input, \"csharp\")` plus\n    // `@@Legacy.flattenProperty(LogAlertRuleResource.properties, \"csharp\")`)\n    // already restore the public constructor and surface the scalars on\n    // `LogAlertRule`, but the implicit-flatten readonly pattern is intrinsic\n    // to the generator — there is no decorator that makes flattened scalars\n    // settable. Until that generator behavior changes, this customization is\n    // the documented workaround (see mpg-api-diff.md §5.2 \"Property re-exposure\n    // via delegation\"):\n    //\n    //   * Suppress the broken public constructor and replace it with one that\n    //     initializes the envelope so the scalar getters never NRE.\n    //   * Suppress the read-only `Properties` property and re-declare it with\n    //     a setter so the new constructor and the scalar setters can\n    //     write through it.\n    //   * Suppress each read-only scalar property and re-expose it as a\n    //     standard `{ get; set; }` that delegates through `Properties`\n    //     (lazy-initializing the envelope on first write).\n    [CodeGenSuppress(\"LogAlertRule\", typeof(AzureLocation))]\n    [CodeGenSuppress(nameof(Properties))]\n    [CodeGenSuppress(nameof(Description))]\n    [CodeGenSuppress(nameof(DisplayName))]\n    [CodeGenSuppress(nameof(Severity))]\n    [CodeGenSuppress(nameof(Enabled))]\n    [CodeGenSuppress(nameof(EvaluationFrequency))]\n    [CodeGenSuppress(nameof(WindowSize))]\n    [CodeGenSuppress(nameof(OverrideQueryTimeRange))]\n    public partial class LogAlertRule\n    {\n        /// <summary> Initializes a new instance of <see cref=\"LogAlertRule\"/>. </summary>\n        /// <param name=\"location\"> The geo-location where the resource lives. </param>\n        public LogAlertRule(AzureLocation location)\n        {\n            Tags = new ChangeTrackingDictionary<string, string>();\n            Location = location;\n            Properties = new LogAlertRuleProperties();\n        }\n\n        /// <summary> The rule properties of the resource. </summary>\n        internal LogAlertRuleProperties Properties { get; set; }\n\n        /// <summary> The description of the scheduled query rule. </summary>\n        public string Description\n        {\n            get => Properties?.Description;\n            set => (Properties ??= new LogAlertRuleProperties()).Description = value;\n        }\n\n        /// <summary> The display name of the alert rule. </summary>\n        public string DisplayName\n        {\n            get => Properties?.DisplayName;\n            set => (Properties ??= new LogAlertRuleProperties()).DisplayName = value;\n        }\n\n        /// <summary> Severity of the alert. Should be an integer between [0-4]. Value of 0 is severest. Relevant and required only for rules of the kind LogAlert. </summary>\n        public AlertSeverity? Severity\n        {\n            get => Properties?.Severity;\n            set => (Properties ??= new LogAlertRuleProperties()).Severity = value;\n        }\n\n        /// <summary> The flag which indicates whether this scheduled query rule is enabled. Value should be true or false. </summary>\n        public bool? Enabled\n        {\n            get => Properties?.Enabled;\n            set => (Properties ??= new LogAlertRuleProperties()).Enabled = value;\n        }\n\n        /// <summary> How often the scheduled query rule is evaluated represented in ISO 8601 duration format. Relevant and required only for rules of the kind LogAlert. </summary>\n        public TimeSpan? EvaluationFrequency\n        {\n            get => Properties?.EvaluationFrequency;\n            set => (Properties ??= new LogAlertRuleProperties()).EvaluationFrequency = value;\n        }\n\n        /// <summary> The period of time (in ISO 8601 duration format) on which the Alert query will be executed (bin size). Relevant and required only for rules of the kind LogAlert. </summary>\n        public TimeSpan? WindowSize\n        {\n            get => Properties?.WindowSize;\n            set => (Properties ??= new LogAlertRuleProperties()).WindowSize = value;\n        }\n\n        /// <summary> If specified then overrides the query time range (default is WindowSize*NumberOfEvaluationPeriods). Relevant only for rules of the kind LogAlert. </summary>\n        public TimeSpan? OverrideQueryTimeRange\n        {\n            get => Properties?.OverrideQueryTimeRange;\n            set => (Properties ??= new LogAlertRuleProperties()).OverrideQueryTimeRange = value;\n        }\n    }\n}\n",
+      "contentHash": "1c1d58b019ffe94eca6fe2867545f8b7df885b9f7d348668af0532f9e777f7cd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "startLine": 1,
+      "endLine": 119,
+      "kind": "handwritten-marker",
+      "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.PreviewAlertRule.Models\n{\n    // Background:\n    //\n    // `client.tsp` applies `@@Legacy.flattenProperty(PreviewAlertRuleRequest.properties, \"csharp\")`\n    // so the inner `Timespan` (required) and `ScheduledQueryRuleProperties` (optional)\n    // surface directly on `PreviewAlertRuleContent`. The C# MPG generator's implicit-flatten\n    // however emits the complex `ScheduledQueryRuleProperties` projection as a **getter-only**\n    // delegation to the (now-internal) `Properties` envelope, even though the inner property\n    // is `{ get; set; }`. This leaves the model effectively unconstructible for the common\n    // case where a caller wants to attach a `LogAlertRule` payload — there is no path to\n    // assign one through public API.\n    //\n    // The implicit-flatten readonly behavior for nested complex properties is the same\n    // generator constraint documented on `LogAlertRule` (see mpg-api-diff.md §5.2). Until\n    // the generator emits writable projections for flattened complex properties, this\n    // small re-exposure restores the standard `{ get; set; }` shape so callers can write:\n    //\n    //   new PreviewAlertRuleContent(location, timespan)\n    //   {\n    //       ScheduledQueryRuleProperties = new LogAlertRule(location) { ... }\n    //   }\n    [CodeGenSuppress(nameof(ScheduledQueryRuleProperties))]\n    public partial class PreviewAlertRuleContent\n    {\n        /// <summary> The properties of the alert rule to preview. </summary>\n        public LogAlertRule ScheduledQueryRuleProperties\n        {\n            get => Properties.ScheduledQueryRuleProperties;\n            set => Properties.ScheduledQueryRuleProperties = value;\n        }\n    }\n}\n",
+      "contentHash": "c6449ce4185196e81090756166ccd458448877c714a238d4e74af2088ee922a2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "startLine": 1,
+      "endLine": 38,
+      "kind": "handwritten-marker",
+      "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/README.md",
+      "text": "# Microsoft Azure PreviewAlertRule management client library for .NET\n\nThis library supports managing Microsoft Azure Alerts Management preview alert rule API resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started\n\n### Install the package\n\nInstall the Microsoft Azure PreviewAlertRule management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.PreviewAlertRule --prerelease\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "cc179cd3d3cc2c837809937cdda81568b0abfe32760629a63c52fc915b4b1089",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/README.md"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Azure.ResourceManager.PreviewAlertRule.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.0.0-beta.1</Version>\n    <PackageId>Azure.ResourceManager.PreviewAlertRule</PackageId>\n    <Description>Microsoft Azure Resource Manager client SDK for Azure resource provider Microsoft.AlertsManagement Preview Alert Rule.</Description>\n    <PackageTags>azure;management;arm;resource manager;alertsmanagement;previewalertrule</PackageTags>\n    <DisableEnhancedAnalysis>true</DisableEnhancedAnalysis>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "82af43dca5bb6d1b2a7c26af6a65e329c6fb83c0cf6846710fec177cec46df4a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Azure.ResourceManager.PreviewAlertRule.csproj"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/tsp-location.yaml",
+      "text": "directory: specification/alertsmanagement/resource-manager/Microsoft.AlertsManagement/PreviewAlertRule\ncommit: e32fbe52693f319f34bbca0dfae50bec4375ed7b\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\"\n",
+      "contentHash": "e68f550f94c2e31117dfe4864108e57549a6bfe428ce438610bd3139f9149aa3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "startLine": 1,
+      "endLine": 119,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1c1d58b019ffe94eca6fe2867545f8b7df885b9f7d348668af0532f9e777f7cd"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "startLine": 1,
+      "endLine": 38,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c6449ce4185196e81090756166ccd458448877c714a238d4e74af2088ee922a2"
+    }
+  ]
+}

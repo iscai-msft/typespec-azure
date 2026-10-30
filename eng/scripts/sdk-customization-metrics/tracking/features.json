@@ -1,0 +1,4266 @@
+{
+  "version": 1,
+  "note": "Which TypeSpec/TCGC/emitter feature would remove each pattern, and whether it exists today. Drafted from an AI mapping of pattern descriptions and samples to the TCGC docs (October 2026); judgments, not verified per instance. Edit by pull request. coverage: exists (decorators exist, specs do not use them), partial (exists but misses cases), gap (new feature needed), spec-fix, not-generator. languages: per-language generator support (guidelines/capabilities.md), drafted October 2026 from TCGC docs and emitter tests; for language owners to review.",
+  "features": {
+    "NG": {
+      "name": "Not generator work (handwritten runtime behavior)",
+      "kind": "none",
+      "coverage": "not-generator",
+      "what": "Transfers, batching, encryption, websockets, caches, lifecycles, service-specific logic."
+    },
+    "clientInit": {
+      "name": "@clientInitialization + @paramAlias + @clientLocation",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Elevate operation params (topic, subscription, project name) to the client; sub-clients initialized by parent accessors.",
+      "doc": "TCGC reference/decorators.md; howtos/Generate client libraries/03client.mdx 'Adding Client Initialization Parameters' / 'Change Sub Client Initialization Way'",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Client-level parameters are generated, but initializedBy individually|parent is NOT_SUPPORTED and child-client caching and URL-variant clones are not generated.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/03client.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Client parameters and parent getters (enable-subclient) are generated; child-client caching and URL-variant clones are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/03client.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Client parameters and parent accessors are generated (individually|parent tab is TODO); child-client caching and URL-variant clones are not."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Client parameters are generated (individually|parent tab is TODO); child-client caching and URL-variant clones are not."
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Client parameters and parent-initialized sub-clients with parameters are generated per emitter tests (doc tab still says NOT_SUPPORTED); URL-variant clones are not.",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/client-initialization/"
+        }
+      }
+    },
+    "override": {
+      "name": "@override + replaceParameter/removeParameter/addParameter/reorderParameters",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Reshape one convenience signature per operation: options bag, spread, required/optional, reorder.",
+      "doc": "TCGC reference/decorators.md (@override); howtos/Generate client libraries/04method.mdx 'Customizing method signatures with @override' (transform functions are experimental)",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@override and the transform functions work, but only one signature per operation, so extra overloads built from simple inputs stay handwritten.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@override works but allows one signature per operation; extra convenience overloads stay handwritten.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@override works but allows one signature per operation; extra convenience overloads stay handwritten.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@override works but allows one signature per operation; extra convenience overloads stay handwritten.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "addParameter and chained transformations are NOT_SUPPORTED in Go, and @override allows one signature per operation.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        }
+      }
+    },
+    "P_backCompat": {
+      "name": "Back-compat surface from the previous GA (obsolete shims, legacy overloads, renamed members)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Let a spec (or an API baseline file) mark removed/renamed members, overloads and enum values to be emitted as obsolete forwarding shims, including prior-version overloads when an optional parameter is added.",
+      "closestExisting": "@clientName / @override per member; @useSystemTextJsonConverter (C# only)",
+      "whyShort": "rename/reshape replaces the old surface; nothing keeps the old name or signature alongside as obsolete",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Language-neutral back-compat; nothing in TCGC or the emitter keeps obsolete names or signatures alongside new ones."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Language-neutral back-compat; @Deprecated forwarding members are expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Language-neutral back-compat; [Obsolete] shims and legacy overloads are expressible but not generated from the spec."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Language-neutral back-compat; @deprecated aliases are expressible but not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Language-neutral back-compat; Deprecated forwarding functions are expressible but not generated."
+        }
+      }
+    },
+    "P_lroPolling": {
+      "name": "Custom LRO polling semantics on the poller",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Extend LRO metadata with polling strategies (poll resource until state, delete-until-gone), expose the operation id, allow a named public operation/poller type, and require continuation-token rehydration in every emitter. Overlaps the LRO-unification proposal.",
+      "closestExisting": "Azure.Core LRO decorators",
+      "whyShort": "cover standard status-monitor/Operation-Location flows; cannot express state-based polling of a resource, delete-until-404, initial 200 = in progress, operation id exposure, typed operation classes or rehydration tokens consistently across emitters",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard pollers are generated from Azure.Core LRO metadata; state-based or delete-until-gone polling, operation-id exposure and named poller types are not."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard SyncPoller/PollerFlux are generated; custom polling strategies, operation-id exposure and named operation types are not."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard Operation<T> is generated; custom polling strategies, operation-id exposure and named operation classes are not."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard pollers and restorePoller are generated; custom polling strategies, operation-id exposure and named poller types are not.",
+          "source": "packages/typespec-ts/src/modular/build-restore-poller.ts"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard runtime.Poller with resume tokens is generated; custom polling strategies and operation-id exposure are not.",
+          "source": "packages/typespec-go/src/codemodel/param.ts"
+        }
+      }
+    },
+    "P_modelProjection": {
+      "name": "Client model projection (public model <-> wire model mapping)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Let a spec declare a public client model whose fields map (rename, flatten, default, derive) onto the wire model; emitters generate to/from conversion, page-item projection and convenience methods that take/return the public model.",
+      "closestExisting": "@alternateType",
+      "whyShort": "swaps the type wholesale but generates no field-by-field conversion, so the mapping code stays handwritten",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "No way to declare a public model mapped onto the wire model; the conversion code is expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "No way to declare a public model mapped onto the wire model; the conversion code is expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "No way to declare a public model mapped onto the wire model; the conversion code is expressible but not generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "No way to declare a public model mapped onto the wire model; the conversion code is expressible but not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "No way to declare a public model mapped onto the wire model; the conversion code is expressible but not generated."
+        }
+      }
+    },
+    "P_audience": {
+      "name": "Cloud-aware token audience/scope as a client option",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Model the bearer-token audience as a client option with known per-cloud values (public, China, US Gov) and an endpoint-derived default; emitters generate the option, the scope composition (+/.default) and audience-error guidance.",
+      "closestExisting": "@useAuth OAuth2 scopes; typespec-ts credential-scopes",
+      "whyShort": "scopes are fixed strings in the spec/config; no client option to pick an audience or cloud, or derive it from the endpoint",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "An audience keyword with per-cloud values and scope composition is expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "An audience option on the builder is expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "An Audience client option with known per-cloud values is expressible but not generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "credential-scopes fixes scopes at generation time; an audience client option is not generated.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Audience via cloud.Configuration service entries is expressible but not generated."
+        }
+      }
+    },
+    "clientName": {
+      "name": "@clientName (+ exact())",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Renames clients, models, properties, parameters, operations and enum members per language.",
+      "doc": "TCGC reference/decorators.md; howtos/Generate client libraries/09renaming.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "exact() casing is not supported.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/09renaming.mdx"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "exact() casing is not supported.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/09renaming.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Emitter-synthesized types (ClientOptions, ClientBuilderExtensions) have no TypeSpec node to rename, and exact() is not supported.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/09renaming.mdx"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "exact() casing is not supported.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/09renaming.mdx"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "exact() casing is not supported; synthesized options/response types follow generated names.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/09renaming.mdx"
+        }
+      }
+    },
+    "P_propertyAlias": {
+      "name": "Model property aliases and computed properties",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Add alias properties (old name -> new property) and simple computed properties (e.g. id parsed from a URL) to generated models.",
+      "closestExisting": "@clientName; Legacy @flattenProperty",
+      "whyShort": "@clientName renames a property but cannot keep a second name or add a derived getter",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Alias and computed @property members are expressible but not generated; @clientName only renames."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Alias and computed getters are expressible but not generated; @clientName only renames."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Alias and computed properties are expressible but not generated; @clientName only renames."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Models are interfaces, so an alias or derived value would be a deserializer-populated field; not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Derived values would be methods on the struct; not generated."
+        }
+      }
+    },
+    "P_modelCtors": {
+      "name": "Model constructor overloads (per one-of variant / required-property sets)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Generate named constructors or factories for input models, one per union/one-of variant (URL vs bytes) or per required-property subset, including fixed-discriminator variants.",
+      "closestExisting": "none (@override targets operations only)",
+      "whyShort": "no TCGC decorator shapes model constructors",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Alternate constructors are idiomatic as classmethods but no decorator shapes them."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Constructor overloads or static factories are idiomatic but no decorator shapes them."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Constructor overloads are idiomatic but no decorator shapes them."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Models are interfaces built as object literals and variants are expressed by the union type, so there is no constructor to write."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Models are struct literals; NewX helpers per variant are possible but uncommon."
+        }
+      }
+    },
+    "P_responseProjection": {
+      "name": "Response projection (unwrap envelope, headers into result, status -> value)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Declare that a method returns a nested property, a model built from headers+body, or a per-status value (304 -> None, 404 -> false on DELETE/GET).",
+      "closestExisting": "@responseAsBool; replaceResponseWithVoid/Bytes; typespec-ts include-headers-in-response",
+      "whyShort": "@responseAsBool is HEAD-only and not supported in Go; the response replacements are NOT_SUPPORTED in Python/C#/Java; header projection is a TS-only option",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "HEAD-as-bool is generated, but replaceResponseWithVoid/Bytes are NOT_SUPPORTED and envelope unwrapping, header projection and per-status values are not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "HEAD-as-bool is generated, but replaceResponseWithVoid/Bytes are NOT_SUPPORTED and envelope unwrapping, header projection and per-status values are not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "HEAD-as-bool is generated, but replaceResponseWithVoid/Bytes are NOT_SUPPORTED and envelope unwrapping, header projection and per-status values are not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "HEAD-as-bool, response replacements and include-headers-in-response are supported; envelope unwrapping and per-status values are not.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Response envelopes carry headers and HEAD-as-bool and void replacement work; envelope unwrapping and per-status values are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        }
+      }
+    },
+    "P_authSchemes": {
+      "name": "Azure auth schemes beyond bearer/key (shared-key HMAC, challenge-based bearer, custom auth headers)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Named, runtime-backed auth schemes (Azure SharedKey/HMAC signing, Key Vault/ACR style challenge auth, extra subscription-key/region headers) that emitters map to the core library's policies and credential types.",
+      "closestExisting": "@useAuth (TCGC only supports HttpAuth); typespec-ts custom-http-auth-header-name / custom-http-auth-shared-key-prefix",
+      "whyShort": "HttpAuth cannot express HMAC request signing or WWW-Authenticate challenge flows; the TS options cover only a custom key header in one language",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Shared-key signing and challenge auth policies are expressible but TCGC only models HttpAuth."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Shared-key signing and challenge auth policies are expressible but TCGC only models HttpAuth."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Shared-key signing and challenge auth policies are expressible but TCGC only models HttpAuth."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "custom-http-auth-header-name/shared-key-prefix cover a custom key header only; signing and challenge auth are not generated.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Shared-key signing and challenge auth policies are expressible but TCGC only models HttpAuth."
+        }
+      }
+    },
+    "access": {
+      "name": "@access / @scope / @convenientAPI / @protocolAPI",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Make generated methods/types internal, drop them per language, or turn convenience/protocol generation on or off.",
+      "doc": "TCGC reference/decorators.md; howtos/Generate client libraries/04method.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        }
+      }
+    },
+    "P_ctorOptions": {
+      "name": "Client constructor overload configuration",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Declare constructor overloads per credential with defaulted options, settings-object constructors and DI/builder registration for each, so C#/Python stop hand-writing them.",
+      "closestExisting": "@clientInitialization",
+      "whyShort": "controls which parameters are on the client, not overloads, default options, settings objects or optional api_version keywords",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Credential-specific constructors with defaulted options and optional api_version are expressible but not configurable."
+        },
+        "java": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Java clients are built through builders whose credential methods already follow @useAuth, so constructor overloads do not arise."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Constructor overloads per credential, settings-object constructors and DI registration are expressible but not generated."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "low",
+          "note": "One constructor with an options bag is the idiom; there are no constructor overloads to hand-write."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "NewX functions per credential are already generated from @useAuth and there is no DI registration in Go."
+        }
+      }
+    },
+    "alternateType": {
+      "name": "@alternateType (incl. external types)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Swap a property/parameter/model type for another TypeSpec type or an external type (e.g. azure-core CloudEvent).",
+      "doc": "TCGC reference/decorators.md; howtos/Generate client libraries/08types.mdx 'Using @alternateType to Reference External Types'",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Scalar and external-type swaps are generated; custom value types and typed accessors are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Scalar and external-type swaps are generated; custom value types and typed accessors over BinaryData are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Scalar and external-type swaps are generated; custom value types and typed accessors over BinaryData are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Scalar and external-type swaps are generated; custom value types are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "External types are consumed by the adapter but handwritten samples remain; custom value types are not covered.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        }
+      }
+    },
+    "useAuth": {
+      "name": "@useAuth with multiple schemes (incl. NoAuth)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Generates one constructor/credential union per declared HttpAuth scheme; NoAuth gives a credential-less option.",
+      "doc": "TCGC guideline.md 'Client' and 'Client Initialization Creation'; typespec-ts emitter.md add-credentials",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Bearer, API-key and NoAuth constructors are generated; instances that need audience, shared-key or challenge auth wait on P_audience/P_authSchemes."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Bearer, API-key and NoAuth constructors are generated; instances that need audience, shared-key or challenge auth wait on P_audience/P_authSchemes."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Bearer, API-key and NoAuth constructors are generated; instances that need audience, shared-key or challenge auth wait on P_audience/P_authSchemes."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Bearer, API-key and NoAuth constructors are generated; instances that need audience, shared-key or challenge auth wait on P_audience/P_authSchemes."
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Bearer, API-key and NoAuth constructors are generated; instances that need audience, shared-key or challenge auth wait on P_audience/P_authSchemes."
+        }
+      }
+    },
+    "P_connectionString": {
+      "name": "Connection-string client construction",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Declare a connection-string format on the client (keys -> endpoint/credential/extra path parts) so emitters generate fromConnectionString constructors/factories and parsing.",
+      "closestExisting": "@useAuth ApiKeyAuth",
+      "whyShort": "describes the key header only; nothing describes a connection-string format (Endpoint=;Id=;Secret=) or which credential it yields",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A from-connection-string constructor or factory is idiomatic but nothing describes the connection-string format."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A from-connection-string constructor or factory is idiomatic but nothing describes the connection-string format."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A from-connection-string constructor or factory is idiomatic but nothing describes the connection-string format."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A from-connection-string constructor or factory is idiomatic but nothing describes the connection-string format."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A from-connection-string constructor or factory is idiomatic but nothing describes the connection-string format."
+        }
+      }
+    },
+    "P_errors": {
+      "name": "Typed error mapping (status/error code -> named exception)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Map specific statuses/error codes (409 read-only, 404 on a given op) to named exception types and expose the error model on the language's exception type.",
+      "closestExisting": "none (TypeSpec @error models only drive deserialization)",
+      "whyShort": "no TCGC decorator maps a status or error code to a public exception type",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Generated error_map maps standard statuses to azure-core exceptions (ResourceNotFoundError etc.); service-specific exception types are not generated."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard statuses map to azure-core exceptions (ResourceNotFoundException etc.); service-specific exception types are not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Errors surface as RequestFailedException; typed exception subclasses are expressible but not generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Errors surface as RestError; typed error classes are expressible but not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Errors surface as *azcore.ResponseError; typed error structs for errors.As are expressible but not generated."
+        }
+      }
+    },
+    "P_serialization": {
+      "name": "Serialization hooks for null-aware/conditional fields and custom codecs",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Per-property serialization policies (emit explicit null, omit empty) and a sanctioned hook for a custom codec.",
+      "closestExisting": "@encode; JsonMergePatch usage (TCGC guideline.md Usage); @useSystemTextJsonConverter (C#)",
+      "whyShort": "cover scalar encodings and merge-patch but not 'write explicit null when set', 'omit when empty' or per-model custom readers",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Explicit null via merge-patch/NULL sentinel is generated; omit-when-empty and custom codecs are not."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "JSON merge-patch explicit nulls are generated; omit-when-empty and custom codecs are not.",
+          "source": "packages/typespec-java/emitter-tests/src/test/java/payload/jsonmergepatch"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Some cases are @encode or @useSystemTextJsonConverter; explicit-null, omit-when-empty and custom readers are handwritten."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "@encode cases are generated; explicit-null and omit-when-empty rules are not."
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "azcore.NullValue explicit nulls are generated; omit-when-empty and custom codecs are not."
+        }
+      }
+    },
+    "P_modelDisplay": {
+      "name": "Generated model display and value equality",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Emit toString/repr and (for value types) equality/hash code from the model definition.",
+      "closestExisting": "none",
+      "whyShort": "no emitter option or decorator",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Models get a generic dict-style repr; a custom __repr__/__str__ is expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "toString/equals/hashCode are expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "ToString and value equality are expressible but not generated."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Models are plain object interfaces with no toString or equality members."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "A String() method is expressible but not generated; no instances observed."
+        }
+      }
+    },
+    "P_overloads": {
+      "name": "Multiple convenience methods per operation (union-input overloads, preset-argument variants)",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Allow several client methods to bind to one operation, e.g. analyze(url) / analyze(bytes) from a union, or createIfNotExists = create with If-None-Match: *; also one method dispatching to operations by input.",
+      "closestExisting": "@override",
+      "whyShort": "allows exactly one replacement signature per operation per language; union-typed inputs are not split into overloads",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Only one method binds to an operation; preset-argument variants (createIfNotExists) are not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Only one method binds to an operation; union inputs are not split into overloads."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Only one method binds to an operation; union inputs are not split into overloads."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Only one method binds to an operation; preset-argument variants are not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Distinct per-type or preset-argument functions are idiomatic but only one function binds to an operation. Needs Go design sign-off."
+        }
+      }
+    },
+    "apiVersion": {
+      "name": "@clientApiVersions / @apiVersion / Azure.Core @previewVersion",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Control the client's api-version parameter and the version enum.",
+      "doc": "TCGC reference/decorators.md; azure-core reference/decorators.md; howtos/Generate client libraries/10versioning.mdx",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@clientApiVersions and api_version keyword are generated; per-client allowlists or rejecting versions are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/10versioning.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "ServiceVersion enum is generated but @clientApiVersions is NOT_SUPPORTED.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/10versioning.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "ServiceVersion enum incl. @clientApiVersions is generated; per-client allowlists or rejecting versions are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/10versioning.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Known api-version enum is generated; per-client allowlists or rejecting versions are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/10versioning.mdx"
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "low",
+          "note": "Go modules pin a single api-version with no version enum to curate (@clientApiVersions is NOT_SUPPORTED).",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/10versioning.mdx"
+        }
+      }
+    },
+    "specFix": {
+      "name": "Type the value correctly in the service TypeSpec",
+      "kind": "existing",
+      "coverage": "spec-fix",
+      "what": "duration/utcDateTime with @encode, uuid, url, extensible union instead of string/int.",
+      "doc": "howtos/Generate client libraries/08types.mdx (scalars, unions, @encode); azure-core reference/data-types.md",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed enums/uuids are generated; durations stay number/string because JS has no native duration type."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed enums are generated; durations are emitted as their wire type, not time.Duration.",
+          "source": "packages/typespec-go/src/tcgcadapter/types.ts"
+        }
+      }
+    },
+    "paging": {
+      "name": "Paging metadata (next link / continuation token) + Legacy @nextLinkVerb/@markAsPageable/@disablePageable",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Generated pagers incl. continuation tokens; hides the token parameter.",
+      "doc": "howtos/Generate client libraries/05pagingOperations.mdx; TCGC reference/decorators.md (Legacy)",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Next-link and continuation-token pagers are generated; header-borne tokens and next links needing extra headers are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/05pagingOperations.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Next-link paging is generated but continuation-token paging is NOT_SUPPORTED.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/05pagingOperations.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Next-link and continuation-token pagers are generated; header-borne tokens and next links needing extra headers are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/05pagingOperations.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Next-link and continuation-token pagers are generated; header-borne tokens and next links needing extra headers are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/05pagingOperations.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "runtime.Pager is generated (continuation token exposed on options); header-borne tokens and next links needing extra headers are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/05pagingOperations.mdx"
+        }
+      }
+    },
+    "encode": {
+      "name": "@encode on scalars (TypeSpec core)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Wire encoding for datetime/duration/bytes so emitters serialize native types.",
+      "doc": "howtos/Generate client libraries/08types.mdx 'Scalars > Encoding' (decorator itself is TypeSpec core, not in this repo's reference)",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "rfc3339/rfc7231/unix/duration encodings are generated; exact fractional-digit formats and relative-or-absolute unions are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard datetime/duration/bytes encodings are generated; exact fractional-digit formats are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Standard datetime/duration/bytes encodings are generated; exact fractional-digit formats are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Datetime and bytes map to Date/Uint8Array; durations stay strings or numbers (no native type).",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Datetime and bytes map to time.Time/[]byte, but durations are emitted as their wire type rather than time.Duration.",
+          "source": "packages/typespec-go/src/tcgcadapter/types.ts"
+        }
+      }
+    },
+    "convenience": {
+      "name": "Convenience-method coverage (@convenientAPI, generate-convenience-methods)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Convenience methods for every operation; gaps where an emitter falls back to protocol-only (C# multipart, merge-patch bodies, content-type parameters).",
+      "doc": "TCGC reference/decorators.md; TCGC reference/emitter.md; howtos/Generate client libraries/07multipart.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed methods with content-type overloads are generated for every operation; a few multi-content-type cases remain handwritten."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "generate-convenience-methods covers operations; a few async gaps were reported.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-java/reference/emitter.md"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "high",
+          "note": "Multipart, merge-patch and content-type-parameter operations get protocol methods only.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/07multipart.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Typed functions are generated for every operation, but runtime dispatch across multiple content types is handwritten."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Go has no protocol/convenience split; every operation gets a typed method."
+        }
+      }
+    },
+    "P_flags": {
+      "name": "Flag-set <-> compact string encoding",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Encode a set of boolean flags as an ordered letter string (permissions 'racwd', include lists) with generated parse/format.",
+      "closestExisting": "@encode",
+      "whyShort": "only covers built-in scalar encodings",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A flag-set type with parse/format to a letter string is expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A permissions class or EnumSet codec is expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A [Flags] enum or permissions type with string codec is expressible but not generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "A flags interface with parse/format helpers is expressible but not generated (reviewers answered no on 6 instances)."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A permissions struct with String/Parse is expressible but not generated."
+        }
+      }
+    },
+    "tracing": {
+      "name": "Tracing on generated methods (Go inject-spans)",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Spans are emitted on generated methods; handwritten wrappers re-add them by hand. Disappears once the wrapper is generated.",
+      "doc": "typespec-go emitter.md 'inject-spans'",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Tracing comes from the generated pipeline instrumentation rather than per-method spans."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Requires the inject-spans emitter option.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-go/reference/emitter.md"
+        }
+      }
+    },
+    "P_clientProps": {
+      "name": "Expose client initialization values as properties",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Generate read-only client properties for the endpoint and every client-level parameter (vault URL, share name, topic).",
+      "closestExisting": "@clientInitialization",
+      "whyShort": "adds client-level parameters but does not require emitters to expose endpoint/bound names as public getters",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Read-only @property accessors for endpoint and client parameters are expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Public getters for endpoint and client parameters are expressible but not generated on the public client."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Read-only properties for endpoint and client parameters are expressible but not consistently generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Readonly properties for endpoint and client parameters are expressible but not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Accessor methods (e.g. Endpoint()) are expressible but not generated."
+        }
+      }
+    },
+    "P_identifiers": {
+      "name": "Typed data-plane identifiers with parse helpers",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "An identifier scalar with a template (e.g. {vault}/secrets/{name}/{version}) that emitters turn into a parse/format type.",
+      "closestExisting": "Azure.Core armResourceIdentifier",
+      "whyShort": "ARM-only scalar; data-plane ids (Key Vault object URLs, registry ids) have no typed form",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "An identifier class with parse/format is expressible but no data-plane identifier scalar exists."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "An identifier class with parse/format is expressible but no data-plane identifier scalar exists."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "An identifier type with Parse/TryParse is expressible but no data-plane identifier scalar exists."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "A parse function returning a typed identifier is expressible but no data-plane identifier scalar exists."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "A ParseX function returning a struct is expressible but no data-plane identifier scalar exists."
+        }
+      }
+    },
+    "streaming": {
+      "name": "Streaming bodies (JsonlStream / SSEStream / HttpStream)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "TypeSpec can describe JSONL and SSE streams; every emitter tab in the doc says 'unsupported'.",
+      "doc": "howtos/Generate client libraries/13streaming.mdx",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Typed JSONL and SSE responses are generated per emitter tests (the doc still says unsupported); request-side JSONL/SSE bodies take raw bytes.",
+          "source": "packages/typespec-python/tests/mock_api/shared/test_streaming_sse.py"
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "JSONL bodies are exposed as BinaryData only; typed streams are not generated.",
+          "source": "packages/typespec-java/emitter-tests/src/test/java/streaming/jsonl/JsonlTests.java"
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "13streaming.mdx marks all JSONL and SSE cases unsupported in C#.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/13streaming.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Typed JSONL and SSE responses (AsyncIterable) are generated per emitter tests (the doc still says unsupported); request-side streams are not.",
+          "source": "packages/typespec-ts/test/modular-unit/scenarios/operations/streaming.md"
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Only byte-stream bodies are generated; typed JSONL/SSE readers are not.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/13streaming.mdx"
+        }
+      }
+    },
+    "extEnum": {
+      "name": "Extensible enums from TypeSpec unions",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "union { string, \"a\", \"b\" } generates an extensible enum in every language.",
+      "doc": "howtos/Generate client libraries/08types.mdx 'Unions' / 'Enums'",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "readonly struct is generated; back-compat members on it are handwritten."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "String unions with KnownX enums (experimental-extensible-enums option).",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "clientDefault": {
+      "name": "Legacy @clientDefaultValue",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Client-side default for a property or parameter. Python: not supported yet.",
+      "doc": "TCGC reference/decorators.md (Legacy); howtos/Generate client libraries/08types.mdx 'Client Default Values (Legacy)'",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Parameter defaults are generated; the doc says model-property defaults are not supported although the mock-API test exercises them.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Doc tab is TODO and no Java emitter test for @clientDefaultValue was found; nested-object defaults are not covered."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Doc tab is TODO; nested-object defaults are not covered."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Emitter consumes @clientDefaultValue with a client-default-value test; nested-object defaults are not covered.",
+          "source": "packages/typespec-ts/test/azure-modular-integration/generated/azure/client-generator-core/client-default-value"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Emitter consumes @clientDefaultValue with a defaultvaluegroup test; nested-object defaults are not covered.",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/defaultvaluegroup"
+        }
+      }
+    },
+    "P_endpoint": {
+      "name": "Endpoint normalization/derivation rules",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Optional endpoint rules (default scheme, trailing slash, secondary host suffix) applied by generated constructors.",
+      "closestExisting": "@server templates",
+      "whyShort": "describe the URL template only; no rule for adding scheme, trimming slash or deriving a secondary host",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Endpoint normalization in generated constructors is expressible but no rule describes it."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Endpoint normalization in generated constructors is expressible but no rule describes it."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Endpoint normalization in generated constructors is expressible but no rule describes it."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Endpoint normalization in generated constructors is expressible but no rule describes it."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Endpoint normalization in generated constructors is expressible but no rule describes it."
+        }
+      }
+    },
+    "matchConditions": {
+      "name": "Conditional request headers -> MatchConditions/etag",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "If-Match/If-None-Match collapse to etag+match_condition (Python), MatchConditions (C#, Java); Go and TS keep raw header options.",
+      "doc": "howtos/Generate client libraries/04method.mdx 'Conditional request headers'",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "etag/match_condition are generated; create-only (If-None-Match: *) variants are a P_overloads case.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "MatchConditions are generated; create-only variants are a P_overloads case.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "MatchConditions are generated; create-only variants are a P_overloads case.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Raw ifMatch/ifNoneMatch options are generated instead of a conditions object.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Raw IfMatch/IfNoneMatch *string fields are generated instead of azcore.ETag access conditions.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        }
+      }
+    },
+    "javaValidation": {
+      "name": "Client-side validation from TypeSpec constraints (Java client-side-validations)",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Only Java exposes an emitter option; other languages validate required args only.",
+      "doc": "typespec-java emitter.md 'client-side-validations'",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No validation option; Python guidelines discourage validating service parameters client-side."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "client-side-validations generates validate() for required properties (back-compat option).",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-java/reference/emitter.md"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Null checks for required arguments are generated; constraint and precondition checks are not."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No validation option; JS guidelines discourage validating service parameters client-side."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No validation option; no instances observed."
+        }
+      }
+    },
+    "multipart": {
+      "name": "@multipartBody convenience methods",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "Typed multipart models with file parts. C# emits protocol method only.",
+      "doc": "howtos/Generate client libraries/07multipart.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-python/tests/mock_api/azure/test_payload_multipart.py"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed multipart models are generated; default filenames and optional files are handwritten in places.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/07multipart.mdx"
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "The C# emitter generates only the protocol method for multipart operations.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/07multipart.mdx"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/07multipart.mdx"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed multipart models with File parts are generated.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/07multipart.mdx"
+        }
+      }
+    },
+    "hierarchy": {
+      "name": "Legacy @hierarchyBuilding",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Change a model's base type in the SDK.",
+      "doc": "TCGC reference/decorators.md (Legacy); howtos/Generate client libraries/11hierarchyBuilding.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Go has no inheritance; the generated structs carry the base type's fields.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/11hierarchyBuilding.mdx"
+        }
+      }
+    },
+    "lro": {
+      "name": "Azure.Core LRO decorators (@lroStatus, @pollingOperation, @operationLink, @finalLocation, @useFinalStateVia, @lroResult)",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Describe status field, polling link, final result so emitters generate standard pollers.",
+      "doc": "azure-core reference/decorators.md; howtos/Generate client libraries/06longRunningOperations.mdx",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Reviewers answered no on 2 lro-status-field-selection instances; check status-property selection in C#."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "P_discriminator": {
+      "name": "Discriminator defaulting and unknown-variant handling",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Declare a default discriminator value and unknown-kind behavior.",
+      "closestExisting": "TypeSpec @discriminator (08types.mdx Discriminator)",
+      "whyShort": "no way to declare a default variant or how to treat a missing/unknown kind",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Default discriminator values and unknown-kind behavior are expressible but not declarable."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Default discriminator values and unknown-kind behavior are expressible but not declarable."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Default discriminator values and unknown-kind behavior are expressible but not declarable."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Unknown kinds fall back to the base interface; a default variant is not declarable."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Unknown kinds fall back to the base struct; a default variant is not declarable."
+        }
+      }
+    },
+    "P_logAllowlist": {
+      "name": "Loggable header/query annotation",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Mark non-secret headers/query parameters so emitters add them to the HTTP logging allowlist.",
+      "closestExisting": "none",
+      "whyShort": "no decorator marks headers as safe to log",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Adding headers to the HttpLoggingPolicy allowlist is expressible but nothing marks them."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Adding headers to HttpLogOptions allowed names is expressible but nothing marks them."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Adding headers to DiagnosticsOptions.LoggedHeaderNames is expressible but nothing marks them."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Adding headers to the logging policy allowlist is expressible but nothing marks them."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Adding headers to policy.LogOptions.AllowedHeaders is expressible but nothing marks them."
+        }
+      }
+    },
+    "clientDoc": {
+      "name": "@clientDoc",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Replace/append client documentation per language.",
+      "doc": "TCGC reference/decorators.md",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@clientDoc covers doc text, not Java snippet or framework-annotation fixes."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "P_unionsCSharp": {
+      "name": "Union-typed model properties in C#",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Generate a C# union wrapper with typed accessors and JSON read/write.",
+      "closestExisting": "TypeSpec unions (08types.mdx Unions)",
+      "whyShort": "C# has no union type, so it falls back to BinaryData and handwritten codecs",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "Union-typed properties are emitted as native Union types."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Java also lacks unions and falls back to BinaryData; a generated wrapper is expressible but no instances observed. Needs Java design sign-off."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "C# lacks union types, but a generated wrapper with typed accessors and JSON codec is expressible; it is not generated. Needs .NET design sign-off."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "Union-typed properties are emitted as native union types."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Go falls back to any or an interface; a typed wrapper is expressible but no instances observed. Needs Go design sign-off."
+        }
+      }
+    },
+    "emptyString": {
+      "name": "@deserializeEmptyStringAsNull",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Treat \"\" as null when deserializing a property.",
+      "doc": "TCGC reference/decorators.md",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-python/tests/mock_api/azure/test_azure_client_generator_core_deserialize_empty_string_as_null.py"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "C# is the documented target; general null/empty hooks beyond one property are not covered."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "P_preview": {
+      "name": "Per-member preview/experimental markers",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Emit language-specific experimental annotations on members that only exist in preview versions.",
+      "closestExisting": "Azure.Core @previewVersion",
+      "whyShort": "marks a version as preview, not individual types or methods",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No standard experimental marker in azure-core; a docstring note or warning is expressible but not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "An annotation or Javadoc marker per member is expressible but not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "[Experimental] attributes per member are expressible but not generated."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "@beta TSDoc tags per member are expressible but not generated."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Go has no experimental marker; a doc-comment note is the closest form and is not generated."
+        }
+      }
+    },
+    "P_generic": {
+      "name": "Caller-typed generic payloads",
+      "kind": "proposed",
+      "coverage": "gap",
+      "what": "Mark a document/payload property as a type parameter so request/result/page types are generic over the caller's model (Search documents).",
+      "closestExisting": "none",
+      "whyShort": "no way to mark a model property as caller-typed",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Generic[T] models are expressible but no way to mark a property as caller-typed."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Generic types are expressible but no way to mark a property as caller-typed."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Generic types are expressible but no way to mark a property as caller-typed."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Generic type parameters are idiomatic but no way to mark a property as caller-typed."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Go generics are expressible but uncommon in models; no instances observed."
+        }
+      }
+    },
+    "responseAsBool": {
+      "name": "@responseAsBool / head-as-boolean",
+      "kind": "existing",
+      "coverage": "partial",
+      "what": "HEAD operation returns bool (404 -> false).",
+      "doc": "TCGC reference/decorators.md; howtos/Generate client libraries/04method.mdx; typespec-go and typespec-python emitter.md 'head-as-boolean'",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@responseAsBool works for HEAD only; GET or DELETE status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@responseAsBool works for HEAD only; GET or DELETE status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@responseAsBool works for HEAD only; GET or DELETE status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@responseAsBool works for HEAD only; GET or DELETE status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "HEAD-as-bool is generated per emitter tests (doc tab says NOT_SUPPORTED); GET or DELETE status-to-bool is not.",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/headasboolgroup"
+        }
+      }
+    },
+    "stjConverter": {
+      "name": "@useSystemTextJsonConverter (C# only)",
+      "kind": "existing",
+      "coverage": "exists",
+      "what": "Back-compat JSON converter for C# models.",
+      "doc": "TCGC reference/decorators.md",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "System.Text.Json converters are .NET-specific."
+        },
+        "java": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "System.Text.Json converters are .NET-specific."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "System.Text.Json converters are .NET-specific."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "System.Text.Json converters are .NET-specific."
+        }
+      }
+    },
+    "P_armResourceModel": {
+      "name": "ARM resource/collection model for non-standard operations (mgmt emitters)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Let a spec bind operations the mgmt emitter cannot infer to a resource or collection: extension resources at a fixed scope, per-type resources over one parameterized operation (DNS record types), collections without a list op, resources without PATCH (tag helpers via PUT), and a resource's data type; emitters then generate the resource/collection classes, accessors, enumeration, Exists/GetIfExists, tag helpers and REST-client plumbing.",
+      "closestExisting": "ARM resource decorators (@armResourceOperations, @armResourceRead/List/Action, @extensionResource, @singleton, @armResourceCheckExistence) and ARM legacy decorators (@armOperationRoute, @customAzureResource, @renamePathParameter)",
+      "whyShort": "the mgmt emitter infers resources and collections from standard operation shapes; nothing binds a non-standard operation, fixed extension scope or per-type data model to a resource",
+      "doc": "website/src/content/docs/docs/howtos/ARM/resource-type.mdx; website/src/content/docs/docs/howtos/ARM/resource-operations.md",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Python mgmt SDKs expose operation groups, not resource/collection objects, so these shapes are never hand-written."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Fluent mgmt libraries generate resource interfaces with define/update/refresh and tag helpers for standard resources; non-standard scopes and operations fall back to operation-group methods."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates Resource/Collection/extension classes from ARM decorators; fixed extension scopes, per-type resources over one operation, collections without a list op and PUT-only tag updates are hand-written."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "JS mgmt SDKs expose operation groups, not resource/collection objects."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Go mgmt SDKs generate per-operation-group clients; there are no resource/collection objects."
+        }
+      }
+    },
+    "P_propertyShape": {
+      "name": "Generated property shape (mutability, nullability, read-only collections, flattened accessors)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Let a spec pin a model property's client shape: settable vs get-only, nullable vs not, read-only vs mutable collection, and flattened accessors that lazily create the nested envelope on write (including polymorphic envelopes).",
+      "closestExisting": "Legacy @flattenProperty; @visibility (read-only properties become get-only / read-only collections)",
+      "whyShort": "flattening and visibility decide the shape; nothing pins a flattened property's setter, nullability or collection interface",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Model attributes are plain mutable fields with Optional typing; there is no setter/nullability/collection-interface form to pin."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "Fluent mgmt models flatten 'properties' into getters/setters; setter presence follows visibility and nullability follows boxed types, with no per-property override."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Flattened properties are generated; settable/nullable/IReadOnlyList forms and lazy envelope creation on set cannot be chosen per property."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Models are plain interfaces; there are no accessors or flattening to shape."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "Struct fields are always settable pointer fields and are not flattened."
+        }
+      }
+    },
+    "P_csharpModelSerialization": {
+      "name": "C# ModelReaderWriter surface (context registration, IJsonModel/IPersistableModel on derived and adapted types)",
+      "kind": "proposed",
+      "coverage": "partial",
+      "what": "Generate the ModelReaderWriter context entries for every serializable type a library exposes (including ARM common types such as SubResource, WritableSubResource, ResponseError) and IJsonModel/IPersistableModel implementations for derived or adapted public models.",
+      "closestExisting": "@useSystemTextJsonConverter (C# only); @alternateType with external types",
+      "whyShort": "the C# emitter registers and implements serialization for types it generates, not for external common types or handwritten derived/adapted models",
+      "languages": {
+        "python": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "java": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "high",
+          "note": "IJsonModel/IPersistableModel and the context are generated for generated models; external common types and derived/adapted models need handwritten registration or bridges."
+        },
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        },
+        "go": {
+          "support": "not-applicable",
+          "confidence": "high",
+          "note": "ModelReaderWriter and IJsonModel are .NET System.ClientModel constructs."
+        }
+      }
+    }
+  },
+  "patterns": {
+    "accepted-operation-preparation-adapter": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium LRO preparation with dependencies."
+    },
+    "alternative-input-forms": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "string | string[] | model inputs, URL vs bytes.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as Union parameters, so no separate overloads are needed."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as union parameters, so no separate overloads are needed."
+        }
+      }
+    },
+    "api-deprecation": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "api-documentation-correction": {
+      "feature": "clientDoc",
+      "coverage": "exists",
+      "note": "Java doc/snippet fixes; @clientDoc covers doc text, not framework annotations."
+    },
+    "api-version-fallback": {
+      "feature": "apiVersion",
+      "coverage": "partial"
+    },
+    "api-version-validation": {
+      "feature": "apiVersion",
+      "coverage": "partial",
+      "note": "Version enum/defaults exist; curating or rejecting specific versions per client is not expressible."
+    },
+    "argument-validation": {
+      "feature": "javaValidation",
+      "coverage": "partial"
+    },
+    "arm-client-extension-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden ArmClient extensions kept with the previous GA signature."
+    },
+    "arm-resource-accessor": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource/collection accessors for resources the emitter did not generate."
+    },
+    "arm-resource-contract": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten resource surface for resources kept from the previous GA (same library as the no-op writers)."
+    },
+    "arm-resource-handle-factory": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden resource-handle factory kept for a legacy resource wrapper."
+    },
+    "arm-resource-type-metadata": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Obsolete ResourceType field kept on a legacy resource wrapper."
+    },
+    "arm-tag-resource-update-fallback": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers falling back to a PUT with converted content; no PATCH to generate from."
+    },
+    "attestation-token-validation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "auth-audience-error-translation": {
+      "feature": "P_audience",
+      "coverage": "gap",
+      "note": "needs-judgment; would come with the audience option."
+    },
+    "auth-audience-option": {
+      "feature": "P_audience",
+      "coverage": "gap"
+    },
+    "auth-authority-tenant-parsing": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "auth-builder-traits": {
+      "feature": "useAuth",
+      "coverage": "partial",
+      "note": "Java builder credential traits follow from @useAuth schemes; connection-string trait needs the connection-string feature."
+    },
+    "authorization-role-constants": {
+      "feature": "specFix",
+      "coverage": "spec-fix"
+    },
+    "back-compat-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "background-polling-worker": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "backward-compatibility-shim": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "base64-bytes-codec": {
+      "feature": "encode",
+      "coverage": "exists",
+      "note": "bytes with @encode(base64/base64url).",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "batch-subrequest-assembly": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "binarydata-accessor": {
+      "feature": "alternateType",
+      "coverage": "partial",
+      "note": "@alternateType(unknown) gives BinaryData in C#; typed accessors over it are handwritten."
+    },
+    "boolean-as-json-string-codec": {
+      "feature": "encode",
+      "coverage": "partial",
+      "note": "Boolean written as a JSON string; @encode(string) is documented for numerics only.",
+      "languages": {
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "@encode(string) on boolean is not documented for any emitter.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        }
+      }
+    },
+    "boolean-string-json-reader": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Lenient reader accepting a boolean or a \"true\" string."
+    },
+    "bound-resource-operation-overload": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
+    },
+    "cached-subclient-factory": {
+      "feature": "clientInit",
+      "coverage": "partial",
+      "note": "Accessor exists; caching of the child instance is emitter-specific."
+    },
+    "callback-error-isolation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "callback-subscription-with-replay": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "cancellation-aware-pagination": {
+      "feature": "paging",
+      "coverage": "partial",
+      "note": "Generated pagers ignore the enumerator cancellation token; emitter fix.",
+      "languages": {
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Generated collection results do not honor the async enumerator's cancellation token."
+        }
+      }
+    },
+    "cancellation-token-request-context": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Internal helper for handwritten convenience methods."
+    },
+    "cbor-cose-parsing": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "challenge-auth-policy": {
+      "feature": "P_authSchemes",
+      "coverage": "gap"
+    },
+    "chunked-result-aggregation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "chunked-upload-stream": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "client-access-token-uri": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Web PubSub client token/URL."
+    },
+    "client-builder-registration": {
+      "feature": "P_ctorOptions",
+      "coverage": "gap",
+      "note": "C# DI registration overloads."
+    },
+    "client-constructor-default-options": {
+      "feature": "P_ctorOptions",
+      "coverage": "gap"
+    },
+    "client-constructor-signature": {
+      "feature": "P_ctorOptions",
+      "coverage": "gap"
+    },
+    "client-context-property": {
+      "feature": "P_clientProps",
+      "coverage": "gap"
+    },
+    "client-diagnostics-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Diagnostics plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "client-endpoint-accessor": {
+      "feature": "P_clientProps",
+      "coverage": "gap"
+    },
+    "client-endpoint-normalization": {
+      "feature": "P_endpoint",
+      "coverage": "gap"
+    },
+    "client-injected-tool-state": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "client-level-parameters": {
+      "feature": "clientInit",
+      "coverage": "exists",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-python/tests/mock_api/azure/test_azure_client_generator_core_client_initialization.py"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-java/emitter-tests/src/test/java/azure/clientgenerator/core/clientinitialization"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@clientInitialization parameters are generated on the client."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@clientInitialization parameters are generated on the client."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/client-initialization/"
+        }
+      }
+    },
+    "client-options-configuration-binding": {
+      "feature": "P_ctorOptions",
+      "coverage": "gap"
+    },
+    "client-side-encryption": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "client-side-id-generation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Client-side id generation for a hosted server."
+    },
+    "client-side-request-batching": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "client-side-response-cache": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "client-uri-variant": {
+      "feature": "clientInit",
+      "coverage": "partial",
+      "note": "Clone-for-snapshot/version is close to a parent accessor with a parameter; URL rewriting stays handwritten."
+    },
+    "closed-enum-api": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden closed enums kept from the previous GA; the numeric capacity-level enum could instead be a closed enum in the spec."
+    },
+    "closed-enum-string-codec": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String codecs for the handwritten legacy closed enums; generated automatically for spec-defined enums."
+    },
+    "cloud-aware-client": {
+      "feature": "P_audience",
+      "coverage": "gap"
+    },
+    "collection-enumerable-interface": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on collections the emitter did not generate; existing collection-enumerable-pageable-facade (NG) is the same."
+    },
+    "collection-enumerable-pageable-facade": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
+    },
+    "collection-enumeration-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on handwritten per-record-type collections."
+    },
+    "completed-result-task-adapter": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "conditional-field-serialization": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Merge-patch usage covers explicit null for PATCH bodies; other null/omit rules are handwritten."
+    },
+    "conditional-operation-dispatch": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "One public method choosing between generated ops; @sharedRoute + @clientName merge only covers ops on the same route."
+    },
+    "conditional-request-parameters": {
+      "feature": "matchConditions",
+      "coverage": "partial",
+      "note": "MatchConditions generated in Python/C#/Java; missing: raw if_none_match kept for back-compat, create-only (If-None-Match: *) variants, typed ETag on mgmt delete; Go/TS keep raw headers."
+    },
+    "conditional-resource-id-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated resources."
+    },
+    "connected-session-factory": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "connection-string-client-construction": {
+      "feature": "P_connectionString",
+      "coverage": "gap"
+    },
+    "connection-string-client-factory": {
+      "feature": "P_connectionString",
+      "coverage": "gap"
+    },
+    "continuation-loop-operation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "convenience-options-unpacking": {
+      "feature": "override",
+      "coverage": "partial",
+      "note": "@override covers bundling params into an options model (one signature per op); overloads that build the options from simple inputs (AnalyzeText(string)) need multiple methods per operation."
+    },
+    "convenience-typed-wrapper": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "Two mgmt C# instances; see data-plane split."
+    },
+    "credential-client-constructor": {
+      "feature": "useAuth",
+      "coverage": "partial",
+      "note": "Key/token constructors are generated when @useAuth lists both schemes; remaining cases add audience, shared-key or challenge pipelines."
+    },
+    "credential-token-cache": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "custom-auth-header-policy": {
+      "feature": "P_authSchemes",
+      "coverage": "gap",
+      "note": "TS has custom-http-auth-header-name; other languages nothing.",
+      "languages": {
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "custom-http-auth-header-name covers a custom key header.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        }
+      }
+    },
+    "custom-error-type": {
+      "feature": "P_errors",
+      "coverage": "gap"
+    },
+    "custom-model-json-serialization": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Some cases are encodings (@encode) or C#-only converters (@useSystemTextJsonConverter); envelope codecs are service-specific."
+    },
+    "custom-redirect-policy": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "custom-resource-data-binding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Binds a per-record-type resource to its data type (CodeGenResourceData)."
+    },
+    "custom-response-classifier": {
+      "feature": "P_responseProjection",
+      "coverage": "gap",
+      "note": "Per-operation success/error status sets.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        }
+      }
+    },
+    "customer-provided-key-options": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "data-returning-pageable-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "List returns data models because the item type was not recognized as a resource."
+    },
+    "datetime-input-coercion": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "datetime-wire-normalization": {
+      "feature": "encode",
+      "coverage": "partial",
+      "note": "@encode covers rfc3339/rfc7231/unix/duration seconds; exact fractional-digit formats, floating seconds and relative-or-absolute unions are not."
+    },
+    "defaulted-child-resource-definition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium definition flow with defaults."
+    },
+    "delete-not-found-suppression": {
+      "feature": "P_responseProjection",
+      "coverage": "gap",
+      "note": "404 on DELETE -> success.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        }
+      }
+    },
+    "delimited-string-model-codec": {
+      "feature": "P_flags",
+      "coverage": "gap"
+    },
+    "dependency-injection-client-registration": {
+      "feature": "P_ctorOptions",
+      "coverage": "gap"
+    },
+    "dependent-resource-definition-staging": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium dependent-resource staging."
+    },
+    "diagnostic-scope-request-execution": {
+      "feature": "tracing",
+      "coverage": "exists"
+    },
+    "diagnostics-logging-allowlist": {
+      "feature": "P_logAllowlist",
+      "coverage": "gap"
+    },
+    "disabled-obsolete-api-stub": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Obsolete(error) stubs for operations removed from the service, kept so old callers get a compile error."
+    },
+    "disposed-client-guard": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "document-batch-action-builder": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "download-stream-response-wrapper": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "editor-hidden-model-property": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public property kept from the previous GA."
+    },
+    "editor-hidden-model-type": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public type kept from the previous GA."
+    },
+    "empty-string-as-missing": {
+      "feature": "emptyString",
+      "coverage": "exists",
+      "note": "@deserializeEmptyStringAsNull on the resource-id property."
+    },
+    "empty-string-resource-id-deserialization": {
+      "feature": "emptyString",
+      "coverage": "exists"
+    },
+    "encoded-resource-rename-wrapper": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "endpoint-derived-auth-scope": {
+      "feature": "P_audience",
+      "coverage": "gap"
+    },
+    "enum-member-name-override": {
+      "feature": "clientName",
+      "coverage": "exists",
+      "note": "@clientName on enum members.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "enum-wire-value-mapping": {
+      "feature": "clientName",
+      "coverage": "exists",
+      "note": "Public member name vs wire value: @clientName on enum members/properties.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "error-normalization-wrapper": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Transport/credential errors rethrown."
+    },
+    "etag-configuration-refresh": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "eventsource-diagnostic-event": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "exclusive-client-target-union": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "needs-judgment; client-side union of inputs.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as Union parameters, so no separate overloads are needed."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as union parameters, so no separate overloads are needed."
+        }
+      }
+    },
+    "extensible-string-enum": {
+      "feature": "extEnum",
+      "coverage": "partial",
+      "note": "Generated in every language from unions; samples are C# back-compat structs and a Python enum the spec types as string."
+    },
+    "external-sync-token-cache-update": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "file-or-stream-download-helper": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "fixed-argument-operation-helper": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "Named method calling a generic op with a fixed payload/flag; needs a second method bound to the same operation."
+    },
+    "fixed-record-type-paging-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Per-record-type resources over one list operation parameterized by record type."
+    },
+    "flags-enum-api": {
+      "feature": "P_flags",
+      "coverage": "gap"
+    },
+    "flags-to-include-list": {
+      "feature": "P_flags",
+      "coverage": "gap",
+      "note": "Boolean options -> ordered include list."
+    },
+    "flattened-collection-setter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden setter kept on a flattened collection property for back-compat."
+    },
+    "format-content-type-mapping": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "Public format value mapped to a content-type header; emitters don't expose a content-type union as a typed public value."
+    },
+    "generated-extension-forwarding": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Suppressed extension methods re-added as hidden forwarders with the previous GA signature."
+    },
+    "generated-type-rename": {
+      "feature": "clientName",
+      "coverage": "partial",
+      "note": "Models/clients: @clientName. Emitter-synthesized types (C# ClientOptions, ClientBuilderExtensions) have no TypeSpec node to rename."
+    },
+    "generic-model-typing": {
+      "feature": "P_generic",
+      "coverage": "gap"
+    },
+    "handwritten-client-over-generated": {
+      "feature": "clientInit",
+      "coverage": "partial",
+      "note": "Client hierarchy/naming via @client/@operationGroup/@clientLocation/@clientInitialization covers part; the rest is layered behavior (caches, managers)."
+    },
+    "handwritten-diagnostic-logging": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "handwritten-enum-definition": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Public enum with no generated counterpart, presumably kept from the previous GA."
+    },
+    "handwritten-public-model": {
+      "feature": "P_modelProjection",
+      "coverage": "gap",
+      "note": "Public options/result models defined by hand instead of the generated one."
+    },
+    "handwritten-resource-operation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Get/report operations written by hand because the emitter did not attach them."
+    },
+    "handwritten-resource-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Whole ArmResource class written by hand."
+    },
+    "hide-generated-surface": {
+      "feature": "access",
+      "coverage": "exists",
+      "note": "CodeGenSuppress / removed methods map to @access(internal), @scope(\"!lang\") or @convenientAPI(false); mostly an adoption gap."
+    },
+    "hide-or-fix-parameters": {
+      "feature": "clientInit",
+      "coverage": "exists",
+      "note": "Topic/subscription elevated with @clientInitialization; continuation-token hiding is standard paging; renames with @clientName/@access.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Covered by @clientInitialization, standard paging and @clientName/@access."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Covered by @clientInitialization, standard paging and @clientName/@access."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Covered by @clientInitialization, standard paging and @clientName/@access."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Covered by @clientInitialization, standard paging and @clientName/@access."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Covered by @clientInitialization, standard paging and @clientName/@access."
+        }
+      }
+    },
+    "http-method-tunneling": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "http-status-to-exists-boolean": {
+      "feature": "responseAsBool",
+      "coverage": "partial",
+      "note": "@responseAsBool is HEAD-only; this maps a GET status to exists.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "@responseAsBool is HEAD-only; GET status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "@responseAsBool is HEAD-only; GET status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "@responseAsBool is HEAD-only; GET status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "@responseAsBool is HEAD-only; GET status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "@responseAsBool is HEAD-only; GET status-to-bool is not expressible.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/04method.mdx"
+        }
+      }
+    },
+    "input-shape-normalization": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "Accept string|list|JSON and normalize; union input overloads.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as Union parameters, so no separate overloads are needed."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as union parameters, so no separate overloads are needed."
+        }
+      }
+    },
+    "input-validation-helper": {
+      "feature": "javaValidation",
+      "coverage": "partial"
+    },
+    "integer-json-string-codec": {
+      "feature": "encode",
+      "coverage": "exists",
+      "note": "@encode(string) on the integer property.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "@encode(string) on an integer is generated as a long written as a JSON string.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/08types.mdx"
+        }
+      }
+    },
+    "internal-model-accessor-bridge": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Java hooks for handwritten code."
+    },
+    "internal-model-type-rename": {
+      "feature": "clientName",
+      "coverage": "partial",
+      "note": "Renames an emitter-synthesized Unknown* discriminator type, which has no TypeSpec node."
+    },
+    "internal-type-name-mapping": {
+      "feature": "clientName",
+      "coverage": "partial",
+      "note": "Renames an emitter-synthesized Unknown* discriminator type, which has no TypeSpec node."
+    },
+    "invariant-object-string-conversion": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Value conversion supporting the legacy object-valued dictionary view."
+    },
+    "json-string-typed-value": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Type chosen by content type at runtime."
+    },
+    "lazy-management-collection-accessor": {
+      "feature": "clientInit",
+      "coverage": "partial",
+      "note": "Fluent premium manager facade; fluent-lite managers generate the same lazy accessors.",
+      "languages": {
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Fluent-lite managers generate lazily cached collection accessors; premium managers hand-write them over the facade."
+        }
+      }
+    },
+    "lazy-public-model-export": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "lazy-resource-rest-client": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "legacy-enum-compatibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "legacy-enum-property-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "legacy-overload-compatibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "list-signature-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Cancellation-only list overloads kept after optional filters were added."
+    },
+    "lock-guarded-shared-state": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "lro-continuation-token": {
+      "feature": "P_lroPolling",
+      "coverage": "partial",
+      "note": "Rehydration exists in some emitters, not uniformly.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Generated begin_* methods accept continuation_token."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No generated poller rehydration API was found."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Rehydration of generated Operation<T> from a token was not confirmed."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-ts/src/modular/build-restore-poller.ts"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "ResumeToken is generated on poller options.",
+          "source": "packages/typespec-go/src/codemodel/param.ts"
+        }
+      }
+    },
+    "lro-custom-poller": {
+      "feature": "P_lroPolling",
+      "coverage": "partial",
+      "note": "Standard shapes are covered by Azure.Core LRO decorators; samples are delete-until-gone, initial-200-in-progress and command-driven polling."
+    },
+    "lro-operation-id": {
+      "feature": "P_lroPolling",
+      "coverage": "gap",
+      "note": "Operation id from Operation-Location surfaced on the poller.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        }
+      }
+    },
+    "lro-operation-startup-override": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Delete keeps the previous GA's typed ArmOperation<T> return; see lro-return-type-compatibility."
+    },
+    "lro-operation-wrapper": {
+      "feature": "P_lroPolling",
+      "coverage": "partial",
+      "note": "Named typed operation classes (AnalyzeTextOperation)."
+    },
+    "lro-result-projection": {
+      "feature": "P_lroPolling",
+      "coverage": "partial"
+    },
+    "lro-return-type-compatibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "lro-start-model-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "CreateOrUpdate keeps accepting the previous GA's data model and converts it to the new one."
+    },
+    "lro-status-field-selection": {
+      "feature": "lro",
+      "coverage": "exists",
+      "note": "@lroStatus on the status property; adoption gap unless the status is a resource state (then state-based polling)."
+    },
+    "managed-identity-dependency-binding": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium task-graph dependency."
+    },
+    "manual-http-request-builder": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "manual-resource-operation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Delete LRO written by hand because the emitter did not attach it."
+    },
+    "mapped-writable-model-property": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Property made settable on an internal model."
+    },
+    "match-conditions-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden overloads with separate ifMatch/ifNoneMatch kept from the previous GA beside the MatchConditions overload."
+    },
+    "message-encoding-policy": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "method-forwarding-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "needs-judgment"
+    },
+    "method-overload-forwarding": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden prior-version overloads forwarding to the overload that gained optional parameters."
+    },
+    "milliseconds-timespan-property": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Spec uses int ms; declare duration with @encode(\"milliseconds\"/\"seconds\", int32).",
+      "languages": {
+        "javascript": {
+          "support": "not-applicable",
+          "confidence": "medium",
+          "note": "JS has no native duration type, so a typed duration still surfaces as number/string."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Durations are emitted as their wire type, not time.Duration.",
+          "source": "packages/typespec-go/src/tcgcadapter/types.ts"
+        }
+      }
+    },
+    "mockable-resource-accessor": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Generated resource accessor suppressed and re-implemented by hand."
+    },
+    "mockable-resource-extension-forwarder": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Subscription/ArmResource extension methods for operations the emitter did not attach to a resource."
+    },
+    "mockable-resource-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden Get forwarders kept for the previous GA method names."
+    },
+    "model-alternate-constructors": {
+      "feature": "P_modelCtors",
+      "coverage": "gap"
+    },
+    "model-collection-defensive-copy": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "model-collection-helpers": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Lookup/aggregation ergonomics."
+    },
+    "model-collection-materialization": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Protected constructor kept from the previous GA on an abstract model."
+    },
+    "model-collection-property-replacement": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened list given a clear-and-add setter."
+    },
+    "model-constructor-accessibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Protected parameterless constructors on abstract models kept from the previous GA."
+    },
+    "model-constructor-browsability": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden public parameterless constructors kept from the previous GA."
+    },
+    "model-constructor-visibility-override": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Public parameterless constructor kept from the previous GA in place of the generated one."
+    },
+    "model-copy-update-helper": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "model-deconstruction": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "model-default-value": {
+      "feature": "clientDefault",
+      "coverage": "partial",
+      "note": "Legacy @clientDefaultValue; Python not supported; nested-object defaults not covered."
+    },
+    "model-enable-flag-handling": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "model-enum-compatibility-conversion": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Implicit conversions between renamed enum types for back-compat."
+    },
+    "model-explicit-property-constructor": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden/protected constructors kept with the previous GA's parameter list."
+    },
+    "model-factory-method": {
+      "feature": "P_backCompat",
+      "coverage": "partial",
+      "note": "C# emitter generates the model factory; handwritten ones are back-compat overloads or fixed-discriminator variants.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The model factory is generated; back-compat overloads and fixed-discriminator variants of it are handwritten."
+        }
+      }
+    },
+    "model-factory-parameter-name-compatibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap"
+    },
+    "model-implicit-conversion": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "model-input-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Data-to-update-content adapter used by the handwritten tag fallback."
+    },
+    "model-json-interface-bridge": {
+      "feature": "stjConverter",
+      "coverage": "exists"
+    },
+    "model-json-serialization-bridge": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten derived types kept over renamed generated models, with JSON delegated to the base."
+    },
+    "model-property-alias": {
+      "feature": "P_propertyAlias",
+      "coverage": "partial",
+      "note": "Pure renames are @clientName; aliases kept beside the new name and computed properties are not expressible."
+    },
+    "model-property-compatibility-projection": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Legacy property projecting new ID lists onto the previous GA's SubResource arrays."
+    },
+    "model-property-mutability": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened properties re-exposed with a setter that lazily creates the envelope."
+    },
+    "model-property-readonly-dictionary-view": {
+      "feature": "P_propertyAlias",
+      "coverage": "gap"
+    },
+    "model-property-type-override": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Use the ARM common-types ManagedServiceIdentity in the spec so the shared type is emitted."
+    },
+    "model-property-typed-projection": {
+      "feature": "alternateType",
+      "coverage": "partial",
+      "note": "@alternateType on a property covers scalar swaps (string -> url); custom value types (Point, RouterValue) are not covered."
+    },
+    "model-property-wire-name": {
+      "feature": "clientName",
+      "coverage": "exists",
+      "note": "@clientName on the property keeps the wire name."
+    },
+    "model-property-wire-name-metadata": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden properties kept from the previous GA with explicit wire names."
+    },
+    "model-reader-writer-adapter": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Handwritten IPersistableModel delegating to ModelReaderWriter with the package context."
+    },
+    "model-reader-writer-context-registration": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "ModelReaderWriterBuildable entries for types the generated context omits."
+    },
+    "model-reader-writer-registration": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "ModelReaderWriterBuildable entries for ARM common types the context omits."
+    },
+    "model-readonly-collection-view": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened lists exposed as IReadOnlyList."
+    },
+    "model-request-content-conversion": {
+      "feature": "streaming",
+      "coverage": "partial",
+      "note": "NDJSON/JSONL bodies: JsonlStream is expressible but unsupported by all emitters per 13streaming.mdx.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "JSONL request bodies are sent as raw bytes; typed JSONL send is not generated.",
+          "source": "packages/typespec-python/tests/mock_api/shared/test_streaming_jsonl.py"
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "Structured streaming covers responses only; typed JSONL request bodies are not generated."
+        }
+      }
+    },
+    "model-required-properties-constructor": {
+      "feature": "P_modelCtors",
+      "coverage": "gap",
+      "note": "needs-judgment"
+    },
+    "model-surface-definition": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Handwritten data-model properties for resources kept from the previous GA (same library as the no-op writers)."
+    },
+    "model-time-range-value": {
+      "feature": "alternateType",
+      "coverage": "partial",
+      "note": "ISO 8601 interval string projected to a custom value type; not an external type today."
+    },
+    "model-to-string": {
+      "feature": "P_modelDisplay",
+      "coverage": "gap"
+    },
+    "model-type-client-factory": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Multi-call composition choosing a client from service info."
+    },
+    "model-type-extensibility": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Removes final from a generated Java model, presumably because the previous GA type was extensible.",
+      "languages": {
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "low",
+          "note": "No spec or emitter option keeps a model non-final; only Java AST customization can."
+        }
+      }
+    },
+    "model-type-rename": {
+      "feature": "clientName",
+      "coverage": "exists",
+      "note": "C#/Go CodeGenType renames of models/enums.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "high"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high"
+        }
+      }
+    },
+    "model-type-replacement": {
+      "feature": "alternateType",
+      "coverage": "partial",
+      "note": "@alternateType with external types (CloudEvent, shared types); Go/JS samples still hand-edit, and wrapper dictionaries are not an external type."
+    },
+    "model-value-equality": {
+      "feature": "P_modelDisplay",
+      "coverage": "gap",
+      "note": "C# value equality."
+    },
+    "model-wire-adapter": {
+      "feature": "P_modelProjection",
+      "coverage": "gap"
+    },
+    "multi-call-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Composes several service calls."
+    },
+    "multi-client-manager-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium manager composition."
+    },
+    "multipart-batch-request": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Batch of HTTP sub-requests (Tables/Blob batch)."
+    },
+    "multipart-form-builder": {
+      "feature": "multipart",
+      "coverage": "partial",
+      "note": "C# generates protocol-only for multipart; default filenames/optional files handwritten elsewhere."
+    },
+    "multiple-content-type-dispatch": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "Multiple content types on one op; emitters vary in choosing at runtime."
+    },
+    "nested-model-state-initialization": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Helper sets a deeply nested property, creating missing envelopes."
+    },
+    "next-link-handling": {
+      "feature": "paging",
+      "coverage": "partial",
+      "note": "Next-link/continuation-token paging exists; raw next links needing extra headers, recursive ACL continuation and header-borne tokens are handwritten."
+    },
+    "no-op-json-writer": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Empty JSON writers on a type kept for back-compat; intent not visible in the code."
+    },
+    "no-op-model-writer": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Empty JSON writers on types the service no longer returns, kept so the previous GA surface compiles."
+    },
+    "null-collection-as-empty-array": {
+      "feature": "P_serialization",
+      "coverage": "partial",
+      "note": "Writes an empty array for a null collection."
+    },
+    "null-empty-deserialization-hook": {
+      "feature": "emptyString",
+      "coverage": "partial",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "@deserializeEmptyStringAsNull covers one property; general null/empty hooks are not covered."
+        }
+      }
+    },
+    "nullable-backed-value-property": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Non-nullable getter over nullable storage."
+    },
+    "nullable-model-property-bridge": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened property exposed as nullable with lazy envelope creation."
+    },
+    "nullable-model-property-override": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened property re-exposed as nullable."
+    },
+    "nullable-response-return-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "nullable-string-conversion": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Internal helper."
+    },
+    "object-string-dictionary-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Object-valued dictionary view kept over a property that is now string-valued."
+    },
+    "odata-tagged-template": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "operation-name-alias": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden old method names forwarding to renamed generated methods."
+    },
+    "operation-options-bag": {
+      "feature": "override",
+      "coverage": "exists",
+      "note": "@override bundling the optional query parameters into an options model."
+    },
+    "operation-options-extension": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Internal kwargs helpers that only exist because the methods are handwritten."
+    },
+    "optional-credential-client": {
+      "feature": "useAuth",
+      "coverage": "exists",
+      "note": "Declare NoAuth as an @useAuth option.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "NoAuth makes the credential optional."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "NoAuth builds without a credential."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "NoAuth adds a credential-less constructor."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "NoAuth makes the credential optional."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high",
+          "note": "NewXClientWithNoCredential is generated.",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/headasboolgroup"
+        }
+      }
+    },
+    "optional-resource-get": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "ordered-flag-string-codec": {
+      "feature": "P_flags",
+      "coverage": "gap"
+    },
+    "owned-resource-disposal": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "page-size-option-alias": {
+      "feature": "override",
+      "coverage": "exists",
+      "note": "Rename/omit page-size and filter params with @clientName / @override + removeParameter.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        }
+      }
+    },
+    "pageable-construction-wrapper": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Binds the custom single-page pageables; goes with @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "pageable-operation-wrapper": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable on value-array list operations.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "pageable-projection-factory": {
+      "feature": "P_modelProjection",
+      "coverage": "gap"
+    },
+    "pageable-result-item-type-replacement": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "List item type replaced (resource vs data) by suppressing the generated signature."
+    },
+    "paged-item-model-projection": {
+      "feature": "P_modelProjection",
+      "coverage": "gap",
+      "note": "Pager items mapped to public models."
+    },
+    "paging-parameter-reorder-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Overload preserving the previous GA's top/skip parameter order."
+    },
+    "parameter-value-conversion": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Parameters typed as string in the spec; should be enum/extensible union/uuid/duration."
+    },
+    "parent-embedded-collection-pager": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Child collection served from the parent's embedded list because there is no list operation."
+    },
+    "partial-failure-reporting": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "per-page-conditional-requests": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "permission-string-codec": {
+      "feature": "P_flags",
+      "coverage": "gap"
+    },
+    "persistable-model-json-bridge": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Handwritten IPersistableModel on adapted models."
+    },
+    "polymorphic-base-type-override": {
+      "feature": "hierarchy",
+      "coverage": "exists",
+      "note": "Legacy @hierarchyBuilding."
+    },
+    "polymorphic-discriminator-handling": {
+      "feature": "P_discriminator",
+      "coverage": "gap"
+    },
+    "polymorphic-value-accessor": {
+      "feature": "P_modelDisplay",
+      "coverage": "gap",
+      "note": "Common accessor across variants; low value."
+    },
+    "prefer-header-options": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Model Prefer values as typed header parameters (enum/union) instead of a free string."
+    },
+    "preview-api-annotation": {
+      "feature": "P_preview",
+      "coverage": "partial",
+      "note": "@previewVersion marks versions, not members."
+    },
+    "primitive-request-body-adapter": {
+      "feature": "override",
+      "coverage": "exists",
+      "note": "Spread/rename the primitive body with @override.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Expressible with @clientName or a single @override signature."
+        }
+      }
+    },
+    "protocol-port-cache-projection": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium cached projection."
+    },
+    "proxy-jwt-rejection-guard": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "public-constant-definitions": {
+      "feature": "specFix",
+      "coverage": "spec-fix",
+      "note": "Expose the values as an enum/union in the spec."
+    },
+    "public-model-mapping": {
+      "feature": "P_modelProjection",
+      "coverage": "gap",
+      "note": "Wrapper converts to/from a handwritten public model (Key Vault, App Configuration, CloudEvent)."
+    },
+    "ranged-download-stream": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "raw-request-url-adapter": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Python send_request URL formatting."
+    },
+    "readonly-collection-model-member": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden read-only collection kept from the previous GA."
+    },
+    "readonly-list-property-projection": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened list exposed as IReadOnlyList."
+    },
+    "readonly-model-contract": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Editor-hidden model kept from the previous GA."
+    },
+    "realtime-signaling-bridge": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "receipt-verification": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Cryptographic verification."
+    },
+    "request-body-encoding": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "C# skips convenience for multipart, merge-patch and content-type-parameter operations."
+    },
+    "request-correlation-propagation": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "request-default-header-policy": {
+      "feature": "clientDefault",
+      "coverage": "partial",
+      "note": "Header with a default value; Legacy @clientDefaultValue (not Python)."
+    },
+    "request-gzip-compression": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Request compression is a pipeline policy; the Java comment suggests moving it to core."
+    },
+    "request-parameter-reshaping": {
+      "feature": "override",
+      "coverage": "partial",
+      "note": "Mostly @clientName on the body parameter ('request' -> 'options'); the rest @override spreads/options bags. One @override signature cannot produce nested parameter groups (Storage lease, access-condition, encryption and content-settings groups), so those stay handwritten.",
+      "languages": {
+        "python": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Renames and single replacement signatures are expressible with @clientName or @override; nested parameter groups are not."
+        },
+        "java": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Renames and single replacement signatures are expressible with @clientName or @override; nested parameter groups are not."
+        },
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Renames and single replacement signatures are expressible with @clientName or @override; nested parameter groups are not."
+        },
+        "javascript": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Renames and single replacement signatures are expressible with @clientName or @override; nested parameter groups are not."
+        },
+        "go": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "Renames and single replacement signatures are expressible with @clientName or @override; nested parameter groups are not."
+        }
+      }
+    },
+    "request-precondition-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden separate-precondition overload kept from the previous GA beside the MatchConditions overload."
+    },
+    "request-precondition-validation": {
+      "feature": "javaValidation",
+      "coverage": "partial",
+      "note": "Only Java has client-side-validations; most checks are unsupported-option rejections."
+    },
+    "required-model-properties-guard": {
+      "feature": "P_propertyShape",
+      "coverage": "partial",
+      "note": "Flattened accessors over a polymorphic properties bag that cannot be lazily created."
+    },
+    "resource-client-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-collection-iteration": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "IEnumerable/IAsyncEnumerable on a handwritten collection."
+    },
+    "resource-data-serialization-bridge": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-data-serialization-delegation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-data-to-request-content": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "CreateOrUpdate/Update keep accepting resource data and convert it to the separate request model."
+    },
+    "resource-data-type-binding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Binds each per-record-type resource to its data type (CodeGenResourceData)."
+    },
+    "resource-existence-response-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Exists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "resource-extension-forwarder": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Remapped with the management-plane review: part of the resource and collection surface the management emitter does not generate."
+    },
+    "resource-extension-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Subscription extension for an operation the emitter did not attach to a resource."
+    },
+    "resource-id-deserialization-guard": {
+      "feature": "emptyString",
+      "coverage": "exists",
+      "note": "@deserializeEmptyStringAsNull on resource-id properties; see empty-string-resource-id-deserialization."
+    },
+    "resource-id-parsing": {
+      "feature": "P_identifiers",
+      "coverage": "gap"
+    },
+    "resource-identifier-builder": {
+      "feature": "P_identifiers",
+      "coverage": "partial",
+      "note": "C# mgmt CreateResourceIdentifier for handwritten resources; ARM has armResourceIdentifier.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates CreateResourceIdentifier for resources it recognizes; handwritten for unrecognized resources and composite segments (perimeterGuid.associationName)."
+        }
+      }
+    },
+    "resource-identifier-construction": {
+      "feature": "P_identifiers",
+      "coverage": "partial",
+      "note": "C# mgmt CreateResourceIdentifier for handwritten resources; ARM has armResourceIdentifier.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "medium",
+          "note": "The mgmt emitter generates CreateResourceIdentifier for resources it recognizes; handwritten for unrecognized resources and composite segments (perimeterGuid.associationName)."
+        }
+      }
+    },
+    "resource-identifier-factory": {
+      "feature": "P_identifiers",
+      "coverage": "partial",
+      "note": "ARM has armResourceIdentifier; the factory helpers are C# mgmt."
+    },
+    "resource-identifier-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden three-argument CreateResourceIdentifier kept after a path segment was added."
+    },
+    "resource-identifier-parser": {
+      "feature": "P_identifiers",
+      "coverage": "gap"
+    },
+    "resource-identifier-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated collections."
+    },
+    "resource-identity-type-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium identity workflow."
+    },
+    "resource-list-alias-forwarder": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Previous list method names (GetDeletedWorkspaces) forwarding to the generated list methods."
+    },
+    "resource-model-conversion": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Shared data model converted to a project-scoped resource data type."
+    },
+    "resource-model-serialization-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-level IJsonModel/IPersistableModel forwarding to Data, generated for emitter-generated resources."
+    },
+    "resource-parent-type-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Debug-only id validation generated for emitter-generated collections."
+    },
+    "resource-rest-client-initialization": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-role-assignment-helper-bridge": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Fluent premium role-assignment workflow."
+    },
+    "resource-scope-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Extension resources at a fixed billing scope exposed as tenant extensions that build the scope id."
+    },
+    "resource-tag-helper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "AddTag/SetTags/RemoveTag on resources the emitter did not give tag helpers."
+    },
+    "resource-tag-management": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers choosing tag-resource vs PUT update; generated only when the update shape is recognized."
+    },
+    "resource-tag-operation-helpers": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "AddTag/SetTags/RemoveTag on resources the emitter did not give tag helpers."
+    },
+    "resource-type-api-version-lookup": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "REST-client plumbing for handwritten resource operations; goes away once they are generated."
+    },
+    "resource-type-validation": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource-type check generated for emitter-generated resources."
+    },
+    "resource-update-response-wrapper": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Resource Update written by hand to return the typed resource."
+    },
+    "response-headers-to-model": {
+      "feature": "P_responseProjection",
+      "coverage": "partial",
+      "note": "TS has include-headers-in-response; Python/Java build the result from headers by hand.",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Headers are only reachable through a cls callback; a result model built from headers is not generated."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Headers stay on Response<T>; a result model built from headers is not generated."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Headers stay on Response; a result model built from headers is not generated."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "include-headers-in-response adds headers to the result type.",
+          "source": "website/src/content/docs/docs/emitters/clients/typespec-ts/reference/emitter.md"
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Go response envelopes carry header fields alongside the body."
+        }
+      }
+    },
+    "response-metadata-placeholder": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "response-model-projection": {
+      "feature": "P_responseProjection",
+      "coverage": "gap",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Per-status values and envelope projection are not expressible."
+        }
+      }
+    },
+    "response-reshaping": {
+      "feature": "P_responseProjection",
+      "coverage": "partial",
+      "note": "@responseAsBool covers the HEAD cases (not Go); envelope unwrapping, header projection and 304 -> None are not expressible."
+    },
+    "response-value-existence-check": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Exists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "rest-client-api-version-selection": {
+      "feature": "apiVersion",
+      "coverage": "partial",
+      "note": "Different api-versions per operation group in one package are not expressible."
+    },
+    "retry-policy-tuning": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Retry classifiers and backoff are runtime policy."
+    },
+    "reverse-proxy-endpoint": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "sas-token-generation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "SAS signing is runtime crypto; see shared-key-request-signing for the auth scheme."
+    },
+    "schema-validator-extension-contract": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "scoped-collection-get-forwarding": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Get-by-name shortcuts on each scope for a multi-scope resource collection."
+    },
+    "scoped-subclient-factory": {
+      "feature": "clientInit",
+      "coverage": "exists",
+      "note": "Sub-client accessors with parameters via @clientInitialization(initializedBy parent).",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "medium",
+          "note": "Parent-initialized sub-clients with parameters are NOT_SUPPORTED and the parent/child test is commented out.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/03client.mdx"
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Parent getters are generated with enable-subclient.",
+          "source": "website/src/content/docs/docs/howtos/Generate client libraries/03client.mdx"
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Parent accessors with parameters are generated."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "low",
+          "note": "Doc tab is TODO; parent accessors assumed generated."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "high",
+          "source": "packages/typespec-go/test/azure-http-specs/azure/client-generator-core/client-initialization/clientinitindividuallyparentgroup"
+        }
+      }
+    },
+    "server-host-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Hosted server framework, not a client."
+    },
+    "service-certificate-trust-validation": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "TLS trust and certificate pinning."
+    },
+    "shared-key-credential-type": {
+      "feature": "P_authSchemes",
+      "coverage": "gap"
+    },
+    "shared-key-request-signing": {
+      "feature": "P_authSchemes",
+      "coverage": "gap"
+    },
+    "single-page-array-adapter": {
+      "feature": "paging",
+      "coverage": "partial",
+      "note": "Response root is a bare JSON array; @markAsPageable needs an items property, so a spec change is also needed.",
+      "languages": {
+        "dotnet": {
+          "support": "partial",
+          "confidence": "low",
+          "note": "@markAsPageable covers value-wrapped lists; a bare top-level array response is not covered."
+        }
+      }
+    },
+    "single-page-pageable": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "single-page-pageable-adapter": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "single-response-pageable-adapter": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "single-response-terminal-pager": {
+      "feature": "paging",
+      "coverage": "exists",
+      "note": "Legacy @markAsPageable.",
+      "languages": {
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Legacy @markAsPageable makes a single-page list pageable."
+        }
+      }
+    },
+    "singleton-resource-lifecycle": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "snapshot-lifecycle-contract": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Hosted server framework extension points."
+    },
+    "sse-keepalive-writer": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Server-side SSE writer."
+    },
+    "sse-typed-event-stream": {
+      "feature": "streaming",
+      "coverage": "partial",
+      "note": "SSEStream expressible; all five emitter tabs say unsupported.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed SSE responses are generated per emitter tests.",
+          "source": "packages/typespec-python/tests/mock_api/shared/test_streaming_sse.py"
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Typed SSE responses (AsyncIterable) are generated per emitter tests.",
+          "source": "packages/typespec-ts/test/modular-unit/scenarios/operations/streaming.md"
+        }
+      }
+    },
+    "state-based-polling": {
+      "feature": "P_lroPolling",
+      "coverage": "gap",
+      "languages": {
+        "python": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "java": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "dotnet": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "javascript": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        },
+        "go": {
+          "support": "emitter-gap",
+          "confidence": "high",
+          "note": "Not expressible with Azure.Core LRO metadata."
+        }
+      }
+    },
+    "status-specific-error-translation": {
+      "feature": "P_errors",
+      "coverage": "gap"
+    },
+    "status-to-nullable-response": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "GetIfExists on a handwritten collection; generated for collections the emitter recognizes."
+    },
+    "stream-request-content-overload": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "note": "Stream overload beside the typed one.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Python already emits an IO[bytes] overload beside the typed body."
+        }
+      }
+    },
+    "stream-session-telemetry": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "string-etag-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String If-Match overloads kept from the previous GA beside the generated ETag overloads."
+    },
+    "string-location-overload-adapter": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden string-location overloads kept beside the AzureLocation-typed ones."
+    },
+    "string-precondition-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "String If-Match/If-None-Match overloads kept from the previous GA beside the generated ETag/MatchConditions overloads."
+    },
+    "string-to-guid-operation-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden string overloads kept beside the Guid-typed subscription parameter."
+    },
+    "subclient-accessor": {
+      "feature": "clientInit",
+      "coverage": "exists",
+      "note": "Operation-group getter missing from the Java client interface; generated for declared groups.",
+      "languages": {
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Operation-group getters are generated on the client interface for declared groups."
+        }
+      }
+    },
+    "tag-resource-unsupported-update-fallback": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Tag helpers for resources without a PATCH; generated only when the update shape is recognized."
+    },
+    "telemetry-metrics-pipeline-lifecycle": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
+    "telemetry-model-projection": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Runtime telemetry objects to wire models; service-specific logic."
+    },
+    "telemetry-outcome-counters": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
+    "telemetry-reason-classification": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Exporter self-telemetry."
+    },
+    "traced-convenience-method": {
+      "feature": "tracing",
+      "coverage": "exists",
+      "note": "Goes away when the wrapped method is generated."
+    },
+    "tracing-configuration-composition": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "needs-judgment"
+    },
+    "transfer-limit-constants": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "typed-argument-overload": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "AzureLocation overload of CreateResourceIdentifier beside the string one; likely a previous-GA signature."
+    },
+    "typed-collection-paging-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Per-record-type collection over one list operation parameterized by record type."
+    },
+    "typed-delete-operation": {
+      "feature": "convenience",
+      "coverage": "partial",
+      "note": "Typed convenience missing for one mgmt delete."
+    },
+    "typed-model-deserialization-hooks": {
+      "feature": "P_csharpModelSerialization",
+      "coverage": "partial",
+      "note": "Protected model-typed create hooks added beside the generated deserializer."
+    },
+    "typed-pageable-adapter": {
+      "feature": "P_armResourceModel",
+      "coverage": "partial",
+      "note": "Suppressed list signatures re-implemented over the generated collection result."
+    },
+    "typed-pageable-construction": {
+      "feature": "P_backCompat",
+      "coverage": "gap",
+      "note": "Hidden typed pageable methods kept with the previous GA signature."
+    },
+    "typed-path-parameter-replacement": {
+      "feature": "alternateType",
+      "coverage": "exists",
+      "note": "@alternateType on a parameter.",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@alternateType on a parameter swaps the scalar type."
+        },
+        "java": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@alternateType on a parameter swaps the scalar type."
+        },
+        "dotnet": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@alternateType on a parameter swaps the scalar type."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@alternateType on a parameter swaps the scalar type."
+        },
+        "go": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "@alternateType on a parameter swaps the scalar type."
+        }
+      }
+    },
+    "typed-resource-identifier-factory": {
+      "feature": "P_identifiers",
+      "coverage": "partial"
+    },
+    "union-json-codec": {
+      "feature": "P_unionsCSharp",
+      "coverage": "gap",
+      "note": "C# only."
+    },
+    "union-option-model": {
+      "feature": "P_overloads",
+      "coverage": "gap",
+      "languages": {
+        "python": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as Union parameters, so no separate overloads are needed."
+        },
+        "javascript": {
+          "support": "supported",
+          "confidence": "medium",
+          "note": "Union-typed inputs are emitted as union parameters, so no separate overloads are needed."
+        }
+      }
+    },
+    "unsupported-operation-error": {
+      "feature": "access",
+      "coverage": "exists",
+      "note": "Drop the operation for the language with @scope instead of throwing."
+    },
+    "url-component-encoding": {
+      "feature": "NG",
+      "coverage": "not-generator",
+      "note": "Service-specific key escaping."
+    },
+    "user-agent-customization": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "validated-range-factory": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "value-parsing-helper": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "websocket-session-lifecycle": {
+      "feature": "NG",
+      "coverage": "not-generator"
+    },
+    "wire-public-model-adapter": {
+      "feature": "P_modelProjection",
+      "coverage": "gap"
+    }
+  }
+}

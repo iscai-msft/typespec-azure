@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 1,
+  "id": "b9909aa1-26f7-4344-8ef6-24740ad53550",
+  "observedAt": "2026-10-24T03:33:37.741Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/security/keyvault/azadmin"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "ac3556be3f0a18fc7b8af86de897fd06ff8a1f40"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 82,
+    "eligibleFiles": 45,
+    "capturedFiles": 8,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage backup\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"net/http\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/backup/internal/pollers\"\n\tainternal \"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/internal\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewClient creates a client that performs backup and restore operations for a Managed HSM.\n// You should validate that vaultURL references a valid Managed HSM. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(ainternal.ModuleName, ainternal.Version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n\n// ErrorInfo - Internal error from Azure Key Vault server.\ntype ErrorInfo struct {\n\t// REQUIRED; A machine readable error code.\n\tCode string\n\n\t// full error message detailing why the operation failed.\n\tdata []byte\n}\n\n// UnmarshalJSON implements the json.Unmarshaller interface for type Error.\nfunc (e *ErrorInfo) UnmarshalJSON(data []byte) error {\n\te.data = data\n\tei := struct{ Code string }{}\n\tif err := json.Unmarshal(data, &ei); err != nil {\n\t\treturn fmt.Errorf(\"unmarshalling type %T: %v\", e, err)\n\t}\n\te.Code = ei.Code\n\n\treturn nil\n}\n\n// Error implements a custom error for type ServerError.\n// Returns full error message\nfunc (e *ErrorInfo) Error() string {\n\treturn string(e.data)\n}\n\n// getHandler returns the correct custom handler for Restore operations\nfunc getHandler[T any](pipeline runtime.Pipeline, resp *http.Response, finalState runtime.FinalStateVia) (runtime.PollingHandler[T], error) {\n\t// if fake, don't return a handler\n\t// that way, runtime.NewPoller will set the poller to use the fake handler\n\tif resp != nil && resp.Header.Get(\"Fake-Poller-Status\") != \"\" {\n\t\treturn nil, nil\n\t}\n\n\t// return custom restore handler\n\treturn pollers.NewRestorePoller[T](pipeline, resp, finalState)\n}\n\n// beginPreFullRestore is a custom implementation of BeginFullRestore\n// Uses custom poller handler\nfunc (client *Client) beginPreFullRestore(ctx context.Context, preRestoreOperationParameters PreRestoreOperationParameters, options *BeginPreFullRestoreOptions) (*runtime.Poller[PreFullRestoreResponse], error) {\n\tif options == nil || options.ResumeToken == \"\" {\n\t\tresp, err := client.preFullRestore(ctx, preRestoreOperationParameters, options)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\thandler, err := getHandler[PreFullRestoreResponse](client.internal.Pipeline(), resp, runtime.FinalStateViaAzureAsyncOp)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tpoller, err := runtime.NewPoller(resp, client.internal.Pipeline(), &runtime.NewPollerOptions[PreFullRestoreResponse]{\n\t\t\tFinalStateVia: runtime.FinalStateViaAzureAsyncOp,\n\t\t\tHandler:       handler,\n\t\t\tTracer:        client.internal.Tracer(),\n\t\t})\n\t\treturn poller, err\n\t} else {\n\t\thandler, err := getHandler[PreFullRestoreResponse](client.internal.Pipeline(), nil, \"\")\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\treturn runtime.NewPollerFromResumeToken(options.ResumeToken, client.internal.Pipeline(), &runtime.NewPollerFromResumeTokenOptions[PreFullRestoreResponse]{\n\t\t\tHandler: handler,\n\t\t\tTracer:  client.internal.Tracer(),\n\t\t})\n\t}\n}\n\n// beginFullRestore is a custom implementation of BeginFullRestore\n// Uses custom poller handler\nfunc (client *Client) beginFullRestore(ctx context.Context, restoreBlobDetails RestoreOperationParameters, options *BeginFullRestoreOptions) (*runtime.Poller[FullRestoreResponse], error) {\n\tif options == nil || options.ResumeToken == \"\" {\n\t\tresp, err := client.fullRestore(ctx, restoreBlobDetails, options)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\thandler, err := getHandler[FullRestoreResponse](client.internal.Pipeline(), resp, runtime.FinalStateViaAzureAsyncOp)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tpoller, err := runtime.NewPoller(resp, client.internal.Pipeline(), &runtime.NewPollerOptions[FullRestoreResponse]{\n\t\t\tHandler: handler,\n\t\t\tTracer:  client.internal.Tracer(),\n\t\t})\n\t\treturn poller, err\n\t} else {\n\t\thandler, err := getHandler[FullRestoreResponse](client.internal.Pipeline(), nil, \"\")\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\treturn runtime.NewPollerFromResumeToken(options.ResumeToken, client.internal.Pipeline(), &runtime.NewPollerFromResumeTokenOptions[FullRestoreResponse]{\n\t\t\tHandler: handler,\n\t\t\tTracer:  client.internal.Tracer(),\n\t\t})\n\t}\n}\n\n// beginSelectiveKeyRestore is a custom implementation of BeginFullRestore\n// Uses custom poller handler\nfunc (client *Client) beginSelectiveKeyRestore(ctx context.Context, keyName string, restoreBlobDetails SelectiveKeyRestoreOperationParameters, options *BeginSelectiveKeyRestoreOptions) (*runtime.Poller[SelectiveKeyRestoreResponse], error) {\n\tif options == nil || options.ResumeToken == \"\" {\n\t\tresp, err := client.selectiveKeyRestore(ctx, keyName, restoreBlobDetails, options)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\thandler, err := getHandler[SelectiveKeyRestoreResponse](client.internal.Pipeline(), resp, runtime.FinalStateViaAzureAsyncOp)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tpoller, err := runtime.NewPoller(resp, client.internal.Pipeline(), &runtime.NewPollerOptions[SelectiveKeyRestoreResponse]{\n\t\t\tHandler: handler,\n\t\t\tTracer:  client.internal.Tracer(),\n\t\t})\n\t\treturn poller, err\n\t} else {\n\t\thandler, err := getHandler[SelectiveKeyRestoreResponse](client.internal.Pipeline(), nil, \"\")\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\treturn runtime.NewPollerFromResumeToken(options.ResumeToken, client.internal.Pipeline(), &runtime.NewPollerFromResumeTokenOptions[SelectiveKeyRestoreResponse]{\n\t\t\tHandler: handler,\n\t\t\tTracer:  client.internal.Tracer(),\n\t\t})\n\t}\n}\n",
+      "contentHash": "1014e9fa9d79ed449b985bd65ac5886bb8bf60964f597db1bee3da398f38a533",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/backup/custom_client.go",
+      "startLine": 1,
+      "endLine": 185,
+      "kind": "unknown",
+      "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\nfunc init() {\n\tserverTransportInterceptor = &internal.FakeChallenge{}\n}\n",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/backup/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "ba6ccc15d97fc6ec4712c5b1bb5ec6921628ca9f25ad1639ef53cb33afc18fac"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/ekm/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage ekm\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\tainternal \"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/internal\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// ClientOptions contains optional settings for KeyVaultClient.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewClient creates a client that manages External Key Manager (EKM) connections for a Managed HSM.\n// You should validate that vaultURL references a valid Managed HSM. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*KeyVaultClient, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(ainternal.ModuleName, ainternal.Version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &KeyVaultClient{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n",
+      "contentHash": "6150f481d735fb61371d5c7bc047dda09a8bbd24dfadc2638288808849bf3b91",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/ekm/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "kind": "unknown",
+      "id": "7a191e3cf5763cac9a494341474f2e88d24af36763f5c4dbc4e3a88f92647fa7"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/rbac/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage rbac\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\tainternal \"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/internal\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewClient creates a client that manages role-based access for a Managed HSM.\n// You should validate that vaultURL references a valid Managed HSM. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(ainternal.ModuleName, ainternal.Version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n",
+      "contentHash": "4c0c71b18168ad5ab8e4763ae6b59e86565ef441d8f570b51a3ba8fd14ec996d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/rbac/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "kind": "unknown",
+      "id": "98de25c16291f23fdd12fb38ccaf478c9f1fce0d0398b78331f4e151b9353772"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/rbac/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\nfunc init() {\n\tserverTransportInterceptor = &internal.FakeChallenge{}\n}\n",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/rbac/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "3e444192b5e398fba33e09a8e98dd3ae330073e51c9b5af7420a2398e7cb407b"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/settings/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage settings\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\tainternal \"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/internal\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// this file contains handwritten additions to the generated code\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewClient creates a client that provides methods to update, get, and list settings for a Managed HSM.\n// You should validate that vaultURL references a valid Managed HSM. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(ainternal.ModuleName, ainternal.Version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n",
+      "contentHash": "b5d52a3468479c7e932dd53be8b5c7c2dbbd33a74a3403a7db07eba21cbe3678",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/settings/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "kind": "unknown",
+      "id": "b3086900ce4449b8b056ea9328f1f5fa3bf8744d92da1b0a2870631c915b9cde"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/settings/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\nfunc init() {\n\tserverTransportInterceptor = &internal.FakeChallenge{}\n}\n",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/settings/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "21d02959267c717d472d9919f37c1eabb3682acaf06bd7444dc368f17594cbfc"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/internal/pollers/restore_poller.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage pollers\n\n// this file contains handwritten additions to the generated code\n// custom poller handler for restore operations\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"net/http\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/internal/poller\"\n)\n\nfunc pollHelper(ctx context.Context, endpoint string, pl runtime.Pipeline, update func(resp *http.Response) (string, error)) error {\n\treq, err := runtime.NewRequest(ctx, http.MethodGet, endpoint)\n\tif err != nil {\n\t\treturn err\n\t}\n\tresp, err := pl.Do(req)\n\tif err != nil {\n\t\treturn err\n\t}\n\t_, err = update(resp)\n\tif err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\nfunc resultHelper[T any](resp *http.Response, failed bool, out *T) error {\n\t// short-circuit the simple success case with no response body to unmarshal\n\tif resp.StatusCode == http.StatusNoContent {\n\t\treturn nil\n\t}\n\n\tdefer func() {\n\t\t_ = resp.Body.Close()\n\t}()\n\tif !poller.StatusCodeValid(resp) || failed {\n\t\t// the LRO failed.  unmarshall the error and update state\n\t\treturn runtime.NewResponseError(resp)\n\t}\n\n\t// success case\n\tpayload, err := runtime.Payload(resp)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif len(payload) == 0 {\n\t\treturn nil\n\t}\n\n\tif err = json.Unmarshal(payload, out); err != nil {\n\t\treturn err\n\t}\n\treturn nil\n}\n\n// Poller is an LRO poller that uses the Azure-AsyncOperation pattern.\ntype restorePoller[T any] struct {\n\tpl runtime.Pipeline\n\n\tresp *http.Response\n\n\t// The URL from Azure-AsyncOperation header.\n\tAsyncURL string `json:\"asyncURL\"`\n\n\t// The URL from Location header.\n\tLocURL string `json:\"locURL\"`\n\n\t// The URL from the initial LRO request.\n\tOrigURL string `json:\"origURL\"`\n\n\t// The HTTP method from the initial LRO request.\n\tMethod string `json:\"method\"`\n\n\t// The value of final-state-via from swagger, can be the empty string.\n\tFinalState runtime.FinalStateVia `json:\"finalState\"`\n\n\t// The LRO's current state.\n\tCurState string `json:\"state\"`\n}\n\n// NewRestorePoller creates a new Poller from the provided initial response and final-state type.\n// Pass nil for response to create an empty Poller for rehydration.\nfunc NewRestorePoller[T any](pl runtime.Pipeline, resp *http.Response, finalState runtime.FinalStateVia) (*restorePoller[T], error) {\n\tif resp == nil {\n\t\treturn &restorePoller[T]{pl: pl}, nil\n\t}\n\tasyncURL := resp.Header.Get(\"Azure-AsyncOperation\")\n\tif asyncURL == \"\" {\n\t\treturn nil, errors.New(\"response is missing Azure-AsyncOperation header\")\n\t}\n\tif !poller.IsValidURL(asyncURL) {\n\t\treturn nil, fmt.Errorf(\"invalid polling URL %s\", asyncURL)\n\t}\n\t// check for provisioning state.  if the operation is a RELO\n\t// and terminates synchronously this will prevent extra polling.\n\t// it's ok if there's no provisioning state.\n\tstate, _ := poller.GetProvisioningState(resp)\n\tif state == \"\" {\n\t\tstate = poller.StatusInProgress\n\t}\n\tp := &restorePoller[T]{\n\t\tpl:         pl,\n\t\tresp:       resp,\n\t\tAsyncURL:   asyncURL,\n\t\tLocURL:     resp.Header.Get(\"Location\"),\n\t\tOrigURL:    resp.Request.URL.String(),\n\t\tMethod:     resp.Request.Method,\n\t\tFinalState: finalState,\n\t\tCurState:   state,\n\t}\n\treturn p, nil\n}\n\n// Done returns true if the LRO is in a terminal state.\nfunc (p *restorePoller[T]) Done() bool {\n\treturn poller.IsTerminalState(p.CurState)\n}\n\n// Poll retrieves the current state of the LRO.\nfunc (p *restorePoller[T]) Poll(ctx context.Context) (*http.Response, error) {\n\terr := pollHelper(ctx, p.AsyncURL, p.pl, func(resp *http.Response) (string, error) {\n\t\tif !poller.StatusCodeValid(resp) {\n\t\t\tp.resp = resp\n\t\t\treturn \"\", runtime.NewResponseError(resp)\n\t\t}\n\t\tstate, err := poller.GetStatus(resp)\n\t\tif err != nil {\n\t\t\treturn \"\", err\n\t\t} else if state == \"\" {\n\t\t\treturn \"\", errors.New(\"the response did not contain a status\")\n\t\t}\n\t\tp.resp = resp\n\t\tp.CurState = state\n\t\treturn p.CurState, nil\n\t})\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn p.resp, nil\n}\n\nfunc (p *restorePoller[T]) Result(ctx context.Context, out *T) error {\n\tif p.resp.StatusCode == http.StatusNoContent {\n\t\treturn nil\n\t} else if poller.Failed(p.CurState) {\n\t\treturn runtime.NewResponseError(p.resp)\n\t}\n\n\treturn resultHelper(p.resp, poller.Failed(p.CurState), out)\n}\n",
+      "contentHash": "a2434e8f144015832eb95f6d6ecbde84505991ae1235151308265070a9c1579e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/backup/internal/pollers/restore_poller.go",
+      "startLine": 1,
+      "endLine": 160,
+      "kind": "unknown",
+      "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Administration/BackupRestore\ncommit: 3da218c900a6ee02ec0c23c53dc7004c515d221b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n- specification/keyvault/data-plane/Administration/common/\n",
+      "contentHash": "f700bb7b9363f068b09be8c19f00d8fc6c0d907203124ca90ea73773d6c9511e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/backup/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/ekm/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Administration/EKM\ncommit: 3da218c900a6ee02ec0c23c53dc7004c515d221b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n- specification/keyvault/data-plane/Administration/common/\n",
+      "contentHash": "5ccdef592963a9dd5f6ba155125e03d4c26c1710946fd7a1071e5e960567eec8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/ekm/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys v1.5.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal v1.2.0\n\tgithub.com/google/uuid v1.6.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "54aff7f6d953f6656a6b85e7f6a055bc489d7060fcc5f40f24ca9a9ba383ca45",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/go.mod"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/rbac/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Administration/RBAC\ncommit: 3da218c900a6ee02ec0c23c53dc7004c515d221b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n- specification/keyvault/data-plane/Administration/common/\n",
+      "contentHash": "bc07595f64fb81197557f7c63d879e4d293ad33055a0ee0d8a76059bff73f192",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/rbac/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/README.md",
+      "text": "# Azure KeyVault Administration client module for Go\n\n>**Note:** The Administration module only works with [Managed HSM][managed_hsm] – functions targeting a Key Vault will fail.\n\n* Managed HSM administration (this module) - role-based access control (RBAC), settings, vault-level backup and restore options, and External Key Manager (EKM) connection management\n* Certificate management ([azcertificates](https://aka.ms/azsdk/go/keyvault-certificates/docs)) - create, manage, and deploy public and private SSL/TLS certificates\n* Cryptographic key management ([azkeys](https://aka.ms/azsdk/go/keyvault-keys/docs)) - create, store, and control access to the keys used to encrypt your data\n* Secrets management ([azsecrets](https://aka.ms/azsdk/go/keyvault-secrets/docs)) - securely store and control access to tokens, passwords, certificates, API keys, and other secrets\n\nAzure Key Vault Managed HSM is a fully-managed, highly-available, single-tenant, standards-compliant cloud service that enables you to safeguard\ncryptographic keys for your cloud applications using FIPS 140-2 Level 3 validated HSMs.\n\nThe Azure Key Vault administration library clients support administrative tasks such as full backup / restore, key-level role-based access control (RBAC), settings management, and External Key Manager (EKM) connection management.\n\n[Source code][azadmin_repo] | [Package (pkg.go.dev)][azadmin_pkg_go]| [Product documentation][managed_hsm_docs] | Samples ([backup][azadmin_pkg_go_samples_backup], [rbac][azadmin_pkg_go_samples_rbac], [settings][azadmin_pkg_go_samples_settings], ekm - TBD)\n\n## Getting started\n\n### Install the package\n\nInstall `azadmin` and `azidentity` with `go get`:\n```\ngo get github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n[azidentity][azure_identity] is used for Azure Active Directory authentication. It creates a credential which is passed to the client contructor as shown in the examples below.\n\n\n### Prerequisites\n\n* An [Azure subscription][azure_sub].\n* A supported Go version (the Azure SDK supports the two most recent Go releases)\n* An existing [Key Vault Managed HSM][managed_hsm]. If you need to create one, you can do so [using the Azure CLI][create_managed_hsm].\n\n### Authentication\n\nThis document demonstrates using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate. This credential type works in both local development and production environments. We recommend using a [managed identity][managed_identity] in production.\n\nThe clients accept any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\n#### Create a client\n\nConstructing the client also requires your Managed HSM's URL, which you can get from the Azure CLI or the Azure Portal.\n\n- [Example backup client](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/backup#example-NewClient)\n- [Example rbac client][azadmin_pkg_go_samples_rbac]\n- [Example settings client](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/settings#example-NewClient)\n- Example ekm client - TBD\n\n## Key concepts\n\n### RoleDefinition\n\nA `RoleDefinition` is a collection of permissions. A role definition defines the operations that can be performed, such as read, write, and delete. It can also define the operations that are excluded from allowed operations.\n\nA `RoleDefinition` can be listed and specified as part of a `RoleAssignment`.\n\n### RoleAssignment\n\nA `RoleAssignment` is the association of a RoleDefinition to a service principal. They can be created, listed, fetched individually, and deleted.\n\n### rbac.Client\n\nAn `rbac.Client` manages `RoleDefinition` and `RoleAssignment` types.\n\n### backup.Client\n\nA `backup.Client` performs full key backups, full key restores, and selective key restores.\n\n### settings.Client\n\nA `settings.Client` provides methods to update, get, and list settings for a Managed HSM.\n\n### ekm.KeyVaultClient\n\nAn `ekm.KeyVaultClient` manages the External Key Manager (EKM) connection on a Managed HSM. Use it to configure the proxy through which the HSM accesses externally-managed keys, to retrieve the client certificate the HSM presents to the proxy, and to verify connectivity to the proxy.\n\n## Examples\n\nGet started with our examples:\n- [backup][azadmin_pkg_go_samples_backup]  \n- [rbac][azadmin_pkg_go_samples_rbac]\n- [settings][azadmin_pkg_go_samples_settings]\n- ekm - TBD\n\n## Troubleshooting\n\n### Error Handling\n\nAll methods which send HTTP requests return `*azcore.ResponseError` when these requests fail. `ResponseError` has error details and the raw response from Key Vault.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\nsettings, err := client.GetSettings(context.Background(), nil)\nif err != nil {\n    var httpErr *azcore.ResponseError\n    if errors.As(err, &httpErr) {\n        // TODO: investigate httpErr\n    } else {\n        // TODO: not an HTTP error\n    }\n}\n```\n\n### Logging\n\nThis module uses the logging implementation in `azcore`. To turn on logging for all Azure SDK modules, set `AZURE_SDK_GO_LOGGING` to `all`. By default the logger writes to stderr. Use the `azcore/log` package to control log output. For example, logging only HTTP request and response events, and printing them to stdout:\n\n```go\nimport azlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n\n// Print log events to stdout\nazlog.SetListener(func(cls azlog.Event, msg string) {\n\tfmt.Println(msg)\n})\n\n// Includes only requests and responses in logs\nazlog.SetEvents(azlog.EventRequest, azlog.EventResponse)\n```\n\n### Accessing `http.Response`\n\nYou can access the raw `*http.Response` returned by Key Vault using the `runtime.WithCaptureResponse` method and a context passed to any client method.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\nvar response *http.Response\nctx := runtime.WithCaptureResponse(context.TODO(), &response)\n_, err = client.GetSettings(context.Background(), nil)\nif err != nil {\n    // TODO: handle error\n}\n// TODO: do something with response\n```\n\n## Contributing\n\nThis project welcomes contributions and suggestions.  Most contributions require\nyou to agree to a Contributor License Agreement (CLA) declaring that you have\nthe right to, and actually do, grant us the rights to use your contribution. For\ndetails, visit <https://cla.microsoft.com>.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct].\nFor more information see the [Code of Conduct FAQ][coc_faq]\nor contact opencode@microsoft.com with any\nadditional questions or comments.\n\n<!-- LINKS -->\n[azadmin_repo]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/security/keyvault/azadmin\n[azadmin_pkg_go]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin\n[azadmin_pkg_go_samples_backup]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/backup#pkg-examples\n[azadmin_pkg_go_samples_rbac]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/rbac#pkg-examples\n[azadmin_pkg_go_samples_settings]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azadmin/settings#pkg-examples\n[azure_identity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[azure_sub]: https://azure.microsoft.com/free\n[create_managed_hsm]: https://learn.microsoft.com/azure/key-vault/managed-hsm/quick-create-cli\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[default_cred_ref]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity#defaultazurecredential\n[managed_hsm]: https://learn.microsoft.com/azure/key-vault/managed-hsm/overview\n[managed_hsm_docs]: https://learn.microsoft.com/azure/key-vault/managed-hsm/\n[managed_identity]: https://learn.microsoft.com/azure/active-directory/managed-identities-azure-resources/overview\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n\n",
+      "contentHash": "04d8b60d3c83709bfe3e3c4debd9d5ef6b4b70b98e53b7d35488e9984c2ce3cf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/README.md"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/settings/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Administration/Settings\ncommit: 3da218c900a6ee02ec0c23c53dc7004c515d221b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n- specification/keyvault/data-plane/Administration/common/\n",
+      "contentHash": "f250eba8c5d01773c4d018ddb35ff590f3b4f8abf9480064ad56e3bc1ec52b61",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azadmin/settings/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "03f88a7b1b5abc141464fbbed4f287ed96a28b7c4e3e89b32ecfa089970a03d0",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "c9d892d50fbe154e70ee12738b67e985d0c5a88d372ab284eb591accefb3e6a9",
+        "category": "Auth",
+        "subtype": "Build the backup client with a configurable Key Vault challenge policy",
+        "explanation": "backup.NewClient defaults nil options, forwards DisableChallengeResourceVerification to NewKeyVaultChallengePolicy and installs that policy PerRetry in azcore.NewClient. It configures the api-version query parameter and Microsoft.KeyVault tracing namespace, then retains vaultURL and the azcore client. This wires an imported policy rather than implementing its challenge algorithm.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "custom_client.go explicitly identifies handwritten additions and provides the complete constructor and option declaration without a generated header.",
+        "symbols": [
+          "backup.NewClient"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 22,
+            "endLine": 58
+          }
+        ]
+      },
+      {
+        "key": "93f25e73ce887d249d6450f9a7a0235c8e71e35f5644bcb6edf949783dae1af0",
+        "category": "Auth",
+        "subtype": "Build the EKM client with configurable challenge resource verification",
+        "explanation": "ekm.NewClient defaults options and builds the shared challenge policy with the exposed verification-disable flag. It registers that policy PerRetry, sets api-version query placement and Microsoft.KeyVault tracing, propagates azcore client creation errors and constructs KeyVaultClient with vaultURL. Shared authentication internals are absent.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The custom file explicitly labels itself handwritten and contains executable constructor wiring outside generated files.",
+        "symbols": [
+          "ekm.NewClient"
+        ],
+        "evidence": [
+          {
+            "id": "7a191e3cf5763cac9a494341474f2e88d24af36763f5c4dbc4e3a88f92647fa7",
+            "startLine": 16,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "e90daa17f65637fa4f17a3c7608e0e5aef7d3d6fa1108c54faa205ed7ac59744",
+        "category": "Auth",
+        "subtype": "Build the RBAC client with the shared challenge policy and option forwarding",
+        "explanation": "rbac.NewClient accepts the verification-disable option, builds a Key Vault challenge policy, adds it PerRetry and initializes the azcore client with api-version query handling and Microsoft.KeyVault tracing. It returns a client retaining vaultURL. The constructor has no visible vault-URL validation despite the caller-directed documentation.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The supplied complete custom_client.go explicitly declares handwritten additions and shows the concrete constructor.",
+        "symbols": [
+          "rbac.NewClient"
+        ],
+        "evidence": [
+          {
+            "id": "98de25c16291f23fdd12fb38ccaf478c9f1fce0d0398b78331f4e151b9353772",
+            "startLine": 16,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "cd42dc3703723fb1280ae5138a0736e4bedf21a5c02c87c9238adf22dacc0a50",
+        "category": "Auth",
+        "subtype": "Build the settings client with shared challenge authentication",
+        "explanation": "settings.NewClient defaults nil options and passes DisableChallengeResourceVerification to the imported challenge-policy constructor. The policy becomes a PerRetry pipeline policy; API-version query handling, module metadata and tracing namespace are configured before constructing the client. The policy's actual challenge validation/token behavior is not supplied.",
+        "pattern": "challenge-auth-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The custom source explicitly marks its additions handwritten and supplies the whole constructor.",
+        "symbols": [
+          "settings.NewClient"
+        ],
+        "evidence": [
+          {
+            "id": "b3086900ce4449b8b056ea9328f1f5fa3bf8744d92da1b0a2870631c915b9cde",
+            "startLine": 14,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "49ff007f462949272c88f726827d669ebd2fd6f75e9623cb1f382de7fcc89ae8",
+        "category": "Retry / error handling",
+        "subtype": "Retain raw error JSON while decoding the error code",
+        "explanation": "ErrorInfo.UnmarshalJSON assigns the input byte slice to its private data field, decodes a temporary Code field with encoding/json and assigns Code after successful decoding. Parse errors are formatted with the receiver type. The raw slice is retained directly, not defensively copied.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The method is in the explicitly handwritten backup custom-client file alongside the custom ErrorInfo declaration.",
+        "symbols": [
+          "ErrorInfo.UnmarshalJSON"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 60,
+            "endLine": 79
+          }
+        ]
+      },
+      {
+        "key": "f1e2cfdb232afc081587b31add6119b054b5764f79a995e09436799357e3d24c",
+        "category": "Retry / error handling",
+        "subtype": "Expose the retained error payload through the error interface",
+        "explanation": "ErrorInfo.Error returns string(e.data), exposing the entire retained payload rather than selecting a Message or Code field. The supplied file does not show how generated operation responses instantiate ErrorInfo.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete error-interface method appears in the explicitly handwritten custom-client file.",
+        "symbols": [
+          "ErrorInfo.Error"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 81,
+            "endLine": 85
+          }
+        ]
+      },
+      {
+        "key": "6bf2c22fa8ee135c8e57e7fa763b859b5dd29fe43394e9cbff22563a168f5dcd",
+        "category": "LRO / polling",
+        "subtype": "Use the custom restore handler for new and resumed pre-full restore operations",
+        "explanation": "beginPreFullRestore initiates preFullRestore when no resume token is supplied, obtains the shared custom handler and constructs runtime.NewPoller with AzureAsyncOp final-state routing, handler and tracer. Otherwise it creates an empty-response handler and calls NewPollerFromResumeToken with handler and tracer. getHandler returns nil for a Fake-Poller-Status response, otherwise NewRestorePoller.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The custom file explicitly says handwritten additions and the method supplies concrete custom handler wiring rather than only a generated Begin return type.",
+        "symbols": [
+          "Client.beginPreFullRestore"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 87,
+            "endLine": 127
+          }
+        ]
+      },
+      {
+        "key": "f455df746cec435b1d8b8f054463aa5eee93b15840ae39577c2663d0470d2ed6",
+        "category": "LRO / polling",
+        "subtype": "Wire the restore poller into full restore initiation and resumption",
+        "explanation": "beginFullRestore invokes fullRestore for a new operation, requests getHandler with AzureAsyncOp and creates NewPoller with the resulting handler and tracer. Unlike the pre-full method, its NewPollerOptions does not explicitly set FinalStateVia. Resume-token calls use getHandler with a nil response and NewPollerFromResumeToken; no resumption implementation is captured.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten file supplies the method body and explicit custom poller selection, beyond ordinary generated LRO declarations.",
+        "symbols": [
+          "Client.beginFullRestore"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 87,
+            "endLine": 97
+          },
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 129,
+            "endLine": 156
+          }
+        ]
+      },
+      {
+        "key": "c4310b489547e743415be812c997d9f6d0499abdad21a372bd0684d91dff5d4b",
+        "category": "LRO / polling",
+        "subtype": "Wire the restore handler into selective-key restore and resume paths",
+        "explanation": "beginSelectiveKeyRestore forwards keyName and restore parameters to selectiveKeyRestore for a new operation, obtains the custom handler and returns NewPoller with handler/tracer. On resume it obtains an empty-response handler and calls NewPollerFromResumeToken. As with full restore, NewPollerOptions itself does not explicitly set FinalStateVia.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicitly handwritten method implements both branches and attaches the custom handler.",
+        "symbols": [
+          "Client.beginSelectiveKeyRestore"
+        ],
+        "evidence": [
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 87,
+            "endLine": 97
+          },
+          {
+            "id": "ec831400f7065e9bd2f0960e1a1bd8a0151d05693ba50be28bf57f9a76b1d63a",
+            "startLine": 158,
+            "endLine": 185
+          }
+        ]
+      },
+      {
+        "key": "abe13313717ae44838439af426f30060655ea9318277cf921d6f3bcc5dead401",
+        "category": "LRO / polling",
+        "subtype": "Initialize custom restore polling state from the initial response",
+        "explanation": "NewRestorePoller accepts nil response to produce a pipeline-only handler for rehydration. Otherwise it requires Azure-AsyncOperation, calls IsValidURL, obtains provisioning state while discarding that helper's error and falls back to StatusInProgress if empty. It retains response, async/location/original URLs, request method, final-state option and current state. Resume-token decoding and helper internals are not supplied.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "restore_poller.go explicitly identifies handwritten additions and a custom restore poller; the full constructor is captured.",
+        "symbols": [
+          "NewRestorePoller"
+        ],
+        "evidence": [
+          {
+            "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e",
+            "startLine": 66,
+            "endLine": 122
+          }
+        ]
+      },
+      {
+        "key": "9da1056ca741692f514ee85f7adc9db7c77c5c6c8ad859760a2866d0e7760439",
+        "category": "LRO / polling",
+        "subtype": "Poll the async URL and retain explicit operation status",
+        "explanation": "restorePoller.Poll uses pollHelper to issue GET to AsyncURL. Invalid status codes update p.resp and return NewResponseError; missing status is an error, and a valid nonempty status updates both response and CurState. Done delegates terminal-state classification to the shared helper. Status/URL classifiers are imported and their semantics are not inferred.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicitly handwritten restore-poller file implements the status transition and polling callback, not simply a generated poller reference.",
+        "symbols": [
+          "restorePoller.Poll",
+          "restorePoller.Done"
+        ],
+        "evidence": [
+          {
+            "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e",
+            "startLine": 20,
+            "endLine": 35
+          },
+          {
+            "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e",
+            "startLine": 124,
+            "endLine": 150
+          }
+        ]
+      },
+      {
+        "key": "ae6014247be0ec548085f313468695a88f12016a7d756a284dbf2e5f5996f197",
+        "category": "LRO / polling",
+        "subtype": "Decode the last polling response without an additional final-resource request",
+        "explanation": "restorePoller.Result returns nil immediately for 204, then returns NewResponseError for failed state, otherwise delegates the last response to resultHelper. That helper again short-circuits 204, arranges body close, errors on invalid status/failed state, accepts empty payloads and JSON-decodes nonempty payloads into out. Neither body performs a final GET using LocURL/OrigURL/FinalState. The supplied result types are absent.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten restore-poller file supplies both the result method and its decoding helper, demonstrating concrete custom result handling.",
+        "symbols": [
+          "restorePoller.Result",
+          "resultHelper"
+        ],
+        "evidence": [
+          {
+            "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e",
+            "startLine": 37,
+            "endLine": 64
+          },
+          {
+            "id": "241f1746fcfbdcd6ed9b6cd181f3af618e5b2ecf4619fa436afeb4718608a09e",
+            "startLine": 152,
+            "endLine": 160
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "c9d892d50fbe154e70ee12738b67e985d0c5a88d372ab284eb591accefb3e6a9",
+        "status": "accepted",
+        "reason": "The handwritten backup constructor and option declaration at lines 22-58 pass the verification flag into the imported challenge policy and install it PerRetry. This supports client-side challenge-policy wiring, not a claim that this file implements the policy itself."
+      },
+      {
+        "key": "93f25e73ce887d249d6450f9a7a0235c8e71e35f5644bcb6edf949783dae1af0",
+        "status": "accepted",
+        "reason": "The EKM constructor at lines 16-52 separately exposes the challenge-verification option and installs a shared challenge policy in its pipeline; the file identifies these additions as handwritten."
+      },
+      {
+        "key": "e90daa17f65637fa4f17a3c7608e0e5aef7d3d6fa1108c54faa205ed7ac59744",
+        "status": "accepted",
+        "reason": "The handwritten RBAC constructor at lines 16-52 forwards the verification option to the imported challenge policy and attaches it PerRetry. The proposal does not claim that the documented caller-side vault URL check happens in the constructor."
+      },
+      {
+        "key": "cd42dc3703723fb1280ae5138a0736e4bedf21a5c02c87c9238adf22dacc0a50",
+        "status": "accepted",
+        "reason": "The settings constructor at lines 14-52 is explicitly identified as handwritten, forwards the verification flag, and installs the imported challenge policy. Actual challenge validation remains outside the captured code."
+      },
+      {
+        "key": "49ff007f462949272c88f726827d669ebd2fd6f75e9623cb1f382de7fcc89ae8",
+        "status": "accepted",
+        "reason": "The handwritten ErrorInfo declaration and UnmarshalJSON implementation at lines 60-79 visibly retain the incoming bytes and decode Code into the custom error type; no defensive copy is shown."
+      },
+      {
+        "key": "f1e2cfdb232afc081587b31add6119b054b5764f79a995e09436799357e3d24c",
+        "status": "accepted",
+        "reason": "The separate handwritten Error method at lines 81-85 returns the entire retained JSON as its error string. This is observable error presentation distinct from the preceding JSON-decoding method."
+      },
+      {
+        "key": "6bf2c22fa8ee135c8e57e7fa763b859b5dd29fe43394e9cbff22563a168f5dcd",
+        "status": "accepted",
+        "reason": "The handwritten pre-full restore method at lines 99-127 supplies a custom handler to both new and resumed pollers, with the fake-response exception in getHandler at lines 87-97. It is not merely a generated LRO declaration."
+      },
+      {
+        "key": "f455df746cec435b1d8b8f054463aa5eee93b15840ae39577c2663d0470d2ed6",
+        "status": "accepted",
+        "reason": "Lines 129-156 implement new and resume-token full-restore branches around getHandler. The source confirms that the new-poller options do not explicitly include FinalStateVia; behavior inside runtime.NewPoller is not asserted."
+      },
+      {
+        "key": "c4310b489547e743415be812c997d9f6d0499abdad21a372bd0684d91dff5d4b",
+        "status": "accepted",
+        "reason": "The handwritten selective-key restore method at lines 158-185 passes the key name to the underlying operation and attaches the custom handler on new and resumed pollers. This is a separate operation instance of the reusable custom-poller pattern."
+      },
+      {
+        "key": "abe13313717ae44838439af426f30060655ea9318277cf921d6f3bcc5dead401",
+        "status": "accepted",
+        "reason": "The handwritten NewRestorePoller at lines 66-122 validates an Azure-AsyncOperation URL, sets a default in-progress state, and records polling context; for nil response it constructs a pipeline-only handler. No unseen resume-token decoding is claimed."
+      },
+      {
+        "key": "9da1056ca741692f514ee85f7adc9db7c77c5c6c8ad859760a2866d0e7760439",
+        "status": "accepted",
+        "reason": "The handwritten pollHelper, Done and Poll implementations at the cited lines GET the async URL, reject invalid or missing status, update response and state, and defer terminal-state classification to an imported helper."
+      },
+      {
+        "key": "ae6014247be0ec548085f313468695a88f12016a7d756a284dbf2e5f5996f197",
+        "status": "accepted",
+        "reason": "The handwritten Result and resultHelper at the cited lines handle empty 204 responses, failed states and JSON payloads from the retained response. Neither captured method makes a separate final-resource request."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Coverage is partial: eight of 45 eligible files from 82 discovered files are captured across backup, EKM, RBAC and settings. No complete-library absence conclusion is possible.",
+      "Evidence kinds are unknown, but custom-client/poller files explicitly label themselves handwritten, match the supplied Go convention and contain concrete implementations without generated headers.",
+      "The four constructors wire an imported Key Vault challenge policy; its implementation, challenge-domain enforcement and token acquisition are not captured. Caller-directed vault URL validation comments do not establish validation in these constructors. Options, API-version placement and tracing are grouped with constructor wiring rather than double counted.",
+      "Three fake/custom_server.go files set serverTransportInterceptor to an imported FakeChallenge in init. They demonstrate fake-server setup, not a production authentication-policy implementation. The interceptor's body and callers are absent, so they are not proposed as additional production customizations.",
+      "getHandler's Fake-Poller-Status bypass is included as context for the real restore entrypoints, not as a separate production customization or proof of runtime fake handling. Public callers of the lowercase begin methods and generated operations are not captured.",
+      "The three Begin implementations and the custom handler's initialization, status progression and final-response decoding are distinct supplied source units. Shared helpers are cited with their consuming unit rather than counted again as generic transport/JSON utilities.",
+      "Runtime NewPoller, resume-token serialization/rehydration, status classification, URL validation, provisioning-state/status parsing and response-error creation are imported. No accepted protocol, status vocabulary, resume format or end-to-end safety claim is inferred.",
+      "The custom Result uses the retained response and gives 204 success precedence over failed-state handling; it does not visibly use stored LocURL/OrigURL/Method/FinalState for a final request. This is literal source behavior, not a root-cause diagnosis or implementation fix.",
+      "ErrorInfo retains the raw input slice even before JSON parsing succeeds. Operation integration and ownership/lifetime of that slice are not supplied.",
+      "No SDK or tool was executed and no external source was fetched. Addressability reflects plausible generation hooks for policy wiring, custom LRO handlers and error representation, not measured support or reducibility.",
+      "Only 8 of 45 eligible files were captured among 82 discovered files; the supplied partial scan cannot establish absence of additional customizations elsewhere in this module.",
+      "Generated operations and models, shared Key Vault challenge-policy implementation, runtime poller behavior, and the underlying TypeSpec definitions are not supplied; policy internals, end-to-end restore behavior, and exact generator capability cannot be independently established.",
+      "The three captured fake/custom_server.go files only configure fake challenge interception for generated fake servers. They do not independently demonstrate a production SDK customization; the fake-response bypass in getHandler is already covered by the cited restore wiring.",
+      "The accepted decisions are AI-reviewed source assessments, not human verification."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/custom_client.go",
+      "startLine": 1,
+      "endLine": 185,
+      "provenance": "Go custom source",
+      "contentHash": "1014e9fa9d79ed449b985bd65ac5886bb8bf60964f597db1bee3da398f38a533"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Go custom source",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/backup/internal/pollers/restore_poller.go",
+      "startLine": 1,
+      "endLine": 160,
+      "provenance": "Go handwritten source",
+      "contentHash": "a2434e8f144015832eb95f6d6ecbde84505991ae1235151308265070a9c1579e"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/ekm/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "Go custom source",
+      "contentHash": "6150f481d735fb61371d5c7bc047dda09a8bbd24dfadc2638288808849bf3b91"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/rbac/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "Go custom source",
+      "contentHash": "4c0c71b18168ad5ab8e4763ae6b59e86565ef441d8f570b51a3ba8fd14ec996d"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/rbac/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Go custom source",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/settings/custom_client.go",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "Go custom source",
+      "contentHash": "b5d52a3468479c7e932dd53be8b5c7c2dbbd33a74a3403a7db07eba21cbe3678"
+    },
+    {
+      "path": "sdk/security/keyvault/azadmin/settings/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Go custom source",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465"
+    }
+  ]
+}

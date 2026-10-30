@@ -1,0 +1,76 @@
+name: Publish SDK customization metrics on personal fork
+
+on:
+  push:
+    branches: [sdk-customization-metrics]
+    paths:
+      - eng/scripts/sdk-customization-metrics/**
+      - .github/workflows/sdk-customization-metrics-pages.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'iscai-msft/typespec-azure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+      - name: Test discovery, scanning, review, overrides, queries, and publication
+        run: node --test eng/scripts/sdk-customization-metrics/test/*.test.ts
+      - name: Read the status of linked issues and pull requests (read-only)
+        # Finds issues carrying a "sdk-customization-metrics:" marker line plus the entries in
+        # tracking/links.json. A failure publishes the links with unknown status instead.
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node eng/scripts/sdk-customization-metrics/cli.ts track \
+            --out "$RUNNER_TEMP/tracking.json"
+      - name: Assemble fork landing page and isolated dashboard route
+        env:
+          # When the hosted review site exists, this read-only copy links to it.
+          REVIEW_SITE: ${{ vars.SDK_METRICS_REVIEW_SITE }}
+        run: |
+          TRACKING=""
+          if [ -s "$RUNNER_TEMP/tracking.json" ]; then TRACKING="$RUNNER_TEMP/tracking.json"; fi
+          mkdir "$RUNNER_TEMP/sdk-metrics-site"
+          cp eng/scripts/sdk-customization-metrics/web/fork-index.html \
+            "$RUNNER_TEMP/sdk-metrics-site/index.html"
+          # Publish committed state only. Collection (and AI review) happens in the weekly
+          # workflow; re-collecting here would supersede reviewed scans with unreviewed ones.
+          node eng/scripts/sdk-customization-metrics/cli.ts publish \
+            --state eng/scripts/sdk-customization-metrics/state \
+            --tracker eng/scripts/sdk-customization-metrics/tracker/dataplane-tracker.csv \
+            --out "$RUNNER_TEMP/sdk-metrics-site" \
+            ${REVIEW_SITE:+--review-site "${REVIEW_SITE%/}/sdk-customization-metrics/"} \
+            ${TRACKING:+--tracking "$TRACKING"}
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/sdk-metrics-site
+
+  deploy:
+    if: github.repository == 'iscai-msft/typespec-azure'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy only to the personal fork Pages site
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

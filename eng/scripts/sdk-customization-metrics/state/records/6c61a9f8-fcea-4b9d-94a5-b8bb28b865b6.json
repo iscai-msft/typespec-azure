@@ -1,0 +1,514 @@
+{
+  "schemaVersion": 1,
+  "id": "6c61a9f8-fcea-4b9d-94a5-b8bb28b865b6",
+  "observedAt": "2026-10-22T20:52:51.008Z",
+  "identity": "dotnet:azure.monitor.ingestion:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Monitor.Ingestion",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/monitor/Azure.Monitor.Ingestion"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "24dbfafcd2bcb5c6d24d891203c38155c2eb29f5"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 74,
+    "eligibleFiles": 44,
+    "capturedFiles": 7,
+    "skipped": [
+      {
+        "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClient.cs",
+        "reason": "Review budget; only lines 1-419 sent for review"
+      },
+      {
+        "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Models/LogsUploadOptions.cs",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/GZipUtf8JsonRequestContent.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable enable\n\nusing System.IO;\nusing System.IO.Compression;\nusing System.Text.Json;\nusing System.Threading;\nusing System.Threading.Tasks;\n\nnamespace Azure.Core\n{\n    internal class GZipUtf8JsonRequestContent: RequestContent\n    {\n#pragma warning disable CA2213 // Disposable fields should be disposed\n        private GZipStream _gzip;\n        private MemoryStream _stream;\n#pragma warning restore CA2213 // Disposable fields should be disposed\n        private readonly RequestContent _content;\n\n        public Utf8JsonWriter JsonWriter { get; }\n\n        public GZipUtf8JsonRequestContent(RequestContent content)\n        {\n            _stream = new MemoryStream();\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            _content = Create(_stream);\n            JsonWriter = new Utf8JsonWriter(_gzip);\n            content.WriteTo(_gzip, default);\n            Flush();\n        }\n\n        public GZipUtf8JsonRequestContent()\n        {\n            _stream = new MemoryStream();\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            _content = Create(_stream);\n            JsonWriter = new Utf8JsonWriter(_gzip);\n        }\n\n        public override async Task WriteToAsync(Stream stream, CancellationToken cancellation)\n        {\n#if NETFRAMEWORK\n            MemoryStream tempStream = new MemoryStream();\n            await JsonWriter.FlushAsync(cancellation).ConfigureAwait(false);\n            _gzip.Dispose();\n            await _content.WriteToAsync(tempStream, cancellation).ConfigureAwait(false);\n            tempStream.Position = 0;\n            tempStream.CopyTo(stream);\n            _stream = tempStream;\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            JsonWriter.Reset(_gzip);\n#else\n            await FlushAsync().ConfigureAwait(false);\n            await _content.WriteToAsync(stream, cancellation).ConfigureAwait(false);\n#endif\n        }\n\n        public override void WriteTo(Stream stream, CancellationToken cancellation)\n        {\n            //TODO: https://github.com/Azure/azure-sdk-for-net/issues/30691\n#if NETFRAMEWORK\n            MemoryStream tempStream = new MemoryStream();\n            JsonWriter.Flush();\n            _gzip.Dispose();\n            _content.WriteTo(tempStream, cancellation);\n            tempStream.Position = 0;\n            tempStream.CopyTo(stream);\n            _stream = tempStream;\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            JsonWriter.Reset(_gzip);\n#else\n            Flush();\n            _content.WriteTo(stream, cancellation);\n#endif\n        }\n\n        public override bool TryComputeLength(out long length)\n        {\n            //TODO: https://github.com/Azure/azure-sdk-for-net/issues/30691\n            Flush();\n            length = _stream.Length;\n            return true;\n        }\n\n        public override void Dispose()\n        {\n            JsonWriter.Dispose();\n            _gzip.Dispose();\n            _content.Dispose();\n            _stream.Dispose();\n        }\n\n        private void Flush()\n        {\n            JsonWriter.Flush();\n            _gzip.Flush();\n#if NETFRAMEWORK // .NETFramework 4.6.1 The stream can only be properly flushed via Dispose().  As a result, we must recreate the Stream after Flush/Dispose. See https://github.com/dotnet/runtime/issues/15371 for details.\n            _gzip.Dispose();\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            JsonWriter.Reset(_gzip);\n#endif\n        }\n\n        private async Task FlushAsync()\n        {\n            await JsonWriter.FlushAsync().ConfigureAwait(false);\n            await _gzip.FlushAsync().ConfigureAwait(false);\n#if NETFRAMEWORK // .NETFramework 4.6.1 The stream can only be properly flushed via Dispose().  As a result, we must recreate the Stream after Flush/Dispose. See https://github.com/dotnet/runtime/issues/15371 for details.\n            _gzip.Dispose();\n            _gzip = new GZipStream(_stream, CompressionMode.Compress, true);\n            JsonWriter.Reset(_gzip);\n#endif\n        }\n    }\n}\n",
+      "contentHash": "321146b1142a680e01934629b57417a242a6f04d57b34109415a080f367ecd2c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/GZipUtf8JsonRequestContent.cs",
+      "startLine": 1,
+      "endLine": 117,
+      "kind": "unknown",
+      "id": "431512151aeac8ec17febc7edc0180fa656b913138e43737428c169566230d27"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/IngestionClientBuilderExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure.Core.Extensions;\nusing Azure.Monitor.Ingestion;\n\nnamespace Microsoft.Extensions.Azure\n{\n    /// <summary> Extension methods to add <see cref=\"LogsIngestionClient\"/> to client builder. </summary>\n    public static partial class IngestionClientBuilderExtensions\n    {\n        /// <summary> Registers a <see cref=\"LogsIngestionClient\"/> instance. </summary>\n        /// <param name=\"builder\"> The builder to register with. </param>\n        /// <param name=\"endpoint\"> The Data Collection Endpoint for the Data Collection Rule, for example https://dce-name.eastus-2.ingest.monitor.azure.com. </param>\n        public static IAzureClientBuilder<LogsIngestionClient, LogsIngestionClientOptions> AddLogsIngestionClient<TBuilder>(this TBuilder builder, Uri endpoint)\n        where TBuilder : IAzureClientFactoryBuilderWithCredential\n        {\n            return builder.RegisterClientFactory<LogsIngestionClient, LogsIngestionClientOptions>((options, cred) => new LogsIngestionClient(endpoint, cred, options));\n        }\n    }\n}\n",
+      "contentHash": "9a09eb85e230de1591fc0216b6690220641d2ab8739acc104352a7e83380b240",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/IngestionClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "258be5a5d970fb5b86073d8f72cc5294dc3b2a7cbb0d775cf24e6d868c6a9061"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Internal/SyncAsyncEventHandlerExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Monitor.Ingestion\n{\n    /// <summary>\n    /// Extensions for raising <see cref=\"SyncAsyncEventHandler{T}\"/>\n    /// events.\n    /// </summary>\n    internal static class SyncAsyncEventHandlerExtensions\n    {\n        /// <summary>\n        /// Raise an <see cref=\"Azure.Core.SyncAsyncEventHandler{T}\"/>\n        /// event by executing each of the handlers sequentially (to avoid\n        /// introducing accidental parallelism in customer code) and collecting\n        /// any exceptions.\n        /// </summary>\n        /// <typeparam name=\"T\">Type of the event arguments.</typeparam>\n        /// <param name=\"eventHandler\">The event's delegate.</param>\n        /// <param name=\"e\">\n        /// An <see cref=\"SyncAsyncEventArgs\"/> instance that contains the\n        /// event data.\n        /// </param>\n        /// <param name=\"declaringTypeName\">\n        /// The name of the type declaring the event to construct a helpful\n        /// exception message and distributed tracing span.\n        /// </param>\n        /// <param name=\"eventName\">\n        /// The name of the event to construct a helpful exception message and\n        /// distributed tracing span.\n        /// </param>\n        /// <param name=\"clientDiagnostics\">\n        /// Client diagnostics to wrap all the handlers in a new distributed\n        /// tracing span.\n        /// </param>\n        /// <returns>\n        /// A task that represents running all of the event's handlers.\n        /// </returns>\n        /// <exception cref=\"AggregateException\">\n        /// An exception was thrown during the execution of at least one of the\n        /// event's handlers.\n        /// </exception>\n        /// <exception cref=\"ArgumentNullException\">\n        /// Thrown when <paramref name=\"e\"/>, <paramref name=\"declaringTypeName\"/>,\n        /// <paramref name=\"eventName\"/>, or <paramref name=\"clientDiagnostics\"/>\n        /// are null.\n        /// </exception>\n        /// <exception cref=\"ArgumentException\">\n        /// Thrown when <paramref name=\"declaringTypeName\"/> or\n        /// <paramref name=\"eventName\"/> are empty.\n        /// </exception>\n        public static async Task RaiseAsync<T>(\n            this SyncAsyncEventHandler<T> eventHandler,\n            T e,\n            string declaringTypeName,\n            string eventName,\n            ClientDiagnostics clientDiagnostics)\n            where T : SyncAsyncEventArgs\n        {\n            Argument.AssertNotNull(e, nameof(e));\n            Argument.AssertNotNullOrEmpty(declaringTypeName, nameof(declaringTypeName));\n            Argument.AssertNotNullOrEmpty(eventName, nameof(eventName));\n            Argument.AssertNotNull(clientDiagnostics, nameof(clientDiagnostics));\n\n            // Get the invocation list, but return early if there's no work\n            if (eventHandler == null) { return; }\n            Delegate[] handlers = eventHandler.GetInvocationList();\n            if (handlers == null || handlers.Length == 0) { return; }\n\n            // Wrap handler invocation in a distributed tracing span so it's\n            // easy for customers to track and measure\n            string eventFullName = declaringTypeName + \".\" + eventName;\n            using DiagnosticScope scope = clientDiagnostics.CreateScope(eventFullName);\n            scope.Start();\n            try\n            {\n                // Collect any exceptions raised by handlers\n                List<Exception> failures = null;\n\n                // Raise the handlers sequentially so we don't introduce any\n                // unintentional parallelism in customer code\n                foreach (Delegate handler in handlers)\n                {\n                    SyncAsyncEventHandler<T> azureHandler = (SyncAsyncEventHandler<T>)handler;\n                    try\n                    {\n                        Task runHandlerTask = azureHandler(e);\n                        // We can consider logging something when e.RunSynchronously\n                        // is true, but runHandlerTask.IsComplete is false.\n                        // (We'll not bother to check our tests because\n                        // EnsureCompleted on the code path that raised the\n                        // event will catch it for us.)\n                        await runHandlerTask.ConfigureAwait(false);\n                    }\n                    catch (Exception ex)\n                    {\n                        failures ??= new List<Exception>();\n                        failures.Add(ex);\n                    }\n                }\n\n                // Wrap any exceptions in an AggregateException\n                if (failures?.Count > 0)\n                {\n                    // Include the event name in the exception for easier debugging\n                    throw new AggregateException(\n                        \"Unhandled exception(s) thrown when raising the \" + eventFullName + \" event.\",\n                        failures);\n                }\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n    }\n}\n",
+      "contentHash": "de8c080d87a9608dd6eb2681b353a9de22cebcd7b6485586b70b1b82e005585f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/Internal/SyncAsyncEventHandlerExtensions.cs",
+      "startLine": 1,
+      "endLine": 124,
+      "kind": "unknown",
+      "id": "ea0390f6190d7d0c0c7ff2dcbec3053086cdf93712bcf58a89fdfbb2e2b3070f"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionAudience.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing Azure.Core;\n\nnamespace Azure.Monitor.Ingestion\n{\n    /// <summary> Cloud audiences available for Ingestion. </summary>\n    public readonly partial struct LogsIngestionAudience : IEquatable<LogsIngestionAudience>\n    {\n        private readonly string _value;\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"LogsIngestionAudience\"/> object.\n        /// </summary>\n        /// <param name=\"value\">The Azure Active Directory audience to use when forming authorization scopes. For the language service, this value corresponds to a URL that identifies the Azure cloud where the resource is located. For more information: <see href=\"https://learn.microsoft.com/azure/azure-government/documentation-government-cognitiveservices\" />.</param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"value\"/> is null. </exception>\n        /// <remarks>Use one of the constant members over creating a custom value, unless you have special needs for doing so.</remarks>\n        public LogsIngestionAudience(string value)\n        {\n            Argument.AssertNotNullOrEmpty(value, nameof(value));\n            _value = value;\n        }\n\n        private const string AzureChinaValue = \"https://monitor.azure.cn//.default\";\n        private const string AzureGovernmentValue = \"https://monitor.azure.us//.default\";\n        private const string AzurePublicCloudValue = \"https://monitor.azure.com//.default\";\n\n        /// <summary> Azure China. </summary>\n        public static LogsIngestionAudience AzureChina { get; } = new LogsIngestionAudience(AzureChinaValue);\n\n        /// <summary> Azure Government. </summary>\n        public static LogsIngestionAudience AzureGovernment { get; } = new LogsIngestionAudience(AzureGovernmentValue);\n\n        /// <summary> Azure Public Cloud. </summary>\n        public static LogsIngestionAudience AzurePublicCloud { get; } = new LogsIngestionAudience(AzurePublicCloudValue);\n\n        /// <summary> Determines if two <see cref=\"LogsIngestionAudience\"/> values are the same. </summary>\n        public static bool operator ==(LogsIngestionAudience left, LogsIngestionAudience right) => left.Equals(right);\n        /// <summary> Determines if two <see cref=\"LogsIngestionAudience\"/> values are not the same. </summary>\n        public static bool operator !=(LogsIngestionAudience left, LogsIngestionAudience right) => !left.Equals(right);\n        /// <summary> Converts a string to a <see cref=\"LogsIngestionAudience\"/>. </summary>\n        public static implicit operator LogsIngestionAudience(string value) => new LogsIngestionAudience(value);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override bool Equals(object obj) => obj is LogsIngestionAudience other && Equals(other);\n        /// <inheritdoc />\n        public bool Equals(LogsIngestionAudience other) => string.Equals(_value, other._value, StringComparison.InvariantCultureIgnoreCase);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override int GetHashCode() => _value?.GetHashCode() ?? 0;\n        /// <inheritdoc />\n        public override string ToString() => _value;\n    }\n}\n",
+      "contentHash": "d6777e2ae67730b6ac19a661de28a35757b734fb2711f6c9931a90be1cac2fab",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionAudience.cs",
+      "startLine": 1,
+      "endLine": 59,
+      "kind": "unknown",
+      "id": "aa5b7a97a2fc3fb202f407520d1e259e2188ae731b03d416e57c2ac2f9651917"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Diagnostics.CodeAnalysis;\nusing System.Linq;\nusing System.Text.Json;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Monitor.Ingestion\n{\n    /// <summary> The IngestionUsingDataCollectionRules service client. </summary>\n    [CodeGenSuppress(\"LogsIngestionClient\", typeof(Uri), typeof(TokenCredential), typeof(LogsIngestionClientOptions))]\n    public partial class LogsIngestionClient\n    {\n        /// <summary> The message to show when AOT compilation is used for non-compliant overloads. </summary>\n        private const string AotWarningMessage = \"Serialization is performed at runtime without a serialization context available.\";\n\n        /// <summary> Initializes a new instance of LogsIngestionClient for mocking. </summary>\n        protected LogsIngestionClient()\n        {\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"LogsIngestionClient\"/>. </summary>\n        /// <param name=\"endpoint\"> The Data Collection Endpoint for the Data Collection Rule. For example, https://dce-name.eastus-2.ingest.monitor.azure.com. </param>\n        /// <param name=\"credential\"> A credential used to authenticate to an Azure service. </param>\n        /// <param name=\"options\"> The options for configuring the client. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/> or <paramref name=\"credential\"/> is null. </exception>\n        public LogsIngestionClient(Uri endpoint, TokenCredential credential, LogsIngestionClientOptions options)\n        {\n            Argument.AssertNotNull(endpoint, nameof(endpoint));\n            Argument.AssertNotNull(credential, nameof(credential));\n            options ??= new LogsIngestionClientOptions();\n\n            ClientDiagnostics = new ClientDiagnostics(options, true);\n            var authorizationScope = $\"{(string.IsNullOrEmpty(options.Audience?.ToString()) ? LogsIngestionAudience.AzurePublicCloud : options.Audience)}\";\n            var scopes = new List<string> { authorizationScope };\n            Pipeline = HttpPipelineBuilder.Build(options, Array.Empty<HttpPipelinePolicy>(), new HttpPipelinePolicy[] { new BearerTokenAuthenticationPolicy(credential, scopes) }, new ResponseClassifier());\n            _endpoint = endpoint;\n            _apiVersion = options.Version;\n        }\n\n        // The size we use to determine whether to upload as a single PUT BLOB\n        // request or stage as multiple blocks.\n        // 1 Mb in byte format\n        internal static int SingleUploadThreshold = 1024 * 1024;\n\n        // For test purposes only\n        // If Compression wants to be turned off (hard to generate 1 Mb data gzipped) set Compression to gzip\n        internal static string Compression;\n\n        internal readonly struct BatchedLogs\n        {\n            public BatchedLogs(List<object> logs, BinaryData logsData)\n            {\n                Logs = logs;\n                LogsData = logsData;\n            }\n\n            public List<object> Logs { get; }\n            public BinaryData LogsData { get; }\n        }\n\n        internal HttpMessage CreateUploadRequest(string ruleId, string streamName, RequestContent content, string contentEncoding, RequestContext context = null)\n        {\n            var message = Pipeline.CreateMessage(context, PipelineMessageClassifier204);\n            var request = message.Request;\n            request.Method = RequestMethod.Post;\n            var uri = new RawRequestUriBuilder();\n            uri.Reset(_endpoint);\n            uri.AppendPath(\"/dataCollectionRules/\", false);\n            uri.AppendPath(ruleId, true);\n            uri.AppendPath(\"/streams/\", false);\n            uri.AppendPath(streamName, true);\n            uri.AppendQuery(\"api-version\", _apiVersion, true);\n            request.Uri = uri;\n            request.Headers.Add(\"Accept\", \"application/json\");\n            request.Headers.Add(\"Content-Type\", \"application/json\");\n            // If any encoding is specified, avoid gzipping. If contentEncoding == \"gzip\" that means content is already gzipped, so we shouldn't gzip again\n            if (contentEncoding == null)\n            {\n                // contentEncoding is now \"gzip\"\n                request.Headers.Add(\"Content-Encoding\", \"gzip\");\n                GZipUtf8JsonRequestContent gzContent = new(content);\n                request.Content = gzContent;\n            }\n            else\n            {\n                request.Headers.Add(\"Content-Encoding\", contentEncoding);\n                request.Content = content;\n            }\n            return message;\n        }\n\n        internal static IEnumerable<BatchedLogs> Batch(IEnumerable<BinaryData> logEntries, LogsUploadOptions options = null)\n        {\n            // Create an ArrayBufferWriter as backing store for Utf8JsonWriter\n            ArrayBufferWriter<byte> arrayBuffer = new ArrayBufferWriter<byte>(SingleUploadThreshold);\n            Utf8JsonWriter writer = new Utf8JsonWriter(arrayBuffer);\n            writer.WriteStartArray();\n            List<object> currentLogList = new List<object>();\n            foreach (var log in logEntries)\n            {\n                var memory = log.ToMemory();\n                // if single log (as an array) is >= 1 Mb send to be gzipped by itself\n                if ((memory.Length + 2) >= SingleUploadThreshold)\n                {\n                    // Create tempArrayBufferWriter (unsized to store log) and tempWriter for individual log\n                    ArrayBufferWriter<byte> tempArrayBuffer = new ArrayBufferWriter<byte>();\n                    Utf8JsonWriter tempWriter = new Utf8JsonWriter(tempArrayBuffer);\n                    tempWriter.WriteStartArray();\n                    WriteMemory(tempWriter, memory);\n                    tempWriter.WriteEndArray();\n                    tempWriter.Flush();\n                    yield return new BatchedLogs(new List<object> { log }, BinaryData.FromBytes(tempArrayBuffer.WrittenMemory));\n                    continue;\n                }\n\n                // if adding this entry (and array end) would make stream > 1 Mb send current stream now\n                if ((writer.BytesCommitted + writer.BytesPending + memory.Length + 2) > SingleUploadThreshold)\n                {\n                    writer.WriteEndArray();\n                    writer.Flush();\n                    // This batch is full so send it now\n                    yield return new BatchedLogs(currentLogList, BinaryData.FromBytes(arrayBuffer.WrittenMemory));\n\n                    // Reset arrayBuffer and writer for next batch\n                    arrayBuffer = new ArrayBufferWriter<byte>(SingleUploadThreshold);\n                    writer.Reset(arrayBuffer);\n                    writer.WriteStartArray();\n                    // reset log list\n                    currentLogList = new List<object>();\n                }\n\n                // Add entry to stream and update logList\n                WriteMemory(writer, memory);\n                currentLogList.Add(log);\n            }\n\n            // no more logs, send existing stream and LogList if anything\n            if (currentLogList.Count > 0)\n            {\n                writer.WriteEndArray();\n                writer.Flush();\n                yield return new BatchedLogs(currentLogList, BinaryData.FromBytes(arrayBuffer.WrittenMemory));\n            }\n        }\n\n        private static void WriteMemory(Utf8JsonWriter writer, ReadOnlyMemory<byte> memory)\n        {\n            using (JsonDocument doc = JsonDocument.Parse(memory))\n            {\n                // Comma separator added automatically by JsonDocument\n                doc.RootElement.WriteTo(writer);\n            }\n        }\n\n        /// <summary> Ingestion API used to directly ingest data using Data Collection Rules. </summary>\n        /// <param name=\"ruleId\"> The immutable Id of the Data Collection Rule resource. </param>\n        /// <param name=\"streamName\"> The streamDeclaration name as defined in the Data Collection Rule. </param>\n        /// <param name=\"logs\"> The content to send as the body of the request. Details of the request body schema are in the Remarks section below. </param>\n        /// <param name=\"options\"> The options model to configure the request to upload logs to Azure Monitor. </param>\n        /// <param name=\"cancellationToken\"></param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"ruleId\"/>, <paramref name=\"streamName\"/> or <paramref name=\"logs\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"ruleId\"/> or <paramref name=\"streamName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-Success status code. </exception>\n        /// <returns> The response returned from the service. </returns>\n        /// <example>\n        /// This sample shows how to call Upload with required parameters and request content.\n        /// <code><![CDATA[\n        /// var credential = new DefaultAzureCredential();\n        /// var endpoint = new Uri(\"<https://my-account-name.azure.com>\");\n        /// var client = new LogsIngestionClient(endpoint, credential);\n        ///\n        /// var data = new[] {\n        ///     new {}\n        /// };\n        ///\n        /// Response response = client.Upload(\"<ruleId>\", \"<streamName>\", data);\n        /// Console.WriteLine(response.Status);\n        /// ]]></code>\n        /// </example>\n        /// <remarks>\n        ///   See error response code and error response message for more detail.\n        ///   This overload is not AOT-compliant; for uploading logs in AOT scenarios, use the <see cref=\"Upload(string, string, IEnumerable{BinaryData}, LogsUploadOptions, CancellationToken)\"/> overload with logs that you have serialized to <see cref=\"BinaryData\"/>.\n        /// </remarks>\n        [RequiresUnreferencedCode(AotWarningMessage)]\n        [RequiresDynamicCode(AotWarningMessage)]\n        public virtual Response Upload<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] T>(string ruleId, string streamName, IEnumerable<T> logs, LogsUploadOptions options = null, CancellationToken cancellationToken = default)\n        {\n            var serializedLogs = SerializeLogs(logs, options);\n            return Upload(ruleId, streamName, serializedLogs, options, cancellationToken);\n        }\n\n        /// <summary> Ingestion API used to directly ingest data using Data Collection Rules. </summary>\n        /// <param name=\"ruleId\"> The immutable Id of the Data Collection Rule resource. </param>\n        /// <param name=\"streamName\"> The streamDeclaration name as defined in the Data Collection Rule. </param>\n        /// <param name=\"logs\"> The content to send as the body of the request, serialized to <see cref=\"BinaryData\"/> form.</param>\n        /// <param name=\"options\"> The options model to configure the request to upload logs to Azure Monitor. </param>\n        /// <param name=\"cancellationToken\"></param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"ruleId\"/>, <paramref name=\"streamName\"/> or <paramref name=\"logs\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"ruleId\"/> or <paramref name=\"streamName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-Success status code. </exception>\n        /// <returns> The response returned from the service. </returns>\n        /// <example>\n        /// This sample shows how to call Upload with required parameters and request content.\n        /// <code><![CDATA[\n        /// var credential = new DefaultAzureCredential();\n        /// var endpoint = new Uri(\"<https://my-account-name.azure.com>\");\n        /// var client = new LogsIngestionClient(endpoint, credential);\n        ///\n        /// var data = new[] {\n        ///     BinaryData.FromObjectAsJson(new {})\n        /// };\n        ///\n        /// Response response = client.Upload(\"<ruleId>\", \"<streamName>\", data);\n        /// Console.WriteLine(response.Status);\n        /// ]]></code>\n        /// </example>\n        /// <remarks>\n        ///   See error response code and error response message for more detail.\n        ///   This overload is AOT-compliant and should be used in AOT scenarios, as it does not require serialization at runtime.\n        /// </remarks>\n        public virtual Response Upload(string ruleId, string streamName, IEnumerable<BinaryData> logs, LogsUploadOptions options = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(ruleId, nameof(ruleId));\n            Argument.AssertNotNullOrEmpty(streamName, nameof(streamName));\n            Argument.AssertNotNullOrEmpty(logs, nameof(logs));\n\n            using var scope = ClientDiagnostics.CreateScope(\"LogsIngestionClient.Upload\");\n            Response response = null;\n            List<Exception> exceptions = null;\n            options ??= new LogsUploadOptions();\n            scope.Start();\n\n            // Keep track of the number of failed logs across batches\n            int logsFailed = 0;\n            var shouldAbort = false;\n            // Partition the stream into individual blocks\n            foreach (BatchedLogs batch in Batch(logs, options))\n            {\n                //stop queuing new work on abort\n                if (shouldAbort)\n                    break;\n                try\n                {\n                    // Cancel all future Uploads if user triggers CancellationToken\n                    cancellationToken.ThrowIfCancellationRequested();\n                    // Because we are uploading in sequence, wait for each batch to upload before starting the next batch\n                    response = UploadBatchListSyncOrAsync(\n                        batch,\n                        ruleId,\n                        streamName,\n                        async: false,\n                        cancellationToken).EnsureCompleted();\n\n                    if (response.Status != 204)\n                    {\n                        // if there is no Handler on options, throw exception otherwise raise Handler\n                        if (!options.HasHandler)\n                        {\n                            // throw exception here that is caught in catch and we increment LogsFailed\n                            throw new RequestFailedException(response);\n                        }\n                        else\n                        {\n                            logsFailed += batch.Logs.Count;\n                            var eventArgs = new LogsUploadFailedEventArgs(batch.Logs, new RequestFailedException(response), isRunningSynchronously: true, ClientDiagnostics, cancellationToken);\n#pragma warning disable AZC0106 // Non-public asynchronous method needs 'async' parameter.\n                            // sync/async parameter in eventArgs\n                            var userThrownException = options.OnUploadFailedAsync(eventArgs).EnsureCompleted();\n#pragma warning restore AZC0106 // Non-public asynchronous method needs 'async' parameter.\n                            // if exception is thrown stop processing future batches\n                            if (userThrownException != null)\n                            {\n                                shouldAbort = true;\n                                AddException(ref exceptions, userThrownException);\n                            }\n                        }\n                    }\n                }\n                catch (Exception ex)\n                {\n                    if (!options.HasHandler)\n                    {\n                        logsFailed += batch.Logs.Count;\n                        // If we have an error, add Exception from response into exceptions list without throwing\n                        AddException(\n                            ref exceptions,\n                            ex);\n                    }\n                    else\n                    {\n                        logsFailed += batch.Logs.Count;\n                        var eventArgs = new LogsUploadFailedEventArgs(batch.Logs, new RequestFailedException(response), isRunningSynchronously: true, ClientDiagnostics, cancellationToken);\n#pragma warning disable AZC0106 // Non-public asynchronous method needs 'async' parameter.\n                        var exceptionOnUpload = options.OnUploadFailedAsync(eventArgs).EnsureCompleted();\n#pragma warning restore AZC0106 // Non-public asynchronous method needs 'async' parameter.\n                        // if exception is thrown stop processing future batches\n                        if (exceptionOnUpload != null)\n                        {\n                            shouldAbort = true;\n                            AddException(ref exceptions, exceptionOnUpload);\n                        }\n                    }\n\n                    // Cancel all future Uploads if user triggers CancellationToken\n                    if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)\n                    {\n                        shouldAbort = true;\n                        AddException(ref exceptions, ex);\n                    }\n                }\n            }\n            if (exceptions?.Count > 0)\n            {\n                var ex = new AggregateException($\"{logsFailed} out of the {logs.Count()} logs failed to upload. Please check the InnerExceptions for more details.\", exceptions);\n                scope.Failed(ex);\n                throw ex;\n            }\n\n            // If no exceptions return response\n            return response; //204 - response of last batch with header\n        }\n\n        /// <summary> Ingestion API used to directly ingest data using Data Collection Rules. </summary>\n        /// <param name=\"ruleId\"> The immutable Id of the Data Collection Rule resource. </param>\n        /// <param name=\"streamName\"> The streamDeclaration name as defined in the Data Collection Rule. </param>\n        /// <param name=\"logs\"> The content to send as the body of the request. Details of the request body schema are in the Remarks section below. </param>\n        /// <param name=\"options\">  The options model to configure the request to upload logs to Azure Monitor. </param>\n        /// <param name=\"cancellationToken\"></param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"ruleId\"/>, <paramref name=\"streamName\"/> or <paramref name=\"logs\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"ruleId\"/> or <paramref name=\"streamName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-Success status code. </exception>\n        /// <returns> The response returned from the service. </returns>\n        /// <example>\n        /// This sample shows how to call Upload with required parameters and request content.\n        /// <code><![CDATA[\n        /// var credential = new DefaultAzureCredential();\n        /// var endpoint = new Uri(\"<https://my-account-name.azure.com>\");\n        /// var client = new LogsIngestionClient(endpoint, credential);\n        ///\n        /// var data = new[] {\n        ///     new {}\n        /// };\n        ///\n        /// Response response = client.Upload(\"<ruleId>\", \"<streamName>\", data);\n        /// Console.WriteLine(response.Status);\n        /// ]]></code>\n        /// </example>\n        /// <remarks>\n        ///   See error response code and error response message for more detail.\n        ///   This overload is not AOT-compliant; for uploading logs in AOT scenarios, use the <see cref=\"UploadAsync(string, string, IEnumerable{BinaryData}, LogsUploadOptions, CancellationToken)\"/> overload with logs that you have serialized to <see cref=\"BinaryData\"/>.\n        /// </remarks>\n        [RequiresUnreferencedCode(AotWarningMessage)]\n        [RequiresDynamicCode(AotWarningMessage)]\n        public virtual async Task<Response> UploadAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] T>(string ruleId, string streamName, IEnumerable<T> logs, LogsUploadOptions options = null, CancellationToken cancellationToken = default)\n        {\n            var serializedLogs = SerializeLogs(logs, options);\n            return await UploadAsync(ruleId, streamName, serializedLogs, options, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary> Ingestion API used to directly ingest data using Data Collection Rules. </summary>\n        /// <param name=\"ruleId\"> The immutable Id of the Data Collection Rule resource. </param>\n        /// <param name=\"streamName\"> The streamDeclaration name as defined in the Data Collection Rule. </param>\n        /// <param name=\"logs\"> The content to send as the body of the request, serialized to <see cref=\"BinaryData\"/> form.</param>\n        /// <param name=\"options\">  The options model to configure the request to upload logs to Azure Monitor. </param>\n        /// <param name=\"cancellationToken\"></param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"ruleId\"/>, <paramref name=\"streamName\"/> or <paramref name=\"logs\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"ruleId\"/> or <paramref name=\"streamName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-Success status code. </exception>\n        /// <returns> The response returned from the service. </returns>\n        /// <example>\n        /// This sample shows how to call Upload with required parameters and request content.\n        /// <code><![CDATA[\n        /// var credential = new DefaultAzureCredential();\n        /// var endpoint = new Uri(\"<https://my-account-name.azure.com>\");\n        /// var client = new LogsIngestionClient(endpoint, credential);\n        ///\n        /// var data = new[] {\n        ///     BinaryData.FromObjectAsJson(new {})\n        /// };\n        ///\n        /// Response response = client.Upload(\"<ruleId>\", \"<streamName>\", data);\n        /// Console.WriteLine(response.Status);\n        /// ]]></code>\n        /// </example>\n        /// <remarks>\n        ///   See error response code and error response message for more detail.\n        ///   This overload is AOT-compliant and should be used in AOT scenarios, as it does not require serialization at runtime.\n        /// </remarks>\n        public virtual async Task<Response> UploadAsync(string ruleId, string streamName, IEnumerable<BinaryData> logs, LogsUploadOptions options = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(ruleId, nameof(ruleId));\n            Argument.AssertNotNullOrEmpty(streamName, nameof(streamName));\n            Argument.AssertNotNullOrEmpty(logs, nameof(logs));\n            options ??= new LogsUploadOptions();\n\n            using var scope = ClientDiagnostics.CreateScope(\"LogsIngestionClient.Upload\");\n\n            List<Exception> exceptions = null;\n            var shouldAbort = false;\n            scope.Start();\n\n            // A list of tasks that are currently executing which will\n            // always be smaller than or equal to MaxWorkerCount\n            var runningTasks = new List<(Task<Response> CurrentTask, List<object> Logs)>();\n\n            // Save first batch to return later\n            Task<Response> firstTask = null;\n            // Keep track of the number of failed logs across batches\n            int logsFailed = 0;\n            try\n            {",
+      "contentHash": "1370249f2388ace439b09c083f0e063017a9f30c5cb60eeb3d2c3d797095c54e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClient.cs",
+      "startLine": 1,
+      "endLine": 419,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClientOptions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure.Core;\n\nnamespace Azure.Monitor.Ingestion\n{\n    /// <summary> Client options for <see cref=\"LogsIngestionClient\"/>. </summary>\n    public partial class LogsIngestionClientOptions : ClientOptions\n    {\n        /// <summary>\n        /// Gets or sets the audience to use for authentication with Azure Active Directory (AAD). The audience is not considered when using a shared key.\n        /// </summary>\n        /// <value>If <c>null</c>, <see cref=\"LogsIngestionAudience.AzurePublicCloud\" /> will be assumed.</value>\n        public LogsIngestionAudience? Audience { get; set; }\n    }\n}\n",
+      "contentHash": "81de01f376fd6abcb0964ee77230b5d5a85b9f42e6a36f5d025639c3911c7c63",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClientOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "kind": "unknown",
+      "id": "7732d9dcf23caa2a1f6f7634d97e049d85eb9d9c5722aa762af46dc48a3808fc"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Models/LogsUploadFailedEventArgs.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Threading;\nusing Azure.Core.Pipeline;\nusing Azure.Core.Serialization;\n\nnamespace Azure.Monitor.Ingestion\n{\n    /// <summary>\n    /// The event argument models configured with the EventHandler to upload logs to Azure Monitor.\n    /// </summary>\n    public class LogsUploadFailedEventArgs : SyncAsyncEventArgs\n    {\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"LogsUploadFailedEventArgs\"/> class.\n        /// </summary>\n        /// <param name=\"failedLogs\"></param>\n        /// <param name=\"exception\"></param>\n        /// <param name=\"isRunningSynchronously\"></param>\n        /// <param name=\"clientDiagnostics\"></param>\n        /// <param name=\"cancellationToken\"></param>\n        internal LogsUploadFailedEventArgs(IEnumerable<object> failedLogs, Exception exception, bool isRunningSynchronously, ClientDiagnostics clientDiagnostics, CancellationToken cancellationToken) : this (failedLogs, exception, isRunningSynchronously, cancellationToken)\n        {\n            ClientDiagnostics = clientDiagnostics;\n        }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"LogsUploadFailedEventArgs\"/> class.\n        /// </summary>\n        /// <param name=\"failedLogs\"></param>\n        /// <param name=\"exception\"></param>\n        /// <param name=\"isRunningSynchronously\"></param>\n        /// <param name=\"cancellationToken\"></param>\n        public LogsUploadFailedEventArgs(IEnumerable<object> failedLogs, Exception exception, bool isRunningSynchronously, CancellationToken cancellationToken) : base(isRunningSynchronously, cancellationToken)\n        {\n            FailedLogs = failedLogs.ToList();\n            Exception = exception;\n        }\n\n        /// <summary>\n        /// The list of logs in the batch that failed to upload.\n        /// </summary>\n        public IReadOnlyList<object> FailedLogs { get; }\n        /// <summary>\n        /// The exception from the batch that failed to upload.\n        /// </summary>\n        public Exception Exception { get; }\n\n        internal ClientDiagnostics ClientDiagnostics;\n    }\n}\n",
+      "contentHash": "51671c073df32ecb8ca5bd439d36d80052998ddb31a8f971bbbc2df1225dd8dc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/Models/LogsUploadFailedEventArgs.cs",
+      "startLine": 1,
+      "endLine": 55,
+      "kind": "unknown",
+      "id": "2b81e507446d6049a7a594b394e6ab1ec716a2c8b1faccc3d682a90bcdaad3bd"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/perf/Azure.Monitor.Ingestion.Perf.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <ProjectReference Include=\"..\\src\\Azure.Monitor.Ingestion.csproj\" />\n    <ProjectReference Include=\"..\\..\\..\\..\\common\\Perf\\Azure.Test.Perf\\Azure.Test.Perf.csproj\" />\n    <ProjectReference Include=\"..\\tests\\Azure.Monitor.Ingestion.Tests.csproj\" />\n  </ItemGroup>\n\n\n</Project>\n",
+      "contentHash": "eeec2406de7b219ebed855682a089357db2062d59fee8e52ea81307a6aed77be",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/perf/Azure.Monitor.Ingestion.Perf.csproj"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Azure.Monitor.Ingestion.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>A library for ingesting data to Azure Monitor.</Description>\n    <AssemblyTitle>Azure Monitor Ingestion client library</AssemblyTitle>\n    <Version>1.3.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.2.0</ApiCompatVersion>\n    <PackageTags>Azure Monitor Ingestion</PackageTags>\n    <TargetFrameworks>$(RequiredTargetFrameworks);net462</TargetFrameworks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n  </PropertyGroup>\n\n  <!-- Shared source from Azure.Core -->\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureKeyCredentialPolicy.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n</Project>",
+      "contentHash": "fcc62c85fc6ff61e1e5479b29ffdcf252f13655b1f7bc4bbfda0fea636f7c573",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/src/Azure.Monitor.Ingestion.csproj"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/tsp-location.yaml",
+      "text": "repo: Azure/azure-rest-api-specs\ndirectory: specification/monitor/Monitor.Ingestion\ncommit: e89374a1f5e2c4ddcf34ed01495a98dfedac0f8b\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-emitter-package.json\"\n",
+      "contentHash": "bb2fcbb4f9014c9433aee39c4508f761c5c0298191998ac3adaaf3d7681bd8d9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Ingestion/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "6e7e771de0f3dbe8541dcfc7330d3c9fee3deb53c45ee57b3ab6019b6c86a3fc",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "c335081446481c6b4934034d56767dafdd3f73682b88845fe05fb6037eab3cc3",
+        "category": "Other",
+        "subtype": "Gzip-compressing JSON request content",
+        "explanation": "GZipUtf8JsonRequestContent is an internal RequestContent that writes JSON through a GZipStream, with NETFRAMEWORK-specific flush/recreate workarounds.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Internal hand-written class with TODO and #if NETFRAMEWORK workarounds.",
+        "symbols": [
+          "GZipUtf8JsonRequestContent"
+        ],
+        "evidence": [
+          {
+            "id": "431512151aeac8ec17febc7edc0180fa656b913138e43737428c169566230d27",
+            "startLine": 14,
+            "endLine": 116
+          }
+        ],
+        "pattern": "request-gzip-compression",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "ff1a9d420987927e8d32e9e611e2fceceb4e1dcc25b0bdaf0676f05763500577",
+        "category": "Convenience methods",
+        "subtype": "CreateUploadRequest with content-encoding choice",
+        "explanation": "CreateUploadRequest builds the upload message and gzips content unless a Content-Encoding is already specified.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Hand-written partial member of LogsIngestionClient.",
+        "symbols": [
+          "LogsIngestionClient.CreateUploadRequest"
+        ],
+        "evidence": [
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 69,
+            "endLine": 98
+          }
+        ],
+        "pattern": "request-callback-gzip",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "41bef6bc4b9d84b9c2dce21c1413d42cc5862dda6fb0072bde1190f3547f9ee2",
+        "category": "Auth",
+        "subtype": "Audience-based bearer token scope",
+        "explanation": "The client constructor, which suppresses the generated one via CodeGenSuppress, derives the authorization scope from options.Audience (default AzurePublicCloud) for BearerTokenAuthenticationPolicy.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). [CodeGenSuppress] on the generated constructor and a replacement constructor.",
+        "symbols": [
+          "LogsIngestionClient(Uri, TokenCredential, LogsIngestionClientOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 18,
+            "endLine": 46
+          }
+        ],
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "d81db1410a10255215d444af22060a56ea3634d045271e87f4e3755df33626fc",
+        "category": "Auth",
+        "subtype": "LogsIngestionAudience extensible enum",
+        "explanation": "LogsIngestionAudience is a hand-written readonly struct with Azure China, Government and Public cloud scope values.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Hand-authored partial struct.",
+        "symbols": [
+          "LogsIngestionAudience"
+        ],
+        "evidence": [
+          {
+            "id": "aa5b7a97a2fc3fb202f407520d1e259e2188ae731b03d416e57c2ac2f9651917",
+            "startLine": 11,
+            "endLine": 58
+          }
+        ],
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "f66c5f2159797ad5ce72668a94518e62c9600bda13dfeb548d8de36bca70a77c",
+        "category": "Auth",
+        "subtype": "Audience property on client options",
+        "explanation": "LogsIngestionClientOptions adds a settable Audience property.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Partial class extending the options type.",
+        "symbols": [
+          "LogsIngestionClientOptions.Audience"
+        ],
+        "evidence": [
+          {
+            "id": "7732d9dcf23caa2a1f6f7634d97e049d85eb9d9c5722aa762af46dc48a3808fc",
+            "startLine": 10,
+            "endLine": 17
+          }
+        ],
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "9931e64b05fa8c851cb6f864b0a38a428d6105154a909410a8c9c266484361d9",
+        "category": "Convenience methods",
+        "subtype": "Client-side batching under 1 MB",
+        "explanation": "Batch splits log entries into batches under SingleUploadThreshold, sending oversized single logs alone.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Internal static method with custom logic.",
+        "symbols": [
+          "LogsIngestionClient.Batch",
+          "LogsIngestionClient.WriteMemory",
+          "BatchedLogs",
+          "SingleUploadThreshold"
+        ],
+        "evidence": [
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 48,
+            "endLine": 67
+          },
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 100,
+            "endLine": 161
+          }
+        ],
+        "pattern": "client-side-request-batching",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "d1bf42a0d590a2490f6848cde2e3d04a0b88066ef16f0928f5b7111d19f33636",
+        "category": "Convenience methods",
+        "subtype": "Sync Upload with batching and error handler",
+        "explanation": "Upload(IEnumerable<BinaryData>) batches logs, uploads sequentially, invokes an upload-failed handler, and throws an AggregateException on failures.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Public hand-written overloads.",
+        "symbols": [
+          "LogsIngestionClient.Upload"
+        ],
+        "evidence": [
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 192,
+            "endLine": 198
+          },
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 229,
+            "endLine": 329
+          }
+        ],
+        "pattern": "convenience-batch-upload",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "e1ae7bf53f2e812af763867f15b1b559dd510eb7e17c595ebdaa6a3538032238",
+        "category": "Convenience methods",
+        "subtype": "Async Upload with batching and concurrency",
+        "explanation": "UploadAsync batches logs and tracks running tasks bounded by worker count, with the same failure handling.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Public hand-written overloads.",
+        "symbols": [
+          "LogsIngestionClient.UploadAsync"
+        ],
+        "evidence": [
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 360,
+            "endLine": 366
+          },
+          {
+            "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+            "startLine": 397,
+            "endLine": 419
+          }
+        ],
+        "pattern": "convenience-batch-upload",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "7167bbea229ce2a70541c74ab4b8fcddd34b0588df603ecdc75d3dc88bdbc6db",
+        "category": "Retry / error handling",
+        "subtype": "Upload-failed event args",
+        "explanation": "LogsUploadFailedEventArgs derives from SyncAsyncEventArgs to expose failed logs and the exception to a user handler.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/).",
+        "symbols": [
+          "LogsUploadFailedEventArgs"
+        ],
+        "evidence": [
+          {
+            "id": "2b81e507446d6049a7a594b394e6ab1ec716a2c8b1faccc3d682a90bcdaad3bd",
+            "startLine": 16,
+            "endLine": 54
+          }
+        ],
+        "pattern": "upload-failure-event-args",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "43a143b9bae2c8942265f812b1bac6f1389699099b5e4b73fe2f53ef4b3daba4",
+        "category": "Tracing / telemetry",
+        "subtype": "Event handler invocation in a diagnostic scope",
+        "explanation": "RaiseAsync invokes SyncAsyncEventHandler subscribers sequentially inside a DiagnosticScope and aggregates exceptions.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Internal helper.",
+        "symbols": [
+          "SyncAsyncEventHandlerExtensions.RaiseAsync"
+        ],
+        "evidence": [
+          {
+            "id": "ea0390f6190d7d0c0c7ff2dcbec3053086cdf93712bcf58a89fdfbb2e2b3070f",
+            "startLine": 58,
+            "endLine": 122
+          }
+        ],
+        "pattern": "sync-async-event-dispatch",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "4427e91dca0a70418bc9399797229deebbe56ac866d3a291405dbb0ed288120f",
+        "category": "Other",
+        "subtype": "DI client registration extension",
+        "explanation": "AddLogsIngestionClient registers the client with the Azure client factory builder using a credential.",
+        "handwrittenRationale": "Non-generated file under src/ (not in src/Generated/). Partial static class outside Generated.",
+        "symbols": [
+          "IngestionClientBuilderExtensions.AddLogsIngestionClient"
+        ],
+        "evidence": [
+          {
+            "id": "258be5a5d970fb5b86073d8f72cc5294dc3b2a7cbb0d775cf24e6d868c6a9061",
+            "startLine": 11,
+            "endLine": 21
+          }
+        ],
+        "pattern": "di-client-registration",
+        "generatorAddressable": "yes"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "c335081446481c6b4934034d56767dafdd3f73682b88845fe05fb6037eab3cc3",
+        "status": "accepted",
+        "reason": "GZipUtf8JsonRequestContent (lines 14-116) is an internal RequestContent outside src/Generated/ that gzips JSON with NETFRAMEWORK flush workarounds; used by CreateUploadRequest."
+      },
+      {
+        "key": "ff1a9d420987927e8d32e9e611e2fceceb4e1dcc25b0bdaf0676f05763500577",
+        "status": "revised",
+        "reason": "CreateUploadRequest (lines 69-98) is real handwritten code, but it is an internal request builder that applies gzip Content-Encoding, not a public convenience method; it is the same reusable behavior as GZipUtf8JsonRequestContent so it should share the pattern name request-gzip-compression instead of request-callback-gzip.",
+        "finding": {
+          "key": "ff1a9d420987927e8d32e9e611e2fceceb4e1dcc25b0bdaf0676f05763500577",
+          "category": "Other",
+          "subtype": "Gzip Content-Encoding in upload request builder",
+          "explanation": "Internal CreateUploadRequest builds the upload POST and, unless a Content-Encoding is supplied, adds Content-Encoding: gzip and wraps the body in GZipUtf8JsonRequestContent.",
+          "rootCauseHypothesis": "Hypothesis: TypeSpec/generator had no way to express automatic request-body compression for this operation.",
+          "pattern": "request-gzip-compression",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Member of a partial LogsIngestionClient in src/LogsIngestionClient.cs, outside src/Generated/.",
+          "symbols": [
+            "LogsIngestionClient.CreateUploadRequest"
+          ],
+          "evidence": [
+            {
+              "id": "7959b55c85cba152e714450b7f64cea22a110160be844fad66eeb83103641e1a",
+              "startLine": 69,
+              "endLine": 98
+            }
+          ]
+        }
+      },
+      {
+        "key": "41bef6bc4b9d84b9c2dce21c1413d42cc5862dda6fb0072bde1190f3547f9ee2",
+        "status": "accepted",
+        "reason": "Line 18 CodeGenSuppress on the generated (Uri, TokenCredential, options) constructor and lines 34-46 replacement constructor deriving the bearer scope from options.Audience with AzurePublicCloud default."
+      },
+      {
+        "key": "d81db1410a10255215d444af22060a56ea3634d045271e87f4e3755df33626fc",
+        "status": "accepted",
+        "reason": "LogsIngestionAudience.cs (lines 11-58) is a handwritten extensible-enum struct with cloud-specific scope values, outside src/Generated/; same audience pattern as the constructor and options property."
+      },
+      {
+        "key": "f66c5f2159797ad5ce72668a94518e62c9600bda13dfeb548d8de36bca70a77c",
+        "status": "accepted",
+        "reason": "Partial LogsIngestionClientOptions (lines 10-17) outside src/Generated/ adds the Audience property consumed by the custom constructor."
+      },
+      {
+        "key": "9931e64b05fa8c851cb6f864b0a38a428d6105154a909410a8c9c266484361d9",
+        "status": "accepted",
+        "reason": "Lines 48-67 (threshold, BatchedLogs) and 100-161 (Batch, WriteMemory) implement client-side 1 MiB batching by hand; outside src/Generated/."
+      },
+      {
+        "key": "d1bf42a0d590a2490f6848cde2e3d04a0b88066ef16f0928f5b7111d19f33636",
+        "status": "accepted",
+        "reason": "Upload<T> (192-198) and Upload(IEnumerable<BinaryData>) (229-329) are handwritten public overloads that batch, upload sequentially, invoke OnUploadFailedAsync and aggregate exceptions."
+      },
+      {
+        "key": "e1ae7bf53f2e812af763867f15b1b559dd510eb7e17c595ebdaa6a3538032238",
+        "status": "accepted",
+        "reason": "UploadAsync<T> (360-366) and the start of UploadAsync(IEnumerable<BinaryData>) (397-419) are handwritten; the bounded-concurrency claim rests only on the runningTasks comment at 410-412 because the method body is truncated at line 419."
+      },
+      {
+        "key": "7167bbea229ce2a70541c74ab4b8fcddd34b0588df603ecdc75d3dc88bdbc6db",
+        "status": "accepted",
+        "reason": "LogsUploadFailedEventArgs (16-54) is a handwritten SyncAsyncEventArgs subclass in src/Models outside Generated, exposing FailedLogs and Exception to the user failure handler."
+      },
+      {
+        "key": "43a143b9bae2c8942265f812b1bac6f1389699099b5e4b73fe2f53ef4b3daba4",
+        "status": "accepted",
+        "reason": "Internal RaiseAsync (58-122) wraps handler invocation in a DiagnosticScope and aggregates handler exceptions; handwritten file in src/Internal. Its call site (likely LogsUploadOptions) is not in the supplied evidence."
+      },
+      {
+        "key": "4427e91dca0a70418bc9399797229deebbe56ac866d3a291405dbb0ed288120f",
+        "status": "accepted",
+        "reason": "Partial IngestionClientBuilderExtensions (11-21) outside src/Generated/ adds a credential-based AddLogsIngestionClient registration; the .NET generator commonly emits such builder extensions, so 'yes' is plausible."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "LogsIngestionClient.cs was truncated at line 419; the UploadAsync body, SerializeLogs and AddException were not seen.",
+      "LogsUploadOptions.cs was not sent for review.",
+      "Only 7 of 44 eligible files captured.",
+      "LogsIngestionClient.cs is only supplied through line 419; the remainder of UploadAsync and helpers such as UploadBatchListSyncOrAsync and SerializeLogs are not visible.",
+      "LogsUploadOptions.cs (failure handler, MaxConcurrency, serializer) was skipped for budget and may contain further customizations.",
+      "Generated counterparts under src/Generated/ are not supplied, so whether the generated client already exposes Upload overloads cannot be checked.",
+      "Coverage is partial (7 of 44 eligible files captured)."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/GZipUtf8JsonRequestContent.cs",
+      "startLine": 1,
+      "endLine": 117,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "321146b1142a680e01934629b57417a242a6f04d57b34109415a080f367ecd2c"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/IngestionClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "9a09eb85e230de1591fc0216b6690220641d2ab8739acc104352a7e83380b240"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Internal/SyncAsyncEventHandlerExtensions.cs",
+      "startLine": 1,
+      "endLine": 124,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "de8c080d87a9608dd6eb2681b353a9de22cebcd7b6485586b70b1b82e005585f"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionAudience.cs",
+      "startLine": 1,
+      "endLine": 59,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d6777e2ae67730b6ac19a661de28a35757b734fb2711f6c9931a90be1cac2fab"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClient.cs",
+      "startLine": 1,
+      "endLine": 625,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "4986478c1381fbaf80fe6e5573361f75a6831cf77acfbd93ce5e1a3bffcd776b"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/LogsIngestionClientOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "81de01f376fd6abcb0964ee77230b5d5a85b9f42e6a36f5d025639c3911c7c63"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Models/LogsUploadFailedEventArgs.cs",
+      "startLine": 1,
+      "endLine": 55,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "51671c073df32ecb8ca5bd439d36d80052998ddb31a8f971bbbc2df1225dd8dc"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Ingestion/src/Models/LogsUploadOptions.cs",
+      "startLine": 1,
+      "endLine": 84,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "db2d95792fccfdeb5224a449d556dff37db4cd0f737fedc7f7bad43e70f21ed7"
+    }
+  ]
+}

@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "id": "a0dc26c0-b828-4c1b-b945-515ffcb0d97e",
+  "observedAt": "2026-10-26T15:11:50.467Z",
+  "identity": "javascript:@azure/arm-appnetwork:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/arm-appnetwork",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/appnetwork/arm-appnetwork"
+  },
+  "commit": "ba775712561672cf55288d6f16084939a5f46c5f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "347adaa6ee9a9a3a2b9741dcac5fd4dde725a826"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 107,
+    "eligibleFiles": 50,
+    "capturedFiles": 13,
+    "skipped": [
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/classic/appLinks/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/classic/availableVersions/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/classic/operations/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/classic/upgradeHistories/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/logger.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/restorePollerHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/cloudSettingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/pagingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/pollingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/urlTemplate.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport pkgJson from \"@azure/arm-appnetwork/package.json\" with { type: \"json\" };\nimport { KnownVersions } from \"../models/models.js\";\nimport type { AzureSupportedClouds } from \"../static-helpers/cloudSettingHelpers.js\";\nimport { getArmEndpoint } from \"../static-helpers/cloudSettingHelpers.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential } from \"@azure/core-auth\";\n\nexport interface AppLinkContext extends Client {\n  /** The ID of the target subscription. The value must be an UUID. */\n  subscriptionId: string;\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n}\n\n/** Optional parameters for the client. */\nexport interface AppLinkClientOptionalParams extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n  /** Specifies the Azure cloud environment for the client. */\n  cloudSetting?: AzureSupportedClouds;\n}\n\nexport function createAppLink(\n  credential: TokenCredential,\n  subscriptionId: string,\n  options: AppLinkClientOptionalParams = {},\n): AppLinkContext {\n  const endpointUrl =\n    options.endpoint ?? getArmEndpoint(options.cloudSetting) ?? \"https://management.azure.com\";\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-arm-appnetwork/${pkgJson.version}`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} ${userAgentInfo}`\n    : `${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://management.azure.com/.default\"],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  const apiVersion = options.apiVersion;\n  return { ...clientContext, apiVersion, subscriptionId } as AppLinkContext;\n}\n",
+      "contentHash": "ebfc7f72a26daff3e293d638052c5d4b71e6f508e5129e0fb91e62537e7c79c8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/appLinkContext.ts",
+      "startLine": 1,
+      "endLine": 53,
+      "kind": "unknown",
+      "id": "aeb1bcb8f5f49a8d57a57420151378fe2efb6559a6b08f1fcfecc627675a96a4"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext as Client } from \"../index.js\";\nimport type {\n  AppLinkMember,\n  AppLinkMemberUpdate,\n  _AppLinkMemberListResult,\n} from \"../../models/models.js\";\nimport {\n  errorResponseDeserializer,\n  appLinkMemberSerializer,\n  appLinkMemberDeserializer,\n  appLinkMemberUpdateSerializer,\n  _appLinkMemberListResultDeserializer,\n} from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport type {\n  AppLinkMembersListByAppLinkOptionalParams,\n  AppLinkMembersDeleteOptionalParams,\n  AppLinkMembersUpdateOptionalParams,\n  AppLinkMembersCreateOrUpdateOptionalParams,\n  AppLinkMembersGetOptionalParams,\n} from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\nimport type { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _listByAppLinkSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinkMembersListByAppLinkOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listByAppLinkDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_AppLinkMemberListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _appLinkMemberListResultDeserializer(result.body);\n}\n\n/** List the members of an Azure Kubernetes Application Network resource. */\nexport function listByAppLink(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinkMembersListByAppLinkOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<AppLinkMember> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listByAppLinkSend(context, resourceGroupName, appLinkName, options),\n    _listByAppLinkDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n\nexport function _$deleteSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: AppLinkMembersDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers/{appLinkMemberName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      appLinkMemberName: appLinkMemberName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _$deleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"202\", \"204\", \"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return;\n}\n\n/** Remove a member from an Azure Kubernetes Application Network resource. */\nexport function $delete(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: AppLinkMembersDeleteOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  return getLongRunningPoller(context, _$deleteDeserialize, [\"202\", \"204\", \"200\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _$deleteSend(context, resourceGroupName, appLinkName, appLinkMemberName, options),\n    resourceLocationConfig: \"location\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<void>, void>;\n}\n\nexport function _updateSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  properties: AppLinkMemberUpdate,\n  options: AppLinkMembersUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers/{appLinkMemberName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      appLinkMemberName: appLinkMemberName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n    body: appLinkMemberUpdateSerializer(properties),\n  });\n}\n\nexport async function _updateDeserialize(result: PathUncheckedResponse): Promise<AppLinkMember> {\n  const expectedStatuses = [\"200\", \"202\", \"201\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkMemberDeserializer(result.body);\n}\n\n/** Update a member of an Azure Kubernetes Application Network resource. */\nexport function update(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  properties: AppLinkMemberUpdate,\n  options: AppLinkMembersUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<AppLinkMember>, AppLinkMember> {\n  return getLongRunningPoller(context, _updateDeserialize, [\"200\", \"202\", \"201\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _updateSend(context, resourceGroupName, appLinkName, appLinkMemberName, properties, options),\n    resourceLocationConfig: \"azure-async-operation\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<AppLinkMember>, AppLinkMember>;\n}\n\nexport function _createOrUpdateSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  resource: AppLinkMember,\n  options: AppLinkMembersCreateOrUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers/{appLinkMemberName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      appLinkMemberName: appLinkMemberName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n    body: appLinkMemberSerializer(resource),\n  });\n}\n\nexport async function _createOrUpdateDeserialize(\n  result: PathUncheckedResponse,\n): Promise<AppLinkMember> {\n  const expectedStatuses = [\"200\", \"201\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkMemberDeserializer(result.body);\n}\n\n/** Create a member of an Azure Kubernetes Application Network resource. */\nexport function createOrUpdate(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  resource: AppLinkMember,\n  options: AppLinkMembersCreateOrUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<AppLinkMember>, AppLinkMember> {\n  return getLongRunningPoller(context, _createOrUpdateDeserialize, [\"200\", \"201\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _createOrUpdateSend(\n        context,\n        resourceGroupName,\n        appLinkName,\n        appLinkMemberName,\n        resource,\n        options,\n      ),\n    resourceLocationConfig: \"azure-async-operation\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<AppLinkMember>, AppLinkMember>;\n}\n\nexport function _getSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: AppLinkMembersGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers/{appLinkMemberName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      appLinkMemberName: appLinkMemberName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _getDeserialize(result: PathUncheckedResponse): Promise<AppLinkMember> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkMemberDeserializer(result.body);\n}\n\n/** Get a member of an Azure Kubernetes Application Network resource. */\nexport async function get(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: AppLinkMembersGetOptionalParams = { requestOptions: {} },\n): Promise<AppLinkMember> {\n  const result = await _getSend(\n    context,\n    resourceGroupName,\n    appLinkName,\n    appLinkMemberName,\n    options,\n  );\n  return _getDeserialize(result);\n}\n",
+      "contentHash": "f1eeb08e5f77d60b525a01c8dd40cf84e37e0286877cd92e63f66866b924e92f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/operations.ts",
+      "startLine": 1,
+      "endLine": 336,
+      "kind": "unknown",
+      "id": "bcbfb8764baa136789cec56496ff2a84103a536dcc080e5a7183bd1dd34eb643"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface AppLinkMembersListByAppLinkOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface AppLinkMembersDeleteOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinkMembersUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinkMembersCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinkMembersGetOptionalParams extends OperationOptions {}\n",
+      "contentHash": "ca44b4bda7893ad97ca623b01181289c6548191f74d84afaacd9829d6b91a398",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/options.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "kind": "unknown",
+      "id": "43b8fa4c91ca2bc6f723c12f31abdd60dc1e3307e0502d3a0ef79e1d98a930db"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinks/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext as Client } from \"../index.js\";\nimport type { AppLink, AppLinkUpdate, _AppLinkListResult } from \"../../models/models.js\";\nimport {\n  errorResponseDeserializer,\n  appLinkSerializer,\n  appLinkDeserializer,\n  appLinkUpdateSerializer,\n  _appLinkListResultDeserializer,\n} from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport type {\n  AppLinksListBySubscriptionOptionalParams,\n  AppLinksListByResourceGroupOptionalParams,\n  AppLinksDeleteOptionalParams,\n  AppLinksUpdateOptionalParams,\n  AppLinksCreateOrUpdateOptionalParams,\n  AppLinksGetOptionalParams,\n} from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\nimport type { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _listBySubscriptionSend(\n  context: Client,\n  options: AppLinksListBySubscriptionOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.AppLink/appLinks{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listBySubscriptionDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_AppLinkListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _appLinkListResultDeserializer(result.body);\n}\n\n/** List Azure Kubernetes Application Network resources by subscription. */\nexport function listBySubscription(\n  context: Client,\n  options: AppLinksListBySubscriptionOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<AppLink> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listBySubscriptionSend(context, options),\n    _listBySubscriptionDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n\nexport function _listByResourceGroupSend(\n  context: Client,\n  resourceGroupName: string,\n  options: AppLinksListByResourceGroupOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listByResourceGroupDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_AppLinkListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _appLinkListResultDeserializer(result.body);\n}\n\n/** List Azure Kubernetes Application Network resources by resource group. */\nexport function listByResourceGroup(\n  context: Client,\n  resourceGroupName: string,\n  options: AppLinksListByResourceGroupOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<AppLink> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listByResourceGroupSend(context, resourceGroupName, options),\n    _listByResourceGroupDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n\nexport function _$deleteSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinksDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _$deleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"202\", \"204\", \"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return;\n}\n\n/** Delete an Azure Kubernetes Application Network resource. */\nexport function $delete(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinksDeleteOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  return getLongRunningPoller(context, _$deleteDeserialize, [\"202\", \"204\", \"200\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () => _$deleteSend(context, resourceGroupName, appLinkName, options),\n    resourceLocationConfig: \"location\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<void>, void>;\n}\n\nexport function _updateSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  properties: AppLinkUpdate,\n  options: AppLinksUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n    body: appLinkUpdateSerializer(properties),\n  });\n}\n\nexport async function _updateDeserialize(result: PathUncheckedResponse): Promise<AppLink> {\n  const expectedStatuses = [\"200\", \"202\", \"201\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkDeserializer(result.body);\n}\n\n/** Update an Azure Kubernetes Application Network resource. */\nexport function update(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  properties: AppLinkUpdate,\n  options: AppLinksUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<AppLink>, AppLink> {\n  return getLongRunningPoller(context, _updateDeserialize, [\"200\", \"202\", \"201\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _updateSend(context, resourceGroupName, appLinkName, properties, options),\n    resourceLocationConfig: \"azure-async-operation\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<AppLink>, AppLink>;\n}\n\nexport function _createOrUpdateSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  resource: AppLink,\n  options: AppLinksCreateOrUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n    body: appLinkSerializer(resource),\n  });\n}\n\nexport async function _createOrUpdateDeserialize(result: PathUncheckedResponse): Promise<AppLink> {\n  const expectedStatuses = [\"200\", \"201\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkDeserializer(result.body);\n}\n\n/** Create an Azure Kubernetes Application Network resource. */\nexport function createOrUpdate(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  resource: AppLink,\n  options: AppLinksCreateOrUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<AppLink>, AppLink> {\n  return getLongRunningPoller(context, _createOrUpdateDeserialize, [\"200\", \"201\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _createOrUpdateSend(context, resourceGroupName, appLinkName, resource, options),\n    resourceLocationConfig: \"azure-async-operation\",\n    apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n  }) as PollerLike<OperationState<AppLink>, AppLink>;\n}\n\nexport function _getSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinksGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _getDeserialize(result: PathUncheckedResponse): Promise<AppLink> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return appLinkDeserializer(result.body);\n}\n\n/** Get the details of an Azure Kubernetes Application Network. */\nexport async function get(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  options: AppLinksGetOptionalParams = { requestOptions: {} },\n): Promise<AppLink> {\n  const result = await _getSend(context, resourceGroupName, appLinkName, options);\n  return _getDeserialize(result);\n}\n",
+      "contentHash": "d421264bf6a117fbba50614395d8c61efb879b400bc170b2f13dceb46adc941c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/appLinks/operations.ts",
+      "startLine": 1,
+      "endLine": 356,
+      "kind": "unknown",
+      "id": "5985455573469e9184bc984a392fd477c108917f5a710539dfa7c8cdc69faea3"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinks/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface AppLinksListBySubscriptionOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface AppLinksListByResourceGroupOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface AppLinksDeleteOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinksUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinksCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface AppLinksGetOptionalParams extends OperationOptions {}\n",
+      "contentHash": "66bb09031355236ac8f9c4f583c5d7dda3f76ff61f78e07786f81ce098a66c02",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/appLinks/options.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "unknown",
+      "id": "b2d870ab691a618cf89a69b035cbeb6bf11af300417de5ddb399b6b8c78c6e0e"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/availableVersions/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext as Client } from \"../index.js\";\nimport type { _AvailableVersionListResult, AvailableVersion } from \"../../models/models.js\";\nimport {\n  errorResponseDeserializer,\n  _availableVersionListResultDeserializer,\n} from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport type { AvailableVersionsListByLocationOptionalParams } from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _listByLocationSend(\n  context: Client,\n  location: string,\n  options: AvailableVersionsListByLocationOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.AppLink/locations/{location}/availableVersions{?api%2Dversion,kubernetesVersion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      location: location,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n      kubernetesVersion: options?.kubernetesVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listByLocationDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_AvailableVersionListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _availableVersionListResultDeserializer(result.body);\n}\n\n/** List the Azure Kubernetes Application Network versions available in a location. */\nexport function listByLocation(\n  context: Client,\n  location: string,\n  options: AvailableVersionsListByLocationOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<AvailableVersion> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listByLocationSend(context, location, options),\n    _listByLocationDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n",
+      "contentHash": "57cb3359004bbf3b65f0715666c8ed2f75b7858e4766027e457d8fadaa2e604f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/availableVersions/operations.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "kind": "unknown",
+      "id": "2b019b5f36bda02bca90af7b49666731afeb53bb31a67b03d79e085a6e37e826"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/availableVersions/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface AvailableVersionsListByLocationOptionalParams extends OperationOptions {\n  /** Kubernetes version to filter profiles */\n  kubernetesVersion?: string;\n}\n",
+      "contentHash": "4018d8a91147a0ace7e636f33aa581fada88727d01864a5b898ff23fb55ee348",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/availableVersions/options.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "8356ed3fbc401232ac029d721ded8ecdf63392a1ed7a4c8d2b4cb0f3243b007c"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/operations/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext as Client } from \"../index.js\";\nimport type { _OperationListResult, Operation } from \"../../models/models.js\";\nimport {\n  _operationListResultDeserializer,\n  errorResponseDeserializer,\n} from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport type { OperationsListOptionalParams } from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _listSend(\n  context: Client,\n  options: OperationsListOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.AppLink/operations{?api%2Dversion}\",\n    {\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_OperationListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _operationListResultDeserializer(result.body);\n}\n\n/** List the operations for the provider */\nexport function list(\n  context: Client,\n  options: OperationsListOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Operation> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listSend(context, options),\n    _listDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n",
+      "contentHash": "869b386f28ae729e622a9443c6082836686578d9536efd60d34a832e55266181",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/operations/operations.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "509cfaeff71eefeae2857a1bfbed51691a3ac64ebf16f6bcdb2285aadc11593f"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/operations/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface OperationsListOptionalParams extends OperationOptions {}\n",
+      "contentHash": "8a5c5e55883d68d1669360b54d51f6c8ad2761364833abf15298010e53a75ec9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/operations/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "kind": "unknown",
+      "id": "aa9a50587335d77056a504bed44f6528c7e685c9502df39c63f30150218a6d72"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext as Client } from \"../index.js\";\nimport type { _UpgradeHistoryListResult, UpgradeHistory } from \"../../models/models.js\";\nimport {\n  errorResponseDeserializer,\n  _upgradeHistoryListResultDeserializer,\n} from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport type { UpgradeHistoriesListByAppLinkMemberOptionalParams } from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _listByAppLinkMemberSend(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: UpgradeHistoriesListByAppLinkMemberOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppLink/appLinks/{appLinkName}/appLinkMembers/{appLinkMemberName}/upgradeHistories{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      appLinkName: appLinkName,\n      appLinkMemberName: appLinkMemberName,\n      \"api%2Dversion\": context.apiVersion ?? \"2026-08-01-preview\",\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: { accept: \"application/json\", ...options.requestOptions?.headers },\n  });\n}\n\nexport async function _listByAppLinkMemberDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_UpgradeHistoryListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    if (result.body) {\n      error.details = errorResponseDeserializer(result.body);\n    }\n\n    throw error;\n  }\n\n  return _upgradeHistoryListResultDeserializer(result.body);\n}\n\n/** List the upgrade history of an Azure Kubernetes Application Network member. */\nexport function listByAppLinkMember(\n  context: Client,\n  resourceGroupName: string,\n  appLinkName: string,\n  appLinkMemberName: string,\n  options: UpgradeHistoriesListByAppLinkMemberOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<UpgradeHistory> {\n  return buildPagedAsyncIterator(\n    context,\n    () =>\n      _listByAppLinkMemberSend(context, resourceGroupName, appLinkName, appLinkMemberName, options),\n    _listByAppLinkMemberDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"nextLink\",\n      apiVersion: context.apiVersion ?? \"2026-08-01-preview\",\n    },\n  );\n}\n",
+      "contentHash": "ad2c0623abc4114d860c2a01a56583442bc65c1e8aa8a973398e06a233f5e269",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/operations.ts",
+      "startLine": 1,
+      "endLine": 79,
+      "kind": "unknown",
+      "id": "5d6e5f28887162da0b226adda0a2066e234a8a9d2f0d3b55dbe4bfc3b3d06e6d"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface UpgradeHistoriesListByAppLinkMemberOptionalParams extends OperationOptions {}\n",
+      "contentHash": "b5c4e3f26cf7bd7cf2b9a159f148a57add6fc43018ad03a4a55d42f8aa3b6bec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "kind": "unknown",
+      "id": "6bc2f1c53a579597dc4a5462a288c08b651e75ede70e4f4c0bb9782fc092a695"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/appLinkClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext, AppLinkClientOptionalParams } from \"./api/index.js\";\nimport { createAppLink } from \"./api/index.js\";\nimport type { AppLinkMembersOperations } from \"./classic/appLinkMembers/index.js\";\nimport { _getAppLinkMembersOperations } from \"./classic/appLinkMembers/index.js\";\nimport type { AppLinksOperations } from \"./classic/appLinks/index.js\";\nimport { _getAppLinksOperations } from \"./classic/appLinks/index.js\";\nimport type { AvailableVersionsOperations } from \"./classic/availableVersions/index.js\";\nimport { _getAvailableVersionsOperations } from \"./classic/availableVersions/index.js\";\nimport type { OperationsOperations } from \"./classic/operations/index.js\";\nimport { _getOperationsOperations } from \"./classic/operations/index.js\";\nimport type { UpgradeHistoriesOperations } from \"./classic/upgradeHistories/index.js\";\nimport { _getUpgradeHistoriesOperations } from \"./classic/upgradeHistories/index.js\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\n\nexport type { AppLinkClientOptionalParams } from \"./api/appLinkContext.js\";\n\nexport class AppLinkClient {\n  private _client: AppLinkContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  constructor(\n    credential: TokenCredential,\n    subscriptionId: string,\n    options: AppLinkClientOptionalParams = {},\n  ) {\n    this._client = createAppLink(credential, subscriptionId, options);\n    this.pipeline = this._client.pipeline;\n    this.availableVersions = _getAvailableVersionsOperations(this._client);\n    this.upgradeHistories = _getUpgradeHistoriesOperations(this._client);\n    this.appLinkMembers = _getAppLinkMembersOperations(this._client);\n    this.appLinks = _getAppLinksOperations(this._client);\n    this.operations = _getOperationsOperations(this._client);\n  }\n\n  /** The operation groups for availableVersions */\n  public readonly availableVersions: AvailableVersionsOperations;\n  /** The operation groups for upgradeHistories */\n  public readonly upgradeHistories: UpgradeHistoriesOperations;\n  /** The operation groups for appLinkMembers */\n  public readonly appLinkMembers: AppLinkMembersOperations;\n  /** The operation groups for appLinks */\n  public readonly appLinks: AppLinksOperations;\n  /** The operation groups for operations */\n  public readonly operations: OperationsOperations;\n}\n",
+      "contentHash": "6d2d2efdaa5b88f3f34cd3b6ff7cf30b2f3fc673714d7a77a02bcb45c78b057d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/appLinkClient.ts",
+      "startLine": 1,
+      "endLine": 50,
+      "kind": "unknown",
+      "id": "b31771c73ead853dd1012d786624fb7cc0e5ce58f98172676bbed3335be937a1"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/appLinkMembers/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AppLinkContext } from \"../../api/appLinkContext.js\";\nimport {\n  listByAppLink,\n  $delete,\n  update,\n  createOrUpdate,\n  get,\n} from \"../../api/appLinkMembers/operations.js\";\nimport type {\n  AppLinkMembersListByAppLinkOptionalParams,\n  AppLinkMembersDeleteOptionalParams,\n  AppLinkMembersUpdateOptionalParams,\n  AppLinkMembersCreateOrUpdateOptionalParams,\n  AppLinkMembersGetOptionalParams,\n} from \"../../api/appLinkMembers/options.js\";\nimport type { AppLinkMember, AppLinkMemberUpdate } from \"../../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport type { PollerLike, OperationState } from \"@azure/core-lro\";\n\n/** Interface representing a AppLinkMembers operations. */\nexport interface AppLinkMembersOperations {\n  /** List the members of an Azure Kubernetes Application Network resource. */\n  listByAppLink: (\n    resourceGroupName: string,\n    appLinkName: string,\n    options?: AppLinkMembersListByAppLinkOptionalParams,\n  ) => PagedAsyncIterableIterator<AppLinkMember>;\n  /** Remove a member from an Azure Kubernetes Application Network resource. */\n  delete: (\n    resourceGroupName: string,\n    appLinkName: string,\n    appLinkMemberName: string,\n    options?: AppLinkMembersDeleteOptionalParams,\n  ) => PollerLike<OperationState<void>, void>;\n  /** Update a member of an Azure Kubernetes Application Network resource. */\n  update: (\n    resourceGroupName: string,\n    appLinkName: string,\n    appLinkMemberName: string,\n    properties: AppLinkMemberUpdate,\n    options?: AppLinkMembersUpdateOptionalParams,\n  ) => PollerLike<OperationState<AppLinkMember>, AppLinkMember>;\n  /** Create a member of an Azure Kubernetes Application Network resource. */\n  createOrUpdate: (\n    resourceGroupName: string,\n    appLinkName: string,\n    appLinkMemberName: string,\n    resource: AppLinkMember,\n    options?: AppLinkMembersCreateOrUpdateOptionalParams,\n  ) => PollerLike<OperationState<AppLinkMember>, AppLinkMember>;\n  /** Get a member of an Azure Kubernetes Application Network resource. */\n  get: (\n    resourceGroupName: string,\n    appLinkName: string,\n    appLinkMemberName: string,\n    options?: AppLinkMembersGetOptionalParams,\n  ) => Promise<AppLinkMember>;\n}\n\nfunction _getAppLinkMembers(context: AppLinkContext) {\n  return {\n    listByAppLink: (\n      resourceGroupName: string,\n      appLinkName: string,\n      options?: AppLinkMembersListByAppLinkOptionalParams,\n    ) => listByAppLink(context, resourceGroupName, appLinkName, options),\n    delete: (\n      resourceGroupName: string,\n      appLinkName: string,\n      appLinkMemberName: string,\n      options?: AppLinkMembersDeleteOptionalParams,\n    ) => $delete(context, resourceGroupName, appLinkName, appLinkMemberName, options),\n    update: (\n      resourceGroupName: string,\n      appLinkName: string,\n      appLinkMemberName: string,\n      properties: AppLinkMemberUpdate,\n      options?: AppLinkMembersUpdateOptionalParams,\n    ) => update(context, resourceGroupName, appLinkName, appLinkMemberName, properties, options),\n    createOrUpdate: (\n      resourceGroupName: string,\n      appLinkName: string,\n      appLinkMemberName: string,\n      resource: AppLinkMember,\n      options?: AppLinkMembersCreateOrUpdateOptionalParams,\n    ) =>\n      createOrUpdate(context, resourceGroupName, appLinkName, appLinkMemberName, resource, options),\n    get: (\n      resourceGroupName: string,\n      appLinkName: string,\n      appLinkMemberName: string,\n      options?: AppLinkMembersGetOptionalParams,\n    ) => get(context, resourceGroupName, appLinkName, appLinkMemberName, options),\n  };\n}\n\nexport function _getAppLinkMembersOperations(context: AppLinkContext): AppLinkMembersOperations {\n  return {\n    ..._getAppLinkMembers(context),\n  };\n}\n",
+      "contentHash": "3d020acc8323880ba6780ae652ecbcc07baa89a9c52f93d7577db17dd25f53f7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/src/classic/appLinkMembers/index.ts",
+      "startLine": 1,
+      "endLine": 104,
+      "kind": "unknown",
+      "id": "9e19f68b4845a619f5e41da05e15d2ec57993ee188c85ae491083f5510c6e293"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/package.json",
+      "text": "{\n  \"name\": \"@azure/arm-appnetwork\",\n  \"version\": \"1.0.0-beta.2\",\n  \"description\": \"A generated SDK for AppLinkClient.\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./api\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/index.d.ts\",\n        \"default\": \"./dist/browser/api/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/index.d.ts\",\n        \"default\": \"./dist/esm/api/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/index.js\"\n      }\n    },\n    \"./api/availableVersions\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/availableVersions/index.d.ts\",\n        \"default\": \"./dist/browser/api/availableVersions/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/availableVersions/index.d.ts\",\n        \"default\": \"./dist/esm/api/availableVersions/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/availableVersions/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/availableVersions/index.js\"\n      }\n    },\n    \"./api/upgradeHistories\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/upgradeHistories/index.d.ts\",\n        \"default\": \"./dist/browser/api/upgradeHistories/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/upgradeHistories/index.d.ts\",\n        \"default\": \"./dist/esm/api/upgradeHistories/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/upgradeHistories/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/upgradeHistories/index.js\"\n      }\n    },\n    \"./api/appLinkMembers\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/appLinkMembers/index.d.ts\",\n        \"default\": \"./dist/browser/api/appLinkMembers/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/appLinkMembers/index.d.ts\",\n        \"default\": \"./dist/esm/api/appLinkMembers/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/appLinkMembers/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/appLinkMembers/index.js\"\n      }\n    },\n    \"./api/appLinks\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/appLinks/index.d.ts\",\n        \"default\": \"./dist/browser/api/appLinks/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/appLinks/index.d.ts\",\n        \"default\": \"./dist/esm/api/appLinks/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/appLinks/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/appLinks/index.js\"\n      }\n    },\n    \"./api/operations\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/operations/index.d.ts\",\n        \"default\": \"./dist/browser/api/operations/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/operations/index.d.ts\",\n        \"default\": \"./dist/esm/api/operations/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/operations/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/operations/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"sdk-type\": \"mgmt\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/appnetwork/arm-appnetwork\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/appnetwork/arm-appnetwork/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/appLinkContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure/core-util\": \"^1.12.0\",\n    \"@azure-rest/core-client\": \"^2.7.0\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^3.1.0\",\n    \"@azure/core-rest-pipeline\": \"^1.24.0\",\n    \"@azure/logger\": \"^1.2.0\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"lint\": \"echo skipped\",\n    \"lint:fix\": \"echo skipped\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json && dev-tool samples publish -f\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"test:browser\": \"dev-tool run test:vitest --browser\",\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"update-snippets\": \"dev-tool run update-snippets\",\n    \"customize\": \"echo skipped\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"@azure/arm-appnetwork\",\n    \"productSlugs\": [\n      \"azure\"\n    ],\n    \"disableDocsMs\": true,\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/@azure/arm-appnetwork?view=azure-node-preview\"\n  },\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "89159d9709b7aa86d860f8e97965607ce9f7b0716ccf6f2417e4ad54ac48017b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/package.json"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/README.md",
+      "text": "# Azure AppLink client library for JavaScript\n\nThis package contains an isomorphic SDK (runs both in Node.js and in browsers) for Azure AppLink client.\n\n\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/appnetwork/arm-appnetwork)\n- [Package (NPM)](https://www.npmjs.com/package/@azure/arm-appnetwork)\n- [API reference documentation](https://learn.microsoft.com/javascript/api/@azure/arm-appnetwork?view=azure-node-preview)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/appnetwork/arm-appnetwork/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n\n### Install the `@azure/arm-appnetwork` package\n\nInstall the Azure AppLink client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/arm-appnetwork\n```\n\n### Create and authenticate a `AppLinkClient`\n\nTo create a client object to access the Azure AppLink API, you will need the `endpoint` of your Azure AppLink resource and a `credential`. The Azure AppLink client can use Azure Active Directory credentials to authenticate.\nYou can find the endpoint for your Azure AppLink resource in the [Azure Portal][azure_portal].\n\nYou can authenticate with Azure Active Directory using a credential from the [@azure/identity][azure_identity] library or [an existing AAD Token](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token).\n\nTo use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the `@azure/identity` package:\n\n```bash\nnpm install @azure/identity\n```\n\nYou will also need to **register a new AAD application and grant access to Azure AppLink** by assigning the suitable role to your service principal (note: roles such as `\"Owner\"` will not grant the necessary permissions).\n\nFor more information about how to create an Azure AD Application check out [this guide](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).\n\nUsing Node.js and Node-like environments, you can use the `DefaultAzureCredential` class to authenticate the client.\n\n```ts snippet:ReadmeSampleCreateClient_Node\nimport { AppLinkClient } from \"@azure/arm-appnetwork\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new AppLinkClient(new DefaultAzureCredential(), subscriptionId);\n```\n\nFor browser environments, use the `InteractiveBrowserCredential` from the `@azure/identity` package to authenticate.\n\n```ts snippet:ReadmeSampleCreateClient_Browser\nimport { InteractiveBrowserCredential } from \"@azure/identity\";\nimport { AppLinkClient } from \"@azure/arm-appnetwork\";\n\nconst credential = new InteractiveBrowserCredential({\n  tenantId: \"<YOUR_TENANT_ID>\",\n  clientId: \"<YOUR_CLIENT_ID>\",\n});\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new AppLinkClient(credential, subscriptionId);\n```\n\n\n### JavaScript Bundle\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### AppLinkClient\n\n`AppLinkClient` is the primary interface for developers using the Azure AppLink client library. Explore the methods on this client object to understand the different features of the Azure AppLink service that you can access.\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the [samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/appnetwork/arm-appnetwork/samples) directory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for JavaScript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n",
+      "contentHash": "fddcfd1e0927de4f9887d8ef5d92e6d0eb8c80859e25117f3d8332550774c06d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/README.md"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/tsp-location.yaml",
+      "text": "directory: specification/applink/AppLink.Management\ncommit: 4a2d54631b2ade060cb0c153e246696c2e4eeb8b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "c1561708551aa5c78ffafc883917a22d33be02579f0491729adb3bf134acfbf0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/appnetwork/arm-appnetwork/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkContext.ts",
+      "startLine": 1,
+      "endLine": 53,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ebfc7f72a26daff3e293d638052c5d4b71e6f508e5129e0fb91e62537e7c79c8"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/operations.ts",
+      "startLine": 1,
+      "endLine": 336,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f1eeb08e5f77d60b525a01c8dd40cf84e37e0286877cd92e63f66866b924e92f"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinkMembers/options.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ca44b4bda7893ad97ca623b01181289c6548191f74d84afaacd9829d6b91a398"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinks/operations.ts",
+      "startLine": 1,
+      "endLine": 356,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d421264bf6a117fbba50614395d8c61efb879b400bc170b2f13dceb46adc941c"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/appLinks/options.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "66bb09031355236ac8f9c4f583c5d7dda3f76ff61f78e07786f81ce098a66c02"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/availableVersions/operations.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "57cb3359004bbf3b65f0715666c8ed2f75b7858e4766027e457d8fadaa2e604f"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/availableVersions/options.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "4018d8a91147a0ace7e636f33aa581fada88727d01864a5b898ff23fb55ee348"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/operations/operations.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "869b386f28ae729e622a9443c6082836686578d9536efd60d34a832e55266181"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/operations/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8a5c5e55883d68d1669360b54d51f6c8ad2761364833abf15298010e53a75ec9"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/operations.ts",
+      "startLine": 1,
+      "endLine": 79,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ad2c0623abc4114d860c2a01a56583442bc65c1e8aa8a973398e06a233f5e269"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/api/upgradeHistories/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b5c4e3f26cf7bd7cf2b9a159f148a57add6fc43018ad03a4a55d42f8aa3b6bec"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/appLinkClient.ts",
+      "startLine": 1,
+      "endLine": 50,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "6d2d2efdaa5b88f3f34cd3b6ff7cf30b2f3fc673714d7a77a02bcb45c78b057d"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/appLinkMembers/index.ts",
+      "startLine": 1,
+      "endLine": 104,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3d020acc8323880ba6780ae652ecbcc07baa89a9c52f93d7577db17dd25f53f7"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/appLinks/index.ts",
+      "startLine": 1,
+      "endLine": 98,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "239dc1453f1b5b434c739c4112146c06ba1727f0127aaccab149166956a72add"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/availableVersions/index.ts",
+      "startLine": 1,
+      "endLine": 32,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3e818e4ba49990dfdabae4dffa2f2b97358b0764fa046eb87815d21e053c9dba"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/operations/index.ts",
+      "startLine": 1,
+      "endLine": 26,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0ec12ce82cd18cc7230a4173f3015a17fc4c484ac3ff57c564d205f76c380982"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/classic/upgradeHistories/index.ts",
+      "startLine": 1,
+      "endLine": 38,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "6077e9cfcad691967007ca755951f3d42cbb94b372f741d2797475b87a7d7e73"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d9ac643a3b9c4c8031106190c3b96fd48e3a0d64382cfb3e2c8f1df3ea436804"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 1195,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a98cce557fff3eed15dc75845e997ce5b48268926276e27e79fda4cf26baa2a0"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/restorePollerHelpers.ts",
+      "startLine": 1,
+      "endLine": 172,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "88c972019552fce116724f9232c357c76739651cec0ac159fe541091c5f4358e"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/cloudSettingHelpers.ts",
+      "startLine": 1,
+      "endLine": 42,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fec5d767589bc713c3f173d345e33ca3d078ae456e6e7b08a63e64254ff24fa0"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/pagingHelpers.ts",
+      "startLine": 1,
+      "endLine": 268,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d297aee1afa99474bbe79a59aa1cf86ffe62ee951025d7fdaa5b4155d6501237"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/pollingHelpers.ts",
+      "startLine": 1,
+      "endLine": 148,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "abfc7e0cbab3371634a82791009210feb01edd12adf87e5b19f8989de3b7886a"
+    },
+    {
+      "path": "sdk/appnetwork/arm-appnetwork/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 229,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "c2d465a30636609887f8f7f3011c5e897c13bb5c99da60ed1c5614ca42ba7cc1"
+    }
+  ]
+}

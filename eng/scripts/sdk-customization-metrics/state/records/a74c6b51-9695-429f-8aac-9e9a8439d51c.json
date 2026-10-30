@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "id": "a74c6b51-9695-429f-8aac-9e9a8439d51c",
+  "observedAt": "2026-10-26T15:13:10.545Z",
+  "identity": "javascript:@azure/arm-resourcesbicep:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/arm-resourcesbicep",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/resources/arm-resourcesbicep"
+  },
+  "commit": "ba775712561672cf55288d6f16084939a5f46c5f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "951cf9cd9b6c3d291b47d95c12a06d477887cb20"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 49,
+    "eligibleFiles": 17,
+    "capturedFiles": 13,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/bicepContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownVersions } from \"../models/models.js\";\nimport { Client, ClientOptions, getClient } from \"@azure-rest/core-client\";\nimport { TokenCredential } from \"@azure/core-auth\";\n\n/** Bicep Client */\nexport interface BicepContext extends Client {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion: string;\n  /** The ID of the target subscription. The value must be an UUID. */\n  subscriptionId: string;\n}\n\n/** Optional parameters for the client. */\nexport interface BicepClientOptionalParams extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n}\n\n/** Bicep Client */\nexport function createBicep(\n  credential: TokenCredential,\n  subscriptionId: string,\n  options: BicepClientOptionalParams = {},\n): BicepContext {\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? \"https://management.azure.com\";\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-arm-resourcesbicep/1.0.0-beta.2`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [`${endpointUrl}/.default`],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  const apiVersion = options.apiVersion ?? \"2023-11-01\";\n  clientContext.pipeline.addPolicy({\n    name: \"ClientApiVersionPolicy\",\n    sendRequest: (req, next) => {\n      // Use the apiVersion defined in request url directly\n      // Append one if there is no apiVersion and we have one at client options\n      const url = new URL(req.url);\n      if (!url.searchParams.get(\"api-version\")) {\n        req.url = `${req.url}${\n          Array.from(url.searchParams.keys()).length > 0 ? \"&\" : \"?\"\n        }api-version=${apiVersion}`;\n      }\n\n      return next(req);\n    },\n  });\n  return { ...clientContext, apiVersion, subscriptionId } as BicepContext;\n}\n",
+      "contentHash": "e1353a0266187787ea0a8bd75a5ddd925548fae7a5fc504e6392196e38af7304",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/api/bicepContext.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "unknown",
+      "id": "db963324dbc479be693d155dad4f92ba25010ae04cbd0b3247ecc9117718e5fd"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { bicep } from \"./operations.js\";\nexport { type DecompileOperationGroupBicepOptionalParams } from \"./options.js\";\n",
+      "contentHash": "b00388b10143d0bbd9d677401f3a236271794e887250114ad4e3bec8ac89acde",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/index.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "kind": "unknown",
+      "id": "88704a4ce54af16cac86e8f1c0c22d968006ab512ef6ec59cab1886c1fc19530"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { BicepContext as Client } from \"../index.js\";\nimport {\n  DecompileOperationRequest,\n  decompileOperationRequestSerializer,\n  DecompileOperationSuccessResponse,\n  decompileOperationSuccessResponseDeserializer,\n  errorResponseDeserializer,\n} from \"../../models/models.js\";\nimport { DecompileOperationGroupBicepOptionalParams } from \"./options.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _bicepSend(\n  context: Client,\n  decompileOperationRequest: DecompileOperationRequest,\n  options: DecompileOperationGroupBicepOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Resources/decompileBicep{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: decompileOperationRequestSerializer(decompileOperationRequest),\n  });\n}\n\nexport async function _bicepDeserialize(\n  result: PathUncheckedResponse,\n): Promise<DecompileOperationSuccessResponse> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return decompileOperationSuccessResponseDeserializer(result.body);\n}\n\n/** Decompiles an ARM json template into a Bicep template */\nexport async function bicep(\n  context: Client,\n  decompileOperationRequest: DecompileOperationRequest,\n  options: DecompileOperationGroupBicepOptionalParams = { requestOptions: {} },\n): Promise<DecompileOperationSuccessResponse> {\n  const result = await _bicepSend(context, decompileOperationRequest, options);\n  return _bicepDeserialize(result);\n}\n",
+      "contentHash": "1bdb69fd58c179597be42b4088a7bd292a5e399d33f050f6e81cf5e500cef5d4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/operations.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "fdc46c1bb0fb0f770c206bef7410b4ae95f3effd430c6c71d7887d627065dd6b"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface DecompileOperationGroupBicepOptionalParams extends OperationOptions {}\n",
+      "contentHash": "2023ddd8243a18091e1f3c7d4f7ededcff822604b793f712b91fbe6213e88384",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "kind": "unknown",
+      "id": "dedf61ee99682d7ee2cc11d2282115ade22dc9c3a6e7623ce2f1a7483d9f8669"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { createBicep, type BicepContext, type BicepClientOptionalParams } from \"./bicepContext.js\";\n",
+      "contentHash": "6f44dc23299ad3b63a47ddf04301a1bf61983bc16c9c494679f12b454baa0e69",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "kind": "unknown",
+      "id": "6a0480059779fcfd810adf2dce138bff120663d7d4cf3f77eb7be9236d196e07"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/bicepClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createBicep, BicepContext, BicepClientOptionalParams } from \"./api/index.js\";\nimport {\n  DecompileOperationGroupOperations,\n  _getDecompileOperationGroupOperations,\n} from \"./classic/decompileOperationGroup/index.js\";\nimport { Pipeline } from \"@azure/core-rest-pipeline\";\nimport { TokenCredential } from \"@azure/core-auth\";\n\nexport { type BicepClientOptionalParams } from \"./api/bicepContext.js\";\n\nexport class BicepClient {\n  private _client: BicepContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  /** Bicep Client */\n  constructor(\n    credential: TokenCredential,\n    subscriptionId: string,\n    options: BicepClientOptionalParams = {},\n  ) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createBicep(credential, subscriptionId, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n    this.decompileOperationGroup = _getDecompileOperationGroupOperations(this._client);\n  }\n\n  /** The operation groups for decompileOperationGroup */\n  public readonly decompileOperationGroup: DecompileOperationGroupOperations;\n}\n",
+      "contentHash": "5b0c97a2ce44234a9bdc169daa16504afb7941f167076f498a82b05393670b41",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/bicepClient.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "kind": "unknown",
+      "id": "9a1bb7ebbec4f9f59d5774d21a5884f8e110a485a89ad757306e7a086df2c7f9"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/classic/decompileOperationGroup/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { BicepContext } from \"../../api/bicepContext.js\";\nimport {\n  DecompileOperationRequest,\n  DecompileOperationSuccessResponse,\n} from \"../../models/models.js\";\nimport { DecompileOperationGroupBicepOptionalParams } from \"../../api/decompileOperationGroup/options.js\";\nimport { bicep } from \"../../api/decompileOperationGroup/operations.js\";\n\n/** Interface representing a DecompileOperationGroup operations. */\nexport interface DecompileOperationGroupOperations {\n  /** Decompiles an ARM json template into a Bicep template */\n  bicep: (\n    decompileOperationRequest: DecompileOperationRequest,\n    options?: DecompileOperationGroupBicepOptionalParams,\n  ) => Promise<DecompileOperationSuccessResponse>;\n}\n\nfunction _getDecompileOperationGroup(context: BicepContext) {\n  return {\n    bicep: (\n      decompileOperationRequest: DecompileOperationRequest,\n      options?: DecompileOperationGroupBicepOptionalParams,\n    ) => bicep(context, decompileOperationRequest, options),\n  };\n}\n\nexport function _getDecompileOperationGroupOperations(\n  context: BicepContext,\n): DecompileOperationGroupOperations {\n  return {\n    ..._getDecompileOperationGroup(context),\n  };\n}\n",
+      "contentHash": "c1004b3a33e9fe5d368273c014d6a9f39390220cc91517a7558c43d3a2011624",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/classic/decompileOperationGroup/index.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "f65ea5b3ef63f822a41ac6189458d11a3fe605799576551914cec354360b5698"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/classic/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { type DecompileOperationGroupOperations } from \"./decompileOperationGroup/index.js\";\n",
+      "contentHash": "841064caf952373c086847ec9d96d6839bfcd2ed4005f739058188608243ef7d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "kind": "unknown",
+      "id": "800af577d47fd7808b782709c613153397f936e13e8f96ed20ae7421a4305803"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { BicepClient } from \"./bicepClient.js\";\nexport {\n  type DecompileOperationRequest,\n  type DecompileOperationSuccessResponse,\n  type FileDefinition,\n  type ErrorResponse,\n  type ErrorDetail,\n  type ErrorAdditionalInfo,\n  KnownVersions,\n} from \"./models/index.js\";\nexport { type BicepClientOptionalParams } from \"./api/index.js\";\nexport { type DecompileOperationGroupBicepOptionalParams } from \"./api/decompileOperationGroup/index.js\";\nexport { type DecompileOperationGroupOperations } from \"./classic/index.js\";\n",
+      "contentHash": "68db3ce28ae18f3fc28198814c996354fcea6c0e146a9b6c93bdc08408406590",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/index.ts",
+      "startLine": 1,
+      "endLine": 16,
+      "kind": "unknown",
+      "id": "e9651ad214bb2f9f05209aeab3af60d26f67d2ad40ad748cc54d3a5493c555dc"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/logger.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createClientLogger } from \"@azure/logger\";\nexport const logger = createClientLogger(\"arm-resourcesbicep\");\n",
+      "contentHash": "48a56a464adde0c638dcd52a642c1127f5defe8d6c816a2225bbab53b25218ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "kind": "unknown",
+      "id": "72801bde927c6722d59630e068c50527ef669611279977aa2b1566b5d5d600d7"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/models/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  type DecompileOperationRequest,\n  type DecompileOperationSuccessResponse,\n  type FileDefinition,\n  type ErrorResponse,\n  type ErrorDetail,\n  type ErrorAdditionalInfo,\n  KnownVersions,\n} from \"./models.js\";\n",
+      "contentHash": "646bb8657b95c613f05ab0a083bded5f040e7cdf0b6c66d92ae82a1dbe743c4b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "bbc44f2985f5c2297a86643857a90ffd398790be4ce52d55eecdf6e8078a80a6"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/models/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/** The body of the request for the decompileBicep operation */\nexport interface DecompileOperationRequest {\n  /** The ARM json template to be decompiled into a Bicep file */\n  template: string;\n}\n\nexport function decompileOperationRequestSerializer(item: DecompileOperationRequest): any {\n  return { template: item[\"template\"] };\n}\n\n/** The response of the decompileBicep operation */\nexport interface DecompileOperationSuccessResponse {\n  /** An array of key-value pairs containing the entryPoint string as the key for the Bicep file decompiled from the ARM json template */\n  files: FileDefinition[];\n  /** The file path to the main Bicep file generated from the decompiled ARM json template. */\n  entryPoint: string;\n}\n\nexport function decompileOperationSuccessResponseDeserializer(\n  item: any,\n): DecompileOperationSuccessResponse {\n  return {\n    files: fileDefinitionArrayDeserializer(item[\"files\"]),\n    entryPoint: item[\"entryPoint\"],\n  };\n}\n\nexport function fileDefinitionArrayDeserializer(result: Array<FileDefinition>): any[] {\n  return result.map((item) => {\n    return fileDefinitionDeserializer(item);\n  });\n}\n\n/** The definition of a file along with its contents */\nexport interface FileDefinition {\n  /** The file path of the Bicep file. */\n  path?: string;\n  /** The contents of the Bicep file. */\n  contents?: string;\n}\n\nexport function fileDefinitionDeserializer(item: any): FileDefinition {\n  return {\n    path: item[\"path\"],\n    contents: item[\"contents\"],\n  };\n}\n\n/** Common error response for all Azure Resource Manager APIs to return error details for failed operations. */\nexport interface ErrorResponse {\n  /** The error object. */\n  error?: ErrorDetail;\n}\n\nexport function errorResponseDeserializer(item: any): ErrorResponse {\n  return {\n    error: !item[\"error\"] ? item[\"error\"] : errorDetailDeserializer(item[\"error\"]),\n  };\n}\n\n/** The error detail. */\nexport interface ErrorDetail {\n  /** The error code. */\n  readonly code?: string;\n  /** The error message. */\n  readonly message?: string;\n  /** The error target. */\n  readonly target?: string;\n  /** The error details. */\n  readonly details?: ErrorDetail[];\n  /** The error additional info. */\n  readonly additionalInfo?: ErrorAdditionalInfo[];\n}\n\nexport function errorDetailDeserializer(item: any): ErrorDetail {\n  return {\n    code: item[\"code\"],\n    message: item[\"message\"],\n    target: item[\"target\"],\n    details: !item[\"details\"] ? item[\"details\"] : errorDetailArrayDeserializer(item[\"details\"]),\n    additionalInfo: !item[\"additionalInfo\"]\n      ? item[\"additionalInfo\"]\n      : errorAdditionalInfoArrayDeserializer(item[\"additionalInfo\"]),\n  };\n}\n\nexport function errorDetailArrayDeserializer(result: Array<ErrorDetail>): any[] {\n  return result.map((item) => {\n    return errorDetailDeserializer(item);\n  });\n}\n\nexport function errorAdditionalInfoArrayDeserializer(result: Array<ErrorAdditionalInfo>): any[] {\n  return result.map((item) => {\n    return errorAdditionalInfoDeserializer(item);\n  });\n}\n\n/** The resource management error additional info. */\nexport interface ErrorAdditionalInfo {\n  /** The additional info type. */\n  readonly type?: string;\n  /** The additional info. */\n  readonly info?: any;\n}\n\nexport function errorAdditionalInfoDeserializer(item: any): ErrorAdditionalInfo {\n  return {\n    type: item[\"type\"],\n    info: item[\"info\"],\n  };\n}\n\n/** The available API versions. */\nexport enum KnownVersions {\n  /** The 2023-11-01 API version. */\n  V20231101 = \"2023-11-01\",\n}\n",
+      "contentHash": "b841d407a72c147a3c86b2d5367574230dad0f722ec6ef1a0069f1a06e7895e1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 121,
+      "kind": "unknown",
+      "id": "7c3a02baaf12b38552a59af056c5bc887a041f8aaccdc415bb3ef567fde0d962"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/static-helpers/urlTemplate.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n//---------------------\n// interfaces\n//---------------------\ninterface ValueOptions {\n  isFirst: boolean; // is first value in the expression\n  op?: string; // operator\n  varValue?: any; // variable value\n  varName?: string; // variable name\n  modifier?: string; // modifier e.g *\n  reserved?: boolean; // if true we'll keep reserved words with not encoding\n}\n\nexport interface UrlTemplateOptions {\n  // if set to true, reserved characters will not be encoded\n  allowReserved?: boolean;\n}\n\n// ---------------------\n// helpers\n// ---------------------\nfunction encodeComponent(val: string, reserved?: boolean, op?: string) {\n  return (reserved ?? op === \"+\") || op === \"#\"\n    ? encodeReservedComponent(val)\n    : encodeRFC3986URIComponent(val);\n}\n\nfunction encodeReservedComponent(str: string) {\n  return str\n    .split(/(%[0-9A-Fa-f]{2})/g)\n    .map((part) => (!/%[0-9A-Fa-f]/.test(part) ? encodeURI(part) : part))\n    .join(\"\");\n}\n\nfunction encodeRFC3986URIComponent(str: string) {\n  return encodeURIComponent(str).replace(\n    /[!'()*]/g,\n    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,\n  );\n}\n\nfunction isDefined(val: any) {\n  return val !== undefined && val !== null;\n}\n\nfunction getNamedAndIfEmpty(op?: string): [boolean, string] {\n  return [!!op && [\";\", \"?\", \"&\"].includes(op), !!op && [\"?\", \"&\"].includes(op) ? \"=\" : \"\"];\n}\n\nfunction getFirstOrSep(op?: string, isFirst = false) {\n  if (isFirst) {\n    return !op || op === \"+\" ? \"\" : op;\n  } else if (!op || op === \"+\" || op === \"#\") {\n    return \",\";\n  } else if (op === \"?\") {\n    return \"&\";\n  } else {\n    return op;\n  }\n}\n\nfunction getExpandedValue(option: ValueOptions) {\n  let isFirst = option.isFirst;\n  const { op, varName, varValue: value, reserved } = option;\n  const vals: string[] = [];\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      // prepare the following parts: separator, varName, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (named && varName) {\n        vals.push(`${encodeURIComponent(varName)}`);\n        val === \"\" ? vals.push(ifEmpty) : vals.push(\"=\");\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      const val = value[key];\n      if (!isDefined(val)) {\n        continue;\n      }\n      // prepare the following parts: separator, key, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (key) {\n        vals.push(`${encodeURIComponent(key)}`);\n        named && val === \"\" ? vals.push(ifEmpty) : vals.push(\"=\");\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  }\n  return vals.join(\"\");\n}\n\nfunction getNonExpandedValue(option: ValueOptions) {\n  const { op, varName, varValue: value, isFirst, reserved } = option;\n  const vals: string[] = [];\n  const first = getFirstOrSep(op, isFirst);\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n  if (named && varName) {\n    vals.push(encodeComponent(varName, reserved, op));\n    if (value === \"\") {\n      if (!ifEmpty) {\n        vals.push(ifEmpty);\n      }\n      return !vals.join(\"\") ? undefined : `${first}${vals.join(\"\")}`;\n    }\n    vals.push(\"=\");\n  }\n\n  const items = [];\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      items.push(encodeComponent(val, reserved, op));\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      if (!isDefined(value[key])) {\n        continue;\n      }\n      items.push(encodeRFC3986URIComponent(key));\n      items.push(encodeComponent(value[key], reserved, op));\n    }\n  }\n  vals.push(items.join(\",\"));\n  return !vals.join(\",\") ? undefined : `${first}${vals.join(\"\")}`;\n}\n\nfunction getVarValue(option: ValueOptions): string | undefined {\n  const { op, varName, modifier, isFirst, reserved, varValue: value } = option;\n\n  if (!isDefined(value)) {\n    return undefined;\n  } else if ([\"string\", \"number\", \"boolean\"].includes(typeof value)) {\n    let val = value.toString();\n    const [named, ifEmpty] = getNamedAndIfEmpty(op);\n    const vals: string[] = [getFirstOrSep(op, isFirst)];\n    if (named && varName) {\n      // No need to encode varName considering it is already encoded\n      vals.push(varName);\n      val === \"\" ? vals.push(ifEmpty) : vals.push(\"=\");\n    }\n    if (modifier && modifier !== \"*\") {\n      val = val.substring(0, parseInt(modifier, 10));\n    }\n    vals.push(encodeComponent(val, reserved, op));\n    return vals.join(\"\");\n  } else if (modifier === \"*\") {\n    return getExpandedValue(option);\n  } else {\n    return getNonExpandedValue(option);\n  }\n}\n\n// ---------------------------------------------------------------------------------------------------\n// This is an implementation of RFC 6570 URI Template: https://datatracker.ietf.org/doc/html/rfc6570.\n// ---------------------------------------------------------------------------------------------------\nexport function expandUrlTemplate(\n  template: string,\n  context: Record<string, any>,\n  option?: UrlTemplateOptions,\n): string {\n  return template.replace(/\\{([^\\{\\}]+)\\}|([^\\{\\}]+)/g, (_, expr, text) => {\n    if (!expr) {\n      return encodeReservedComponent(text);\n    }\n    let op;\n    if ([\"+\", \"#\", \".\", \"/\", \";\", \"?\", \"&\"].includes(expr[0])) {\n      ((op = expr[0]), (expr = expr.slice(1)));\n    }\n    const varList = expr.split(/,/g);\n    const result = [];\n    for (const varSpec of varList) {\n      const varMatch = /([^:\\*]*)(?::(\\d+)|(\\*))?/.exec(varSpec);\n      if (!varMatch || !varMatch[1]) {\n        continue;\n      }\n      const varValue = getVarValue({\n        isFirst: result.length === 0,\n        op,\n        varValue: context[varMatch[1]],\n        varName: varMatch[1],\n        modifier: varMatch[2] || varMatch[3],\n        reserved: option?.allowReserved,\n      });\n      if (varValue) {\n        result.push(varValue);\n      }\n    }\n    return result.join(\"\");\n  });\n}\n",
+      "contentHash": "0d0d4a60ebf2107ccb6499740a7ed4710ce0fdb3027eac07927e7bf7371f144d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 197,
+      "kind": "unknown",
+      "id": "0bce0f4e2d3b69b7d4f0beb291315c044a8fee1083c4cf9adf35358ed7331a4a"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/resources/arm-resourcesbicep/package.json",
+      "text": "{\n  \"name\": \"@azure/arm-resourcesbicep\",\n  \"version\": \"1.0.0-beta.2\",\n  \"description\": \"A generated SDK for BicepClient.\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\",\n    \"review/*\",\n    \"CHANGELOG.md\"\n  ],\n  \"sdk-type\": \"mgmt\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/resources/arm-resourcesbicep\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/resources/arm-resourcesbicep/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/bicepContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.1.0\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-rest-pipeline\": \"^1.18.2\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json && dev-tool samples publish -f\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"echo skipped\",\n    \"lint:fix\": \"echo skipped\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"test:browser\": \"dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"@azure/arm-resourcesbicep\",\n    \"productSlugs\": [\n      \"azure\"\n    ],\n    \"disableDocsMs\": true,\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/@azure/arm-resourcesbicep?view=azure-node-preview\"\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./api\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/index.d.ts\",\n        \"default\": \"./dist/browser/api/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/index.d.ts\",\n        \"default\": \"./dist/esm/api/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/index.js\"\n      }\n    },\n    \"./api/decompileOperationGroup\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/decompileOperationGroup/index.d.ts\",\n        \"default\": \"./dist/browser/api/decompileOperationGroup/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/decompileOperationGroup/index.d.ts\",\n        \"default\": \"./dist/esm/api/decompileOperationGroup/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/decompileOperationGroup/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/decompileOperationGroup/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "0b92fe5509effa816bf0ff94d1fc876ceab392835c0e094c2d0d9cbefe472b26",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/package.json"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/README.md",
+      "text": "# Azure Bicep client library for JavaScript\n\nThis package contains an isomorphic SDK (runs both in Node.js and in browsers) for Azure Bicep client.\n\nBicep Client\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/resources/arm-resourcesbicep)\n- [Package (NPM)](https://www.npmjs.com/package/@azure/arm-resourcesbicep)\n- [API reference documentation](https://learn.microsoft.com/javascript/api/@azure/arm-resourcesbicep?view=azure-node-preview)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/resources/arm-resourcesbicep/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n\n### Install the `@azure/arm-resourcesbicep` package\n\nInstall the Azure Bicep client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/arm-resourcesbicep\n```\n\n### Create and authenticate a `BicepClient`\n\nTo create a client object to access the Azure Bicep API, you will need the `endpoint` of your Azure Bicep resource and a `credential`. The Azure Bicep client can use Azure Active Directory credentials to authenticate.\nYou can find the endpoint for your Azure Bicep resource in the [Azure Portal][azure_portal].\n\nYou can authenticate with Azure Active Directory using a credential from the [@azure/identity][azure_identity] library or [an existing AAD Token](https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token).\n\nTo use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the `@azure/identity` package:\n\n```bash\nnpm install @azure/identity\n```\n\nYou will also need to **register a new AAD application and grant access to Azure Bicep** by assigning the suitable role to your service principal (note: roles such as `\"Owner\"` will not grant the necessary permissions).\n\nFor more information about how to create an Azure AD Application check out [this guide](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).\n\nUsing Node.js and Node-like environments, you can use the `DefaultAzureCredential` class to authenticate the client.\n\n```ts snippet:ReadmeSampleCreateClient_Node\nimport { BicepClient } from \"@azure/arm-resourcesbicep\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new BicepClient(new DefaultAzureCredential(), subscriptionId);\n```\n\nFor browser environments, use the `InteractiveBrowserCredential` from the `@azure/identity` package to authenticate.\n\n```ts snippet:ReadmeSampleCreateClient_Browser\nimport { InteractiveBrowserCredential } from \"@azure/identity\";\nimport { BicepClient } from \"@azure/arm-resourcesbicep\";\n\nconst credential = new InteractiveBrowserCredential({\n  tenantId: \"<YOUR_TENANT_ID>\",\n  clientId: \"<YOUR_CLIENT_ID>\",\n});\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new BicepClient(credential, subscriptionId);\n```\n\n\n### JavaScript Bundle\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### BicepClient\n\n`BicepClient` is the primary interface for developers using the Azure Bicep client library. Explore the methods on this client object to understand the different features of the Azure Bicep service that you can access.\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the [samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/resources/arm-resourcesbicep/samples) directory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for JavaScript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n",
+      "contentHash": "3b99e9f31838b5e9c9a960115cf6b801c71e0fbbe0841bf72488b249ae48bbe2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/README.md"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/tsp-location.yaml",
+      "text": "directory: specification/resources/Bicep.Management\ncommit: 5f272067844826380939c0b3f24ca3cc99dbe308\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "8fd9bdc6bd7f93aefed07102176e052a47a7fa6990cba59062043b4ebd603ab8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/resources/arm-resourcesbicep/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/bicepContext.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e1353a0266187787ea0a8bd75a5ddd925548fae7a5fc504e6392196e38af7304"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/index.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b00388b10143d0bbd9d677401f3a236271794e887250114ad4e3bec8ac89acde"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/operations.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1bdb69fd58c179597be42b4088a7bd292a5e399d33f050f6e81cf5e500cef5d4"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/decompileOperationGroup/options.ts",
+      "startLine": 1,
+      "endLine": 7,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "2023ddd8243a18091e1f3c7d4f7ededcff822604b793f712b91fbe6213e88384"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "6f44dc23299ad3b63a47ddf04301a1bf61983bc16c9c494679f12b454baa0e69"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/bicepClient.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "5b0c97a2ce44234a9bdc169daa16504afb7941f167076f498a82b05393670b41"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/classic/decompileOperationGroup/index.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "c1004b3a33e9fe5d368273c014d6a9f39390220cc91517a7558c43d3a2011624"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "841064caf952373c086847ec9d96d6839bfcd2ed4005f739058188608243ef7d"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/index.ts",
+      "startLine": 1,
+      "endLine": 16,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "68db3ce28ae18f3fc28198814c996354fcea6c0e146a9b6c93bdc08408406590"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "48a56a464adde0c638dcd52a642c1127f5defe8d6c816a2225bbab53b25218ec"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "646bb8657b95c613f05ab0a083bded5f040e7cdf0b6c66d92ae82a1dbe743c4b"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 121,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b841d407a72c147a3c86b2d5367574230dad0f722ec6ef1a0069f1a06e7895e1"
+    },
+    {
+      "path": "sdk/resources/arm-resourcesbicep/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 197,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0d0d4a60ebf2107ccb6499740a7ed4710ce0fdb3027eac07927e7bf7371f144d"
+    }
+  ]
+}

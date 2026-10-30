@@ -1,0 +1,693 @@
+{
+  "schemaVersion": 1,
+  "id": "95ae0e14-b463-48c9-a541-72060e9f805c",
+  "observedAt": "2026-10-24T19:14:24.089Z",
+  "identity": "python:azure-ai-inference:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-inference",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/ai/azure-ai-inference"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "ef06fed6e05e8cd1b0f57a9c2fd3576feb868ab7"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 116,
+    "eligibleFiles": 37,
+    "capturedFiles": 2,
+    "skipped": [
+      {
+        "path": "sdk/ai/azure-ai-inference/azure/ai/inference/aio/_patch.py",
+        "reason": "Review budget; only lines 1-470 sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-inference/azure/ai/inference/models/_patch.py",
+        "reason": "Review budget; only lines 1-574 sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-inference/azure/ai/inference/prompts/_patch.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/ai/azure-ai-inference/azure/ai/inference/aio/_patch.py",
+      "text": "# pylint: disable=too-many-lines\n# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport json\nimport logging\nimport sys\n\nfrom io import IOBase\nfrom typing import Any, Dict, Union, IO, List, Literal, Optional, overload, Type, TYPE_CHECKING, AsyncIterable\n\nfrom azure.core.pipeline import PipelineResponse\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.core.tracing.decorator_async import distributed_trace_async\nfrom azure.core.utils import case_insensitive_dict\nfrom azure.core.exceptions import (\n    ClientAuthenticationError,\n    HttpResponseError,\n    map_error,\n    ResourceExistsError,\n    ResourceNotFoundError,\n    ResourceNotModifiedError,\n)\nfrom .. import models as _models\nfrom .._model_base import SdkJSONEncoder, _deserialize\nfrom ._client import ChatCompletionsClient as ChatCompletionsClientGenerated\nfrom ._client import EmbeddingsClient as EmbeddingsClientGenerated\nfrom ._client import ImageEmbeddingsClient as ImageEmbeddingsClientGenerated\nfrom .._operations._operations import (\n    build_chat_completions_complete_request,\n    build_embeddings_embed_request,\n    build_image_embeddings_embed_request,\n)\nfrom .._patch import _get_internal_response_format\n\nif TYPE_CHECKING:\n    # pylint: disable=unused-import,ungrouped-imports\n    from azure.core.credentials_async import AsyncTokenCredential\n\nif sys.version_info >= (3, 9):\n    from collections.abc import MutableMapping\nelse:\n    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports\n\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\n_Unset: Any = object()\n_LOGGER = logging.getLogger(__name__)\n\n\nasync def load_client(\n    endpoint: str, credential: Union[AzureKeyCredential, \"AsyncTokenCredential\"], **kwargs: Any\n) -> Union[\"ChatCompletionsClient\", \"EmbeddingsClient\", \"ImageEmbeddingsClient\"]:\n    \"\"\"\n    Load a client from a given endpoint URL. The method makes a REST API call to the `/info` route\n    on the given endpoint, to determine the model type and therefore which client to instantiate.\n    This method will only work when using Serverless API or Managed Compute endpoint.\n    It will not work for GitHub Models endpoint or Azure OpenAI endpoint.\n    Keyword arguments are passed through to the client constructor (you can set keywords such as\n    `api_version`, `user_agent`, `logging_enable` etc. on the client constructor).\n\n    :param endpoint: Service endpoint URL for AI model inference. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a AsyncTokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials_async.AsyncTokenCredential\n    :return: The appropriate asynchronous client associated with the given endpoint\n    :rtype: ~azure.ai.inference.aio.ChatCompletionsClient or ~azure.ai.inference.aio.EmbeddingsClient\n     or ~azure.ai.inference.aio.ImageEmbeddingsClient\n    :raises ~azure.core.exceptions.HttpResponseError:\n    \"\"\"\n\n    async with ChatCompletionsClient(\n        endpoint, credential, **kwargs\n    ) as client:  # Pick any of the clients, it does not matter.\n        try:\n            model_info = await client.get_model_info()  # type: ignore\n        except ResourceNotFoundError as error:\n            error.message = (\n                \"`load_client` function does not work on this endpoint (`/info` route not supported). \"\n                \"Please construct one of the clients (e.g. `ChatCompletionsClient`) directly.\"\n            )\n            raise error\n\n    _LOGGER.info(\"model_info=%s\", model_info)\n    if not model_info.model_type:\n        raise ValueError(\n            \"The AI model information is missing a value for `model type`. Cannot create an appropriate client.\"\n        )\n\n    # TODO: Remove \"completions\", \"chat-comletions\" and \"embedding\" once Mistral Large and Cohere fixes their model type\n    if model_info.model_type in (\n        _models.ModelType.CHAT_COMPLETION,\n        \"chat_completions\",\n        \"chat\",\n        \"completion\",\n        \"chat-completion\",\n        \"chat-completions\",\n        \"chat completion\",\n        \"chat completions\",\n    ):\n        chat_completion_client = ChatCompletionsClient(endpoint, credential, **kwargs)\n        chat_completion_client._model_info = (  # pylint: disable=protected-access,attribute-defined-outside-init\n            model_info\n        )\n        return chat_completion_client\n\n    if model_info.model_type in (\n        _models.ModelType.EMBEDDINGS,\n        \"embedding\",\n        \"text_embedding\",\n        \"text-embeddings\",\n        \"text embedding\",\n        \"text embeddings\",\n    ):\n        embedding_client = EmbeddingsClient(endpoint, credential, **kwargs)\n        embedding_client._model_info = model_info  # pylint: disable=protected-access,attribute-defined-outside-init\n        return embedding_client\n\n    if model_info.model_type in (\n        _models.ModelType.IMAGE_EMBEDDINGS,\n        \"image_embedding\",\n        \"image-embeddings\",\n        \"image-embedding\",\n        \"image embedding\",\n        \"image embeddings\",\n    ):\n        image_embedding_client = ImageEmbeddingsClient(endpoint, credential, **kwargs)\n        image_embedding_client._model_info = (  # pylint: disable=protected-access,attribute-defined-outside-init\n            model_info\n        )\n        return image_embedding_client\n\n    raise ValueError(f\"No client available to support AI model type `{model_info.model_type}`\")\n\n\nclass ChatCompletionsClient(ChatCompletionsClientGenerated):  # pylint: disable=too-many-instance-attributes\n    \"\"\"ChatCompletionsClient.\n\n    :param endpoint: Service endpoint URL for AI model inference. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Is either a\n     AzureKeyCredential type or a AsyncTokenCredential type. Required.\n    :type credential: ~azure.core.credentials.AzureKeyCredential or\n     ~azure.core.credentials_async.AsyncTokenCredential\n    :keyword frequency_penalty: A value that influences the probability of generated tokens\n        appearing based on their cumulative frequency in generated text.\n        Positive values will make tokens less likely to appear as their frequency increases and\n        decrease the likelihood of the model repeating the same statements verbatim.\n        Supported range is [-2, 2].\n        Default value is None.\n    :paramtype frequency_penalty: float\n    :keyword presence_penalty: A value that influences the probability of generated tokens\n        appearing based on their existing\n        presence in generated text.\n        Positive values will make tokens less likely to appear when they already exist and increase\n        the model's likelihood to output new topics.\n        Supported range is [-2, 2].\n        Default value is None.\n    :paramtype presence_penalty: float\n    :keyword temperature: The sampling temperature to use that controls the apparent creativity of\n        generated completions.\n        Higher values will make output more random while lower values will make results more focused\n        and deterministic.\n        It is not recommended to modify temperature and top_p for the same completions request as the\n        interaction of these two settings is difficult to predict.\n        Supported range is [0, 1].\n        Default value is None.\n    :paramtype temperature: float\n    :keyword top_p: An alternative to sampling with temperature called nucleus sampling. This value\n        causes the\n        model to consider the results of tokens with the provided probability mass. As an example, a\n        value of 0.15 will cause only the tokens comprising the top 15% of probability mass to be\n        considered.\n        It is not recommended to modify temperature and top_p for the same completions request as the\n        interaction of these two settings is difficult to predict.\n        Supported range is [0, 1].\n        Default value is None.\n    :paramtype top_p: float\n    :keyword max_tokens: The maximum number of tokens to generate. Default value is None.\n    :paramtype max_tokens: int\n    :keyword response_format: The format that the AI model must output. AI chat completions models typically output\n        unformatted text by default. This is equivalent to setting \"text\" as the response_format.\n        To output JSON format, without adhering to any schema, set to \"json_object\".\n        To output JSON format adhering to a provided schema, set this to an object of the class\n        ~azure.ai.inference.models.JsonSchemaFormat. Default value is None.\n    :paramtype response_format: Union[Literal['text', 'json_object'], ~azure.ai.inference.models.JsonSchemaFormat]\n    :keyword stop: A collection of textual sequences that will end completions generation. Default\n        value is None.\n    :paramtype stop: list[str]\n    :keyword tools: The available tool definitions that the chat completions request can use,\n        including caller-defined functions. Default value is None.\n    :paramtype tools: list[~azure.ai.inference.models.ChatCompletionsToolDefinition]\n    :keyword tool_choice: If specified, the model will configure which of the provided tools it can\n        use for the chat completions response. Is either a Union[str,\n        \"_models.ChatCompletionsToolChoicePreset\"] type or a ChatCompletionsNamedToolChoice type.\n        Default value is None.\n    :paramtype tool_choice: str or ~azure.ai.inference.models.ChatCompletionsToolChoicePreset or\n        ~azure.ai.inference.models.ChatCompletionsNamedToolChoice\n    :keyword seed: If specified, the system will make a best effort to sample deterministically\n        such that repeated requests with the\n        same seed and parameters should return the same result. Determinism is not guaranteed.\n        Default value is None.\n    :paramtype seed: int\n    :keyword model: ID of the specific AI model to use, if more than one model is available on the\n        endpoint. Default value is None.\n    :paramtype model: str\n    :keyword model_extras: Additional, model-specific parameters that are not in the\n        standard request payload. They will be added as-is to the root of the JSON in the request body.\n        How the service handles these extra parameters depends on the value of the\n        ``extra-parameters`` request header. Default value is None.\n    :paramtype model_extras: dict[str, Any]\n    :keyword api_version: The API version to use for this operation. Default value is\n     \"2024-05-01-preview\". Note that overriding this default value may result in unsupported\n     behavior.\n    :paramtype api_version: str\n    \"\"\"\n\n    def __init__(\n        self,\n        endpoint: str,\n        credential: Union[AzureKeyCredential, \"AsyncTokenCredential\"],\n        *,\n        frequency_penalty: Optional[float] = None,\n        presence_penalty: Optional[float] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        max_tokens: Optional[int] = None,\n        response_format: Optional[Union[Literal[\"text\", \"json_object\"], _models.JsonSchemaFormat]] = None,\n        stop: Optional[List[str]] = None,\n        tools: Optional[List[_models.ChatCompletionsToolDefinition]] = None,\n        tool_choice: Optional[\n            Union[str, _models.ChatCompletionsToolChoicePreset, _models.ChatCompletionsNamedToolChoice]\n        ] = None,\n        seed: Optional[int] = None,\n        model: Optional[str] = None,\n        model_extras: Optional[Dict[str, Any]] = None,\n        **kwargs: Any,\n    ) -> None:\n\n        self._model_info: Optional[_models.ModelInfo] = None\n\n        # Store default chat completions settings, to be applied in all future service calls\n        # unless overridden by arguments in the `complete` method.\n        self._frequency_penalty = frequency_penalty\n        self._presence_penalty = presence_penalty\n        self._temperature = temperature\n        self._top_p = top_p\n        self._max_tokens = max_tokens\n        self._internal_response_format = _get_internal_response_format(response_format)\n        self._stop = stop\n        self._tools = tools\n        self._tool_choice = tool_choice\n        self._seed = seed\n        self._model = model\n        self._model_extras = model_extras\n\n        # For Key auth, we need to send these two auth HTTP request headers simultaneously:\n        # 1. \"Authorization: Bearer <key>\"\n        # 2. \"api-key: <key>\"\n        # This is because Serverless API, Managed Compute and GitHub endpoints support the first header,\n        # and Azure OpenAI and the new Unified Inference endpoints support the second header.\n        # The first header will be taken care of by auto-generated code.\n        # The second one is added here.\n        if isinstance(credential, AzureKeyCredential):\n            headers = kwargs.pop(\"headers\", {})\n            if \"api-key\" not in headers:\n                headers[\"api-key\"] = credential.key\n            kwargs[\"headers\"] = headers\n\n        super().__init__(endpoint, credential, **kwargs)\n\n    @overload\n    async def complete(\n        self,\n        *,\n        messages: List[_models.ChatRequestMessage],\n        stream: Literal[False] = False,\n        frequency_penalty: Optional[float] = None,\n        presence_penalty: Optional[float] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        max_tokens: Optional[int] = None,\n        response_format: Optional[Union[Literal[\"text\", \"json_object\"], _models.JsonSchemaFormat]] = None,\n        stop: Optional[List[str]] = None,\n        tools: Optional[List[_models.ChatCompletionsToolDefinition]] = None,\n        tool_choice: Optional[\n            Union[str, _models.ChatCompletionsToolChoicePreset, _models.ChatCompletionsNamedToolChoice]\n        ] = None,\n        seed: Optional[int] = None,\n        model: Optional[str] = None,\n        model_extras: Optional[Dict[str, Any]] = None,\n        **kwargs: Any,\n    ) -> _models.ChatCompletions: ...\n\n    @overload\n    async def complete(\n        self,\n        *,\n        messages: List[_models.ChatRequestMessage],\n        stream: Literal[True],\n        frequency_penalty: Optional[float] = None,\n        presence_penalty: Optional[float] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        max_tokens: Optional[int] = None,\n        response_format: Optional[Union[Literal[\"text\", \"json_object\"], _models.JsonSchemaFormat]] = None,\n        stop: Optional[List[str]] = None,\n        tools: Optional[List[_models.ChatCompletionsToolDefinition]] = None,\n        tool_choice: Optional[\n            Union[str, _models.ChatCompletionsToolChoicePreset, _models.ChatCompletionsNamedToolChoice]\n        ] = None,\n        seed: Optional[int] = None,\n        model: Optional[str] = None,\n        model_extras: Optional[Dict[str, Any]] = None,\n        **kwargs: Any,\n    ) -> AsyncIterable[_models.StreamingChatCompletionsUpdate]: ...\n\n    @overload\n    async def complete(\n        self,\n        *,\n        messages: List[_models.ChatRequestMessage],\n        stream: Optional[bool] = None,\n        frequency_penalty: Optional[float] = None,\n        presence_penalty: Optional[float] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        max_tokens: Optional[int] = None,\n        response_format: Optional[Union[Literal[\"text\", \"json_object\"], _models.JsonSchemaFormat]] = None,\n        stop: Optional[List[str]] = None,\n        tools: Optional[List[_models.ChatCompletionsToolDefinition]] = None,\n        tool_choice: Optional[\n            Union[str, _models.ChatCompletionsToolChoicePreset, _models.ChatCompletionsNamedToolChoice]\n        ] = None,\n        seed: Optional[int] = None,\n        model: Optional[str] = None,\n        model_extras: Optional[Dict[str, Any]] = None,\n        **kwargs: Any,\n    ) -> Union[AsyncIterable[_models.StreamingChatCompletionsUpdate], _models.ChatCompletions]:\n        # pylint: disable=line-too-long\n        \"\"\"Gets chat completions for the provided chat messages.\n        Completions support a wide variety of tasks and generate text that continues from or\n        \"completes\" provided prompt data. The method makes a REST API call to the `/chat/completions` route\n        on the given endpoint.\n        When using this method with `stream=True`, the response is streamed\n        back to the client. Iterate over the resulting StreamingChatCompletions\n        object to get content updates as they arrive. By default, the response is a ChatCompletions object\n        (non-streaming).\n\n        :keyword messages: The collection of context messages associated with this chat completions\n         request.\n         Typical usage begins with a chat message for the System role that provides instructions for\n         the behavior of the assistant, followed by alternating messages between the User and\n         Assistant roles. Required.\n        :paramtype messages: list[~azure.ai.inference.models.ChatRequestMessage]\n        :keyword stream: A value indicating whether chat completions should be streamed for this request.\n         Default value is False. If streaming is enabled, the response will be a StreamingChatCompletions.\n         Otherwise the response will be a ChatCompletions.\n        :paramtype stream: bool\n        :keyword frequency_penalty: A value that influences the probability of generated tokens\n         appearing based on their cumulative frequency in generated text.\n         Positive values will make tokens less likely to appear as their frequency increases and\n         decrease the likelihood of the model repeating the same statements verbatim.\n         Supported range is [-2, 2].\n         Default value is None.\n        :paramtype frequency_penalty: float\n        :keyword presence_penalty: A value that influences the probability of generated tokens\n         appearing based on their existing\n         presence in generated text.\n         Positive values will make tokens less likely to appear when they already exist and increase\n         the model's likelihood to output new topics.\n         Supported range is [-2, 2].\n         Default value is None.\n        :paramtype presence_penalty: float\n        :keyword temperature: The sampling temperature to use that controls the apparent creativity of\n         generated completions.\n         Higher values will make output more random while lower values will make results more focused\n         and deterministic.\n         It is not recommended to modify temperature and top_p for the same completions request as the\n         interaction of these two settings is difficult to predict.\n         Supported range is [0, 1].\n         Default value is None.\n        :paramtype temperature: float\n        :keyword top_p: An alternative to sampling with temperature called nucleus sampling. This value\n         causes the\n         model to consider the results of tokens with the provided probability mass. As an example, a\n         value of 0.15 will cause only the tokens comprising the top 15% of probability mass to be\n         considered.\n         It is not recommended to modify temperature and top_p for the same completions request as the\n         interaction of these two settings is difficult to predict.\n         Supported range is [0, 1].\n         Default value is None.\n        :paramtype top_p: float\n        :keyword max_tokens: The maximum number of tokens to generate. Default value is None.\n        :paramtype max_tokens: int\n        :keyword response_format: The format that the AI model must output. AI chat completions models typically output\n         unformatted text by default. This is equivalent to setting \"text\" as the response_format.\n         To output JSON format, without adhering to any schema, set to \"json_object\".\n         To output JSON format adhering to a provided schema, set this to an object of the class\n         ~azure.ai.inference.models.JsonSchemaFormat. Default value is None.\n        :paramtype response_format: Union[Literal['text', 'json_object'], ~azure.ai.inference.models.JsonSchemaFormat]\n        :keyword stop: A collection of textual sequences that will end completions generation. Default\n         value is None.\n        :paramtype stop: list[str]\n        :keyword tools: The available tool definitions that the chat completions request can use,\n         including caller-defined functions. Default value is None.\n        :paramtype tools: list[~azure.ai.inference.models.ChatCompletionsToolDefinition]\n        :keyword tool_choice: If specified, the model will configure which of the provided tools it can\n         use for the chat completions response. Is either a Union[str,\n         \"_models.ChatCompletionsToolChoicePreset\"] type or a ChatCompletionsNamedToolChoice type.\n         Default value is None.\n        :paramtype tool_choice: str or ~azure.ai.inference.models.ChatCompletionsToolChoicePreset or\n         ~azure.ai.inference.models.ChatCompletionsNamedToolChoice\n        :keyword seed: If specified, the system will make a best effort to sample deterministically\n         such that repeated requests with the\n         same seed and parameters should return the same result. Determinism is not guaranteed.\n         Default value is None.\n        :paramtype seed: int\n        :keyword model: ID of the specific AI model to use, if more than one model is available on the\n         endpoint. Default value is None.\n        :paramtype model: str\n        :keyword model_extras: Additional, model-specific parameters that are not in the\n         standard request payload. They will be added as-is to the root of the JSON in the request body.\n         How the service handles these extra parameters depends on the value of the\n         ``extra-parameters`` request header. Default value is None.\n        :paramtype model_extras: dict[str, Any]\n        :return: ChatCompletions for non-streaming, or AsyncIterable[StreamingChatCompletionsUpdate] for streaming.\n        :rtype: ~azure.ai.inference.models.ChatCompletions or ~azure.ai.inference.models.AsyncStreamingChatCompletions\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def complete(\n        self,\n        body: JSON,\n        *,\n        content_type: str = \"application/json\",\n        **kwargs: Any,\n    ) -> Union[AsyncIterable[_models.StreamingChatCompletionsUpdate], _models.ChatCompletions]:\n        # pylint: disable=line-too-long\n        \"\"\"Gets chat completions for the provided chat messages.\n        Completions support a wide variety of tasks and generate text that continues from or\n        \"completes\" provided prompt data.\n\n        :param body: An object of type MutableMapping[str, Any], such as a dictionary, that\n         specifies the full request payload. Required.\n        :type body: JSON\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/json\".\n        :paramtype content_type: str\n        :return: ChatCompletions for non-streaming, or AsyncIterable[StreamingChatCompletionsUpdate] for streaming.\n        :rtype: ~azure.ai.inference.models.ChatCompletions or ~azure.ai.inference.models.AsyncStreamingChatCompletions\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def complete(\n        self,\n        body: IO[bytes],\n        *,\n        content_type: str = \"application/json\",\n        **kwargs: Any,\n    ) -> Union[AsyncIterable[_models.StreamingChatCompletionsUpdate], _models.ChatCompletions]:\n        # pylint: disable=line-too-long",
+      "contentHash": "2c92b16c676b99c7bad811251ebae8b8228350e00ef589c5555a50adf81adf95",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-inference/azure/ai/inference/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 470,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a"
+    },
+    {
+      "path": "sdk/ai/azure-ai-inference/azure/ai/inference/models/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport base64\nimport json\nimport logging\nimport queue\nimport re\nimport sys\n\nfrom typing import Mapping, Literal, Any, List, AsyncIterator, Iterator, Optional, Union, overload\nfrom azure.core.rest import HttpResponse, AsyncHttpResponse\nfrom ._enums import ChatRole\nfrom .._model_base import rest_discriminator, rest_field\nfrom ._models import ChatRequestMessage\nfrom ._models import ImageUrl as ImageUrlGenerated\nfrom ._models import ChatCompletions as ChatCompletionsGenerated\nfrom ._models import EmbeddingsResult as EmbeddingsResultGenerated\nfrom ._models import ImageEmbeddingInput as EmbeddingInputGenerated\nfrom ._models import InputAudio as InputAudioGenerated\nfrom .. import models as _models\n\nif sys.version_info >= (3, 11):\n    from typing import Self\nelse:\n    from typing_extensions import Self\n\nlogger = logging.getLogger(__name__)\n\n\nclass UserMessage(ChatRequestMessage, discriminator=\"user\"):\n    \"\"\"A request chat message representing user input to the assistant.\n\n    :ivar role: The chat role associated with this message, which is always 'user' for user\n     messages. Required. The role that provides input for chat completions.\n    :vartype role: str or ~azure.ai.inference.models.USER\n    :ivar content: The contents of the user message, with available input types varying by selected\n     model. Required. Is either a str type or a [ContentItem] type.\n    :vartype content: str or list[~azure.ai.inference.models.ContentItem]\n    \"\"\"\n\n    role: Literal[ChatRole.USER] = rest_discriminator(name=\"role\")  # type: ignore\n    \"\"\"The chat role associated with this message, which is always 'user' for user messages. Required.\n     The role that provides input for chat completions.\"\"\"\n    content: Union[\"str\", List[\"_models.ContentItem\"]] = rest_field()\n    \"\"\"The contents of the user message, with available input types varying by selected model.\n     Required. Is either a str type or a [ContentItem] type.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        content: Union[str, List[\"_models.ContentItem\"]],\n    ) -> None: ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        if len(args) == 1 and isinstance(args[0], (List, str)):\n            if kwargs.get(\"content\") is not None:\n                raise ValueError(\"content cannot be provided as positional and keyword arguments\")\n            kwargs[\"content\"] = args[0]\n            args = tuple()\n        super().__init__(*args, role=ChatRole.USER, **kwargs)\n\n\nclass SystemMessage(ChatRequestMessage, discriminator=\"system\"):\n    \"\"\"A request chat message containing system instructions that influence how the model will\n    generate a chat completions response.\n\n    :ivar role: The chat role associated with this message, which is always 'system' for system\n     messages. Required.\n    :vartype role: str or ~azure.ai.inference.models.SYSTEM\n    :ivar content: The contents of the system message. Required.\n    :vartype content: str\n    \"\"\"\n\n    role: Literal[ChatRole.SYSTEM] = rest_discriminator(name=\"role\")  # type: ignore\n    \"\"\"The chat role associated with this message, which is always 'system' for system messages.\n     Required.\"\"\"\n    content: str = rest_field()\n    \"\"\"The contents of the system message. Required.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        content: str,\n    ) -> None: ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        if len(args) == 1 and isinstance(args[0], str):\n            if kwargs.get(\"content\") is not None:\n                raise ValueError(\"content cannot be provided as positional and keyword arguments\")\n            kwargs[\"content\"] = args[0]\n            args = tuple()\n        super().__init__(*args, role=ChatRole.SYSTEM, **kwargs)\n\n\nclass DeveloperMessage(ChatRequestMessage, discriminator=\"developer\"):\n    \"\"\"A request chat message containing developer instructions that influence how the model will\n    generate a chat completions response. Some AI models support developer messages instead\n    of system messages.\n\n    :ivar role: The chat role associated with this message, which is always 'developer' for developer\n     messages. Required.\n    :vartype role: str or ~azure.ai.inference.models.DEVELOPER\n    :ivar content: The contents of the developer message. Required.\n    :vartype content: str\n    \"\"\"\n\n    role: Literal[ChatRole.DEVELOPER] = rest_discriminator(name=\"role\")  # type: ignore\n    \"\"\"The chat role associated with this message, which is always 'developer' for developer messages.\n     Required.\"\"\"\n    content: str = rest_field()\n    \"\"\"The contents of the developer message. Required.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        content: str,\n    ) -> None: ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        if len(args) == 1 and isinstance(args[0], str):\n            if kwargs.get(\"content\") is not None:\n                raise ValueError(\"content cannot be provided as positional and keyword arguments\")\n            kwargs[\"content\"] = args[0]\n            args = tuple()\n        super().__init__(*args, role=ChatRole.DEVELOPER, **kwargs)\n\n\nclass AssistantMessage(ChatRequestMessage, discriminator=\"assistant\"):\n    \"\"\"A request chat message representing response or action from the assistant.\n\n    :ivar role: The chat role associated with this message, which is always 'assistant' for\n     assistant messages. Required. The role that provides responses to system-instructed,\n     user-prompted input.\n    :vartype role: str or ~azure.ai.inference.models.ASSISTANT\n    :ivar content: The content of the message.\n    :vartype content: str\n    :ivar tool_calls: The tool calls that must be resolved and have their outputs appended to\n     subsequent input messages for the chat\n     completions request to resolve as configured.\n    :vartype tool_calls: list[~azure.ai.inference.models.ChatCompletionsToolCall]\n    \"\"\"\n\n    role: Literal[ChatRole.ASSISTANT] = rest_discriminator(name=\"role\")  # type: ignore\n    \"\"\"The chat role associated with this message, which is always 'assistant' for assistant messages.\n     Required. The role that provides responses to system-instructed, user-prompted input.\"\"\"\n    content: Optional[str] = rest_field()\n    \"\"\"The content of the message.\"\"\"\n    tool_calls: Optional[List[\"_models.ChatCompletionsToolCall\"]] = rest_field()\n    \"\"\"The tool calls that must be resolved and have their outputs appended to subsequent input\n     messages for the chat\n     completions request to resolve as configured.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        content: Optional[str] = None,\n        *,\n        tool_calls: Optional[List[\"_models.ChatCompletionsToolCall\"]] = None,\n    ) -> None: ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        if len(args) == 1 and isinstance(args[0], str):\n            if kwargs.get(\"content\") is not None:\n                raise ValueError(\"content cannot be provided as positional and keyword arguments\")\n            kwargs[\"content\"] = args[0]\n            args = tuple()\n        super().__init__(*args, role=ChatRole.ASSISTANT, **kwargs)\n\n\nclass ToolMessage(ChatRequestMessage, discriminator=\"tool\"):\n    \"\"\"A request chat message representing requested output from a configured tool.\n\n    :ivar role: The chat role associated with this message, which is always 'tool' for tool\n     messages. Required. The role that represents extension tool activity within a chat completions\n     operation.\n    :vartype role: str or ~azure.ai.inference.models.TOOL\n    :ivar content: The content of the message.\n    :vartype content: str\n    :ivar tool_call_id: The ID of the tool call resolved by the provided content. Required.\n    :vartype tool_call_id: str\n    \"\"\"\n\n    role: Literal[ChatRole.TOOL] = rest_discriminator(name=\"role\")  # type: ignore\n    \"\"\"The chat role associated with this message, which is always 'tool' for tool messages. Required.\n     The role that represents extension tool activity within a chat completions operation.\"\"\"\n    content: Optional[str] = rest_field()\n    \"\"\"The content of the message.\"\"\"\n    tool_call_id: str = rest_field()\n    \"\"\"The ID of the tool call resolved by the provided content. Required.\"\"\"\n\n    @overload\n    def __init__(\n        self,\n        content: Optional[str] = None,\n        *,\n        tool_call_id: str,\n    ) -> None: ...\n\n    @overload\n    def __init__(self, mapping: Mapping[str, Any]) -> None:\n        \"\"\"\n        :param mapping: raw JSON to initialize the model.\n        :type mapping: Mapping[str, Any]\n        \"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        if len(args) == 1 and isinstance(args[0], str):\n            if kwargs.get(\"content\") is not None:\n                raise ValueError(\"content cannot be provided as positional and keyword arguments\")\n            kwargs[\"content\"] = args[0]\n            args = tuple()\n        super().__init__(*args, role=ChatRole.TOOL, **kwargs)\n\n\nclass ChatCompletions(ChatCompletionsGenerated):\n    \"\"\"Representation of the response data from a chat completions request.\n    Completions support a wide variety of tasks and generate text that continues from or\n    \"completes\"\n    provided prompt data.\n\n\n    :ivar id: A unique identifier associated with this chat completions response. Required.\n    :vartype id: str\n    :ivar created: The first timestamp associated with generation activity for this completions\n     response,\n     represented as seconds since the beginning of the Unix epoch of 00:00 on 1 Jan 1970. Required.\n    :vartype created: ~datetime.datetime\n    :ivar model: The model used for the chat completion. Required.\n    :vartype model: str\n    :ivar usage: Usage information for tokens processed and generated as part of this completions\n     operation. Required.\n    :vartype usage: ~azure.ai.inference.models.CompletionsUsage\n    :ivar choices: The collection of completions choices associated with this completions response.\n     Generally, ``n`` choices are generated per provided prompt with a default value of 1.\n     Token limits and other settings may limit the number of choices generated. Required.\n    :vartype choices: list[~azure.ai.inference.models.ChatChoice]\n    \"\"\"\n\n    def __str__(self) -> str:\n        # pylint: disable=client-method-name-no-double-underscore\n        return json.dumps(self.as_dict(), indent=2)\n\n\nclass EmbeddingsResult(EmbeddingsResultGenerated):\n    \"\"\"Representation of the response data from an embeddings request.\n    Embeddings measure the relatedness of text strings and are commonly used for search,\n    clustering,\n    recommendations, and other similar scenarios.\n\n\n    :ivar data: Embedding values for the prompts submitted in the request. Required.\n    :vartype data: list[~azure.ai.inference.models.EmbeddingItem]\n    :ivar usage: Usage counts for tokens input using the embeddings API. Required.\n    :vartype usage: ~azure.ai.inference.models.EmbeddingsUsage\n    :ivar model: The model ID used to generate this result. Required.\n    :vartype model: str\n    \"\"\"\n\n    def __str__(self) -> str:\n        # pylint: disable=client-method-name-no-double-underscore\n        return json.dumps(self.as_dict(), indent=2)\n\n\nclass ImageUrl(ImageUrlGenerated):\n\n    @classmethod\n    def load(\n        cls, *, image_file: str, image_format: str, detail: Optional[Union[str, \"_models.ImageDetailLevel\"]] = None\n    ) -> Self:\n        \"\"\"\n        Create an ImageUrl object from a local image file. The method reads the image\n        file and encodes it as a base64 string, which together with the image format\n        is then used to format the JSON `url` value passed in the request payload.\n\n        :keyword image_file: The name of the local image file to load. Required.\n        :paramtype image_file: str\n        :keyword image_format: The MIME type format of the image. For example: \"jpeg\", \"png\". Required.\n        :paramtype image_format: str\n        :keyword detail: The evaluation quality setting to use, which controls relative prioritization of\n         speed, token consumption, and accuracy. Known values are: \"auto\", \"low\", and \"high\".\n        :paramtype detail: str or ~azure.ai.inference.models.ImageDetailLevel\n        :return: An ImageUrl object with the image data encoded as a base64 string.\n        :rtype: ~azure.ai.inference.models.ImageUrl\n        :raises FileNotFoundError: when the image file could not be opened.\n        \"\"\"\n        with open(image_file, \"rb\") as f:\n            image_data = base64.b64encode(f.read()).decode(\"utf-8\")\n        url = f\"data:image/{image_format};base64,{image_data}\"\n        return cls(url=url, detail=detail)\n\n\nclass ImageEmbeddingInput(EmbeddingInputGenerated):\n\n    @classmethod\n    def load(cls, *, image_file: str, image_format: str, text: Optional[str] = None) -> Self:\n        \"\"\"\n        Create an ImageEmbeddingInput object from a local image file. The method reads the image\n        file and encodes it as a base64 string, which together with the image format\n        is then used to format the JSON `url` value passed in the request payload.\n\n        :keyword image_file: The name of the local image file to load. Required.\n        :paramtype image_file: str\n        :keyword image_format: The MIME type format of the image. For example: \"jpeg\", \"png\". Required.\n        :paramtype image_format: str\n        :keyword text: Optional. The text input to feed into the model (like DINO, CLIP).\n         Returns a 422 error if the model doesn't support the value or parameter.\n        :paramtype text: str\n        :return: An ImageEmbeddingInput object with the image data encoded as a base64 string.\n        :rtype: ~azure.ai.inference.models.EmbeddingsInput\n        :raises FileNotFoundError: when the image file could not be opened.\n        \"\"\"\n        with open(image_file, \"rb\") as f:\n            image_data = base64.b64encode(f.read()).decode(\"utf-8\")\n        image_uri = f\"data:image/{image_format};base64,{image_data}\"\n        return cls(image=image_uri, text=text)\n\n\nclass BaseStreamingChatCompletions:\n    \"\"\"A base class for the sync and async streaming chat completions responses, holding any common code\n    to deserializes the Server Sent Events (SSE) response stream into chat completions updates, each one\n    represented by a StreamingChatCompletionsUpdate object.\n    \"\"\"\n\n    # Enable detailed logs of SSE parsing. For development only, should be `False` by default.\n    _ENABLE_CLASS_LOGS = False\n\n    # The prefix of each line in the SSE stream that contains a JSON string\n    # to deserialize into a StreamingChatCompletionsUpdate object\n    _SSE_DATA_EVENT_PREFIX = b\"data: \"\n\n    # The line indicating the end of the SSE stream\n    _SSE_DATA_EVENT_DONE = b\"data: [DONE]\"\n\n    def __init__(self):\n        self._queue: \"queue.Queue[_models.StreamingChatCompletionsUpdate]\" = queue.Queue()\n        self._incomplete_line = b\"\"\n        self._done = False  # Will be set to True when reading 'data: [DONE]' line\n\n    # See https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream\n    def _deserialize_and_add_to_queue(self, element: bytes) -> bool:\n\n        if self._ENABLE_CLASS_LOGS:\n            logger.debug(\"[Original element] %s\", repr(element))\n\n        # Clear the queue of StreamingChatCompletionsUpdate before processing the next block\n        self._queue.queue.clear()\n\n        # Split the single input bytes object at new line characters, and get a list of bytes objects, each\n        # representing a single \"line\". The bytes object at the end of the list may be a partial \"line\" that\n        # does not contain a new line character at the end.\n        # Note 1: DO NOT try to use something like this here:\n        #   line_list: List[str] = re.split(r\"(?<=\\n)\", element.decode(\"utf-8\"))\n        #   to do full UTF8 decoding of the whole input bytes object, as the last line in the list may be partial, and\n        #   as such may contain a partial UTF8 Chinese character (for example). `decode(\"utf-8\")` will raise an\n        #   exception for such a case. See GitHub issue https://github.com/Azure/azure-sdk-for-python/issues/39565\n        # Note 2: Consider future re-write and simplifications of this code by using:\n        #   `codecs.getincrementaldecoder(\"utf-8\")`\n        line_list: List[bytes] = re.split(re.compile(b\"(?<=\\n)\"), element)\n        for index, line in enumerate(line_list):\n\n            if self._ENABLE_CLASS_LOGS:\n                logger.debug(\"[Original line] %s\", repr(line))\n\n            if index == 0:\n                line = self._incomplete_line + line\n                self._incomplete_line = b\"\"\n\n            if index == len(line_list) - 1 and not line.endswith(b\"\\n\"):\n                self._incomplete_line = line\n                return False\n\n            if self._ENABLE_CLASS_LOGS:\n                logger.debug(\"[Modified line] %s\", repr(line))\n\n            if line == b\"\\n\":  # Empty line, indicating flush output to client\n                continue\n\n            if not line.startswith(self._SSE_DATA_EVENT_PREFIX):\n                raise ValueError(f\"SSE event not supported (line `{repr(line)}`)\")\n\n            if line.startswith(self._SSE_DATA_EVENT_DONE):\n                if self._ENABLE_CLASS_LOGS:\n                    logger.debug(\"[Done]\")\n                return True\n\n            # If you reached here, the line should contain `data: {...}\\n`\n            # where the curly braces contain a valid JSON object.\n            # It is now safe to do UTF8 decoding of the line.\n            line_str = line.decode(\"utf-8\")\n\n            # Deserialize it into a StreamingChatCompletionsUpdate object\n            # and add it to the queue.\n            # pylint: disable=W0212 # Access to a protected member _deserialize of a client class\n            update = _models.StreamingChatCompletionsUpdate._deserialize(\n                json.loads(line_str[len(self._SSE_DATA_EVENT_PREFIX) : -1]), []\n            )\n\n            # We skip any update that has a None or empty choices list, and does not have token usage info.\n            # (this is what OpenAI Python SDK does)\n            if update.choices or update.usage:\n                self._queue.put(update)\n\n            if self._ENABLE_CLASS_LOGS:\n                logger.debug(\"[Added to queue]\")\n\n        return False\n\n\nclass StreamingChatCompletions(BaseStreamingChatCompletions):\n    \"\"\"Represents an interator over StreamingChatCompletionsUpdate objects. It can be used for either synchronous or\n    asynchronous iterations. The class deserializes the Server Sent Events (SSE) response stream\n    into chat completions updates, each one represented by a StreamingChatCompletionsUpdate object.\n    \"\"\"\n\n    def __init__(self, response: HttpResponse):\n        super().__init__()\n        self._response = response\n        self._bytes_iterator: Iterator[bytes] = response.iter_bytes()\n\n    def __iter__(self) -> Any:\n        return self\n\n    def __next__(self) -> \"_models.StreamingChatCompletionsUpdate\":\n        while self._queue.empty() and not self._done:\n            self._done = self._read_next_block()\n        if self._queue.empty():\n            raise StopIteration\n        return self._queue.get()\n\n    def _read_next_block(self) -> bool:\n        if self._ENABLE_CLASS_LOGS:\n            logger.debug(\"[Reading next block]\")\n        try:\n            element = self._bytes_iterator.__next__()\n        except StopIteration:\n            self.close()\n            return True\n        return self._deserialize_and_add_to_queue(element)\n\n    def __enter__(self):\n        return self\n\n    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:  # type: ignore\n        self.close()\n\n    def close(self) -> None:\n        self._response.close()\n\n\nclass AsyncStreamingChatCompletions(BaseStreamingChatCompletions):\n    \"\"\"Represents an async interator over StreamingChatCompletionsUpdate objects.\n    It can be used for either synchronous or asynchronous iterations. The class\n    deserializes the Server Sent Events (SSE) response stream into chat\n    completions updates, each one represented by a StreamingChatCompletionsUpdate object.\n    \"\"\"\n\n    def __init__(self, response: AsyncHttpResponse):\n        super().__init__()\n        self._response = response\n        self._bytes_iterator: AsyncIterator[bytes] = response.iter_bytes()\n\n    def __aiter__(self) -> Any:\n        return self\n\n    async def __anext__(self) -> \"_models.StreamingChatCompletionsUpdate\":\n        while self._queue.empty() and not self._done:\n            self._done = await self._read_next_block_async()\n        if self._queue.empty():\n            raise StopAsyncIteration\n        return self._queue.get()\n\n    async def _read_next_block_async(self) -> bool:\n        if self._ENABLE_CLASS_LOGS:\n            logger.debug(\"[Reading next block]\")\n        try:\n            element = await self._bytes_iterator.__anext__()\n        except StopAsyncIteration:\n            await self.aclose()\n            return True\n        return self._deserialize_and_add_to_queue(element)\n\n    async def __aenter__(self):\n        return self\n\n    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:  # type: ignore\n        await self.aclose()\n\n    async def aclose(self) -> None:\n        await self._response.close()\n\n\nclass InputAudio(InputAudioGenerated):\n\n    @classmethod\n    def load(\n        cls,\n        *,\n        audio_file: str,\n        audio_format: str,\n    ) -> Self:\n        \"\"\"\n        Create an InputAudio object from a local audio file. The method reads the audio\n        file and encodes it as a base64 string, which together with the audio format\n        is then used to create the InputAudio object passed to the request payload.\n\n        :keyword audio_file: The name of the local audio file to load. Required.\n        :vartype audio_file: str\n        :keyword audio_format: The MIME type format of the audio. For example: \"wav\", \"mp3\". Required.\n        :vartype audio_format: str\n        :return: An InputAudio object with the audio data encoded as a base64 string.\n        :rtype: ~azure.ai.inference.models.InputAudio\n        :raises FileNotFoundError: when the image file could not be opened.\n        \"\"\"\n        with open(audio_file, \"rb\") as f:\n            audio_data = base64.b64encode(f.read()).decode(\"utf-8\")\n        return cls(data=audio_data, format=audio_format)\n\n\n__all__: List[str] = [\n    \"AssistantMessage\",\n    \"AsyncStreamingChatCompletions\",\n    \"ChatCompletions\",\n    \"ChatRequestMessage\",\n    \"EmbeddingsResult\",\n    \"ImageEmbeddingInput\",\n    \"ImageUrl\",\n    \"InputAudio\",\n    \"StreamingChatCompletions\",\n    \"SystemMessage\",\n    \"ToolMessage\",\n    \"UserMessage\",\n    \"DeveloperMessage\",\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in",
+      "contentHash": "52651829a9a96b37a22ed1197e19c84ae92ff40456e8a2997804420b4e33d7c9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-inference/azure/ai/inference/models/_patch.py",
+      "startLine": 1,
+      "endLine": 574,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/ai/azure-ai-inference/tsp-location.yaml",
+      "text": "directory: specification/ai/ModelClient\ncommit: a7a977a1666ad293769bc17fb80309be390b2ba9\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "33c12018cae39e24465c7c01658d1bf8ab8ce4b66d707917c221947f70e55e50",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-inference/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "3cbfd9ac035b86be9c4e7acc3ef8d4ba56c660faabe6fa943bda32c4e7e00138",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "03029fe5daea96cf7503c498e564aaf53f3390cf4cdc8b9130cf765608454cec",
+        "category": "Convenience methods",
+        "subtype": "model-info-based-async-client-factory",
+        "explanation": "load_client temporarily opens ChatCompletionsClient and awaits get_model_info. It rewrites and rethrows ResourceNotFoundError, rejects missing model_type, selects chat/text-embedding/image-embedding clients using the explicit enum-or-string alias lists, assigns the fetched object to the new client's _model_info and returns it. Unmatched types raise ValueError. The helper method and the latter two client implementations are not supplied.",
+        "pattern": "model-type-client-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated aio customization patch implements actual model discovery, alias dispatch and client construction rather than merely importing three generated client types.",
+        "symbols": [
+          "load_client"
+        ],
+        "evidence": [
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 55,
+            "endLine": 57
+          },
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 78,
+            "endLine": 139
+          }
+        ]
+      },
+      {
+        "key": "1689d1d2044cc840ae4c1cc9ac29e169df457d4b92acd521e4ac7891a912b3d4",
+        "category": "Auth",
+        "subtype": "constructor-api-key-header-for-key-credentials",
+        "explanation": "ChatCompletionsClient.__init__ tests isinstance(credential,AzureKeyCredential), takes headers from kwargs with an empty-dict default, inserts credential.key only when the 'api-key' membership test is false, restores headers to kwargs and passes them to the generated superclass. Existing api-key entries are retained. The comment describes an additional Authorization header, but its actual creation and request transmission are not supplied.",
+        "pattern": "custom-auth-header-policy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicitly patched subclass contains concrete credential-dependent header mutation and a superclass call; it is not inferred from authentication documentation.",
+        "symbols": [
+          "ChatCompletionsClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 31,
+            "endLine": 33
+          },
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 142,
+            "endLine": 142
+          },
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 224,
+            "endLine": 244
+          },
+          {
+            "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+            "startLine": 263,
+            "endLine": 276
+          }
+        ]
+      },
+      {
+        "key": "d27406c91a9fd6b27b2fe1426e837e3a3d87a01a4782f1f4c73f496f610c8678",
+        "category": "Model overrides",
+        "subtype": "positional-user-content-and-fixed-role-constructor",
+        "explanation": "UserMessage declares the user discriminator plus role/content fields. Its constructor recognizes one positional argument satisfying the (List,str) isinstance test, rejects a simultaneous nonnull content keyword, moves that argument to content and passes role=ChatRole.USER to the superclass. Mapping and other argument cases pass through without that conversion; the base model's serialization/validation implementation is absent.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated models patch supplies executable argument conversion and conflict handling in a discriminated message subtype, beyond overload annotations.",
+        "symbols": [
+          "UserMessage.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 36,
+            "endLine": 50
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 67,
+            "endLine": 73
+          }
+        ]
+      },
+      {
+        "key": "5f19b289fc2319efdcba402a36c5b3a8865c86f0ed9d3139f735dcc1009f788b",
+        "category": "Model overrides",
+        "subtype": "positional-system-content-and-fixed-role-constructor",
+        "explanation": "SystemMessage's implementation converts exactly one positional str to the content keyword, rejecting an already nonnull content keyword, and calls the superclass with role=ChatRole.SYSTEM. It declares the system discriminator and role/content fields. An explicit content=None does not trigger its duplicate-content check.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models customization patch contains a concrete constructor adapter and conflict check, not only a generated-looking discriminator declaration.",
+        "symbols": [
+          "SystemMessage.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 76,
+            "endLine": 90
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 106,
+            "endLine": 112
+          }
+        ]
+      },
+      {
+        "key": "ef75e6848ff04f20fc80c5130137d3b2997fe7750c84e091932fdbca82d3b2b5",
+        "category": "Model overrides",
+        "subtype": "positional-developer-content-and-fixed-role-constructor",
+        "explanation": "DeveloperMessage declares the developer discriminator and implements one-positional-string content conversion with a nonnull keyword-content conflict check. Its superclass call supplies role=ChatRole.DEVELOPER. This shows constructor behavior, not a model's downstream support for developer messages.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated patch implements this actual message constructor rather than inferring behavior from the subtype's documentation.",
+        "symbols": [
+          "DeveloperMessage.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 115,
+            "endLine": 130
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 146,
+            "endLine": 152
+          }
+        ]
+      },
+      {
+        "key": "bfb31470c5f3512adfad4b012856ba801eb038998dac98baedc36d8553e9a2c2",
+        "category": "Model overrides",
+        "subtype": "positional-assistant-content-and-fixed-role-constructor",
+        "explanation": "AssistantMessage converts one positional string into content unless a nonnull content keyword already exists, then calls the superclass with role=ChatRole.ASSISTANT. The supplied class also declares content and tool_calls fields. It does not implement tool execution or enforce completion of tool calls.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model patch supplies executable constructor adaptation and field declarations; tool-call documentation is not promoted into behavior.",
+        "symbols": [
+          "AssistantMessage.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 155,
+            "endLine": 155
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 170,
+            "endLine": 175
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 195,
+            "endLine": 201
+          }
+        ]
+      },
+      {
+        "key": "2b8d496dee274cb1040a4d8664e09fa37866f43f6de68b2ba4ac8186b9a24f2e",
+        "category": "Model overrides",
+        "subtype": "positional-tool-content-and-fixed-role-constructor",
+        "explanation": "ToolMessage declares the tool discriminator, content and tool_call_id fields and converts one positional string into content, rejecting a simultaneous nonnull content keyword. The superclass call supplies role=ChatRole.TOOL; validation of the declared required tool_call_id is not implemented in the shown constructor.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated model patch contains concrete argument-conversion and conflict behavior, beyond a type declaration or example.",
+        "symbols": [
+          "ToolMessage.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 204,
+            "endLine": 204
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 217,
+            "endLine": 223
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 240,
+            "endLine": 246
+          }
+        ]
+      },
+      {
+        "key": "a9814dc513e63a10db32823809c7e8e02c52e1d67c3a0c5a3e78929111a22294",
+        "category": "Model overrides",
+        "subtype": "chat-result-indented-json-string",
+        "explanation": "ChatCompletions subclasses the explicitly imported generated result and overrides __str__ to return json.dumps(self.as_dict(),indent=2). The inherited dictionary conversion and handling of values unsupported by the default JSON encoder are not supplied.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An actual string-conversion override is supplied in the model patch over a named generated result class.",
+        "symbols": [
+          "ChatCompletions.__str__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 22,
+            "endLine": 23
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 249,
+            "endLine": 249
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 273,
+            "endLine": 275
+          }
+        ]
+      },
+      {
+        "key": "9052c2277fc63f41569d1c92f7d88a503c86403b9d65ee3cdf1223517e74d4af",
+        "category": "Model overrides",
+        "subtype": "embedding-result-indented-json-string",
+        "explanation": "EmbeddingsResult subclasses its generated counterpart and implements __str__ with json.dumps(self.as_dict(),indent=2). This is the supplied display implementation, not evidence of wire serialization or a guarantee that every inherited value is JSON serializable.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model customization patch supplies a separate executable string override on the generated embedding result subtype.",
+        "symbols": [
+          "EmbeddingsResult.__str__"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 23,
+            "endLine": 23
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 278,
+            "endLine": 278
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 293,
+            "endLine": 295
+          }
+        ]
+      },
+      {
+        "key": "d6495ec12efb6d72ae4df17f90e23fa33643043e7c39964aa2f05513de94854b",
+        "category": "Convenience methods",
+        "subtype": "local-image-to-base64-data-url-model",
+        "explanation": "ImageUrl.load reads the entire local image file in binary mode, base64 encodes it, decodes that encoding as UTF-8, interpolates image_format into a data:image/...;base64 URI, and returns cls(url=...,detail=...). It does not inspect the file's actual media type or validate the supplied format.",
+        "pattern": "file-to-base64-model-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated patch adds an implemented classmethod factory to an explicitly generated image model subclass, not just a URL field declaration.",
+        "symbols": [
+          "ImageUrl.load"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 298,
+            "endLine": 303
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 320,
+            "endLine": 323
+          }
+        ]
+      },
+      {
+        "key": "bf91ac91cb2ca44886327ac3b6f7c0d4759da932b9455da565a6a6d7dc4944f0",
+        "category": "Convenience methods",
+        "subtype": "local-image-to-base64-embedding-input",
+        "explanation": "ImageEmbeddingInput.load reads the full file in binary mode, base64 encodes it into a data:image/{image_format};base64 URI, and returns cls(image=...,text=text). The code constructs the model but does not establish the documentation's downstream 422 behavior or actual format validity.",
+        "pattern": "file-to-base64-model-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models patch implements a concrete local-file factory on a generated model subclass, beyond an annotation or example.",
+        "symbols": [
+          "ImageEmbeddingInput.load"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 326,
+            "endLine": 329
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 346,
+            "endLine": 349
+          }
+        ]
+      },
+      {
+        "key": "8b002fe03bb74e2896e39d1fc7fbcfe3389a531c5d878cbacabf3179d20efe83",
+        "category": "Convenience methods",
+        "subtype": "local-audio-to-base64-data-and-format-model",
+        "explanation": "InputAudio.load reads the entire binary file, base64 encodes and UTF-8 decodes the encoding, then returns cls(data=audio_data,format=audio_format). Unlike the image factories it does not create a data URI; it performs no shown media inspection or format validation.",
+        "pattern": "file-to-base64-model-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models patch adds an actual file-reading factory to the imported generated audio model subclass.",
+        "symbols": [
+          "InputAudio.load"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 526,
+            "endLine": 534
+          },
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 548,
+            "endLine": 550
+          }
+        ]
+      },
+      {
+        "key": "46b79cc1e2cdcab75dbe2a7ae2009b3fd11aa1297e95b312f398895305c5f43e",
+        "category": "SSE / streaming",
+        "subtype": "partial-byte-lines-to-filtered-chat-updates",
+        "explanation": "BaseStreamingChatCompletions._deserialize_and_add_to_queue clears its update queue, splits bytes while retaining newlines, joins the previous incomplete first-line tail and retains a final non-newline-terminated tail. It skips only the exact blank LF line, rejects lines lacking the 'data: ' prefix, and returns true on the 'data: [DONE]' prefix. Other lines are UTF-8/JSON decoded and passed to the model deserializer; only updates with truthy choices or usage enter the queue. This is the actual narrow parser, not a guarantee of full SSE-spec compliance.",
+        "pattern": "sse-typed-event-stream",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated model patch implements actual chunk buffering, event-line validation, JSON model conversion and update filtering, rather than relying on a generated streaming return type.",
+        "symbols": [
+          "BaseStreamingChatCompletions._deserialize_and_add_to_queue"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 352,
+            "endLine": 440
+          }
+        ]
+      },
+      {
+        "key": "5dc937af722b17bb46a2432b1f40c65f458887059f3a064455d3b86fb7f0473e",
+        "category": "SSE / streaming",
+        "subtype": "queued-sync-chat-update-iterator-and-response-lifecycle",
+        "explanation": "StreamingChatCompletions reads response.iter_bytes blocks while its queue is empty and it is not done, delegates parsing to the supplied base method and yields queued updates. Iterator EOF closes the response and marks completion. Context exit and explicit close also close it; a parser DONE result itself has no close call on this path. It raises StopIteration once done with an empty queue.",
+        "pattern": "sse-typed-event-stream",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models patch defines the actual sync iterator, parser bridge and response-close lifecycle as a separate implementation from the shared parser.",
+        "symbols": [
+          "StreamingChatCompletions"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 443,
+            "endLine": 481
+          }
+        ]
+      },
+      {
+        "key": "f0a5a414edd86a26435034847a9bc80691805073e54d61ee32f720f4c9863b99",
+        "category": "SSE / streaming",
+        "subtype": "queued-async-chat-update-iterator-and-response-lifecycle",
+        "explanation": "AsyncStreamingChatCompletions awaits byte blocks until updates are queued or parsing/EOF marks done, then yields a queued update or raises StopAsyncIteration. Byte-iterator EOF awaits aclose; async context exit and explicit aclose await response.close. A parser DONE result alone does not close the response in the supplied path.",
+        "pattern": "sse-typed-event-stream",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model customization patch supplies executable asynchronous iteration and response lifecycle code rather than only a generated async streaming annotation.",
+        "symbols": [
+          "AsyncStreamingChatCompletions"
+        ],
+        "evidence": [
+          {
+            "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+            "startLine": 484,
+            "endLine": 523
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "03029fe5daea96cf7503c498e564aaf53f3390cf4cdc8b9130cf765608454cec",
+        "status": "accepted",
+        "reason": "The aio patch implements the declared load_client factory at lines 55-57 and 78-139: it queries model information, handles a missing info route, dispatches on explicit model-type aliases and initializes the selected client's cached model information. This is a handwritten convenience factory, not merely a generated client import. The proposed reusable dispatch pattern is plausible generator support, not a measured reduction."
+      },
+      {
+        "key": "1689d1d2044cc840ae4c1cc9ac29e169df457d4b92acd521e4ac7891a912b3d4",
+        "status": "revised",
+        "reason": "The header mutation is supported, but the known pattern custom-auth-header-policy describes an auth policy whereas the cited implementation is a client constructor modifying kwargs before delegating to the generated superclass. A constructor-header pattern names what is actually shown; the generated Authorization behavior is not demonstrated.",
+        "finding": {
+          "key": "1689d1d2044cc840ae4c1cc9ac29e169df457d4b92acd521e4ac7891a912b3d4",
+          "category": "Auth",
+          "subtype": "constructor-api-key-header-for-key-credentials",
+          "explanation": "ChatCompletionsClient.__init__ checks whether the credential is AzureKeyCredential; if so, it obtains headers from kwargs or an empty dictionary, inserts credential.key as the 'api-key' header only if that exact key is absent, and passes the resulting headers to its generated superclass. Existing exact-key entries are retained. The additional Authorization header described by comments is not established by this excerpt.",
+          "pattern": "credential-api-key-header",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The aio _patch.py subclass of the imported generated client implements executable credential-dependent header mutation before the superclass constructor call.",
+          "symbols": [
+            "ChatCompletionsClient.__init__"
+          ],
+          "evidence": [
+            {
+              "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+              "startLine": 31,
+              "endLine": 31
+            },
+            {
+              "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+              "startLine": 224,
+              "endLine": 227
+            },
+            {
+              "id": "1b93282fb4360b45133296bc302cada0fe93e1f17bdda1d51e7b9e66b6393e2a",
+              "startLine": 270,
+              "endLine": 276
+            }
+          ]
+        }
+      },
+      {
+        "key": "d27406c91a9fd6b27b2fe1426e837e3a3d87a01a4782f1f4c73f496f610c8678",
+        "status": "accepted",
+        "reason": "The UserMessage constructor at lines 67-73 performs the stated single-positional-argument adaptation and fixed-role delegation. Its declared discriminator/content fields at lines 36-50 establish the model context; the absent base-model implementation is appropriately not asserted."
+      },
+      {
+        "key": "5f19b289fc2319efdcba402a36c5b3a8865c86f0ed9d3139f735dcc1009f788b",
+        "status": "accepted",
+        "reason": "The SystemMessage constructor at lines 106-112 implements the stated positional-string content adaptation and fixed-role delegation, distinct from the UserMessage declaration. A content=None keyword indeed bypasses the nonnull conflict test."
+      },
+      {
+        "key": "ef75e6848ff04f20fc80c5130137d3b2997fe7750c84e091932fdbca82d3b2b5",
+        "status": "accepted",
+        "reason": "DeveloperMessage.__init__ at lines 146-152 contains executable single-string conversion, nonnull conflict checking and role assignment. The explanation correctly avoids claiming downstream service support from the documentation."
+      },
+      {
+        "key": "bfb31470c5f3512adfad4b012856ba801eb038998dac98baedc36d8553e9a2c2",
+        "status": "accepted",
+        "reason": "AssistantMessage.__init__ at lines 195-201 converts a single positional string to content and supplies the assistant role; the cited field declaration at lines 170-175 supports the limited tool_calls description without suggesting tool execution."
+      },
+      {
+        "key": "2b8d496dee274cb1040a4d8664e09fa37866f43f6de68b2ba4ac8186b9a24f2e",
+        "status": "accepted",
+        "reason": "ToolMessage.__init__ at lines 240-246 implements the positional-content adapter and fixed role; the cited declaration at lines 217-223 shows tool_call_id. The proposal properly does not attribute validation of tool_call_id to this constructor."
+      },
+      {
+        "key": "a9814dc513e63a10db32823809c7e8e02c52e1d67c3a0c5a3e78929111a22294",
+        "status": "accepted",
+        "reason": "ChatCompletions subclasses the named generated result and at lines 273-275 implements __str__ using indented JSON of as_dict(); model-to-string is the matching known pattern, with inherited conversion outside this excerpt."
+      },
+      {
+        "key": "9052c2277fc63f41569d1c92f7d88a503c86403b9d65ee3cdf1223517e74d4af",
+        "status": "accepted",
+        "reason": "EmbeddingsResult independently subclasses the named generated result and implements the stated __str__ conversion at lines 293-295. This is display behavior rather than evidence of custom wire serialization."
+      },
+      {
+        "key": "d6495ec12efb6d72ae4df17f90e23fa33643043e7c39964aa2f05513de94854b",
+        "status": "revised",
+        "reason": "The file-reading and base64 data URI behavior is supported by lines 320-323, but ImageUrl.load is an alternative constructor on a model rather than a convenience wrapper over a generated operation. Model overrides is the more specific guideline category; the file-to-base64-model-factory pattern accurately describes the reusable shape.",
+        "finding": {
+          "key": "d6495ec12efb6d72ae4df17f90e23fa33643043e7c39964aa2f05513de94854b",
+          "category": "Model overrides",
+          "subtype": "local-image-to-base64-data-url-model",
+          "explanation": "ImageUrl.load reads a local file in binary mode, base64-encodes its entire contents, constructs a data:image/{image_format};base64 URI and returns cls(url=..., detail=...). No format inspection or validation is shown.",
+          "pattern": "file-to-base64-model-factory",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The populated models _patch.py implements a classmethod factory on a subclass of the imported generated ImageUrl model.",
+          "symbols": [
+            "ImageUrl.load"
+          ],
+          "evidence": [
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 21,
+              "endLine": 21
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 298,
+              "endLine": 303
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 320,
+              "endLine": 323
+            }
+          ]
+        }
+      },
+      {
+        "key": "bf91ac91cb2ca44886327ac3b6f7c0d4759da932b9455da565a6a6d7dc4944f0",
+        "status": "revised",
+        "reason": "The classmethod body at lines 346-349 supports the proposed behavior, but an alternative file-based model constructor belongs in Model overrides, not the guideline's generated-operation convenience-method category. The original reusable pattern remains apt.",
+        "finding": {
+          "key": "bf91ac91cb2ca44886327ac3b6f7c0d4759da932b9455da565a6a6d7dc4944f0",
+          "category": "Model overrides",
+          "subtype": "local-image-to-base64-embedding-input",
+          "explanation": "ImageEmbeddingInput.load reads a local binary file, base64-encodes its full contents into a data:image/{image_format};base64 URI, and returns cls(image=..., text=text). The shown code does not validate the image format or establish downstream service behavior.",
+          "pattern": "file-to-base64-model-factory",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The populated models _patch.py implements a file-reading classmethod factory on the imported generated embedding-input model subclass.",
+          "symbols": [
+            "ImageEmbeddingInput.load"
+          ],
+          "evidence": [
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 24,
+              "endLine": 24
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 326,
+              "endLine": 329
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 346,
+              "endLine": 349
+            }
+          ]
+        }
+      },
+      {
+        "key": "8b002fe03bb74e2896e39d1fc7fbcfe3389a531c5d878cbacabf3179d20efe83",
+        "status": "revised",
+        "reason": "InputAudio.load does implement the file-to-base64 model construction described at lines 548-550, but the more specific category is Model overrides: this is an alternative constructor for a generated model, not a method wrapping a generated operation.",
+        "finding": {
+          "key": "8b002fe03bb74e2896e39d1fc7fbcfe3389a531c5d878cbacabf3179d20efe83",
+          "category": "Model overrides",
+          "subtype": "local-audio-to-base64-data-and-format-model",
+          "explanation": "InputAudio.load reads the entire local audio file in binary mode, base64-encodes its contents and returns cls(data=audio_data, format=audio_format). It does not create a data URI or inspect the supplied audio format.",
+          "pattern": "file-to-base64-model-factory",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The populated models _patch.py implements this file-reading classmethod on a subclass of the imported generated InputAudio model.",
+          "symbols": [
+            "InputAudio.load"
+          ],
+          "evidence": [
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 25,
+              "endLine": 25
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 526,
+              "endLine": 534
+            },
+            {
+              "id": "613dfce07f53e553f0b23d7653cfc3b908a680b258938ac8f3d36c5bccc5752c",
+              "startLine": 548,
+              "endLine": 550
+            }
+          ]
+        }
+      },
+      {
+        "key": "46b79cc1e2cdcab75dbe2a7ae2009b3fd11aa1297e95b312f398895305c5f43e",
+        "status": "accepted",
+        "reason": "The populated BaseStreamingChatCompletions parser at lines 374-440 shows the stated incomplete-byte buffering, data-line prefix handling, JSON-to-update conversion and queue filtering. It does not implement arbitrary SSE fields or promise standards-compliant parsing; the cited lines support the narrower explanation and known typed-event-stream pattern."
+      },
+      {
+        "key": "5dc937af722b17bb46a2432b1f40c65f458887059f3a064455d3b86fb7f0473e",
+        "status": "accepted",
+        "reason": "StreamingChatCompletions at lines 443-481 implements a separate synchronous iterator and explicit response lifecycle around the shared parser; EOF closes but a parsed DONE marker itself does not call close. This behavior is supported directly by the bounded source."
+      },
+      {
+        "key": "f0a5a414edd86a26435034847a9bc80691805073e54d61ee32f720f4c9863b99",
+        "status": "accepted",
+        "reason": "AsyncStreamingChatCompletions at lines 484-523 implements the corresponding async byte iterator, queued-update yield and awaited close paths. The proposal correctly limits the close claim to EOF, context exit and explicit aclose rather than a parsed DONE marker."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "These are analyst proposals awaiting independent AI review, not human-verified findings. Both supplied files are populated customization patches with substantive bodies, but downstream generated behavior and complete public activation are not independently established.",
+      "Coverage is partial: two fragments/two paths among 37 eligible and 116 discovered files. The aio patch stops at 470 inside an overloaded complete declaration; its callable implementation is not supplied. The models patch stops at 574 inside patch_sdk's docstring. Three skipped-path entries include these truncations and the prompts patch.",
+      "The async complete overloads and their documentation do not establish a completion request body, error mapping, default-setting application or streaming dispatch implementation. Imported request builders, error classes and _get_internal_response_format are not counted as implemented behavior.",
+      "ChatCompletionsClient.__init__ also stores default settings and calls the internal response-format helper, but these behaviors share the exact proposed constructor path/symbol identity. They are not split with synthetic aliases, and the absent complete implementation does not prove those stored defaults are used as described by comments.",
+      "The constructor comment says generated code sets Authorization while this patch adds api-key. Only the latter mutation and superclass call are supplied; no actual dual-header transmission, credential rotation or case-normalization behavior is asserted.",
+      "The model patch exports the proposed public message/model/iterator names. Base-model constructors, rest_field/rest_discriminator implementation, model deserializer and full public client wiring are not supplied, so role forwarding and field declarations are not treated as independently verified wire serialization or validation.",
+      "The SSE parser uses prefix tests rather than exact DONE equality, skips only b'\\n', and returns early on incomplete tails. It does not itself set _done or close the response; supplied iterator callers assign its return value. No full SSE conformance, automatic close on all failures, valid arbitrary chunk stream or successful runtime parsing was tested.",
+      "The frozen module identity remains python:azure-ai-inference:module-v1. Library latestRelease is 1.0.0b9 and stable is false; no package-version source is supplied. The specification commit is separate generation context, not the SDK commit or evidence of a completed generator run.",
+      "No SDK code, local media file loading, model endpoint, paid model call or external URL was executed. No root cause, recurrence or reducibility was measured; generator-addressable means plausible code-generation support in principle.",
+      "The evidence covers only aio/_patch.py lines 1-470 and models/_patch.py lines 1-574 of 37 eligible files among 116 discovered files. Both excerpts stop mid-file; prompts/_patch.py and other eligible code are not supplied, so this is not an absence finding for the remaining library.",
+      "The aio excerpt contains ChatCompletionsClient.complete overload declarations but stops before the final overload documentation/body; streaming, request serialization, default-parameter application and any other operational behavior of complete cannot be adjudicated from signatures or docstrings alone.",
+      "ChatCompletionsClient.__init__ also stores request-setting defaults and transforms response_format at lines 224-261. This is additional behavior on the same declaration/path identity as the reviewed constructor-header finding, not a distinct-key omission; without the complete body, the claimed later application of defaults and behavior of _get_internal_response_format are unverified.",
+      "The model excerpt stops within the patch_sdk docstring at line 574; its actual body, if any, is unavailable. Message-model superclass behavior, generated client internals and final export/activation wiring outside these two patches are not supplied. Nonempty models __all__ at lines 553-567 is a handwritten signal, not proof that every declared runtime export is activated.",
+      "The target remains python:azure-ai-inference:module-v1 as frozen even though the library metadata names a beta release. generatorAddressable=yes means plausible generic TypeSpec/generator support, not measured recurrence across services, active-library status or proven reducibility. Accepted and revised decisions are AI-reviewed, not human-verified; human overrides remain authoritative."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/ai/azure-ai-inference/azure/ai/inference/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 1331,
+      "provenance": "Python patch",
+      "contentHash": "4c8d0173fd78d0f61a6505850a9946c70ed96ea0a59e8bffdc3775cc53bf683a"
+    },
+    {
+      "path": "sdk/ai/azure-ai-inference/azure/ai/inference/models/_patch.py",
+      "startLine": 1,
+      "endLine": 576,
+      "provenance": "Python patch",
+      "contentHash": "12e75525945665e2f0914aca66c4b52ed15f0e1b44be2ba92ca849f6e26dfddd"
+    },
+    {
+      "path": "sdk/ai/azure-ai-inference/azure/ai/inference/prompts/_patch.py",
+      "startLine": 1,
+      "endLine": 124,
+      "provenance": "Python patch",
+      "contentHash": "ae7ae5ad3487bef38e507b920be33f68335e7a9892fbf133a80b4393a2039197"
+    }
+  ]
+}

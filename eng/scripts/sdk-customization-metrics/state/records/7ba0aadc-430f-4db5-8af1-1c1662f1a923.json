@@ -1,0 +1,710 @@
+{
+  "schemaVersion": 1,
+  "id": "7ba0aadc-430f-4db5-8af1-1c1662f1a923",
+  "observedAt": "2026-10-24T06:48:10.841Z",
+  "identity": "javascript:@azure/batch:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/batch",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/batch/batch"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "bb7eb0fa32042bf82feb9a0f2840bae5ceac950a"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 79,
+    "eligibleFiles": 36,
+    "capturedFiles": 5,
+    "skipped": [
+      {
+        "path": "sdk/batch/batch/src/api/operations.ts",
+        "reason": "Review budget; only lines 1-745 sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/api/options.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/batchClient.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/credentials/batchSharedKeyCredentials.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/static-helpers/pagingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/batch/batch/src/static-helpers/serialization/get-binary-response.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/batch/batch/src/customization/api/lroPoller.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { PollerLike, OperationState } from \"@azure/core-lro\";\nimport type {\n  DeletePoolOptionalParams,\n  ResizePoolOptionalParams,\n  StopPoolResizeOptionalParams,\n  RemoveNodesOptionalParams,\n  DeallocateNodeOptionalParams,\n  RebootNodeOptionalParams,\n  ReimageNodeOptionalParams,\n  StartNodeOptionalParams,\n  DeleteJobOptionalParams,\n  DisableJobOptionalParams,\n  EnableJobOptionalParams,\n  TerminateJobOptionalParams,\n  DeleteJobScheduleOptionalParams,\n  TerminateJobScheduleOptionalParams,\n} from \"../../api/options.js\";\nimport type { BatchContext } from \"../../api/batchContext.js\";\nimport type {\n  BatchJobDisableOptions,\n  BatchNodeRemoveOptions,\n  BatchPoolResizeOptions,\n} from \"../../models/models.js\";\nimport {\n  _deletePool,\n  getPool,\n  _resizePool,\n  _stopPoolResize,\n  _removeNodes,\n  _deallocateNode,\n  getNode,\n  _rebootNode,\n  _reimageNode,\n  _startNode,\n  _deleteJob,\n  getJob,\n  _disableJob,\n  _enableJob,\n  _terminateJob,\n  _deleteJobSchedule,\n  getJobSchedule,\n  _terminateJobSchedule,\n} from \"../../api/operations.js\";\nimport { isRestError } from \"@azure/core-rest-pipeline\";\nimport { createBatchPoller } from \"../static-helpers/batchPoller.js\";\n\n// ==================== Pool Pollers ====================\n\nexport function createDeletePoolPoller(\n  context: BatchContext,\n  poolId: string,\n  options: DeletePoolOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _deletePool(context, poolId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const pool = await getPool(context, poolId, options);\n      return { status: pool.state === \"deleting\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createResizePoolPoller(\n  context: BatchContext,\n  poolId: string,\n  resizeOptions: BatchPoolResizeOptions,\n  options: ResizePoolOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _resizePool(context, poolId, resizeOptions, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const pool = await getPool(context, poolId, options);\n      return { status: pool.allocationState === \"steady\" ? \"succeeded\" : \"running\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createStopPoolResizePoller(\n  context: BatchContext,\n  poolId: string,\n  options: StopPoolResizeOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _stopPoolResize(context, poolId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const pool = await getPool(context, poolId, options);\n      return { status: pool.allocationState === \"steady\" ? \"succeeded\" : \"running\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\n// ==================== Node Pollers ====================\n\nexport function createRemoveNodesPoller(\n  context: BatchContext,\n  poolId: string,\n  removeOptions: BatchNodeRemoveOptions,\n  options: RemoveNodesOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _removeNodes(context, poolId, removeOptions, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const pool = await getPool(context, poolId, options);\n      // Node removal is complete when the pool allocation state is STEADY\n      // This means the pool is no longer resizing/removing nodes\n      return { status: pool.allocationState === \"steady\" ? \"succeeded\" : \"running\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createDeallocateNodePoller(\n  context: BatchContext,\n  poolId: string,\n  nodeId: string,\n  options: DeallocateNodeOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _deallocateNode(context, poolId, nodeId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const node = await getNode(context, poolId, nodeId, options);\n      return { status: node.state === \"deallocating\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createRebootNodePoller(\n  context: BatchContext,\n  poolId: string,\n  nodeId: string,\n  options: RebootNodeOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _rebootNode(context, poolId, nodeId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const node = await getNode(context, poolId, nodeId, options);\n      return { status: node.state === \"rebooting\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createReimageNodePoller(\n  context: BatchContext,\n  poolId: string,\n  nodeId: string,\n  options: ReimageNodeOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _reimageNode(context, poolId, nodeId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const node = await getNode(context, poolId, nodeId, options);\n      return { status: node.state === \"reimaging\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createStartNodePoller(\n  context: BatchContext,\n  poolId: string,\n  nodeId: string,\n  options: StartNodeOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _startNode(context, poolId, nodeId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const node = await getNode(context, poolId, nodeId, options);\n      return { status: node.state === \"starting\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\n// ==================== Job Pollers ====================\n\nexport function createDeleteJobPoller(\n  context: BatchContext,\n  jobId: string,\n  options: DeleteJobOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _deleteJob(context, jobId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const job = await getJob(context, jobId, options);\n      return { status: job.state === \"deleting\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createDisableJobPoller(\n  context: BatchContext,\n  jobId: string,\n  disableOptions: BatchJobDisableOptions,\n  options: DisableJobOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _disableJob(context, jobId, disableOptions, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const job = await getJob(context, jobId, options);\n      return { status: job.state === \"disabling\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        // If job doesn't exist it could've been deleted while disabling\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createEnableJobPoller(\n  context: BatchContext,\n  jobId: string,\n  options: EnableJobOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _enableJob(context, jobId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const job = await getJob(context, jobId, options);\n      return { status: job.state === \"enabling\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createTerminateJobPoller(\n  context: BatchContext,\n  jobId: string,\n  options: TerminateJobOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _terminateJob(context, jobId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const job = await getJob(context, jobId, options);\n      return { status: job.state === \"terminating\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\n// ==================== Job Schedule Pollers ====================\n\nexport function createDeleteJobSchedulePoller(\n  context: BatchContext,\n  jobScheduleId: string,\n  options: DeleteJobScheduleOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _deleteJobSchedule(context, jobScheduleId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const jobSchedule = await getJobSchedule(context, jobScheduleId, options);\n      return { status: jobSchedule.state === \"deleting\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n\nexport function createTerminateJobSchedulePoller(\n  context: BatchContext,\n  jobScheduleId: string,\n  options: TerminateJobScheduleOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  const initFn = async (): Promise<OperationState<void>> => {\n    await _terminateJobSchedule(context, jobScheduleId, options);\n    return { status: \"running\" };\n  };\n\n  const pollFn = async (): Promise<OperationState<void>> => {\n    try {\n      const jobSchedule = await getJobSchedule(context, jobScheduleId, options);\n      return { status: jobSchedule.state === \"terminating\" ? \"running\" : \"succeeded\" };\n    } catch (error: unknown) {\n      if (isRestError(error) && error.statusCode === 404) {\n        return { status: \"succeeded\" };\n      }\n      throw error;\n    }\n  };\n\n  return createBatchPoller({ initFn, pollFn, updateIntervalInMs: options.updateIntervalInMs });\n}\n",
+      "contentHash": "ef0f828a6538b1aca901ef22dc0507d419bb900b3db3b60a77c8b7d38cdb2367",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/src/customization/api/lroPoller.ts",
+      "startLine": 1,
+      "endLine": 416,
+      "kind": "handwritten-marker",
+      "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234"
+    },
+    {
+      "path": "sdk/batch/batch/src/customization/static-helpers/batchPoller.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\nimport type { OperationState, PollerLike } from \"@azure/core-lro\";\n\nexport function createBatchPoller(params: {\n  initFn: () => Promise<OperationState<void>>;\n  pollFn: (options?: { abortSignal?: AbortSignalLike }) => Promise<OperationState<void>>;\n  updateIntervalInMs?: number;\n}): PollerLike<OperationState<void>, void> {\n  const updateIntervalInMs = params.updateIntervalInMs ?? 5000;\n  let state: OperationState<void> = { status: \"notStarted\" };\n  let resultPromise: Promise<void> | undefined;\n  let pollPromise: Promise<OperationState<void>> | undefined;\n  const progressCallbacks: Set<(state: OperationState<void>) => void> = new Set();\n  let abortSignal: AbortSignalLike | undefined;\n\n  // Helper to check if the operation was aborted\n  const checkIfAborted = (signal?: AbortSignalLike): void => {\n    if (signal?.aborted) {\n      state.status = \"canceled\";\n      throw new Error(\"The operation was aborted.\");\n    }\n  };\n\n  // Helper to wait for a given duration, respecting abort signal\n  const wait = (ms: number, signal?: AbortSignalLike): Promise<void> => {\n    return new Promise((resolve, reject) => {\n      try {\n        checkIfAborted(signal);\n      } catch (err) {\n        reject(err);\n        return;\n      }\n\n      let onAbort: (() => void) | undefined;\n\n      const timeoutId = setTimeout(() => {\n        if (onAbort && signal) {\n          signal.removeEventListener(\"abort\", onAbort);\n        }\n        resolve();\n      }, ms);\n\n      if (signal) {\n        onAbort = () => {\n          clearTimeout(timeoutId);\n          state.status = \"canceled\";\n          reject(new Error(\"The operation was aborted.\"));\n        };\n        signal.addEventListener(\"abort\", onAbort);\n      }\n    });\n  };\n\n  // Helper to call pollFn, reusing existing promise if one is in flight\n  const doPoll = (options?: { abortSignal?: AbortSignalLike }): Promise<OperationState<void>> => {\n    if (!pollPromise) {\n      pollPromise = params\n        .pollFn(options)\n        .then((newState) => {\n          state = newState;\n          checkStatus(state);\n          return state;\n        })\n        .catch((err) => {\n          state.error = err;\n          state.status =\n            state.status !== \"failed\" && state.status !== \"canceled\" ? \"failed\" : state.status;\n          throw err;\n        })\n        .finally(() => {\n          // Notify all progress callbacks\n          for (const callback of progressCallbacks) {\n            callback(state);\n          }\n          pollPromise = undefined;\n        });\n    }\n    return pollPromise;\n  };\n\n  // Start initialization immediately when poller is created\n  const initPromise = params\n    .initFn()\n    .then((initialState) => {\n      checkIfAborted(abortSignal);\n      state = initialState;\n      checkStatus(state);\n      return state;\n    })\n    .catch((err) => {\n      state.error = err;\n      state.status =\n        state.status !== \"failed\" && state.status !== \"canceled\" ? \"failed\" : state.status;\n      throw err;\n    });\n\n  const poller: PollerLike<OperationState<void>, void> = {\n    get isDone() {\n      return (\n        state.status === \"succeeded\" || state.status === \"failed\" || state.status === \"canceled\"\n      );\n    },\n    get operationState() {\n      return state;\n    },\n    get result() {\n      return state.result;\n    },\n    onProgress: (callback) => {\n      progressCallbacks.add(callback);\n      return () => {\n        progressCallbacks.delete(callback);\n      };\n    },\n    poll: async (pollOptions?: { abortSignal?: AbortSignalLike }) => {\n      await initPromise;\n      if (poller.isDone) {\n        checkStatus(state);\n        return state;\n      }\n      checkIfAborted(pollOptions?.abortSignal);\n      await doPoll(pollOptions);\n      return state;\n    },\n    pollUntilDone: async (pollOptions?: { abortSignal?: AbortSignalLike }) => {\n      abortSignal = pollOptions?.abortSignal;\n      if (!resultPromise) {\n        resultPromise = (async () => {\n          // Wait for init to complete first\n          await initPromise;\n          checkIfAborted(abortSignal);\n          if (poller.isDone) {\n            checkStatus(state);\n            return;\n          }\n          // Poll until done\n          while (!poller.isDone) {\n            checkIfAborted(abortSignal);\n            await doPoll({ abortSignal });\n            if (!poller.isDone) {\n              await wait(updateIntervalInMs, abortSignal);\n            }\n          }\n        })();\n      }\n      return resultPromise;\n    },\n    serialize: async () => JSON.stringify({ state }),\n    submitted: async () => {\n      await initPromise;\n    },\n    then: (onfulfilled, onrejected) => {\n      if (!resultPromise) {\n        resultPromise = poller.pollUntilDone();\n      }\n      return resultPromise.then(onfulfilled, onrejected);\n    },\n    catch: (onrejected) => {\n      if (!resultPromise) {\n        resultPromise = poller.pollUntilDone();\n      }\n      return resultPromise.catch(onrejected);\n    },\n    finally: (onfinally) => {\n      if (!resultPromise) {\n        resultPromise = poller.pollUntilDone();\n      }\n      return resultPromise.finally(onfinally);\n    },\n    [Symbol.toStringTag]: \"Poller\",\n  };\n\n  return poller;\n}\n\nfunction checkStatus(state: OperationState<void>): void {\n  switch (state.status) {\n    case \"succeeded\":\n      break;\n    case \"running\":\n      break;\n    case \"failed\":\n      throw state.error ?? new Error(\"Operation failed\");\n    case \"canceled\":\n      throw new Error(\"Operation was canceled\");\n    case \"notStarted\":\n      throw new Error(\"Operation has not started\");\n    default:\n      throw new Error(`Unknown operation status: ${state.status}`);\n  }\n}\n",
+      "contentHash": "fbc6935d2d0c936a2169366082ca0805ce7e66c12f234a207aa4b1888663ef42",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/src/customization/static-helpers/batchPoller.ts",
+      "startLine": 1,
+      "endLine": 194,
+      "kind": "handwritten-marker",
+      "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5"
+    },
+    {
+      "path": "sdk/batch/batch/src/customization/static-helpers/fileProperties.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { RawHttpHeaders } from \"@azure/core-rest-pipeline\";\nimport type { BatchNodeFile } from \"../../models/models.js\";\n\nexport function getBatchNodeFileProperties(rawHeaders: RawHttpHeaders): BatchNodeFile {\n  const url =\n    rawHeaders[\"ocp-batch-file-url\"] && decodeURIComponent(rawHeaders[\"ocp-batch-file-url\"]);\n  const name = url?.substring(url.lastIndexOf(\"/\") + 1);\n\n  const result: BatchNodeFile = {\n    properties: {\n      lastModified: rawHeaders[\"last-modified\"]\n        ? new Date(rawHeaders[\"last-modified\"])\n        : new Date(),\n      contentLength: rawHeaders[\"content-length\"] || \"\",\n    },\n  };\n\n  if (url) {\n    result.url = url;\n  }\n  if (name) {\n    result.name = name;\n  }\n  if (rawHeaders[\"ocp-batch-file-isdirectory\"]) {\n    result.isDirectory = rawHeaders[\"ocp-batch-file-isdirectory\"].toLowerCase().includes(\"true\");\n  }\n  if (rawHeaders[\"ocp-creation-time\"]) {\n    result.properties!.creationTime = new Date(rawHeaders[\"ocp-creation-time\"]);\n  }\n  if (rawHeaders[\"content-type\"]) {\n    result.properties!.contentType = rawHeaders[\"content-type\"];\n  }\n  if (rawHeaders[\"ocp-batch-file-mode\"]) {\n    result.properties!.fileMode = rawHeaders[\"ocp-batch-file-mode\"];\n  }\n\n  return result;\n}\n",
+      "contentHash": "32b52c3dc57729a72cc7646559b740337db05909e3d51ded75fdf252e72fdd70",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/src/customization/static-helpers/fileProperties.ts",
+      "startLine": 1,
+      "endLine": 41,
+      "kind": "handwritten-marker",
+      "id": "03b0d472923169796c7e62190af8685286760cbdb3eb5906beaf1387bcca57aa"
+    },
+    {
+      "path": "sdk/batch/batch/src/api/batchContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownVersions } from \"../models/models.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential, AzureNamedKeyCredential } from \"@azure/core-auth\";\nimport { isTokenCredential } from \"@azure/core-auth\";\nimport { createBatchSharedKeyCredentialsPolicy } from \"../credentials/batchSharedKeyCredentials.js\";\n\nexport interface BatchContext extends Client {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n}\n\n/** Optional parameters for the client. */\nexport interface BatchClientOptionalParams extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n}\n\n/**\n * Create a BatchContext object.\n * @param endpointParam - The Batch service dataplane endpoint.\n * @param credential - The credentials used to authenticate requests to the service.\n * @param options - Optional parameters.\n */\nexport function createBatch(\n  endpointParam: string,\n  credential: TokenCredential | AzureNamedKeyCredential,\n  options: BatchClientOptionalParams = {},\n): BatchContext {\n  const endpointUrl = options.endpoint ?? String(endpointParam);\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-batch/13.0.1`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://batch.core.windows.net//.default\"],\n    },\n  };\n\n  const apiVersion = options.apiVersion;\n\n  // Customization for BatchClient, shouldn't be overwritten by codegen\n  if (isTokenCredential(credential)) {\n    const clientContext = getClient(endpointUrl, credential, updatedOptions);\n    return { ...clientContext, apiVersion } as BatchContext;\n  }\n\n  // If the credentials are not a TokenCredential, we need to add a policy to handle the shared key auth.\n  const clientContext = getClient(endpointUrl, undefined, updatedOptions);\n  const authPolicy = createBatchSharedKeyCredentialsPolicy(credential);\n  clientContext.pipeline.addPolicy(authPolicy);\n  return { ...clientContext, apiVersion } as BatchContext;\n}\n",
+      "contentHash": "b8406e7ebbb8e25fc175807a418a5f6a09f299b149269e8c922b5d3c5ab84edf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/src/api/batchContext.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "unknown",
+      "id": "2d4c925fa95904c31652d61fbcfe93774d65ac16d399d2bd9ca4b8233518e59a"
+    },
+    {
+      "path": "sdk/batch/batch/src/api/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { BatchContext as Client } from \"./index.js\";\nimport type {\n  _BatchApplicationListResult,\n  BatchApplication,\n  _BatchPoolListUsageMetricsResult,\n  BatchPoolUsageMetrics,\n  BatchPoolCreateOptions,\n  _BatchPoolListResult,\n  BatchPool,\n  AutoScaleRun,\n  BatchPoolUpdateOptions,\n  BatchPoolEnableAutoScaleOptions,\n  BatchPoolEvaluateAutoScaleOptions,\n  BatchPoolResizeOptions,\n  BatchPoolReplaceOptions,\n  BatchNodeRemoveOptions,\n  _BatchAccountListSupportedImagesResult,\n  BatchSupportedImage,\n  _BatchPoolNodeCountsListResult,\n  BatchPoolNodeCounts,\n  BatchJob,\n  BatchJobUpdateOptions,\n  BatchJobDisableOptions,\n  BatchJobCreateOptions,\n  _BatchJobListResult,\n  _BatchJobPreparationAndReleaseTaskStatusListResult,\n  BatchJobPreparationAndReleaseTaskStatus,\n  BatchTaskCountsResult,\n  BatchJobSchedule,\n  BatchJobScheduleUpdateOptions,\n  BatchJobScheduleCreateOptions,\n  _BatchJobScheduleListResult,\n  BatchTaskCreateOptions,\n  _BatchTaskListResult,\n  BatchTask,\n  BatchTaskGroup,\n  BatchCreateTaskCollectionResult,\n  _BatchTaskListSubtasksResult,\n  BatchSubtask,\n  _BatchNodeFileListResult,\n  BatchNodeFile,\n  BatchNodeUserCreateOptions,\n  BatchNodeUserUpdateOptions,\n  BatchNode,\n  BatchNodeRemoteLoginSettings,\n  UploadBatchServiceLogsOptions,\n  UploadBatchServiceLogsResult,\n  _BatchNodeListResult,\n  BatchNodeVMExtension,\n  _BatchNodeVMExtensionListResult,\n} from \"../models/models.js\";\nimport {\n  _batchApplicationListResultDeserializer,\n  batchApplicationDeserializer,\n  batchErrorDeserializer,\n  _batchPoolListUsageMetricsResultDeserializer,\n  batchPoolCreateOptionsSerializer,\n  _batchPoolListResultDeserializer,\n  batchPoolDeserializer,\n  autoScaleRunDeserializer,\n  batchPoolUpdateOptionsSerializer,\n  batchPoolEnableAutoScaleOptionsSerializer,\n  batchPoolEvaluateAutoScaleOptionsSerializer,\n  batchPoolResizeOptionsSerializer,\n  batchPoolReplaceOptionsSerializer,\n  batchNodeRemoveOptionsSerializer,\n  _batchAccountListSupportedImagesResultDeserializer,\n  _batchPoolNodeCountsListResultDeserializer,\n  batchJobSerializer,\n  batchJobDeserializer,\n  batchJobUpdateOptionsSerializer,\n  batchJobDisableOptionsSerializer,\n  batchJobTerminateOptionsSerializer,\n  batchJobCreateOptionsSerializer,\n  _batchJobListResultDeserializer,\n  _batchJobPreparationAndReleaseTaskStatusListResultDeserializer,\n  batchTaskCountsResultDeserializer,\n  batchJobScheduleSerializer,\n  batchJobScheduleDeserializer,\n  batchJobScheduleUpdateOptionsSerializer,\n  batchJobScheduleCreateOptionsSerializer,\n  _batchJobScheduleListResultDeserializer,\n  batchTaskCreateOptionsSerializer,\n  _batchTaskListResultDeserializer,\n  batchTaskSerializer,\n  batchTaskDeserializer,\n  batchTaskGroupSerializer,\n  batchCreateTaskCollectionResultDeserializer,\n  _batchTaskListSubtasksResultDeserializer,\n  _batchNodeFileListResultDeserializer,\n  batchNodeUserCreateOptionsSerializer,\n  batchNodeUserUpdateOptionsSerializer,\n  batchNodeDeserializer,\n  batchNodeRebootOptionsSerializer,\n  batchNodeReimageOptionsSerializer,\n  batchNodeDeallocateOptionsSerializer,\n  batchNodeDisableSchedulingOptionsSerializer,\n  batchNodeRemoteLoginSettingsDeserializer,\n  uploadBatchServiceLogsOptionsSerializer,\n  uploadBatchServiceLogsResultDeserializer,\n  _batchNodeListResultDeserializer,\n  batchNodeVMExtensionDeserializer,\n  _batchNodeVMExtensionListResultDeserializer,\n} from \"../models/models.js\";\nimport type { PagedAsyncIterableIterator } from \"../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../static-helpers/pagingHelpers.js\";\nimport { getBinaryResponse } from \"../static-helpers/serialization/get-binary-response.js\";\nimport { expandUrlTemplate } from \"../static-helpers/urlTemplate.js\";\nimport type {\n  ListNodeFilesOptionalParams,\n  GetNodeFilePropertiesOptionalParams,\n  GetNodeFileOptionalParams,\n  DeleteNodeFileOptionalParams,\n  ListNodeExtensionsOptionalParams,\n  GetNodeExtensionOptionalParams,\n  ListNodesOptionalParams,\n  UploadNodeLogsOptionalParams,\n  GetNodeRemoteLoginSettingsOptionalParams,\n  EnableNodeSchedulingOptionalParams,\n  DisableNodeSchedulingOptionalParams,\n  DeallocateNodeOptionalParams,\n  ReimageNodeOptionalParams,\n  StartNodeOptionalParams,\n  RebootNodeOptionalParams,\n  GetNodeOptionalParams,\n  ReplaceNodeUserOptionalParams,\n  DeleteNodeUserOptionalParams,\n  CreateNodeUserOptionalParams,\n  ListTaskFilesOptionalParams,\n  GetTaskFilePropertiesOptionalParams,\n  GetTaskFileOptionalParams,\n  DeleteTaskFileOptionalParams,\n  ReactivateTaskOptionalParams,\n  TerminateTaskOptionalParams,\n  ListSubTasksOptionalParams,\n  ReplaceTaskOptionalParams,\n  GetTaskOptionalParams,\n  DeleteTaskOptionalParams,\n  CreateTaskCollectionOptionalParams,\n  ListTasksOptionalParams,\n  CreateTaskOptionalParams,\n  ListJobSchedulesOptionalParams,\n  CreateJobScheduleOptionalParams,\n  TerminateJobScheduleOptionalParams,\n  EnableJobScheduleOptionalParams,\n  DisableJobScheduleOptionalParams,\n  ReplaceJobScheduleOptionalParams,\n  UpdateJobScheduleOptionalParams,\n  GetJobScheduleOptionalParams,\n  DeleteJobScheduleOptionalParams,\n  JobScheduleExistsOptionalParams,\n  GetJobTaskCountsOptionalParams,\n  ListJobPreparationAndReleaseTaskStatusOptionalParams,\n  ListJobsFromScheduleOptionalParams,\n  ListJobsOptionalParams,\n  CreateJobOptionalParams,\n  TerminateJobOptionalParams,\n  EnableJobOptionalParams,\n  DisableJobOptionalParams,\n  ReplaceJobOptionalParams,\n  UpdateJobOptionalParams,\n  GetJobOptionalParams,\n  DeleteJobOptionalParams,\n  ListPoolNodeCountsOptionalParams,\n  ListSupportedImagesOptionalParams,\n  RemoveNodesOptionalParams,\n  ReplacePoolPropertiesOptionalParams,\n  StopPoolResizeOptionalParams,\n  ResizePoolOptionalParams,\n  EvaluatePoolAutoScaleOptionalParams,\n  EnablePoolAutoScaleOptionalParams,\n  DisablePoolAutoScaleOptionalParams,\n  UpdatePoolOptionalParams,\n  GetPoolOptionalParams,\n  PoolExistsOptionalParams,\n  DeletePoolOptionalParams,\n  ListPoolsOptionalParams,\n  CreatePoolOptionalParams,\n  ListPoolUsageMetricsOptionalParams,\n  GetApplicationOptionalParams,\n  ListApplicationsOptionalParams,\n} from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\nimport { getBatchNodeFileProperties } from \"../customization/static-helpers/fileProperties.js\";\nimport type { PollerLike, OperationState } from \"@azure/core-lro\";\nimport {\n  createDeletePoolPoller,\n  createResizePoolPoller,\n  createStopPoolResizePoller,\n  createRemoveNodesPoller,\n  createDeallocateNodePoller,\n  createRebootNodePoller,\n  createReimageNodePoller,\n  createStartNodePoller,\n  createDeleteJobPoller,\n  createDisableJobPoller,\n  createEnableJobPoller,\n  createTerminateJobPoller,\n  createDeleteJobSchedulePoller,\n  createTerminateJobSchedulePoller,\n} from \"../customization/api/lroPoller.js\";\n\nexport function _listNodeFilesSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  options: ListNodeFilesOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/files{?api%2Dversion,timeOut,maxresults,%24filter,recursive}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n      maxresults: options?.maxResults,\n      \"%24filter\": options?.filter,\n      recursive: options?.recursive,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listNodeFilesDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_BatchNodeFileListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return _batchNodeFileListResultDeserializer(result.body);\n}\n\n/** Lists all of the files in Task directories on the specified Compute Node. */\nexport function listNodeFiles(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  options: ListNodeFilesOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<BatchNodeFile> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listNodeFilesSend(context, poolId, nodeId, options),\n    _listNodeFilesDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"odata.nextLink\",\n      apiVersion: context.apiVersion ?? \"2025-06-01\",\n    },\n  );\n}\n\nexport function _getNodeFilePropertiesSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: GetNodeFilePropertiesOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/files/{filePath}{?api%2Dversion,timeOut}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      filePath: filePath,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).head({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      ...(options?.ifModifiedSince !== undefined\n        ? {\n            \"if-modified-since\": !options?.ifModifiedSince\n              ? options?.ifModifiedSince\n              : options?.ifModifiedSince.toUTCString(),\n          }\n        : {}),\n      ...(options?.ifUnmodifiedSince !== undefined\n        ? {\n            \"if-unmodified-since\": !options?.ifUnmodifiedSince\n              ? options?.ifUnmodifiedSince\n              : options?.ifUnmodifiedSince.toUTCString(),\n          }\n        : {}),\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getNodeFilePropertiesDeserialize(\n  result: PathUncheckedResponse,\n): Promise<BatchNodeFile> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return getBatchNodeFileProperties(result.headers);\n}\n\n/** Gets the properties of the specified Compute Node file. */\nexport async function getNodeFileProperties(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: GetNodeFilePropertiesOptionalParams = { requestOptions: {} },\n): Promise<BatchNodeFile> {\n  const result = await _getNodeFilePropertiesSend(context, poolId, nodeId, filePath, options);\n  return _getNodeFilePropertiesDeserialize(result);\n}\n\nexport function _getNodeFileSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: GetNodeFileOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/files/{filePath}{?api%2Dversion,timeOut}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      filePath: filePath,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      ...(options?.ifModifiedSince !== undefined\n        ? {\n            \"if-modified-since\": !options?.ifModifiedSince\n              ? options?.ifModifiedSince\n              : options?.ifModifiedSince.toUTCString(),\n          }\n        : {}),\n      ...(options?.ifUnmodifiedSince !== undefined\n        ? {\n            \"if-unmodified-since\": !options?.ifUnmodifiedSince\n              ? options?.ifUnmodifiedSince\n              : options?.ifUnmodifiedSince.toUTCString(),\n          }\n        : {}),\n      ...(options?.ocpRange !== undefined ? { \"ocp-range\": options?.ocpRange } : {}),\n      accept: \"application/octet-stream\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getNodeFileDeserialize(result: PathUncheckedResponse): Promise<Uint8Array> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return result.body;\n}\n\n/** Returns the content of the specified Compute Node file. */\nexport async function getNodeFile(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: GetNodeFileOptionalParams = { requestOptions: {} },\n): Promise<Uint8Array> {\n  const streamableMethod = _getNodeFileSend(context, poolId, nodeId, filePath, options);\n  const result = await getBinaryResponse(streamableMethod);\n  return _getNodeFileDeserialize(result);\n}\n\nexport function _deleteNodeFileSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: DeleteNodeFileOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/files/{filePath}{?api%2Dversion,timeOut,recursive}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      filePath: filePath,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n      recursive: options?.recursive,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _deleteNodeFileDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return;\n}\n\n/** Deletes the specified file from the Compute Node. */\nexport async function deleteNodeFile(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  filePath: string,\n  options: DeleteNodeFileOptionalParams = { requestOptions: {} },\n): Promise<void> {\n  const result = await _deleteNodeFileSend(context, poolId, nodeId, filePath, options);\n  return _deleteNodeFileDeserialize(result);\n}\n\nexport function _listNodeExtensionsSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  options: ListNodeExtensionsOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/extensions{?api%2Dversion,timeOut,maxresults,%24select}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n      maxresults: options?.maxResults,\n      \"%24select\": !options?.select\n        ? options?.select\n        : options?.select.map((p: any) => {\n            return p;\n          }),\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listNodeExtensionsDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_BatchNodeVMExtensionListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return _batchNodeVMExtensionListResultDeserializer(result.body);\n}\n\n/** Lists the Compute Nodes Extensions in the specified Pool. */\nexport function listNodeExtensions(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  options: ListNodeExtensionsOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<BatchNodeVMExtension> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listNodeExtensionsSend(context, poolId, nodeId, options),\n    _listNodeExtensionsDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"odata.nextLink\",\n      apiVersion: context.apiVersion ?? \"2025-06-01\",\n    },\n  );\n}\n\nexport function _getNodeExtensionSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  extensionName: string,\n  options: GetNodeExtensionOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/extensions/{extensionName}{?api%2Dversion,timeOut,%24select}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      extensionName: extensionName,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n      \"%24select\": !options?.select\n        ? options?.select\n        : options?.select.map((p: any) => {\n            return p;\n          }),\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getNodeExtensionDeserialize(\n  result: PathUncheckedResponse,\n): Promise<BatchNodeVMExtension> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return batchNodeVMExtensionDeserializer(result.body);\n}\n\n/** Gets information about the specified Compute Node Extension. */\nexport async function getNodeExtension(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  extensionName: string,\n  options: GetNodeExtensionOptionalParams = { requestOptions: {} },\n): Promise<BatchNodeVMExtension> {\n  const result = await _getNodeExtensionSend(context, poolId, nodeId, extensionName, options);\n  return _getNodeExtensionDeserialize(result);\n}\n\nexport function _listNodesSend(\n  context: Client,\n  poolId: string,\n  options: ListNodesOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes{?api%2Dversion,timeOut,maxresults,%24filter,%24select}\",\n    {\n      poolId: poolId,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n      maxresults: options?.maxResults,\n      \"%24filter\": options?.filter,\n      \"%24select\": !options?.select\n        ? options?.select\n        : options?.select.map((p: any) => {\n            return p;\n          }),\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined\n        ? { \"ocp-date\": !options?.ocpDate ? options?.ocpDate : options?.ocpDate.toUTCString() }\n        : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listNodesDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_BatchNodeListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = batchErrorDeserializer(result.body);\n\n    throw error;\n  }\n\n  return _batchNodeListResultDeserializer(result.body);\n}\n\n/** Lists the Compute Nodes in the specified Pool. */\nexport function listNodes(\n  context: Client,\n  poolId: string,\n  options: ListNodesOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<BatchNode> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listNodesSend(context, poolId, options),\n    _listNodesDeserialize,\n    [\"200\"],\n    {\n      itemName: \"value\",\n      nextLinkName: \"odata.nextLink\",\n      apiVersion: context.apiVersion ?? \"2025-06-01\",\n    },\n  );\n}\n\nexport function _uploadNodeLogsSend(\n  context: Client,\n  poolId: string,\n  nodeId: string,\n  uploadOptions: UploadBatchServiceLogsOptions,\n  options: UploadNodeLogsOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/pools/{poolId}/nodes/{nodeId}/uploadbatchservicelogs{?api%2Dversion,timeOut}\",\n    {\n      poolId: poolId,\n      nodeId: nodeId,\n      \"api%2Dversion\": context.apiVersion ?? \"2025-06-01\",\n      timeOut: options?.timeoutInSeconds,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json; odata=minimalmetadata\",\n    headers: {\n      ...(options?.clientRequestId !== undefined\n        ? { \"client-request-id\": options?.clientRequestId }\n        : {}),\n      ...(options?.returnClientRequestId !== undefined\n        ? { \"return-client-request-id\": options?.returnClientRequestId }\n        : {}),\n      ...(options?.ocpDate !== undefined",
+      "contentHash": "3a63d9e86cd011dda22f4ff3cf5c6ecdcede71dc96bcca38695e1fd8f356e99f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 745,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "be4c4e9e4f9e0d6cf20633b0e068e39939de1c969846dc8117c59a485da8101e"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/batch/batch/package.json",
+      "text": "{\n  \"name\": \"@azure/batch\",\n  \"version\": \"13.0.1\",\n  \"description\": \"Azure Batch client library for JavaScript\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"sdk-type\": \"client\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/batch/batch\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/batchContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^3.1.0\",\n    \"@azure/core-rest-pipeline\": \"^1.20.0\",\n    \"@azure/core-util\": \"^1.12.0\",\n    \"@azure/logger\": \"^1.2.0\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/arm-authorization\": \"workspace:^\",\n    \"@azure/arm-batch\": \"workspace:^\",\n    \"@azure/arm-compute\": \"workspace:^\",\n    \"@azure/arm-keyvault\": \"workspace:^\",\n    \"@azure/arm-resources\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/keyvault-keys\": \"workspace:^\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"build:samples\": \"echo skipped\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"execute:samples\": \"echo skipped\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"generate:client\": \"echo skipped\",\n    \"test:browser\": \"dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"test:node:esm\": \"dev-tool run test:vitest --esm\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./api\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/index.d.ts\",\n        \"default\": \"./dist/browser/api/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/api/index.d.ts\",\n        \"default\": \"./dist/react-native/api/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/index.d.ts\",\n        \"default\": \"./dist/esm/api/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/models/index.d.ts\",\n        \"default\": \"./dist/react-native/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/batch/batch/README.md\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "7251ddadcd0a3c7d0ad5cc093370e06e3e3e60b98542d0139925cfd7f3c0dd77",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/package.json"
+    },
+    {
+      "path": "sdk/batch/batch/README.md",
+      "text": "# Azure Batch client library for JavaScript\n\nThis package contains an isomorphic SDK (runs both in Node.js and in browsers) for Azure Batch client.\n\nAzure Batch provides Cloud-scale job scheduling and compute management.\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n\n### Install the `@azure/batch` package\n\nInstall the Azure Batch client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/batch\n```\n\n### Create and authenticate a `BatchClient`\n\nTo create a client object to access the Azure Batch API, you will need the `endpoint` of your Azure Batch resource and a `credential`. The Azure Batch client can use Azure Active Directory credentials to authenticate.\nYou can find the endpoint for your Azure Batch resource in the [Azure Portal][azure_portal].\n\nAzure batch supports authentication either via Microsoft Entra ID or Shared Key.\n\n- [Microsoft Entra ID](#microsoft-entra-id)\n- [Shared Key](#shared-key)\n\n#### Microsoft Entra ID\n\nYou can authenticate with Azure Entra ID using a credential from the [@azure/identity][azure_identity] library or [an existing AAD Token](https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token).\n\nTo use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the `@azure/identity` package:\n\n```bash\nnpm install @azure/identity\n```\n\nYou will also need to **register a new AAD application and grant access to Azure Batch** by assigning the suitable role to your service principal (note: roles such as `\"Owner\"` will not grant the necessary permissions).\n\nFor more information about how to create an Azure AD Application check out [this guide](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).\n\nUsing Node.js and Node-like environments, you can use the `DefaultAzureCredential` class to authenticate the client.\n\n```ts snippet:ReadmeSampleCreateClient_Node_EntraID\nimport { BatchClient } from \"@azure/batch\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst client = new BatchClient(\"<endpoint>\", new DefaultAzureCredential());\n```\n\nFor browser environments, use the `InteractiveBrowserCredential` from the `@azure/identity` package to authenticate.\n\n```ts snippet:ReadmeSampleCreateClient_Browser\nimport { InteractiveBrowserCredential } from \"@azure/identity\";\nimport { BatchClient } from \"@azure/batch\";\n\nconst credential = new InteractiveBrowserCredential({\n  tenantId: \"<YOUR_TENANT_ID>\",\n  clientId: \"<YOUR_CLIENT_ID>\",\n});\nconst client = new BatchClient(\"<endpoint>\", credential);\n```\n\n#### Shared Key\n\nTo use shared key to authenticate, you must first `npm` install [`@azure/core-auth`](https://www.npmjs.com/package/@azure/core-auth), then provide the account name and account key to construct the an `AzureNamedKeyCredential` credential from `@azure/core-auth`.\n\nNoted that Share Key authentication is only supported in Node.js and Node-like environments.\n\n```ts snippet:ReadmeSampleCreateClient_Node_SharedKey\nimport { AzureNamedKeyCredential } from \"@azure/core-auth\";\nimport { BatchClient } from \"@azure/batch\";\n\nconst credential = new AzureNamedKeyCredential(\"<account name>\", \"<account key>\");\nconst client = new BatchClient(\"<endpoint>\", credential);\n```\n\n### JavaScript Bundle\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### BatchClient\n\n`BatchClient` is the primary interface for developers using the Azure Batch client library. Explore the methods on this client object to understand the different features of the Azure Batch service that you can access.\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for JavaScript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n",
+      "contentHash": "0b1e1263cd99690e6a01c0e4ceb78a2f04ef21e17b8db85325a16c1a1e1510c3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/README.md"
+    },
+    {
+      "path": "sdk/batch/batch/tsp-location.yaml",
+      "text": "directory: specification/batch/data-plane/Batch\ncommit: d554130e9287d5680c3ca0ddc313add314d0c235\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "9375b07fe84c183408cb3cfe5835bb7553b35f68a8992456d8513dd54f4a56fe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/batch/batch/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "88cb1abc3d328f086b28d1054555c967e69b90ef0623ff85b165ac30cae1691e",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "378b4eafe93e5bf6fa193194f135d56b9549c21256344edc78e19177a26b871a",
+        "category": "LRO / polling",
+        "subtype": "pool-deletion-state-or-404-completion",
+        "explanation": "createDeletePoolPoller initializes through _deletePool, then polls getPool: state 'deleting' means running and any other returned state means succeeded. A polling REST error with statusCode 404 also succeeds; other errors are rethrown. It forwards options.updateIntervalInMs to the shared factory.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete executable factory is in src/customization/api/lroPoller.ts, the language guideline's explicit handwritten location, and defines a concrete service-state strategy rather than only importing a generated poller.",
+        "symbols": [
+          "createDeletePoolPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 52,
+            "endLine": 75
+          }
+        ]
+      },
+      {
+        "key": "946a935601b721525bcc7815dcf5cdb557203600855d3356fbeab81275786433",
+        "category": "LRO / polling",
+        "subtype": "pool-resize-steady-or-404-completion",
+        "explanation": "createResizePoolPoller initializes with _resizePool and the resize payload, then polls getPool. allocationState 'steady' or a polling REST 404 yields succeeded; other returned allocation states yield running and other errors are rethrown. The configured update interval is forwarded to createBatchPoller.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A substantive factory in the explicit customization folder supplies its own initial operation and allocation-state predicate, positively establishing handwritten polling behavior.",
+        "symbols": [
+          "createResizePoolPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 77,
+            "endLine": 101
+          }
+        ]
+      },
+      {
+        "key": "76d28c651be061dafceae7e8eb17cec882d9fae3f294aa9e4cba66b29275e63a",
+        "category": "LRO / polling",
+        "subtype": "stop-resize-steady-or-404-completion",
+        "explanation": "createStopPoolResizePoller initializes through _stopPoolResize, then polls getPool until allocationState is 'steady', also treating a polling REST 404 as succeeded. Other returned allocation states remain running; other errors are rethrown. It forwards the requested update interval.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit customization-folder factory contains concrete initialization and resource-state polling bodies, not just a generated LRO-shaped surface.",
+        "symbols": [
+          "createStopPoolResizePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 103,
+            "endLine": 126
+          }
+        ]
+      },
+      {
+        "key": "6308020574ca2329929aad98cfacf5b2a17818cd5d0a48a69a670b7d023a9e2a",
+        "category": "LRO / polling",
+        "subtype": "node-removal-pool-steady-or-404-completion",
+        "explanation": "createRemoveNodesPoller initializes through _removeNodes with its payload and polls the pool, not each removed node. allocationState 'steady' or a polling REST 404 means succeeded; other allocation states remain running and other errors are rethrown. The factory forwards updateIntervalInMs.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete function in src/customization supplies a particular pool-based completion predicate and initial operation, meeting the explicit handwritten-folder signal.",
+        "symbols": [
+          "createRemoveNodesPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 130,
+            "endLine": 156
+          }
+        ]
+      },
+      {
+        "key": "e43de810b440a83d91578f5484053076ef8387642f0ee5942c12ba0acf73bda4",
+        "category": "LRO / polling",
+        "subtype": "node-deallocating-state-or-404-completion",
+        "explanation": "createDeallocateNodePoller initializes through _deallocateNode and polls getNode. Only returned state 'deallocating' remains running; any other returned state or a polling REST 404 succeeds. Other errors are rethrown and the update interval is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete factory resides in the explicit customization folder and implements its own state predicate and REST-error handling.",
+        "symbols": [
+          "createDeallocateNodePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 158,
+            "endLine": 182
+          }
+        ]
+      },
+      {
+        "key": "caf4688e58374d8e3fe1d3ea519792f2cae37016b697a336d2e5500b40fbe95d",
+        "category": "LRO / polling",
+        "subtype": "node-rebooting-state-or-404-completion",
+        "explanation": "createRebootNodePoller initializes through _rebootNode, then getNode state 'rebooting' means running and any other returned state means succeeded. Polling REST 404 also succeeds; other errors are rethrown. It forwards options.updateIntervalInMs.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The executable factory and its specific state mapping are in the explicit src/customization location, not inferred from core-lro imports.",
+        "symbols": [
+          "createRebootNodePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 184,
+            "endLine": 208
+          }
+        ]
+      },
+      {
+        "key": "4dc3ff19565fde6a51fda1cb9b8d59d80eb9a88a59cbe0903c89ba7f185b4106",
+        "category": "LRO / polling",
+        "subtype": "node-reimaging-state-or-404-completion",
+        "explanation": "createReimageNodePoller initializes through _reimageNode and polls getNode, reporting running only for state 'reimaging' and succeeded for other returned states or a polling REST 404. Other errors are rethrown and updateIntervalInMs is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete customization-folder function defines concrete initial/poll callbacks and a node-state predicate.",
+        "symbols": [
+          "createReimageNodePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 210,
+            "endLine": 234
+          }
+        ]
+      },
+      {
+        "key": "1ff160290a4e6f8a26dde5d444cb8290a818e31529b5770ab375f0eafb80a4bd",
+        "category": "LRO / polling",
+        "subtype": "node-starting-state-or-404-completion",
+        "explanation": "createStartNodePoller initializes through _startNode, then polls getNode. State 'starting' remains running; any other returned state or a polling REST 404 succeeds. Other errors are rethrown; the requested update interval is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit customization-folder factory supplies substantive resource-state polling rather than only a generic generated wrapper.",
+        "symbols": [
+          "createStartNodePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 236,
+            "endLine": 260
+          }
+        ]
+      },
+      {
+        "key": "7124d1dacd7a81deef844c0fd9e5321735e01e8d05cacfdcc8111f0302e880ac",
+        "category": "LRO / polling",
+        "subtype": "job-deleting-state-or-404-completion",
+        "explanation": "createDeleteJobPoller calls _deleteJob during initialization and polls getJob, returning running for state 'deleting' and succeeded otherwise. A polling REST 404 also succeeds, while other errors are rethrown. It forwards updateIntervalInMs.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This executable strategy is positively located under src/customization and defines the state/error mapping itself.",
+        "symbols": [
+          "createDeleteJobPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 264,
+            "endLine": 287
+          }
+        ]
+      },
+      {
+        "key": "0668aeea43f539e355782c85a3545b13d89234680b36bf7d2af39ce90c64cb97",
+        "category": "LRO / polling",
+        "subtype": "job-disabling-state-or-404-completion",
+        "explanation": "createDisableJobPoller initializes through _disableJob with disableOptions, then getJob state 'disabling' means running and other returned states mean succeeded. A polling REST 404 also succeeds; other errors are rethrown and the configured update interval is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete function in the explicit customization folder implements both operation initialization and a particular job-state completion rule.",
+        "symbols": [
+          "createDisableJobPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 289,
+            "endLine": 314
+          }
+        ]
+      },
+      {
+        "key": "beb685cc73f22f7fd377d1d7a2fa801242b3c60ec6f69beff10bfe2af3d5cb19",
+        "category": "LRO / polling",
+        "subtype": "job-enabling-state-or-404-completion",
+        "explanation": "createEnableJobPoller initializes through _enableJob and polls getJob, remaining running only for state 'enabling'. Other returned states or polling REST 404 yield succeeded; other errors are rethrown. updateIntervalInMs is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A substantive src/customization factory provides its own job-state predicate and error handling.",
+        "symbols": [
+          "createEnableJobPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 316,
+            "endLine": 339
+          }
+        ]
+      },
+      {
+        "key": "cdac29838d1e4a520534f4cf2b57f124e5604ff0692782bb5d1295c1a4dfbe38",
+        "category": "LRO / polling",
+        "subtype": "job-terminating-state-or-404-completion",
+        "explanation": "createTerminateJobPoller initializes through _terminateJob and polls getJob. State 'terminating' means running; other returned states and polling REST 404 mean succeeded. Other errors are rethrown and options.updateIntervalInMs is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit customization-folder function supplies concrete operation callbacks and job-state interpretation, not only an LRO type annotation.",
+        "symbols": [
+          "createTerminateJobPoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 341,
+            "endLine": 364
+          }
+        ]
+      },
+      {
+        "key": "c803c63ad6fe033350a64e696808f9f2025a4dcd0f4453ba307e1545813cfd26",
+        "category": "LRO / polling",
+        "subtype": "job-schedule-deleting-state-or-404-completion",
+        "explanation": "createDeleteJobSchedulePoller initializes through _deleteJobSchedule and polls getJobSchedule. Returned state 'deleting' remains running; other returned states or a polling REST 404 succeed. Other errors are rethrown and the interval option is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete strategy resides in the explicit customization folder and defines a schedule-specific state mapping and polling error branch.",
+        "symbols": [
+          "createDeleteJobSchedulePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 368,
+            "endLine": 391
+          }
+        ]
+      },
+      {
+        "key": "c09c0e95f4dcebdc412a8ed6d85dcdd9167df6bf2504cbf0d460b0101bb57cc7",
+        "category": "LRO / polling",
+        "subtype": "job-schedule-terminating-state-or-404-completion",
+        "explanation": "createTerminateJobSchedulePoller initializes through _terminateJobSchedule and polls getJobSchedule, returning running for 'terminating' and succeeded for other returned states or polling REST 404. Other errors are rethrown and the update interval is forwarded.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete function in src/customization contains executable initialization, state interpretation and polling-error behavior.",
+        "symbols": [
+          "createTerminateJobSchedulePoller"
+        ],
+        "evidence": [
+          {
+            "id": "a08623881fa192a0dd13362e224a3110fb51049609d7fbf8c1a810a5cab50234",
+            "startLine": 393,
+            "endLine": 416
+          }
+        ]
+      },
+      {
+        "key": "82c99366689b808ff0fbd7c07e4758e0881bb9ceb416c153297b6a12ed8659fd",
+        "category": "LRO / polling",
+        "subtype": "void-result-poller-with-eager-init-and-inflight-sharing",
+        "explanation": "createBatchPoller immediately invokes initFn, defaults its interval to 5000 ms, shares an in-flight polling promise and a completion promise, and exposes polling, progress, serialization and promise-like methods. Its loop checks cancellation, polls, and waits only while nonterminal; abort checks set canceled and throw. pollUntilDone resolves without a result value on success, and submitted waits for initialization.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The full stateful implementation resides in src/customization/static-helpers and is called by the fourteen supplied operation-specific factories. The executable lifecycle, rather than its PollerLike import, establishes a handwritten poller.",
+        "symbols": [
+          "createBatchPoller"
+        ],
+        "evidence": [
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 7,
+            "endLine": 98
+          },
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 100,
+            "endLine": 177
+          }
+        ]
+      },
+      {
+        "key": "f8a6ea6dc3af23bb266a5235b7e91918061fc54d8a9ec221b1909e324e0da513",
+        "category": "Retry / error handling",
+        "subtype": "polling-status-to-exception-validator",
+        "explanation": "checkStatus permits succeeded and running, throws state.error or a fallback error for failed, and throws distinct errors for canceled, notStarted and unknown statuses. The supplied factory invokes it after initialization, after new polling states and when polling an already terminal operation.",
+        "pattern": "lro-status-error-mapping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete helper in the explicit customization folder implements concrete status validation and is visibly wired into the handwritten factory; it is not an imported generated error type.",
+        "symbols": [
+          "checkStatus"
+        ],
+        "evidence": [
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 179,
+            "endLine": 194
+          },
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 58,
+            "endLine": 72
+          },
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 84,
+            "endLine": 98
+          },
+          {
+            "id": "00a9c516d2748d6c69681c32614babd95d28dbb445be8ad1842f95a110f1a9a5",
+            "startLine": 118,
+            "endLine": 126
+          }
+        ]
+      },
+      {
+        "key": "23130386630074facf7746748e16933b8643dcf46c2dad923c628960ee22a545",
+        "category": "Serialization",
+        "subtype": "response-headers-to-node-file-model",
+        "explanation": "getBatchNodeFileProperties derives a BatchNodeFile from response headers: it decodes the file URL and takes the last slash suffix for its name, creates date properties, retains content-length as a string with an empty fallback, and conditionally adds content type/mode. isDirectory uses lowercase includes('true'), not strict boolean parsing. Missing last-modified falls back to new Date().",
+        "pattern": "headers-to-model",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The executable model adapter is in src/customization/static-helpers, and the supplied _getNodeFilePropertiesDeserialize actually calls it with result.headers after a 200-status check. That positive location/call-site evidence supports customization beyond the surrounding operations file's unknown provenance.",
+        "symbols": [
+          "getBatchNodeFileProperties"
+        ],
+        "evidence": [
+          {
+            "id": "03b0d472923169796c7e62190af8685286760cbdb3eb5906beaf1387bcca57aa",
+            "startLine": 7,
+            "endLine": 41
+          },
+          {
+            "id": "be4c4e9e4f9e0d6cf20633b0e068e39939de1c969846dc8117c59a485da8101e",
+            "startLine": 331,
+            "endLine": 343
+          }
+        ]
+      },
+      {
+        "key": "584b517f691610058e71072c31e37ab72ece8c8ab45d1278a036540d064f22e3",
+        "category": "Auth",
+        "subtype": "credential-kind-dependent-client-policy-installation",
+        "explanation": "createBatch's explicitly marked customization branch passes TokenCredential directly to getClient. Otherwise it creates the client without a credential, constructs createBatchSharedKeyCredentialsPolicy from the supplied credential, and adds that policy to the pipeline. The policy implementation and actual signing behavior are not supplied.",
+        "pattern": "credential-kind-policy-selection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The source explicitly labels this branch 'Customization for BatchClient, shouldn't be overwritten by codegen' and shows executable credential dispatch/policy installation. The finding does not treat every unmarked constructor option or user-agent assignment as handwritten.",
+        "symbols": [
+          "createBatch"
+        ],
+        "evidence": [
+          {
+            "id": "2d4c925fa95904c31652d61fbcfe93774d65ac16d399d2bd9ca4b8233518e59a",
+            "startLine": 8,
+            "endLine": 10
+          },
+          {
+            "id": "2d4c925fa95904c31652d61fbcfe93774d65ac16d399d2bd9ca4b8233518e59a",
+            "startLine": 31,
+            "endLine": 35
+          },
+          {
+            "id": "2d4c925fa95904c31652d61fbcfe93774d65ac16d399d2bd9ca4b8233518e59a",
+            "startLine": 53,
+            "endLine": 64
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "378b4eafe93e5bf6fa193194f135d56b9549c21256344edc78e19177a26b871a",
+        "status": "accepted",
+        "reason": "Lines 52-75 declare the customization-folder factory and show _deletePool initialization, a getPool state === 'deleting' predicate, polling REST 404 as success, and forwarding of the interval. The predicate treats every other returned state as success, as described."
+      },
+      {
+        "key": "946a935601b721525bcc7815dcf5cdb557203600855d3356fbeab81275786433",
+        "status": "accepted",
+        "reason": "Lines 77-101 declare the handwritten resize factory, send resizeOptions to _resizePool, poll getPool for allocationState === 'steady', convert polling REST 404 to success, and pass the interval; no behavior of the underlying generic poller is assumed."
+      },
+      {
+        "key": "76d28c651be061dafceae7e8eb17cec882d9fae3f294aa9e4cba66b29275e63a",
+        "status": "accepted",
+        "reason": "Lines 103-126 show the distinct _stopPoolResize initializer and getPool allocation-state completion predicate in the explicitly handwritten folder, including the polling-only 404 branch and interval forwarding."
+      },
+      {
+        "key": "6308020574ca2329929aad98cfacf5b2a17818cd5d0a48a69a670b7d023a9e2a",
+        "status": "accepted",
+        "reason": "Lines 130-156 declare the removal factory and implement _removeNodes initialization followed by a getPool allocationState === 'steady' test, not a per-node test; polling REST 404 also succeeds. The comment's interpretation is not needed to establish the actual predicate."
+      },
+      {
+        "key": "e43de810b440a83d91578f5484053076ef8387642f0ee5942c12ba0acf73bda4",
+        "status": "accepted",
+        "reason": "Lines 158-182 declare the customization-folder deallocation factory and explicitly test getNode state === 'deallocating' after _deallocateNode, with polling REST 404 mapped to success and other exceptions rethrown."
+      },
+      {
+        "key": "caf4688e58374d8e3fe1d3ea519792f2cae37016b697a336d2e5500b40fbe95d",
+        "status": "accepted",
+        "reason": "Lines 184-208 show a substantive handwritten reboot factory: _rebootNode initialization, getNode state === 'rebooting' as running, polling REST 404 as success, and interval forwarding."
+      },
+      {
+        "key": "4dc3ff19565fde6a51fda1cb9b8d59d80eb9a88a59cbe0903c89ba7f185b4106",
+        "status": "accepted",
+        "reason": "Lines 210-234 declare the reimage factory and define _reimageNode initialization and the exact getNode 'reimaging' predicate, plus polling-only 404 success and rethrow for other errors."
+      },
+      {
+        "key": "1ff160290a4e6f8a26dde5d444cb8290a818e31529b5770ab375f0eafb80a4bd",
+        "status": "accepted",
+        "reason": "Lines 236-260 declare the start-node factory and implement _startNode initialization, getNode 'starting' as running and other returned states or polling REST 404 as success; this is executable customization rather than an LRO import alone."
+      },
+      {
+        "key": "7124d1dacd7a81deef844c0fd9e5321735e01e8d05cacfdcc8111f0302e880ac",
+        "status": "accepted",
+        "reason": "Lines 264-287 show the distinct job deletion factory, _deleteJob followed by getJob state === 'deleting' while running, the polling REST 404 success branch, and interval forwarding."
+      },
+      {
+        "key": "0668aeea43f539e355782c85a3545b13d89234680b36bf7d2af39ce90c64cb97",
+        "status": "accepted",
+        "reason": "Lines 289-314 implement _disableJob with disableOptions and the getJob 'disabling' test, treating polling REST 404 as success. The comment speculates about deletion, but the finding describes the actual branch rather than claiming deletion occurred."
+      },
+      {
+        "key": "beb685cc73f22f7fd377d1d7a2fa801242b3c60ec6f69beff10bfe2af3d5cb19",
+        "status": "accepted",
+        "reason": "Lines 316-339 declare and implement the enable-job customization, with _enableJob initialization, getJob state === 'enabling' as running, and polling REST 404 mapped to success."
+      },
+      {
+        "key": "cdac29838d1e4a520534f4cf2b57f124e5604ff0692782bb5d1295c1a4dfbe38",
+        "status": "accepted",
+        "reason": "Lines 341-364 implement _terminateJob followed by polling getJob state === 'terminating', mapping other returned states or polling REST 404 to success and rethrowing other errors."
+      },
+      {
+        "key": "c803c63ad6fe033350a64e696808f9f2025a4dcd0f4453ba307e1545813cfd26",
+        "status": "accepted",
+        "reason": "Lines 368-391 declare the schedule-deletion factory and show _deleteJobSchedule initialization, getJobSchedule 'deleting' as running, and a polling REST 404 success branch."
+      },
+      {
+        "key": "c09c0e95f4dcebdc412a8ed6d85dcdd9167df6bf2504cbf0d460b0101bb57cc7",
+        "status": "accepted",
+        "reason": "Lines 393-416 show the separate _terminateJobSchedule initializer and getJobSchedule 'terminating' predicate in the handwritten factory, with polling REST 404 success and interval forwarding."
+      },
+      {
+        "key": "82c99366689b808ff0fbd7c07e4758e0881bb9ceb416c153297b6a12ed8659fd",
+        "status": "accepted",
+        "reason": "The cited declaration and executable body in customization/static-helpers/batchPoller.ts show immediate initFn invocation, a 5000-ms default, shared pollPromise/resultPromise, cancellation checks, wait only for nonterminal states, progress callbacks, void completion, and submitted awaiting init. This is substantive handwritten poller lifecycle code independent of the fourteen operation-specific predicates."
+      },
+      {
+        "key": "f8a6ea6dc3af23bb266a5235b7e91918061fc54d8a9ec221b1909e324e0da513",
+        "status": "accepted",
+        "reason": "Lines 179-194 declare checkStatus and implement distinct status-to-exception behavior; the additional cited call sites show it executes after initialization, after a new poll state, and on an already terminal poll. This separately identified status-error mapping is not a claim about external retry behavior."
+      },
+      {
+        "key": "23130386630074facf7746748e16933b8643dcf46c2dad923c628960ee22a545",
+        "status": "accepted",
+        "reason": "The customization-folder declaration at lines 7-41 constructs the file model from raw response headers with the stated URL, date, length, and conditional property transformations; operations.ts lines 331-343 call it on a successful response. The 'includes' test is not strict boolean parsing."
+      },
+      {
+        "key": "584b517f691610058e71072c31e37ab72ece8c8ab45d1278a036540d064f22e3",
+        "status": "accepted",
+        "reason": "The createBatch declaration and explicit customization marker precede executable credential-kind dispatch at lines 53-64: token credentials go to getClient, whereas the other branch installs a policy from createBatchSharedKeyCredentialsPolicy. This establishes policy selection/installation, not the unsupplied signing implementation."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Five supplied fragments span five distinct paths; collector metadata reports 79 discovered, 36 eligible and 5 captured files, partial coverage, and seven named skipped entries. operations.ts is limited to lines 1-745 and ends inside _uploadNodeLogsSend's header expression. No package-wide absence or exhaustive coverage is established.",
+      "The fourteen strategy factories, shared lifecycle, separate status validator, header-model adapter and explicitly marked credential branch are distinct supplied declarations/behaviors. Nested closures, object-method scaffolding, helper forwarding and repeated same-shape error branches are not inflated into separate findings.",
+      "The strategy factories' initial callbacks return running after their initial operation resolves. Only polling GET error branches turn REST 404 into succeeded; initial-operation 404 is not visibly converted. Non-steady allocation states remain running, whereas transition-state pollers treat every returned state other than their one named transitional value as succeeded. These predicates do not prove the desired final service state.",
+      "The shared factory begins initFn immediately, before a later pollUntilDone can assign its abortSignal. initFn has no signal parameter. Although doPoll passes per-poll options, the fourteen concrete pollFn closures declare no parameters and use their originally captured options for GET calls; per-poll signals are not visibly forwarded into those GETs.",
+      "Progress callbacks execute in a finally block before pollPromise is cleared; a throwing callback can interrupt that reset and alter the returned promise. No guaranteed callback isolation or unconditional in-flight cleanup is claimed.",
+      "pollUntilDone shares one resultPromise but assigns the shared abortSignal on each invocation. The serializer emits only {state}, with no supplied restoration path. The interval defaults with ?? rather than validating sign/type; no comprehensive cancellation, timeout or durable resumption guarantee is inferred.",
+      "The file-properties helper uses decodeURIComponent and Date construction without visible validation, a current-date fallback, raw string content length, and substring-based directory detection. It does not prove strict boolean parsing, numeric conversion, robust arbitrary URL handling or valid dates.",
+      "The operations excerpt imports the custom poller factories, but their public operation call sites and most referenced initial/GET implementations occur outside the supplied range. Construction/installation/runtime execution of those paths was not observed. The file-properties call site is supplied and counted together with its adapter, not as a second instance.",
+      "Unknown-provenance ordinary operation send/deserializer/pager bodies are not counted merely for being generated-shaped or calling a paging helper. Paging/binary helpers, shared-key policy implementation, public BatchClient, models and options are absent or skipped. Imports and dependency declarations do not establish additional customizations.",
+      "Frozen identity is module-v1; package.json and user-agent string say 13.0.1 while inventory latestRelease is 13.0.0. Identity and snapshot/release mismatch are retained without claiming release parity.",
+      "Only supplied frozen SDK context and evidence were used; no outside SDK source was accessed. Findings are pending independent AI review, not human verification, and human overrides remain authoritative.",
+      "AI-reviewed accepted decisions are not human verification; human corrections and overrides remain authoritative. The fourteen operation-specific factories have distinct source-path/symbol identities despite sharing one polling pattern.",
+      "Coverage is partial: 5 captured source fragments/5 distinct source paths from 36 eligible files among 79 discovered files, not 5 of 79 complete-library customizations. operations.ts is supplied only through line 745; seven paths are explicitly listed as skipped or truncated. Neither these counts nor an empty omission list establishes package-wide absence.",
+      "The evidence shows the operation-specific factories and their generic poller implementation, but the supplied operations.ts fragment contains imports rather than the public LRO call sites. It does not establish which public methods instantiate the factories or when they run in a deployed client.",
+      "The shared-key policy body, paging helper, binary-response helper, generated counterparts, and most option/model definitions were not supplied. A policy installation does not establish signing details, and imports or ordinary generated-shaped paging, byte-range, and request-header assignments in the unknown-provenance operations.ts fragment do not establish further handwritten instances.",
+      "In createBatch, apiVersion propagation, default scopes, and user-agent assembly are visible but not separately shown to be handwritten; the explicit marker applies to the credential dispatch branch. Any candidate for another behavior on the same createBatch source-path/symbol identity would collide with proposal 18, so it is a limitation rather than a fabricated omission. The package.json constantPaths metadata alone does not prove a separate runtime customization.",
+      "The frozen target is javascript:@azure/batch:module-v1. Supplied library metadata says latestRelease 13.0.0, while supplied package.json and createBatch's user-agent literal say 13.0.1; this discrepancy is not resolved by the frozen evidence. The proposal findings state observable behavior, not an independently measured generator deficiency or release status."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/batch/batch/src/api/batchContext.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b8406e7ebbb8e25fc175807a418a5f6a09f299b149269e8c922b5d3c5ab84edf"
+    },
+    {
+      "path": "sdk/batch/batch/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 5601,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "343fec1e5f6881b4f28479cddef07ab8f9e8bb1de0291ad0a77d1f7e9a97e53b"
+    },
+    {
+      "path": "sdk/batch/batch/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 2366,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "51cb36b1b8b8532cba333489b7ed338da4b0af0acd49667c1c928ae5989f12dd"
+    },
+    {
+      "path": "sdk/batch/batch/src/batchClient.ts",
+      "startLine": 1,
+      "endLine": 1070,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "939365b404e399e22c1f5d9e62d25c9517f024cc610db1c5929c1ff1455a12df"
+    },
+    {
+      "path": "sdk/batch/batch/src/credentials/batchSharedKeyCredentials.ts",
+      "startLine": 1,
+      "endLine": 145,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e93b6763752b5c8f52d41e97115aa852f441fce2f6a729bc41041b7b3457a15e"
+    },
+    {
+      "path": "sdk/batch/batch/src/customization/api/lroPoller.ts",
+      "startLine": 1,
+      "endLine": 416,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ef0f828a6538b1aca901ef22dc0507d419bb900b3db3b60a77c8b7d38cdb2367"
+    },
+    {
+      "path": "sdk/batch/batch/src/customization/static-helpers/batchPoller.ts",
+      "startLine": 1,
+      "endLine": 194,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fbc6935d2d0c936a2169366082ca0805ce7e66c12f234a207aa4b1888663ef42"
+    },
+    {
+      "path": "sdk/batch/batch/src/customization/static-helpers/fileProperties.ts",
+      "startLine": 1,
+      "endLine": 41,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "32b52c3dc57729a72cc7646559b740337db05909e3d51ded75fdf252e72fdd70"
+    },
+    {
+      "path": "sdk/batch/batch/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 6010,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e1b1eb6015bcaf69907ac81dd14aa366bfbf9f84ac7ff4822861ebdcba159fd8"
+    },
+    {
+      "path": "sdk/batch/batch/src/static-helpers/pagingHelpers.ts",
+      "startLine": 1,
+      "endLine": 270,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "995ef929c3f4d2efbed14712545f0800d6adc9ae30bdcd342d3770fa6a0de278"
+    },
+    {
+      "path": "sdk/batch/batch/src/static-helpers/serialization/get-binary-response.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b94af8d979201f82fd53cad4291814a25531c0bbe3e781648bf69e344e110965"
+    }
+  ]
+}

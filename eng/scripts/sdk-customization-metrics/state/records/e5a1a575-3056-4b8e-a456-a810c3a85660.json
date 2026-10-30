@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "id": "e5a1a575-3056-4b8e-a456-a810c3a85660",
+  "observedAt": "2026-10-24T06:48:10.827Z",
+  "identity": "java:azure-messaging-eventgrid-systemevents:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-messaging-eventgrid-systemevents",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/eventgrid/azure-messaging-eventgrid-systemevents"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "3a1a1568b1c28be7d21e16099f4500817e87ddf7"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 352,
+    "eligibleFiles": 338,
+    "capturedFiles": 4,
+    "skipped": [
+      {
+        "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/SystemEventNames.java",
+        "reason": "Review budget; only lines 1-299 sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/customization/src/main/java/EventGridSystemEventsCustomization.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nimport com.azure.autorest.customization.ClassCustomization;\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.azure.autorest.customization.PackageCustomization;\nimport com.github.javaparser.ast.CompilationUnit;\nimport com.github.javaparser.ast.Modifier;\nimport com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;\nimport com.github.javaparser.ast.comments.LineComment;\nimport com.github.javaparser.ast.expr.AssignExpr;\nimport com.github.javaparser.ast.expr.FieldAccessExpr;\nimport com.github.javaparser.ast.expr.MethodCallExpr;\nimport com.github.javaparser.ast.expr.NameExpr;\nimport com.github.javaparser.ast.expr.StringLiteralExpr;\nimport com.github.javaparser.ast.expr.SuperExpr;\nimport com.github.javaparser.ast.expr.ThisExpr;\nimport com.github.javaparser.ast.nodeTypes.NodeWithJavadoc;\nimport com.github.javaparser.ast.stmt.ExpressionStmt;\nimport com.github.javaparser.ast.stmt.BlockStmt;\nimport com.github.javaparser.javadoc.Javadoc;\nimport java.time.Duration;\nimport java.time.OffsetDateTime;\nimport java.util.ArrayList;\nimport java.util.Arrays;\nimport java.util.Collections;\nimport java.util.List;\nimport java.util.Map;\nimport java.util.TreeMap;\nimport java.util.concurrent.atomic.AtomicReference;\nimport java.util.function.Function;\nimport java.util.stream.Collectors;\nimport org.slf4j.Logger;\n\nimport static com.github.javaparser.StaticJavaParser.parseBlock;\nimport static com.github.javaparser.StaticJavaParser.parseExpression;\nimport static com.github.javaparser.StaticJavaParser.parseStatement;\nimport static com.github.javaparser.javadoc.description.JavadocDescription.parseText;\n\n/**\n * This class contains the customization code to customize the AutoRest generated code for Event Grid.\n */\npublic class EventGridSystemEventsCustomization extends Customization {\n\n    @Override\n    public void customize(LibraryCustomization customization, Logger logger) {\n        PackageCustomization systemEvent = customization.getPackage(\"com.azure.messaging.eventgrid.systemevents\" +\n            \".models\");\n        // Manual listing of classes in the package until a bug is fixed in TypeSpec Java.\n        String packagePath = \"src/main/java/com/azure/messaging/eventgrid/systemevents/models/\";\n        List<ClassCustomization> classCustomizations = customization.getRawEditor().getContents().keySet().stream()\n            .filter(fileName -> fileName.startsWith(packagePath))\n            .map(fileName -> fileName.substring(packagePath.length(), fileName.length() - 5))\n            .filter(className -> !className.contains(\"/\") && !\"package-info\".equals(className))\n            .map(systemEvent::getClass)\n            .collect(Collectors.toList());\n\n        Map<String, String> nameMap = new TreeMap<>();\n        Map<String, String> descriptionMap = new TreeMap<>();\n        Map<String, String> constantNameMap = new TreeMap<>();\n        List<String> imports = new ArrayList<>();\n\n        logger.info(\"Total number of classes {}\", classCustomizations.size());\n\n        List<ClassCustomization> eventData = classCustomizations\n            .stream()\n            .filter(classCustomization -> classCustomization.getClassName().endsWith(\"EventData\"))\n            .collect(Collectors.toList());\n\n        List<String> validEventDescription = eventData.stream()\n            .map(classCustomization -> {\n                String className = classCustomization.getClassName();\n                AtomicReference<String> javadocRef = new AtomicReference<>();\n                classCustomization.customizeAst(ast -> ast.getClassByName(className)\n                    .flatMap(NodeWithJavadoc::getJavadocComment)\n                    .ifPresent(javadoc -> javadocRef.set(javadoc.getContent())));\n\n                String javadoc = javadocRef.get();\n                int startIndex = javadoc.indexOf(\"Microsoft.\");\n                int endIndex = javadoc.lastIndexOf(\" event.\");\n                boolean hasEventName = startIndex > 0 && endIndex > 0;\n                if (!hasEventName) {\n                    logger.info(\"Class {} {}\", classCustomization.getClassName(), javadoc);\n                    return null;\n                }\n\n                endIndex = javadoc.indexOf(\" \", startIndex);\n                String eventName = javadoc.substring(startIndex, endIndex);\n                String constantName = getConstantName(className.replace(\"EventData\", \"\"));\n\n                constantNameMap.put(className, constantName);\n                nameMap.put(className, eventName);\n                descriptionMap.put(className, javadoc);\n                imports.add(className);\n                return eventName;\n            })\n            .collect(Collectors.toList());\n\n        Collections.sort(imports);\n\n        CompilationUnit compilationUnit = new CompilationUnit();\n\n        compilationUnit.addOrphanComment(new LineComment(\" Copyright (c) Microsoft Corporation. All rights reserved.\"));\n        compilationUnit.addOrphanComment(new LineComment(\" Licensed under the MIT License.\"));\n\n        compilationUnit.setPackageDeclaration(\"com.azure.messaging.eventgrid.systemevents\");\n\n        compilationUnit.addImport(\"java.util.Collections\");\n        compilationUnit.addImport(\"java.util.HashMap\");\n        compilationUnit.addImport(\"java.util.Map\");\n        // these two imports are for deprecated events.\n        compilationUnit.addImport(\"com.azure.messaging.eventgrid.systemevents.models\" +\n            \".AcsChatMemberAddedToThreadWithUserEventData\");\n        compilationUnit.addImport(\"com.azure.messaging.eventgrid.systemevents.models.\" +\n            \"AcsChatMemberRemovedFromThreadWithUserEventData\");\n        for (String className : imports) {\n            compilationUnit.addImport(\"com.azure.messaging.eventgrid.systemevents.models.\" + className);\n        }\n\n        ClassOrInterfaceDeclaration clazz = compilationUnit.addClass(\"SystemEventNames\", Modifier.Keyword.PUBLIC,\n            Modifier.Keyword.FINAL);\n\n        clazz.setJavadocComment(\"This class contains a number of constants that correspond to the value of \"\n            + \"{@code eventType} of {@code EventGridEvent}s and {@code code} of {@code CloudEvent}s, when the event \"\n            + \"originated from an Azure service. This list should be updated with all the service event strings. It \"\n            + \"also contains a mapping from each service event string to the model class that the event string \"\n            + \"corresponds to in the {@code data} field, which is used to automatically deserialize system events by \"\n            + \"their known string.\");\n\n        for (String className : imports) {\n            clazz.addFieldWithInitializer(\"String\", constantNameMap.get(className),\n                new StringLiteralExpr(nameMap.get(className)), Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC,\n                Modifier.Keyword.FINAL)\n                .setJavadocComment(descriptionMap.get(className));\n        }\n\n        clazz.addFieldWithInitializer(\"Map<String, Class<?>>\", \"SYSTEM_EVENT_MAPPINGS\",\n            parseExpression(\"new HashMap<String, Class<?>>()\"), Modifier.Keyword.PRIVATE, Modifier.Keyword.STATIC,\n            Modifier.Keyword.FINAL);\n\n        BlockStmt staticInitializer = clazz.addStaticInitializer();\n\n        for (String className : imports) {\n            staticInitializer.addStatement(parseStatement(\"SYSTEM_EVENT_MAPPINGS.put(\" + constantNameMap.get(className)\n                + \", \" + className + \".class);\"));\n        }\n\n        clazz.addMethod(\"getSystemEventMappings\", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)\n            .setType(\"Map<String, Class<?>>\")\n            .setBody(parseBlock(\"{ return Collections.unmodifiableMap(SYSTEM_EVENT_MAPPINGS); }\"))\n            .setJavadocComment(new Javadoc(parseText(\"Get a mapping of all the system event type strings to their \"\n                + \"respective class. This is used by default in the {@code EventGridEvent} and {@code CloudEvent} classes.\"))\n                .addBlockTag(\"return\", \"a mapping of all the system event strings to system event objects.\"));\n\n        clazz.addConstructor(Modifier.Keyword.PRIVATE);\n\n        logger.info(\"Total number of events {}\", eventData.size());\n        logger.info(\"Total number of events with proper description {}\", validEventDescription.size());\n\n        customization.getRawEditor()\n            .addFile(\"src/main/java/com/azure/messaging/eventgrid/systemevents/SystemEventNames.java\",\n                compilationUnit.toString());\n\n        customizeAcsRouterEvents(systemEvent);\n        customizeAcsRecordingFileStatusUpdatedEventDataDuration(systemEvent);\n        customizeStorageDirectoryDeletedEventData(systemEvent);\n        customizeAcsMessageEventDataAndInheritingClasses(systemEvent);\n        customizeIothubEventData(systemEvent);\n        customizeEventGridMQTTClientEventData(systemEvent);\n        restoreConstructorsForReadOnlyDictionaries(systemEvent);\n    }\n\n    public void customizeEventGridMQTTClientEventData(PackageCustomization customization) {\n        customization.getClass(\"EventGridMqttClientEventData\").customizeAst(ast ->\n            ast.getClassByName(\"EventGridMqttClientEventData\")\n                .ifPresent(clazz -> clazz.getMethodsByName(\"setClientName\")\n                    .forEach(method -> method.setModifiers(Modifier.Keyword.PRIVATE))));\n\n        //// For inherited classes, remove the getClientName method entirely to avoid override conflicts\n        //List<String> inheritedClassNames = Arrays.asList(\"EventGridMqttClientCreatedOrUpdatedEventData\",\n        //    \"EventGridMqttClientDeletedEventData\", \"EventGridMqttClientSessionConnectedEventData\",\n        //    \"EventGridMqttClientSessionDisconnectedEventData\");\n        //\n        //for (String className : inheritedClassNames) {\n        //    customization.getClass(className).customizeAst(ast -> {\n        //        ast.getClassByName(className).ifPresent(clazz -> {\n        //            // Remove the getClientName method from inherited classes\n        //            clazz.getMethodsByName(\"getClientName\")\n        //                .forEach(method -> clazz.remove(method));\n        //        });\n        //    });\n        //}\n    }\n\n    public void customizeIothubEventData(PackageCustomization customization) {\n        customization.getClass(\"DeviceTwinMetadata\").customizeAst(ast -> ast.getClassByName(\"DeviceTwinMetadata\")\n            .ifPresent(clazz -> clazz.getMethodsByName(\"getLastUpdated\").forEach(m -> m.setType(OffsetDateTime.class)\n                .setBody(parseBlock(\"{ return lastUpdated == null ? null : OffsetDateTime.parse(lastUpdated); }\")))));\n\n        customization.getClass(\"DeviceTwinInfo\").customizeAst(ast -> ast.getClassByName(\"DeviceTwinInfo\")\n            .ifPresent(clazz -> clazz.getMethodsByName(\"getLastActivityTime\").forEach(m -> m.setType(OffsetDateTime.class)\n                .setBody(parseBlock(\"{ return lastActivityTime == null ? null : OffsetDateTime.parse\" +\n                    \"(lastActivityTime); }\")))));\n\n        customization.getClass(\"DeviceTwinInfo\").customizeAst(ast -> ast.getClassByName(\"DeviceTwinInfo\")\n            .ifPresent(clazz -> clazz.getMethodsByName(\"getStatusUpdateTime\").forEach(m -> m.setType(OffsetDateTime.class)\n                .setBody(parseBlock(\"{ return statusUpdateTime == null ? null : OffsetDateTime.parse(statusUpdateTime); }\")))));\n    }\n\n    public void customizeAcsRouterEvents(PackageCustomization customization) {\n        customization.getClass(\"AcsRouterWorkerSelector\").customizeAst(ast -> ast.getClassByName(\"AcsRouterWorkerSelector\")\n            .ifPresent(clazz -> clazz.getMethodsByName(\"getTimeToLive\").forEach(m -> m.setType(Duration.class)\n                .setBody(parseBlock(\"{ return Duration.ofSeconds((long)timeToLive); }\")))));\n\n        customization.getClass(\"AcsRouterJobClassificationFailedEventData\").customizeAst(ast -> {\n            ast.addImport(\"com.azure.core.models.ResponseError\");\n            ast.addImport(\"java.util.stream.Collectors\");\n\n            ast.getClassByName(\"AcsRouterJobClassificationFailedEventData\").ifPresent(clazz ->\n                clazz.getMethodsByName(\"getErrors\").forEach(m -> m.setType(\"List<ResponseError>\")\n                    .setBody(parseBlock(\"{ return this.errors.stream().map(e -> \"\n                        + \"new ResponseError(e.getCode(), e.getMessage())).collect(Collectors.toList()); }\"))));\n        });\n    }\n\n    public void customizeAcsRecordingFileStatusUpdatedEventDataDuration(PackageCustomization customization) {\n        customization.getClass(\"AcsRecordingFileStatusUpdatedEventData\").customizeAst(ast -> {\n            ast.addImport(\"java.time.Duration\");\n            ast.getClassByName(\"AcsRecordingFileStatusUpdatedEventData\")\n                .ifPresent(clazz -> clazz.getMethodsByName(\"getRecordingDuration\").forEach(method -> method.setType(\"Duration\")\n                    .setBody(parseBlock(\"{ if (this.recordingDuration != null) { return Duration.ofMillis(this.recordingDuration); } return null; }\"))\n                    .setJavadocComment(new Javadoc(parseText(\"Get the recordingDuration property: The recording duration.\"))\n                        .addBlockTag(\"return\", \"the recordingDuration value.\"))));\n        });\n    }\n\n    public void customizeStorageDirectoryDeletedEventData(PackageCustomization customization) {\n        customization.getClass(\"StorageDirectoryDeletedEventData\").customizeAst(ast -> ast.getClassByName(\"StorageDirectoryDeletedEventData\")\n            .ifPresent(clazz -> clazz.getMethodsByName(\"getRecursive\").forEach(m -> m.setName(\"isRecursive\")\n                .setType(Boolean.class)\n                .setBody(parseBlock(\"{ return Boolean.getBoolean(this.recursive); }\")))));\n    }\n\n    public void customizeAcsMessageEventDataAndInheritingClasses(PackageCustomization customization) {\n        List<String> classNames = Arrays.asList(\"AcsMessageEventData\", \"AcsMessageDeliveryStatusUpdatedEventData\",\n            \"AcsMessageReceivedEventData\");\n        for (String className : classNames) {\n            customization.getClass(className).customizeAst(ast -> {\n                ast.addImport(\"com.azure.core.models.ResponseError\");\n                ast.getClassByName(className).ifPresent(clazz -> clazz.getMethodsByName(\"getError\").forEach(method ->\n                    method.setType(\"ResponseError\")\n                        .setBody(parseBlock(\"{ return new ResponseError(this.error.getChannelCode(), this.error.getChannelMessage()); }\"))\n                        .setJavadocComment(new Javadoc(parseText(\"Get the error property: The channel error code and message.\"))\n                            .addBlockTag(\"return\", \"the error value.\"))));\n            });\n        }\n    }\n\n    /**\n     * Restores constructor accessibility for classes affected by readonly dictionary changes in TypeSpec.\n     * The changes in <a href=\"https://github.com/Azure/azure-sdk-for-java/pull/36490\">Azure/azure-sdk-for-java#36490</a>\n     * marked dictionaries as readonly, which removed labels/tags parameters from constructors and changed accessibility.\n     * This customization restores the original constructor signatures for backward compatibility as requested in\n     * <a href=\"https://github.com/Azure/azure-sdk-for-java/issues/46316\">Azure/azure-sdk-for-java#46316</a>.\n     */\n    public void restoreConstructorsForReadOnlyDictionaries(PackageCustomization customization) {\n        // Restore the base class AcsRouterJobEventData constructor to accept labels and tags\n        customization.getClass(\"AcsRouterJobEventData\").customizeAst(ast -> {\n            ast.addImport(\"java.util.Map\");\n            ast.getClassByName(\"AcsRouterJobEventData\").ifPresent(clazz -> {\n                // Create constructor body using AST nodes\n                BlockStmt body = new BlockStmt();\n                \n                // Add super(jobId) call\n                body.addStatement(new ExpressionStmt(\n                    new MethodCallExpr(\"super\").addArgument(new NameExpr(\"jobId\"))\n                ));\n                \n                // Add this.labels = labels assignment\n                body.addStatement(new ExpressionStmt(\n                    new AssignExpr(\n                        new FieldAccessExpr(new ThisExpr(), \"labels\"),\n                        new NameExpr(\"labels\"),\n                        AssignExpr.Operator.ASSIGN\n                    )\n                ));\n                \n                // Add this.tags = tags assignment\n                body.addStatement(new ExpressionStmt(\n                    new AssignExpr(\n                        new FieldAccessExpr(new ThisExpr(), \"tags\"),\n                        new NameExpr(\"tags\"),\n                        AssignExpr.Operator.ASSIGN\n                    )\n                ));\n                \n                // Add a new protected constructor with labels and tags parameters\n                clazz.addConstructor(Modifier.Keyword.PROTECTED)\n                    .addParameter(\"String\", \"jobId\")\n                    .addParameter(\"Map<String, String>\", \"labels\") \n                    .addParameter(\"Map<String, String>\", \"tags\")\n                    .setBody(body)\n                    .setJavadocComment(new Javadoc(parseText(\"Creates an instance of AcsRouterJobEventData class.\"))\n                        .addBlockTag(\"param\", \"jobId the jobId value to set.\")\n                        .addBlockTag(\"param\", \"labels the labels value to set.\")\n                        .addBlockTag(\"param\", \"tags the tags value to set.\"));\n            });\n        });\n\n        // Restore constructor for DeviceTelemetryEventProperties (base class)\n        // This had constructor parameters removed but kept protected visibility\n        customization.getClass(\"DeviceTelemetryEventProperties\").customizeAst(ast -> {\n            ast.addImport(\"java.util.Map\");\n            ast.addImport(\"com.azure.core.util.BinaryData\");\n            ast.getClassByName(\"DeviceTelemetryEventProperties\").ifPresent(clazz -> {\n                // Create constructor body using AST nodes\n                BlockStmt body = new BlockStmt();\n                \n                // Add this.body = body assignment\n                body.addStatement(new ExpressionStmt(\n                    new AssignExpr(\n                        new FieldAccessExpr(new ThisExpr(), \"body\"),\n                        new NameExpr(\"body\"),\n                        AssignExpr.Operator.ASSIGN\n                    )\n                ));\n\n                // Add this.properties = properties assignment\n                body.addStatement(new ExpressionStmt(\n                    new AssignExpr(\n                        new FieldAccessExpr(new ThisExpr(), \"properties\"),\n                        new NameExpr(\"properties\"),\n                        AssignExpr.Operator.ASSIGN\n                    )\n                ));\n                \n                // Add this.systemProperties = systemProperties assignment\n                body.addStatement(new ExpressionStmt(\n                    new AssignExpr(\n                        new FieldAccessExpr(new ThisExpr(), \"systemProperties\"),\n                        new NameExpr(\"systemProperties\"),\n                        AssignExpr.Operator.ASSIGN\n                    )\n                ));\n                \n                // Add the original constructor with properties and systemProperties parameters\n                clazz.addConstructor(Modifier.Keyword.PROTECTED)\n                    .addParameter(\"Map<String, BinaryData>\", \"body\")\n                    .addParameter(\"Map<String, String>\", \"properties\") \n                    .addParameter(\"Map<String, String>\", \"systemProperties\")\n                    .setBody(body)\n                    .setJavadocComment(new Javadoc(parseText(\"Creates an instance of DeviceTelemetryEventProperties class.\"))\n                        .addBlockTag(\"param\", \"body the body value to set.\")\n                        .addBlockTag(\"param\", \"properties the properties value to set.\")\n                        .addBlockTag(\"param\", \"systemProperties the systemProperties value to set.\"));\n            });\n        });\n    }\n\n    public static String getConstantName(String name) {\n        if (name == null || name.trim().isEmpty()) {\n            return name;\n        }\n\n        // trim leading and trailing '_'\n        if ((name.startsWith(\"_\") || name.endsWith(\"_\")) && !name.chars().allMatch(c -> c == '_')) {\n            StringBuilder sb = new StringBuilder(name);\n            while (sb.length() > 0 && sb.charAt(0) == '_') {\n                sb.deleteCharAt(0);\n            }\n            while (sb.length() > 0 && sb.charAt(sb.length() - 1) == '_') {\n                sb.setLength(sb.length() - 1);\n            }\n            name = sb.toString();\n        }\n\n        String result = name;\n        result = result.replaceAll(\"_{2,}\", \"_\");  // merge multiple underlines\n        Function<Character, Boolean> isUpper = c -> c >= 'A' && c <= 'Z';\n        Function<Character, Boolean> isLower = c -> c >= 'a' && c <= 'z';\n        for (int i = 1; i < result.length() - 1; i++) {\n            if (isUpper.apply(result.charAt(i))) {\n                if (result.charAt(i - 1) != '_' && isLower.apply(result.charAt(i - 1))) {\n                    result = result.substring(0, i) + \"_\" + result.substring(i);\n                }\n            }\n        }\n        return result.toUpperCase();\n    }\n}\n",
+      "contentHash": "a7040aa11635ed6afe18d6fd241dd56683029d074f6c3827ccf7c71c1e3f53cb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/customization/src/main/java/EventGridSystemEventsCustomization.java",
+      "startLine": 1,
+      "endLine": 391,
+      "kind": "handwritten-marker",
+      "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/AcsRouterJobEventData.java",
+      "text": "    /**\n     * Creates an instance of AcsRouterJobEventData class.\n     *\n     * @param jobId the jobId value to set.\n     * @param labels the labels value to set.\n     * @param tags the tags value to set.\n     */\n    protected AcsRouterJobEventData(String jobId, Map<String, String> labels, Map<String, String> tags) {\n        super(jobId);\n        this.labels = labels;\n        this.tags = tags;\n    }",
+      "contentHash": "80584397bef80ad1cbd4da987f1d7fc5fb142a8cbd5238ef5fbd5ab5072b0db9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/AcsRouterJobEventData.java",
+      "startLine": 209,
+      "endLine": 220,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9a48048b10cfe86926bf85a4001996d392373d188f458db5bc9111376a08f5a3"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/DeviceTelemetryEventProperties.java",
+      "text": "    /**\n     * Creates an instance of DeviceTelemetryEventProperties class.\n     *\n     * @param body the body value to set.\n     * @param properties the properties value to set.\n     * @param systemProperties the systemProperties value to set.\n     */\n    protected DeviceTelemetryEventProperties(Map<String, BinaryData> body, Map<String, String> properties,\n        Map<String, String> systemProperties) {\n        this.body = body;\n        this.properties = properties;\n        this.systemProperties = systemProperties;\n    }",
+      "contentHash": "fcf6eac1d0c93fb35c7399c81143aa5c673b9ba30da9e6bf37709acecca08b51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/DeviceTelemetryEventProperties.java",
+      "startLine": 160,
+      "endLine": 172,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9450b8f21e945aa9f197804421edc334b8bfa72f744ebc020b6f8707b1ccd2d4"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/SystemEventNames.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\npackage com.azure.messaging.eventgrid.systemevents;\n\nimport com.azure.messaging.eventgrid.systemevents.models.AcsCallEndedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsCallParticipantAddedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsCallParticipantRemovedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsCallStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatAzureBotCommandReceivedInThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageDeletedInThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageEditedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageEditedInThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatMessageReceivedInThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatParticipantAddedToThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatParticipantAddedToThreadWithUserEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatParticipantRemovedFromThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatParticipantRemovedFromThreadWithUserEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadCreatedWithUserEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadPropertiesUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadPropertiesUpdatedPerUserEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatThreadWithUserDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsChatTypingIndicatorReceivedInThreadEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsEmailDeliveryReportReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsEmailEngagementTrackingReportReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsIncomingCallEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsMessageDeliveryStatusUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsMessageReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRecordingFileStatusUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobCancelledEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobClassificationFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobClassifiedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobClosedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobExceptionTriggeredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobQueuedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobSchedulingFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobUnassignedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobWaitingForActivationEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterJobWorkerSelectorsExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerDeregisteredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerOfferAcceptedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerOfferDeclinedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerOfferExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerOfferIssuedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerOfferRevokedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerRegisteredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsRouterWorkerUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsSmsDeliveryReportReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsSmsReceivedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AcsUserDisconnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiCenterApiDefinitionAddedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiCenterApiDefinitionUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiReleaseCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiReleaseDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiReleaseUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementApiUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementCircuitBreakerClosedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementCircuitBreakerOpenedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayApiAddedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayApiRemovedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayCertificateAuthorityCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayCertificateAuthorityDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayCertificateAuthorityUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayHostnameConfigurationCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayHostnameConfigurationDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayHostnameConfigurationUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayTokenExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayTokenNearExpiryEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementGatewayUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementProductCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementProductDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementProductUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementSubscriptionCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementSubscriptionDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementSubscriptionUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementUserCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementUserDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ApiManagementUserUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AppConfigurationKeyValueDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AppConfigurationKeyValueModifiedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AppConfigurationSnapshotCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AppConfigurationSnapshotModifiedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsClusterCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsClusterDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsClusterFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsClusterUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsClusterUpdatingEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsPrivateCloudFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsPrivateCloudUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsPrivateCloudUpdatingEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsScriptExecutionCancelledEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsScriptExecutionFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsScriptExecutionFinishedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.AvsScriptExecutionStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerRegistryChartDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerRegistryChartPushedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerRegistryImageDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerRegistryImagePushedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceClusterSupportEndedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceClusterSupportEndingEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceNewKubernetesVersionAvailableEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceNodePoolRollingFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceNodePoolRollingStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ContainerServiceNodePoolRollingSucceededEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.DataBoxCopyCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.DataBoxCopyStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.DataBoxOrderCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EdgeSolutionVersionPublishedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EventGridMqttClientCreatedOrUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EventGridMqttClientDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EventGridMqttClientSessionConnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EventGridMqttClientSessionDisconnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.EventHubCaptureFileCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareDicomImageCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareDicomImageDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareDicomImageUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareFhirResourceCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareFhirResourceDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.HealthcareFhirResourceUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.IotHubDeviceConnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.IotHubDeviceCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.IotHubDeviceDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.IotHubDeviceDisconnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.IotHubDeviceTelemetryEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultAccessPolicyChangedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultCertificateExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultCertificateNearExpiryEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultCertificateNewVersionCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultKeyExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultKeyNearExpiryEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultKeyNewVersionCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultSecretExpiredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultSecretNearExpiryEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.KeyVaultSecretNewVersionCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.LifecycleHookEventsEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MachineLearningServicesDatasetDriftDetectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MachineLearningServicesModelDeployedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MachineLearningServicesModelRegisteredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MachineLearningServicesRunCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MachineLearningServicesRunStatusChangedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MapsGeofenceEnteredEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MapsGeofenceExitedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.MapsGeofenceResultEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.PolicyInsightsPolicyStateChangedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.PolicyInsightsPolicyStateCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.PolicyInsightsPolicyStateDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.RedisExportRdbCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.RedisImportRdbCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.RedisPatchingCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.RedisScalingCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceActionCancelEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceActionFailureEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceActionSuccessEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceDeleteCancelEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceDeleteFailureEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceDeleteSuccessEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceNotificationsContainerServiceEventResourcesScheduledEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceNotificationsHealthResourcesAnnotatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceNotificationsHealthResourcesAvailabilityStatusChangedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceNotificationsResourceManagementCreatedOrUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceNotificationsResourceManagementDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceWriteCancelEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceWriteFailureEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ResourceWriteSuccessEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ServiceBusActiveMessagesAvailablePeriodicNotificationsEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ServiceBusActiveMessagesAvailableWithNoListenersEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ServiceBusDeadletterMessagesAvailablePeriodicNotificationsEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.ServiceBusDeadletterMessagesAvailableWithNoListenersEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.SignalRServiceClientConnectionConnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.SignalRServiceClientConnectionDisconnectedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageAsyncOperationInitiatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageBlobCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageBlobDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageBlobInventoryPolicyCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageBlobRenamedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageBlobTierChangedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageDirectoryCreatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageDirectoryDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageDirectoryRenamedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageLifecyclePolicyCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageTaskAssignmentCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageTaskAssignmentQueuedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageTaskCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.StorageTaskQueuedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.SubscriptionDeletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.SubscriptionValidationEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebAppServicePlanUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebAppUpdatedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebBackupOperationCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebBackupOperationFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebBackupOperationStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebRestoreOperationCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebRestoreOperationFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebRestoreOperationStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebSlotSwapCompletedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebSlotSwapFailedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebSlotSwapStartedEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebSlotSwapWithPreviewCancelledEventData;\nimport com.azure.messaging.eventgrid.systemevents.models.WebSlotSwapWithPreviewStartedEventData;\nimport java.util.Collections;\nimport java.util.HashMap;\nimport java.util.Map;\n\n/**\n * This class contains a number of constants that correspond to the value of {@code eventType} of\n * {@code EventGridEvent}s and {@code code} of {@code CloudEvent}s, when the event originated from an Azure service.\n * This list should be updated with all the service event strings. It also contains a mapping from each service event\n * string to the model class that the event string corresponds to in the {@code data} field, which is used to\n * automatically deserialize system events by their known string.\n */\npublic final class SystemEventNames {\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.CallEnded event.\n     */\n    public static final String ACS_CALL_ENDED = \"Microsoft.Communication.CallEnded\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.CallParticipantAdded event.\n     */\n    public static final String ACS_CALL_PARTICIPANT_ADDED = \"Microsoft.Communication.CallParticipantAdded\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.CallParticipantRemoved event.\n     */\n    public static final String ACS_CALL_PARTICIPANT_REMOVED = \"Microsoft.Communication.CallParticipantRemoved\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.CallStarted event.\n     */\n    public static final String ACS_CALL_STARTED = \"Microsoft.Communication.CallStarted\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a\n     * Microsoft.Communication.ChatAzureBotCommandReceivedInThread event.\n     */\n    public static final String ACS_CHAT_AZURE_BOT_COMMAND_RECEIVED_IN_THREAD\n        = \"Microsoft.Communication.ChatAzureBotCommandReceivedInThread\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageDeleted event.\n     */\n    public static final String ACS_CHAT_MESSAGE_DELETED = \"Microsoft.Communication.ChatMessageDeleted\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageDeletedInThread event.\n     */\n    public static final String ACS_CHAT_MESSAGE_DELETED_IN_THREAD\n        = \"Microsoft.Communication.ChatMessageDeletedInThread\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageEdited event.\n     */\n    public static final String ACS_CHAT_MESSAGE_EDITED = \"Microsoft.Communication.ChatMessageEdited\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageEditedInThread event.\n     */\n    public static final String ACS_CHAT_MESSAGE_EDITED_IN_THREAD = \"Microsoft.Communication.ChatMessageEditedInThread\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageReceived event.\n     */\n    public static final String ACS_CHAT_MESSAGE_RECEIVED = \"Microsoft.Communication.ChatMessageReceived\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatMessageReceivedInThread event.\n     */\n    public static final String ACS_CHAT_MESSAGE_RECEIVED_IN_THREAD\n        = \"Microsoft.Communication.ChatMessageReceivedInThread\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatThreadParticipantAdded event.\n     */\n    public static final String ACS_CHAT_PARTICIPANT_ADDED_TO_THREAD\n        = \"Microsoft.Communication.ChatThreadParticipantAdded\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a\n     * Microsoft.Communication.ChatParticipantAddedToThreadWithUser event.\n     */\n    public static final String ACS_CHAT_PARTICIPANT_ADDED_TO_THREAD_WITH_USER\n        = \"Microsoft.Communication.ChatParticipantAddedToThreadWithUser\";\n\n    /**\n     * Schema of the Data property of an EventGridEvent for a Microsoft.Communication.ChatThreadParticipantRemoved\n     * event.\n     */",
+      "contentHash": "05622921be62b57e34a7f85941bd1169ec35b14452123998211d1dadf2ef320a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/SystemEventNames.java",
+      "startLine": 1,
+      "endLine": 299,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ec9d66eafa9b18a2fff9e7e8e02ff0acff6dd354aa5ba58d4360a1a2ba5f4480"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <artifactId>azure-messaging-eventgrid-systemevents-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "4e23cebfb48783c3a29f16c0d8615bdfb74dae4bb8a628356280c33989696326",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/customization/pom.xml"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\nLicensed under the MIT License.\nCode generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-messaging-eventgrid-systemevents</artifactId>\n  <version>1.1.0-beta.2</version> <!-- {x-version-update;com.azure:azure-messaging-eventgrid-systemevents;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for Event Grid System Events</name>\n  <description>This package contains strongly typed model classes for Azure Event Grid System Events.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <spotless.skip>false</spotless.skip>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-json</artifactId>\n      <version>1.5.1</version> <!-- {x-version-update;com.azure:azure-json;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>org.junit.jupiter</groupId>\n      <artifactId>junit-jupiter-api</artifactId>\n      <version>5.13.4</version> <!-- {x-version-update;org.junit.jupiter:junit-jupiter-api;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>org.junit.jupiter</groupId>\n      <artifactId>junit-jupiter-engine</artifactId>\n      <version>5.13.4</version> <!-- {x-version-update;org.junit.jupiter:junit-jupiter-engine;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>org.slf4j</groupId>\n      <artifactId>slf4j-simple</artifactId>\n      <version>1.7.36</version> <!-- {x-version-update;org.slf4j:slf4j-simple;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.jacoco</groupId>\n        <artifactId>jacoco-maven-plugin</artifactId>\n        <version>0.8.15</version> <!-- {x-version-update;org.jacoco:jacoco-maven-plugin;external_dependency} -->\n        <configuration>\n          <excludes>\n            <exclude>com/azure/messaging/eventgrid/systemevents/**</exclude> <!-- we only have models here -->\n          </excludes>\n        </configuration>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+      "contentHash": "e1e3676e91cf72d06b7ea27f46fe3828153fbaf6ccb7980aab0e4b0ef5e39d5b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/pom.xml"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/README.md",
+      "text": "# Azure Event Grid System Events for Java\n\nThis package contains strongly typed model classes for Azure Event Grid System Events and utilities for deserializing system event data.\n\n## Overview\n\nThis library provides:\n- **System Event Data Models**: Strongly typed classes for all Azure Event Grid system events (e.g., \n  `StorageBlobCreatedEventData`, `AppConfigurationKeyValueDeletedEventData`)\n- **Event Type Constants**: Pre-defined constants for all system event types via `SystemEventNames`\n- **Event Mappings**: Automatic mapping between event type strings and their corresponding data model classes\n\nSystem events are published by Azure services when resources change state. For example, when a blob is created in Azure Storage, a `Microsoft.Storage.BlobCreated` event is published with `StorageBlobCreatedEventData` as the event data.\n\n[Sources][sources] |\n[API Reference Documentation][javadocs] |\n[Product Documentation][service_docs] |\n[Samples][samples]\n\n## Getting started\n\n### Prerequisites\n\n- [Java Development Kit (JDK)][jdk] with version 8 or above\n\n### Adding the package to your product\n\n[//]: # ({x-version-update-start;com.azure:azure-messaging-eventgrid-systemevents;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-messaging-eventgrid-systemevents</artifactId>\n    <version>1.0.0</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n**Note**: This package contains only the system event models and utilities. To send events, you'll also need the \nmain [Event Grid SDK][azure-messaging-eventgrid]:\n\n[//]: # ({x-version-update-start;com.azure:azure-messaging-eventgrid;dependency})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-messaging-eventgrid</artifactId>\n    <version>4.30.0</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n**For Event Grid namespaces**: If you're working with Event Grid namespaces, consider using the [EventGrid namespaces \npackage](https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/eventgrid/azure-messaging-eventgrid-namespaces) for \nnamespace-specific functionality:\n\n[//]: # ({x-version-update-start;com.azure:azure-messaging-eventgrid-namespaces;dependency})\n\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-messaging-eventgrid-namespaces</artifactId>\n    <version>1.1.3</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n## Key concepts\n\n**System Events**: Events automatically published by Azure services when resource state changes occur.\n\n**Event Data Models**: Strongly typed classes in the `com.azure.messaging.eventgrid.systemevents.models` package \nthat represent the `data` payload of system events.\n\n**SystemEventNames**: Utility class containing constants for all system event types and mappings to their corresponding data model classes.\n\n## Examples\n\n### Available System Events\n\nThis package provides models for system events from many Azure services, including:\n\n- **Azure App Configuration**: `AppConfigurationKeyValueDeletedEventData`, `AppConfigurationKeyValueModifiedEventData`\n- **Azure Blob Storage**: `StorageBlobCreatedEventData`, `StorageBlobDeletedEventData`\n- **Azure Communication Services**: `AcsCallStartedEventData`, `AcsChatMessageReceivedEventData`\n- **Azure Container Registry**: `ContainerRegistryImagePushedEventData`, `ContainerRegistryImageDeletedEventData`\n- **Azure Event Hubs**: `EventHubCaptureFileCreatedEventData`\n- **Azure IoT Hub**: `IotHubDeviceCreatedEventData`, `IotHubDeviceTelemetryEventData`\n- **Azure Service Bus**: `ServiceBusActiveMessagesAvailableWithNoListenersEventData`\n- See the [Azure services that support system events](https://learn.microsoft.com/azure/event-grid/system-topics#azure-services-that-support-system-topics) for additional supported services.\nFor a complete list, see the `com.azure.messaging.eventgrid.systemevents.models` package.\n\n### Working with System Events\n\n#### 1. Get System Event Type Constants\n\n```java readme-sample-getSystemEventTypeConstants\n// Access predefined event type constants\nString blobCreatedEventType = SystemEventNames.STORAGE_BLOB_CREATED;\nString keyVaultSecretExpiredEventType = SystemEventNames.KEY_VAULT_SECRET_NEAR_EXPIRY;\n```\n\n#### 2. Look up Event Data Model Class\n\n```java readme-sample-lookupSystemEventClass\n// Find the appropriate model class for an event type\nClass<?> eventDataClass = SystemEventNames.getSystemEventMappings().get(eventType);\nif (eventDataClass != null) {\n    System.out.println(\"Event data should be deserialized to: \" + eventDataClass.getSimpleName());\n}\n```\n\n#### 3. Deserialize System Event Data\n\n```java readme-sample-deserializeSystemEventData\n// Assuming you have an EventGridEvent from the main EventGrid SDK and the event is Storage Blob Created event\nStorageBlobCreatedEventData storageBlobCreatedEventData\n    = StorageBlobCreatedEventData.fromJson(JsonProviders.createReader(\"payload\"));\nBinaryData data = storageBlobCreatedEventData.getStorageDiagnostics().get(\"batchId\");\n\nSystem.out.println(\"Blob URL: \" + storageBlobCreatedEventData.getUrl());\nSystem.out.println(\"Blob size: \" + storageBlobCreatedEventData.getContentLength());\nSystem.out.println(\"Content type: \" + storageBlobCreatedEventData.getContentType());\n\n```\n\n## Troubleshooting\n\n### Common Issues\n\n- **Missing Event Type**: If `SystemEventNames.getSystemEventMappings().get(eventType)` returns null, the event type might be:\n  - A custom event (not a system event)\n  - A new system event is not yet supported in this version\n  - Misspelled event type string\n\n- **Deserialization Errors**: Ensure you're using the correct model class for the event type. Use `SystemEventNames` mappings to get the right class.\n\n### Enable client logging\nAzure SDKs for Java offer a consistent logging story to help aid in troubleshooting application errors and expedite\ntheir resolution. The logs produced will capture the flow of an application before reaching the terminal state to help\nlocate the root issue. View the [logging][logging] wiki for guidance about enabling logging.\n\n## Next steps\n\n- Explore the [`azure-messaging-eventgrid-systemevents`][sources] package for available event data models\n- Explore the [`azure-messaging-eventgrid`][azure-messaging-eventgrid] package for sending events\n- Learn about [Azure Event Grid System Topics](https://learn.microsoft.com/azure/event-grid/system-topics)\n- Review [Event Grid event schemas](https://learn.microsoft.com/azure/event-grid/event-schema) for different Azure services\n- Check out [Event Grid samples][samples] for complete examples\n- Additional Event Grid tutorials can be found [here][service_docs]\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a\n[Contributor License Agreement (CLA)][cla] declaring that you have the right to, and actually do, grant us the rights\nto use your contribution.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate\nthe PR appropriately (e.g., label, comment). Follow the instructions provided by the bot. You will only need to\ndo this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see the\n[Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or comments.\n\n<!-- LINKS -->\n[product_documentation]: https://learn.microsoft.com/azure/event-grid/\n[docs]: https://azure.github.io/azure-sdk-for-java/\n[jdk]: https://learn.microsoft.com/azure/developer/java/fundamentals/\n[logging]: https://github.com/Azure/azure-sdk-for-java/blob/main/docs/logging.md\n[azure-messaging-eventgrid]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/eventgrid/azure-messaging-eventgrid\n[service_docs]: https://learn.microsoft.com/azure/event-grid/\n[samples]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/eventgrid/azure-messaging-eventgrid/src/samples/java/com/azure/messaging/eventgrid\n[sources]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/eventgrid/azure-messaging-eventgrid-systemevents/src\n[javadocs]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/eventgrid/azure-messaging-eventgrid-systemevents/src\n",
+      "contentHash": "10a331c8042124185092daf7bd4d99778ee6e97f6cd6fa18b5d8bc64112324ff",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/README.md"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/tsp-location.yaml",
+      "text": "directory: specification/eventgrid/data-plane/EventGridSystemEvents\ncommit: 7089f3d2a4ed7e765d66f5f5e3be0b8b1eed6c1a\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "51cfbe336cd3565620626c5979a45c8b1528d02d49ea493356b38bd8efe83901",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/eventgrid/azure-messaging-eventgrid-systemevents/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "e94109a7643b032d2956aa8583eb106b03438916cc51b231528dae75052eb360",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "2c3865257235479a5be6d1a05c0201c30f1bbb30cb35ab61747ae8ba139bc97c",
+        "category": "Other",
+        "subtype": "event-name-constants-and-model-registry-generation",
+        "explanation": "customize scans model classes ending in EventData, extracts Microsoft.* event names from their Javadocs, and builds a SystemEventNames source file with public constants, an event-string-to-model-class map, an unmodifiable-map accessor and a private constructor. It submits that compilation unit through addFile. Only the beginning of the resulting SystemEventNames file is supplied; no runtime deserialization consumer is shown.",
+        "pattern": "event-type-model-registry",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The class explicitly extends the customization framework's Customization and the complete entry point contains concrete source-generation operations. This is a customization script generating an additional API artifact, not an inference that ordinary generated constants are handwritten.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customize"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 98
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 100,
+            "endLine": 163
+          }
+        ]
+      },
+      {
+        "key": "1c41d19d47d9f42301e564e07626be187f4c84e8355f5f407e8cc54a8e290eb1",
+        "category": "Model overrides",
+        "subtype": "private-client-name-setter-edit",
+        "explanation": "customizeEventGridMQTTClientEventData requests private modifiers on methods named setClientName in EventGridMqttClientEventData. The separate inherited-getter removal loop is commented out and is not an active edit. The supplied evidence does not show the transformed setter declaration.",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An active AST setModifiers operation in the explicit Customization subclass is positive handwritten edit evidence, unlike the adjacent commented-out removal code.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeEventGridMQTTClientEventData"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 174,
+            "endLine": 194
+          }
+        ]
+      },
+      {
+        "key": "95f51a2e9f2617dd91b845b0e9c8e775ec07ffaf4a8f738958cbd09dace8096c",
+        "category": "Model overrides",
+        "subtype": "nullable-offsetdatetime-getter-edit-family",
+        "explanation": "customizeIothubEventData requests OffsetDateTime return types and null-preserving OffsetDateTime.parse bodies for DeviceTwinMetadata's getLastUpdated and DeviceTwinInfo's getLastActivityTime/getStatusUpdateTime. This is one cohesive timestamp-getter edit family on the supplied script method, not three invented target-member declarations.",
+        "pattern": "string-timestamp-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit Customization subclass contains active setType and setBody operations with literal getter bodies. These establish requested edits; target model declarations and successful script execution are not supplied.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeIothubEventData"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 196,
+            "endLine": 209
+          }
+        ]
+      },
+      {
+        "key": "30040747c4c9b1cd9e8bc9cf21fc6d777dfa1527763dc60a95201b3eef1a789e",
+        "category": "Model overrides",
+        "subtype": "seconds-to-duration-accessor-edit",
+        "explanation": "customizeAcsRouterEvents requests a Duration return type for AcsRouterWorkerSelector's getTimeToLive and a body returning Duration.ofSeconds((long)timeToLive). The target getter's declaration and transformed output are absent; the separate error-list edit in the same script method is recorded as an uncounted limitation.",
+        "pattern": "numeric-duration-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit customization script actively supplies a replacement type and body. The finding identifies the real script method rather than promoting a quoted AST selector into an independently supplied SDK declaration.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeAcsRouterEvents"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 211,
+            "endLine": 214
+          }
+        ]
+      },
+      {
+        "key": "374c63b759a517d49ee99c3ee14ee2c03493d0ffe80f8fe9acc863b7ceb9ae93",
+        "category": "Model overrides",
+        "subtype": "nullable-milliseconds-to-duration-accessor-edit",
+        "explanation": "customizeAcsRecordingFileStatusUpdatedEventDataDuration requests a Duration getRecordingDuration accessor whose body returns Duration.ofMillis(this.recordingDuration) when the field is nonnull and null otherwise, together with replacement Javadoc. This describes the script's requested accessor, not an observed executed transformation.",
+        "pattern": "numeric-duration-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The method contains active AST setType, setBody and Javadoc edits inside the explicit Customization subclass; the literal body supports the units and null handling.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeAcsRecordingFileStatusUpdatedEventDataDuration"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 227,
+            "endLine": 236
+          }
+        ]
+      },
+      {
+        "key": "7581243ddf0de6fac2129807cf8d81480b3083e279693e98376fe6f7615eb820",
+        "category": "Model overrides",
+        "subtype": "boolean-getter-rename-with-system-property-lookup",
+        "explanation": "customizeStorageDirectoryDeletedEventData requests renaming getRecursive to isRecursive, a boxed Boolean return type, and a body calling Boolean.getBoolean(this.recursive). Boolean.getBoolean is Java's system-property lookup helper, not Boolean.parseBoolean; this evidence does not establish the intended interpretation of the backing field or transformed runtime behavior.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Active setName, setType and setBody operations in the explicit customization script establish the requested API/body edit. The target declaration and generated comparison are absent.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeStorageDirectoryDeletedEventData"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 238,
+            "endLine": 243
+          }
+        ]
+      },
+      {
+        "key": "a52401010737c99223ab9ac886fd251b9abe67581d739b8911b77d4c3adc844d",
+        "category": "Model overrides",
+        "subtype": "channel-error-to-shared-response-error-projection",
+        "explanation": "customizeAcsMessageEventDataAndInheritingClasses iterates AcsMessageEventData, AcsMessageDeliveryStatusUpdatedEventData and AcsMessageReceivedEventData, requesting getError accessors returning ResponseError constructed from this.error.getChannelCode() and getChannelMessage(). The inserted body contains no null guard. This is one shared projection edit family in the supplied script method.",
+        "pattern": "shared-error-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit customization script actively imports ResponseError and installs literal accessor types/bodies. No independent handwritten ownership of the unprovided target declarations or successful build invocation is inferred.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.customizeAcsMessageEventDataAndInheritingClasses"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 245,
+            "endLine": 258
+          }
+        ]
+      },
+      {
+        "key": "8ba23061b733e83c7d5fbe872b73cc8c7482ff3f85f0769c13748b43ac474581",
+        "category": "Model overrides",
+        "subtype": "protected-model-constructor-with-labels-and-tags",
+        "explanation": "The supplied protected AcsRouterJobEventData constructor accepts jobId, labels and tags, calls super(jobId), and assigns the two maps directly. The customization script explicitly requests this same constructor shape. The matching excerpts support the constructor customization, not a claim that the script ran in a particular build or that the maps are defensively copied.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The actual constructor declaration/body is supplied and corroborated by explicit addConstructor(PROTECTED), parameter and assignment requests in the handwritten customization script. This paired evidence is stronger than the unknown provenance of the constructor fragment alone.",
+        "symbols": [
+          "AcsRouterJobEventData"
+        ],
+        "evidence": [
+          {
+            "id": "9a48048b10cfe86926bf85a4001996d392373d188f458db5bc9111376a08f5a3",
+            "startLine": 209,
+            "endLine": 220
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 267,
+            "endLine": 309
+          }
+        ]
+      },
+      {
+        "key": "f92a9901ac8b9fa6300db12e77e1b86ee45505a02d086ec71608e2a426c9e0fa",
+        "category": "Model overrides",
+        "subtype": "protected-model-constructor-with-body-and-property-maps",
+        "explanation": "The supplied protected DeviceTelemetryEventProperties constructor accepts body, properties and systemProperties maps and assigns them directly to its fields. The customization script requests this exact constructor shape. No copying, validation, historical compatibility guarantee or build-time activation is established.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete target constructor declaration/body is supplied alongside the explicit handwritten script's protected-constructor addition and matching three assignments. Unknown fragment provenance alone is not the basis for ownership.",
+        "symbols": [
+          "DeviceTelemetryEventProperties"
+        ],
+        "evidence": [
+          {
+            "id": "9450b8f21e945aa9f197804421edc334b8bfa72f744ebc020b6f8707b1ccd2d4",
+            "startLine": 160,
+            "endLine": 172
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 267,
+            "endLine": 269
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 311,
+            "endLine": 358
+          }
+        ]
+      },
+      {
+        "key": "d2fd4a3f8d0e57158629a21f4c213e7999ed5e126113d564858d100e274c1261",
+        "category": "Other",
+        "subtype": "event-constant-name-normalization-helper",
+        "explanation": "getConstantName supplies names used when the script emits public event constants: it returns null/blank inputs unchanged, conditionally trims boundary underscores, merges underscore runs, inserts underscores before selected ASCII uppercase characters preceded by lowercase characters, and calls String.toUpperCase(). Its insertion loop excludes the final character position and the uppercase call has no explicit locale; complete conventional PascalCase/acronym normalization is not established.",
+        "pattern": "constant-name-normalization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete normalization helper belongs to the explicit Customization subclass, and its call site feeds names into the concrete constant-field generation. This is a source-generation naming algorithm, not a separately inferred runtime SDK helper.",
+        "symbols": [
+          "EventGridSystemEventsCustomization.getConstantName"
+        ],
+        "evidence": [
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 41,
+            "endLine": 44
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 88,
+            "endLine": 95
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 131,
+            "endLine": 136
+          },
+          {
+            "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+            "startLine": 361,
+            "endLine": 390
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "2c3865257235479a5be6d1a05c0201c30f1bbb30cb35ab61747ae8ba139bc97c",
+        "status": "accepted",
+        "reason": "The declared customize method reads event-model Javadocs, emits named constants and a model-class mapping into a new SystemEventNames compilation unit, and submits that file to the raw editor. The supplied output excerpt corroborates only the beginning of the constants, not the map or a runtime consumer; the cited script contains the map and accessor construction."
+      },
+      {
+        "key": "1c41d19d47d9f42301e564e07626be187f4c84e8355f5f407e8cc54a8e290eb1",
+        "status": "accepted",
+        "reason": "The declared script method actively selects methods named setClientName and requests PRIVATE modifiers. The inherited-getter removal loop is commented out, and no transformed setter declaration is supplied."
+      },
+      {
+        "key": "95f51a2e9f2617dd91b845b0e9c8e775ec07ffaf4a8f738958cbd09dace8096c",
+        "status": "accepted",
+        "reason": "The declared script method actively requests OffsetDateTime return types and three null-preserving parse bodies for the named timestamp getters; no target getter declarations or executed transformations are supplied. The finding groups this one accessor-edit family under the actually declared script symbol."
+      },
+      {
+        "key": "30040747c4c9b1cd9e8bc9cf21fc6d777dfa1527763dc60a95201b3eef1a789e",
+        "status": "accepted",
+        "reason": "The declared customizeAcsRouterEvents method requests a Duration getter body using seconds for the worker selector. Its separate getErrors edit is not included in this finding and cannot be fabricated as a distinct supplied declaration; it is recorded in limitations."
+      },
+      {
+        "key": "374c63b759a517d49ee99c3ee14ee2c03493d0ffe80f8fe9acc863b7ceb9ae93",
+        "status": "accepted",
+        "reason": "The declared script method requests a Duration return type, nullable milliseconds conversion body, and Javadoc for getRecordingDuration. This is evidence of the edit request, not of a successfully transformed target method."
+      },
+      {
+        "key": "7581243ddf0de6fac2129807cf8d81480b3083e279693e98376fe6f7615eb820",
+        "status": "revised",
+        "reason": "The requested getter rename and body rewrite are supported, but model-property-alias describes an alias rather than the actual accessor replacement; generatorAddressable is plausibly yes for a getter rewrite. Boolean.getBoolean looks up a JVM system property, not the boolean value of a string, and target runtime behavior is not shown.",
+        "finding": {
+          "key": "7581243ddf0de6fac2129807cf8d81480b3083e279693e98376fe6f7615eb820",
+          "category": "Model overrides",
+          "subtype": "boolean-getter-rename-with-system-property-lookup",
+          "explanation": "The declared customizeStorageDirectoryDeletedEventData method requests renaming getRecursive to isRecursive, changing its return type to boxed Boolean, and replacing its body with Boolean.getBoolean(this.recursive). Boolean.getBoolean performs a system-property lookup, not Boolean.parseBoolean. The selected target getter and its transformed output are not supplied.",
+          "pattern": "boolean-accessor-rewrite",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Active setName, setType, and setBody operations occur in a declared method of the explicit Customization subclass; they support a handwritten requested getter rewrite without establishing executed runtime behavior.",
+          "symbols": [
+            "EventGridSystemEventsCustomization.customizeStorageDirectoryDeletedEventData"
+          ],
+          "evidence": [
+            {
+              "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+              "startLine": 41,
+              "endLine": 44
+            },
+            {
+              "id": "562e82f73f480b87783016ace68369cbbafb71c9f0e9b8fb566b6537870d2d46",
+              "startLine": 238,
+              "endLine": 243
+            }
+          ]
+        }
+      },
+      {
+        "key": "a52401010737c99223ab9ac886fd251b9abe67581d739b8911b77d4c3adc844d",
+        "status": "accepted",
+        "reason": "The declared script method loops over three named ACS event models and requests ResponseError return types with bodies projecting channel code and message. The replacement body contains no null guard; target declarations and successful execution are not supplied."
+      },
+      {
+        "key": "8ba23061b733e83c7d5fbe872b73cc8c7482ff3f85f0769c13748b43ac474581",
+        "status": "accepted",
+        "reason": "A supplied protected AcsRouterJobEventData constructor declaration and assignments match the declared script method's requested constructor parameters and body. This supports a handwritten constructor-shape edit, not execution history, defensive copying, or the historical rationale asserted in comments."
+      },
+      {
+        "key": "f92a9901ac8b9fa6300db12e77e1b86ee45505a02d086ec71608e2a426c9e0fa",
+        "status": "accepted",
+        "reason": "A supplied protected DeviceTelemetryEventProperties constructor declaration with three map assignments matches the declared script method's addConstructor operations. The paired excerpts support this constructor edit, not runtime activation, validation, copying, or a compatibility guarantee."
+      },
+      {
+        "key": "d2fd4a3f8d0e57158629a21f4c213e7999ed5e126113d564858d100e274c1261",
+        "status": "accepted",
+        "reason": "The declared helper implements the naming transformation and the declared customize method calls it when adding constant fields. This is a separate source-generation naming behavior on a different declared script symbol, not an independently supplied SDK runtime helper; the explanation appropriately limits the algorithm's guarantees."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Four supplied fragments span four distinct source paths; collector metadata separately reports 352 discovered, 338 eligible and 4 captured files. The customization script is complete, but the two constructor files and SystemEventNames are excerpts. This is partial discovery, not package-wide coverage or absence.",
+      "Only the script has positive handwritten-marker provenance. Unknown-provenance target constructor excerpts are proposed because their actual declarations and bodies match explicit script additions. The SystemEventNames excerpt shows only its beginning through line 299, not the mapping accessor or complete output.",
+      "Script edits establish requested transformations, not successful invocation, compilation, installed artifact contents or runtime activation. The entry point calls the visible customization helpers, but the generator/build invocation and most transformed target declarations are not supplied.",
+      "customizeAcsRouterEvents also requests a List<ResponseError> getErrors projection using each error's code/message at lines 216-224. This distinct candidate is uncounted because only the same actual script method declaration is available, while target getter declarations are absent; no second colliding identity or invented target symbol is introduced.",
+      "Timestamp edits and message-error edits are each counted as one cohesive family under their actual supplied script method. Quoted selectors are not separate observed model declarations. The constructor-restoration helper is not additionally counted on top of the two corroborated target constructors.",
+      "The inherited MQTT getter-removal block at lines 180-193 is commented out. The active edit changes setter modifiers only; inherited getter removal or an observed public API change is not established.",
+      "Boolean.getBoolean in the recursive getter body is a system-property lookup, not literal boolean parsing. No intended semantics, successful transformed call or correction is inferred.",
+      "The registry builder relies on Javadoc text and does not show a null guard before javadoc.indexOf. Its validEventDescription list can contain null entries and its size is logged without filtering those entries, so that log is not proof of the number of valid event descriptions.",
+      "The registry's generated Javadoc mentions automatic deserialization, but no runtime consumer is supplied. The source generation and naming algorithm are measured separately; no complete model mapping or successful deserialization is claimed.",
+      "Frozen identity is module-v1; generation-context POM says 1.1.0-beta.2, inventory latestRelease says 1.1.0-beta.1, and the README dependency example says 1.0.0. These snapshots/examples do not prove current release parity. Historical issue/PR comments are unverified context and their links were not followed.",
+      "Only supplied frozen SDK context and evidence were used; no outside SDK source was accessed. Findings are analyst proposals pending independent AI review, not human verification, and human overrides remain authoritative.",
+      "The distinct getErrors projection requested at script lines 216-224 shares the already proposed customizeAcsRouterEvents source path and declared symbol with the duration edit. The target getter declaration is absent, so it cannot receive a distinct stable identity without inventing a symbol; it remains uncounted here rather than an omission with a fabricated signature.",
+      "The script's commented-out inherited getClientName removal at lines 180-193 is not an executable edit. Comments attributing the constructor changes to historical compatibility and a TypeSpec change are not independent proof of those causes.",
+      "Only four source evidence items were captured out of 338 eligible files among 352 discovered files. The SystemEventNames excerpt ends at line 299 before the mapping body, which is visible only as a construction request in the script; other target getter declarations, generic AST helper implementations, execution results, and runtime consumers are not supplied. No package-wide absence, build-time activation, or successful transformation is inferred.",
+      "The frozen identity is java:azure-messaging-eventgrid-systemevents:module-v1; the provided package POM declares 1.1.0-beta.2 while the supplied library metadata calls 1.1.0-beta.1 the latest release. These are different supplied fields, not a basis to change the review target or infer release history.",
+      "Ten proposed findings describe script operations or paired target fragments across three distinct evidence source paths; the fourth captured source path is a bounded SystemEventNames excerpt. Captured fragments, distinct paths, collector counts, and reviewed customization instances have different denominators. Accepted means AI-reviewed, never human-verified; human corrections, rejections, and additions remain authoritative."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/customization/src/main/java/EventGridSystemEventsCustomization.java",
+      "startLine": 1,
+      "endLine": 391,
+      "provenance": "Java customization script",
+      "contentHash": "a7040aa11635ed6afe18d6fd241dd56683029d074f6c3827ccf7c71c1e3f53cb"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/SystemEventNames.java",
+      "startLine": 1,
+      "endLine": 1622,
+      "provenance": "Java handwritten source",
+      "contentHash": "1699b85b7ba54c382661855afdebfaa39a8d591d13d1fd912c384aa84bacd00a"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/AcsRouterJobEventData.java",
+      "startLine": 216,
+      "endLine": 216,
+      "provenance": "Java members without @Generated: AcsRouterJobEventData",
+      "contentHash": "764a22ae241f502c25dab6d7d3487c0113893ecb01607ad597bdff53c7524ea5"
+    },
+    {
+      "path": "sdk/eventgrid/azure-messaging-eventgrid-systemevents/src/main/java/com/azure/messaging/eventgrid/systemevents/models/DeviceTelemetryEventProperties.java",
+      "startLine": 167,
+      "endLine": 167,
+      "provenance": "Java members without @Generated: DeviceTelemetryEventProperties",
+      "contentHash": "ab0d4116f7ce150e8904b0b02ac4bc433cb0436008866868f2c9c68c415d1b7b"
+    }
+  ]
+}

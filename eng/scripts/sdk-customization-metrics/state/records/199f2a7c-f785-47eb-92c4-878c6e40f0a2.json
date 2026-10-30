@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "id": "199f2a7c-f785-47eb-92c4-878c6e40f0a2",
+  "observedAt": "2026-10-26T15:09:21.791Z",
+  "identity": "dotnet:azure.resourcemanager.compute.workloadmanager:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.Compute.WorkloadManager",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "adafc019faf0fa4eb17f3506b46cca6b309655a8"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 165,
+    "eligibleFiles": 152,
+    "capturedFiles": 8,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/AsyncPageableWrapper.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing System.Runtime.CompilerServices;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenType(\"AsyncPageableWrapper\")]\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class AsyncPageableWrapper<T, U>\n    {\n        public override IAsyncEnumerable<Page<U>> AsPages(string continuationToken, int? pageSizeHint)\n            => GetPagesAsync(continuationToken, pageSizeHint);\n\n        private async IAsyncEnumerable<Page<U>> GetPagesAsync(\n            string continuationToken,\n            int? pageSizeHint,\n            [EnumeratorCancellation] CancellationToken cancellationToken = default)\n        {\n            await foreach (Page<T> page in _source.AsPages(continuationToken, pageSizeHint).WithCancellation(cancellationToken).ConfigureAwait(false))\n            {\n                List<U> convertedItems = new List<U>();\n                foreach (T item in page.Values)\n                    convertedItems.Add(_converter(item));\n                yield return Page<U>.FromValues(convertedItems, page.ContinuationToken, page.GetRawResponse());\n            }\n        }\n    }\n}\n",
+      "contentHash": "6e31cdc702cc317cd4517920e77165aeaf8c1ff5370f9a1bb91575a2c476ec53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/AsyncPageableWrapper.cs",
+      "startLine": 1,
+      "endLine": 34,
+      "kind": "handwritten-marker",
+      "id": "2dd7424a2343efd74b6c9a5d7da5142d52a98b6a38cff7e7bd21110ad6d60722"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/CancellationAwarePageableHelpers.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Runtime.CompilerServices;\nusing System.Threading;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove this workaround and the paging customizations once\n    // https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    internal static class CancellationAwarePageableHelpers\n    {\n        internal static async IAsyncEnumerable<Page<T>> GetPagesAsync<T>(\n            HttpPipeline pipeline,\n            ClientDiagnostics diagnostics,\n            string diagnosticScope,\n            RequestContext context,\n            Func<Uri, HttpMessage> createRequest,\n            Func<Response, (IReadOnlyList<T> Values, Uri NextLink)> readResponse,\n            string continuationToken,\n            [EnumeratorCancellation] CancellationToken cancellationToken)\n        {\n            // The compiler combines this method token with the enumeration token without\n            // mutating the captured RequestContext or sharing a linked source between enumerations.\n            Uri nextLink = continuationToken != null ? new Uri(continuationToken, UriKind.RelativeOrAbsolute) : null;\n            while (true)\n            {\n                cancellationToken.ThrowIfCancellationRequested();\n                HttpMessage message = createRequest(nextLink);\n                Response response;\n                using (DiagnosticScope scope = diagnostics.CreateScope(diagnosticScope))\n                {\n                    scope.Start();\n                    try\n                    {\n                        // Keep the original context for request construction/error behavior and\n                        // pass only the effective cancellation token separately to the pipeline.\n                        await pipeline.SendAsync(message, cancellationToken).ConfigureAwait(false);\n                        response = message.Response;\n                        if (response.IsError && ((context?.ErrorOptions ?? ErrorOptions.Default) & ErrorOptions.NoThrow) != ErrorOptions.NoThrow)\n                            throw new RequestFailedException(response);\n                    }\n                    catch (Exception e)\n                    {\n                        scope.Failed(e);\n                        throw;\n                    }\n                }\n\n                var result = readResponse(response);\n                nextLink = result.NextLink;\n                yield return Page<T>.FromValues(result.Values, nextLink?.IsAbsoluteUri == true ? nextLink.AbsoluteUri : nextLink?.OriginalString, response);\n                if (nextLink == null)\n                    yield break;\n            }\n        }\n    }\n}\n",
+      "contentHash": "973e9781ecc1c5445ad404f6a139f01db9280df85a9c220c4d73e7133e44a5c4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/CancellationAwarePageableHelpers.cs",
+      "startLine": 1,
+      "endLine": 62,
+      "kind": "handwritten-marker",
+      "id": "b515975283424f4d3713d834854640879a1312e3c30f4a4b7755c36434172b17"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/MockableComputeWorkloadManagerSubscriptionResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager.Mocking\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/62600 is fixed in the pinned generator.\n    [CodeGenSuppress(\"WorkloadSpacesRestClient\")]\n    public partial class MockableComputeWorkloadManagerSubscriptionResource\n    {\n        private WorkloadSpaces WorkloadSpacesRestClient\n        {\n            get\n            {\n                if (_workloadSpacesRestClient == null)\n                {\n                    TryGetApiVersion(WorkloadSpaceResource.ResourceType, out string apiVersion);\n                    _workloadSpacesRestClient = new WorkloadSpaces(\n                        WorkloadSpacesClientDiagnostics, Pipeline, Diagnostics.ApplicationId, Endpoint,\n                        apiVersion ?? \"2026-11-01-preview\");\n                }\n                return _workloadSpacesRestClient;\n            }\n        }\n    }\n}\n",
+      "contentHash": "d28d74fa533bcbb0ff8477b3dd348055b73e96a5c6e436b9f9da126ece188c7c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/MockableComputeWorkloadManagerSubscriptionResource.cs",
+      "startLine": 1,
+      "endLine": 27,
+      "kind": "handwritten-marker",
+      "id": "fcdbee633182fa896e5178169dce93d13548383a8a872c15b65d0ed864775a28"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeBindingDataAsyncCollectionResultOfT.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\nusing Azure.ResourceManager.Compute.WorkloadManager.Models;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class RuntimeBindingDataAsyncCollectionResultOfT\n    {\n        public override IAsyncEnumerable<Page<RuntimeBindingData>> AsPages(string continuationToken, int? pageSizeHint)\n            => CancellationAwarePageableHelpers.GetPagesAsync(\n                _client.Pipeline,\n                _client.ClientDiagnostics,\n                _diagnosticScope,\n                _context,\n                nextLink => nextLink != null\n                    ? _client.CreateNextGetByWorkloadSpaceRequest(nextLink, _subscriptionId, _resourceGroupName, _spaceName, _context)\n                    : _client.CreateGetByWorkloadSpaceRequest(_subscriptionId, _resourceGroupName, _spaceName, _context),\n                response =>\n                {\n                    var result = RuntimeBindingListResult.FromResponse(response);\n                    return ((IReadOnlyList<RuntimeBindingData>)result.Value, result.NextLink);\n                },\n                continuationToken,\n                _context?.CancellationToken ?? default);\n    }\n}\n",
+      "contentHash": "725721f45e1606a734b48ef2b4391fa619b2b36b5f5cf1d970d5d8b062fde819",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeBindingDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "4ab3f0c79c30154f5cc626dcfd5874b480eebd29696f20b4e73ec9298aad2497"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeLinkDataAsyncCollectionResultOfT.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\nusing Azure.ResourceManager.Compute.WorkloadManager.Models;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class RuntimeLinkDataAsyncCollectionResultOfT\n    {\n        public override IAsyncEnumerable<Page<RuntimeLinkData>> AsPages(string continuationToken, int? pageSizeHint)\n            => CancellationAwarePageableHelpers.GetPagesAsync(\n                _client.Pipeline,\n                _client.ClientDiagnostics,\n                _diagnosticScope,\n                _context,\n                nextLink => nextLink != null\n                    ? _client.CreateNextGetByWorkloadSpaceRequest(nextLink, _subscriptionId, _resourceGroupName, _spaceName, _context)\n                    : _client.CreateGetByWorkloadSpaceRequest(_subscriptionId, _resourceGroupName, _spaceName, _context),\n                response =>\n                {\n                    var result = RuntimeLinkListResult.FromResponse(response);\n                    return ((IReadOnlyList<RuntimeLinkData>)result.Value, result.NextLink);\n                },\n                continuationToken,\n                _context?.CancellationToken ?? default);\n    }\n}\n",
+      "contentHash": "0c6d24339ba9df20dec63e7b6297b83a23e170e35cb6f1b6d2ae15681bc3aeb3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeLinkDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "303eef9d16d57902ef55799cdcda57eb157195b770a7195ad002a4e3d77f72e7"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadCapabilityDataAsyncCollectionResultOfT.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\nusing Azure.ResourceManager.Compute.WorkloadManager.Models;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class WorkloadCapabilityDataAsyncCollectionResultOfT\n    {\n        public override IAsyncEnumerable<Page<WorkloadCapabilityData>> AsPages(string continuationToken, int? pageSizeHint)\n            => CancellationAwarePageableHelpers.GetPagesAsync(\n                _client.Pipeline,\n                _client.ClientDiagnostics,\n                _diagnosticScope,\n                _context,\n                nextLink => nextLink != null\n                    ? _client.CreateNextGetByWorkloadSpaceRequest(nextLink, _subscriptionId, _resourceGroupName, _spaceName, _context)\n                    : _client.CreateGetByWorkloadSpaceRequest(_subscriptionId, _resourceGroupName, _spaceName, _context),\n                response =>\n                {\n                    var result = CapabilityListResult.FromResponse(response);\n                    return ((IReadOnlyList<WorkloadCapabilityData>)result.Value, result.NextLink);\n                },\n                continuationToken,\n                _context?.CancellationToken ?? default);\n    }\n}\n",
+      "contentHash": "315f3b4757abde373118d511fc0a96a9ed5b602537b132e38d6d229d22490d99",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadCapabilityDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "09bba87425130f4e5ef21addfef376323898c8d773cf2c6b43d20d2089c2766b"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsync0CollectionResultOfT.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\nusing Azure.ResourceManager.Compute.WorkloadManager.Models;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class WorkloadSpaceDataAsync0CollectionResultOfT\n    {\n        public override IAsyncEnumerable<Page<WorkloadSpaceData>> AsPages(string continuationToken, int? pageSizeHint)\n            => CancellationAwarePageableHelpers.GetPagesAsync(\n                _client.Pipeline,\n                _client.ClientDiagnostics,\n                _diagnosticScope,\n                _context,\n                nextLink => nextLink != null\n                    ? _client.CreateNextGetBySubscriptionRequest(nextLink, _subscriptionId, _context)\n                    : _client.CreateGetBySubscriptionRequest(_subscriptionId, _context),\n                response =>\n                {\n                    var result = WorkloadSpaceListResult.FromResponse(response);\n                    return ((IReadOnlyList<WorkloadSpaceData>)result.Value, result.NextLink);\n                },\n                continuationToken,\n                _context?.CancellationToken ?? default);\n    }\n}\n",
+      "contentHash": "e668563ce473967a83a573f20ae86bec7fe7efcb93d026914f52b36dad266219",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsync0CollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "ae51ca58114e6561b561952e71b36b01af05e2540de0df1281a468abe6b1c759"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsyncCollectionResultOfT.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\nusing Azure.ResourceManager.Compute.WorkloadManager.Models;\n\nnamespace Azure.ResourceManager.Compute.WorkloadManager\n{\n    // Remove after https://github.com/Azure/azure-sdk-for-net/issues/63508 is fixed in the pinned generator.\n    [CodeGenSuppress(\"AsPages\", typeof(string), typeof(int?))]\n    internal partial class WorkloadSpaceDataAsyncCollectionResultOfT\n    {\n        public override IAsyncEnumerable<Page<WorkloadSpaceData>> AsPages(string continuationToken, int? pageSizeHint)\n            => CancellationAwarePageableHelpers.GetPagesAsync(\n                _client.Pipeline,\n                _client.ClientDiagnostics,\n                _diagnosticScope,\n                _context,\n                nextLink => nextLink != null\n                    ? _client.CreateNextGetByResourceGroupRequest(nextLink, _subscriptionId, _resourceGroupName, _context)\n                    : _client.CreateGetByResourceGroupRequest(_subscriptionId, _resourceGroupName, _context),\n                response =>\n                {\n                    var result = WorkloadSpaceListResult.FromResponse(response);\n                    return ((IReadOnlyList<WorkloadSpaceData>)result.Value, result.NextLink);\n                },\n                continuationToken,\n                _context?.CancellationToken ?? default);\n    }\n}\n",
+      "contentHash": "f606a50baf84dec102982d95604c2af131d36a48bec651348e4a2f2faa6dac02",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "31c8494ffd9566fb2efa57f5cc4ea7e80954ca56ced1c3f27bc9f4f5c66c18b4"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/README.md",
+      "text": "# Microsoft Azure Compute.WorkloadManager management client library for .NET\n\nThis library supports managing Microsoft Azure resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started\n\n### Install the package\n\nInstall the Azure.ResourceManager.Compute.WorkloadManager management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.Compute.WorkloadManager --prerelease\n```\n\n### Prerequisites\n\n* You must have a [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "4affa59d4920698b522d1c2b3480cf1e1f7126426a0cfd7313f971c2eb8eb3f1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/README.md"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Azure.ResourceManager.Compute.WorkloadManager.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>This is the Azure.ResourceManager.Compute.WorkloadManager client library for developing .NET applications with rich experience.</Description>\n    <AssemblyTitle>SDK Code Generation Azure.ResourceManager.Compute.WorkloadManager</AssemblyTitle>\n    <Version>1.0.0-beta.2</Version>\n    <PackageTags>Azure.ResourceManager.Compute.WorkloadManager</PackageTags>\n    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared/Core\" />\n  </ItemGroup>\n</Project>\n",
+      "contentHash": "36475e48fecf9af5c4a65b2031be8f6c1342b718387f7bad1e21b53e64fe9bb1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Azure.ResourceManager.Compute.WorkloadManager.csproj"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/tsp-location.yaml",
+      "text": "directory: specification/compute/resource-manager/Microsoft.Compute/WorkloadManager\ncommit: 8ec074d8a9d4929f9db8c1e0c464507722f0f105\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json",
+      "contentHash": "6e8c2e9e13cc0b70ead704ae536b55677f015d9316b86e6b254a1d03acfe20ce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/AsyncPageableWrapper.cs",
+      "startLine": 1,
+      "endLine": 34,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6e31cdc702cc317cd4517920e77165aeaf8c1ff5370f9a1bb91575a2c476ec53"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/CancellationAwarePageableHelpers.cs",
+      "startLine": 1,
+      "endLine": 62,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "973e9781ecc1c5445ad404f6a139f01db9280df85a9c220c4d73e7133e44a5c4"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/MockableComputeWorkloadManagerSubscriptionResource.cs",
+      "startLine": 1,
+      "endLine": 27,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d28d74fa533bcbb0ff8477b3dd348055b73e96a5c6e436b9f9da126ece188c7c"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeBindingDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "725721f45e1606a734b48ef2b4391fa619b2b36b5f5cf1d970d5d8b062fde819"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/RuntimeLinkDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0c6d24339ba9df20dec63e7b6297b83a23e170e35cb6f1b6d2ae15681bc3aeb3"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadCapabilityDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "315f3b4757abde373118d511fc0a96a9ed5b602537b132e38d6d229d22490d99"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsync0CollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e668563ce473967a83a573f20ae86bec7fe7efcb93d026914f52b36dad266219"
+    },
+    {
+      "path": "sdk/compute/Azure.ResourceManager.Compute.WorkloadManager/src/Customization/WorkloadSpaceDataAsyncCollectionResultOfT.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f606a50baf84dec102982d95604c2af131d36a48bec651348e4a2f2faa6dac02"
+    }
+  ]
+}

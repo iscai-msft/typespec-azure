@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "id": "ca36ffd9-005e-4fd9-b984-36e366c55e3f",
+  "observedAt": "2026-10-22T20:42:40.754Z",
+  "identity": "java:azure-communication-messages:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-communication-messages",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/communication/azure-communication-messages"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "4eb16929fe7c9395f01c3ead6e39934972dc0801"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 92,
+    "eligibleFiles": 68,
+    "capturedFiles": 10,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/communication/azure-communication-messages/customization/src/main/java/MessagesSdkCustomization.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.azure.autorest.customization.PackageCustomization;\nimport com.github.javaparser.StaticJavaParser;\nimport com.github.javaparser.ast.Modifier;\nimport com.github.javaparser.ast.Node;\nimport com.github.javaparser.ast.NodeList;\nimport com.github.javaparser.ast.stmt.BlockStmt;\nimport com.github.javaparser.ast.type.ClassOrInterfaceType;\nimport com.github.javaparser.javadoc.Javadoc;\nimport com.github.javaparser.javadoc.JavadocBlockTag;\nimport com.github.javaparser.javadoc.description.JavadocSnippet;\nimport org.slf4j.Logger;\n\nimport java.util.List;\n\nimport static com.github.javaparser.StaticJavaParser.parseBlock;\nimport static com.github.javaparser.javadoc.description.JavadocDescription.parseText;\n\npublic class MessagesSdkCustomization extends Customization {\n\n    @Override\n    public void customize(LibraryCustomization libraryCustomization, Logger logger) {\n        logger.info(\"Customizing the JobRouterAdministrationClientBuilder class\");\n        PackageCustomization packageCustomization = libraryCustomization.getPackage(\"com.azure.communication.messages\");\n\n        updateBuilderClass(packageCustomization, \"NotificationMessagesClientBuilder\");\n        updateBuilderClass(packageCustomization, \"MessageTemplateClientBuilder\");\n\n        PackageCustomization modelsPackage = libraryCustomization.getPackage(\"com.azure.communication.messages.models\");\n        updateModelClassModifierToAbstract(modelsPackage, \"NotificationContent\");\n        updateModelClassModifierToAbstract(modelsPackage, \"MessageTemplateValue\");\n        updateModelClassModifierToAbstract(modelsPackage, \"MessageTemplateItem\");\n        customizeMessageTemplateLocation(modelsPackage);\n        customizeMessageTemplateItemModel(modelsPackage);\n\n        //Handle Interactive message content models\n        updateModelClassModifierToAbstract(modelsPackage, \"MessageContent\");\n        updateModelClassModifierToAbstract(modelsPackage, \"ActionBindings\");\n        updateJavaDocForMethodFromJson(modelsPackage, \"ActionBindings\");\n        updateJavaDocForMethodFromJson(modelsPackage, \"MessageContent\");\n        customizeInteractiveMessage(modelsPackage);\n\n        PackageCustomization channelsModelsPackage = libraryCustomization.getPackage(\n            \"com.azure.communication.messages.models.channels\");\n        updateWhatsAppMessageTemplateItemWithBinaryDataContent(channelsModelsPackage);\n\n        addDeprecateAnnotationToMediaNotificationContent(modelsPackage);\n\n        addDeprecateAnnotationForImageV0CommunicationKind(modelsPackage);\n\n        customizeActionGroup(modelsPackage);\n        customizeActionGroupContent(modelsPackage);\n        customizeButtonSetContent(modelsPackage);\n    }\n\n    private void updateModelClassModifierToAbstract(PackageCustomization modelsPackage, String className) {\n        modelsPackage.getClass(className)\n            .customizeAst(ast ->  ast.getClassByName(className)\n                .ifPresent(clazz -> clazz.setModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.ABSTRACT)\n                    .getConstructors().get(0).setModifiers(Modifier.Keyword.PROTECTED)));\n        removeJsonKnownDiscriminatorMethod(modelsPackage, className);\n    }\n\n    private void customizeMessageTemplateItemModel(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"MessageTemplateItem\").customizeAst(ast -> {\n            ast.addImport(\"com.azure.communication.messages.implementation.accesshelpers.MessageTemplateItemAccessHelper\");\n            ast.getClassByName(\"MessageTemplateItem\").ifPresent(clazz -> clazz.addStaticInitializer()\n                .addStatement(\"MessageTemplateItemAccessHelper.setAccessor(MessageTemplateItem::setName);\"));\n            });\n    }\n\n    private void updateBuilderClass(PackageCustomization packageCustomization, String className) {\n        packageCustomization.getClass(className).customizeAst(ast -> {\n            ast.addImport(\"com.azure.core.client.traits.TokenCredentialTrait\");\n            ast.addImport(\"com.azure.core.client.traits.KeyCredentialTrait\");\n            ast.addImport(\"com.azure.core.client.traits.ConnectionStringTrait\");\n            ast.addImport(\"com.azure.communication.common.implementation.CommunicationConnectionString\");\n            ast.addImport(\"com.azure.core.credential.AzureKeyCredential\");\n            ast.addImport(\"com.azure.communication.common.implementation.HmacAuthenticationPolicy\");\n\n            ast.getClassByName(className).ifPresent(clazz -> {\n                NodeList<ClassOrInterfaceType> implementedTypes = clazz.getImplementedTypes();\n                boolean hasTokenCredentialTrait = implementedTypes.stream()\n                    .anyMatch(implementedType -> implementedType.getNameAsString().equals(\"TokenCredentialTrait\"));\n                if (!hasTokenCredentialTrait) {\n                    clazz.addImplementedType(String.format(\"TokenCredentialTrait<%s>\", className));\n                }\n\n                boolean hasKeyCredentialTrait = implementedTypes.stream()\n                    .anyMatch(implementedType -> implementedType.getNameAsString().equals(\"KeyCredentialTrait\"));\n                if (!hasKeyCredentialTrait) {\n                    clazz.addImplementedType(String.format(\"KeyCredentialTrait<%s>\", className));\n                }\n\n                boolean hasConnectionStringTrait = implementedTypes.stream()\n                    .anyMatch(implementedType -> implementedType.getNameAsString().equals(\"ConnectionStringTrait\"));\n                if (!hasConnectionStringTrait) {\n                    clazz.addImplementedType(String.format(\"ConnectionStringTrait<%s>\", className));\n                }\n\n                clazz.addMethod(\"connectionString\", Modifier.Keyword.PUBLIC)\n                    .addMarkerAnnotation(\"Override\")\n                    .addParameter(\"String\", \"connectionString\")\n                    .setType(className)\n                    .setBody(parseBlock(\"{\"\n                        + \"CommunicationConnectionString connection = new CommunicationConnectionString(connectionString);\"\n                        + \"this.credential(new KeyCredential(connection.getAccessKey()));\"\n                        + \"this.endpoint(connection.getEndpoint()); return this; }\"))\n                    .setJavadocComment(new Javadoc(parseText(\"Set a connection string for authorization.\"))\n                        .addBlockTag(\"param\", \"connectionString\", \"valid connectionString as a string.\")\n                        .addBlockTag(\"return\", \"the updated \" + className + \" object.\"));\n\n                clazz.addMethod(\"createHttpPipelineAuthPolicy\", Modifier.Keyword.PRIVATE)\n                    .setType(\"HttpPipelinePolicy\")\n                    .setBody(parseBlock(\"{ if (tokenCredential != null) {\"\n                        + \"return new BearerTokenAuthenticationPolicy(tokenCredential, DEFAULT_SCOPES);\"\n                        + \"} else if (keyCredential != null) {\"\n                        + \"return new HmacAuthenticationPolicy(new AzureKeyCredential(keyCredential.getKey()));\"\n                        + \"} else {\"\n                        + \"throw LOGGER.logExceptionAsError(new IllegalStateException(\\\"Missing credential information while building a client.\\\"));\"\n                        + \"} }\"));\n\n                clazz.getMethodsByName(\"createHttpPipeline\").get(0)\n                    .setBody(parseBlock(\"{\"\n                        + \"Configuration buildConfiguration = (configuration == null) ? Configuration.getGlobalConfiguration() : configuration;\"\n                        + \"HttpLogOptions localHttpLogOptions = this.httpLogOptions == null ? new HttpLogOptions() : this.httpLogOptions;\"\n                        + \"ClientOptions localClientOptions = this.clientOptions == null ? new ClientOptions() : this.clientOptions;\"\n                        + \"List<HttpPipelinePolicy> policies = new ArrayList<>();\"\n                        + \"String clientName = PROPERTIES.getOrDefault(SDK_NAME, \\\"UnknownName\\\");\"\n                        + \"String clientVersion = PROPERTIES.getOrDefault(SDK_VERSION, \\\"UnknownVersion\\\");\"\n                        + \"String applicationId = CoreUtils.getApplicationId(localClientOptions, localHttpLogOptions);\"\n                        + \"policies.add(new UserAgentPolicy(applicationId, clientName, clientVersion, buildConfiguration));\"\n                        + \"policies.add(new RequestIdPolicy());\"\n                        + \"policies.add(new AddHeadersFromContextPolicy());\"\n                        + \"HttpHeaders headers = new HttpHeaders();\"\n                        + \"localClientOptions.getHeaders()\"\n                        + \"    .forEach(header -> headers.set(HttpHeaderName.fromString(header.getName()), header.getValue()));\"\n                        + \"if (headers.getSize() > 0) { policies.add(new AddHeadersPolicy(headers)); }\"\n                        + \"this.pipelinePolicies.stream().filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_CALL)\"\n                        + \"    .forEach(p -> policies.add(p));\"\n                        + \"HttpPolicyProviders.addBeforeRetryPolicies(policies);\"\n                        + \"policies.add(ClientBuilderUtil.validateAndGetRetryPolicy(retryPolicy, retryOptions, new RetryPolicy()));\"\n                        + \"policies.add(new AddDatePolicy());\"\n                        + \"policies.add(createHttpPipelineAuthPolicy());\"\n                        + \"this.pipelinePolicies.stream().filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_RETRY)\"\n                        + \"    .forEach(p -> policies.add(p));\"\n                        + \"HttpPolicyProviders.addAfterRetryPolicies(policies);\"\n                        + \"policies.add(new HttpLoggingPolicy(localHttpLogOptions));\"\n                        + \"return new HttpPipelineBuilder().policies(policies.toArray(new HttpPipelinePolicy[0]))\"\n                        + \"    .httpClient(httpClient).clientOptions(localClientOptions).build(); }\"));\n            });\n        });\n    }\n\n    private void customizeMessageTemplateLocation(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"MessageTemplateLocation\").customizeAst(ast -> {\n            ast.addImport(\"com.azure.core.models.GeoPosition\");\n            ast.getClassByName(\"MessageTemplateLocation\").ifPresent(clazz -> {\n                clazz.getConstructors().forEach(ctor -> ctor.setModifiers(Modifier.Keyword.PRIVATE));\n                clazz.addConstructor(Modifier.Keyword.PUBLIC)\n                    .addParameter(\"String\", \"refValue\")\n                    .addParameter(\"GeoPosition\", \"geoPosition\")\n                    .setBody(new BlockStmt(new NodeList<>(StaticJavaParser.parseStatement(\"super(refValue);\"),\n                        StaticJavaParser.parseStatement(\"this.latitude = geoPosition.getLatitude();\"),\n                        StaticJavaParser.parseStatement(\"this.longitude = geoPosition.getLongitude();\"))))\n                    .setJavadocComment(new Javadoc(parseText(\"Creates an instance of MessageTemplateLocation class.\"))\n                        .addBlockTag(\"param\", \"refValue\", \"the refValue value to set.\")\n                        .addBlockTag(\"param\", \"geoPosition\", \"the geoPosition value to set.\"));\n\n                clazz.getMethodsByName(\"getLatitude\").forEach(Node::remove);\n                clazz.getMethodsByName(\"getLongitude\").forEach(Node::remove);\n\n                clazz.addMethod(\"getPosition\", Modifier.Keyword.PUBLIC)\n                    .setType(\"GeoPosition\")\n                    .setBody(parseBlock(\"{return new GeoPosition(this.longitude, this.latitude);}\"))\n                    .setJavadocComment(new Javadoc(parseText(\"Get the geo position: The longitude and latitude of the location.\"))\n                        .addBlockTag(\"return\", \"the GeoPosition object.\"));\n            });\n        });\n    }\n\n    private void customizeInteractiveMessage(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"InteractiveMessage\").customizeAst(ast -> ast.getClassByName(\"InteractiveMessage\")\n            .ifPresent(clazz -> {\n                clazz.getMethodsByName(\"getHeaderProperty\").forEach(m -> {\n                    m.setName(\"getHeader\");\n                    m.getJavadoc().ifPresent(javadoc -> m.setJavadocComment(new Javadoc(\n                        parseText(javadoc.getDescription().toText().replace(\"headerProperty\", \"header\")))\n                        .addBlockTag(\"retrun\", javadoc.getBlockTags().get(0).toText()\n                            .replace(\"headerProperty\", \"header\"))));\n                });\n\n                clazz.getMethodsByName(\"setHeaderProperty\").forEach(m -> {\n                    m.setName(\"setHeader\");\n                    m.getParameter(0).setName(\"header\");\n                    m.setBody(parseBlock(\"{ this.headerProperty = header; return this; }\"));\n                    m.getJavadoc().ifPresent(javadoc -> {\n                        Javadoc newJavadoc = new Javadoc(parseText(javadoc.getDescription().toText()\n                            .replace(\"headerProperty\", \"header\")));\n                        for (int i = 0; i < javadoc.getBlockTags().size(); i++) {\n                            JavadocBlockTag tag = javadoc.getBlockTags().get(i);\n                            if (tag.getType() != JavadocBlockTag.Type.PARAM\n                                || !tag.getName().map(\"headerProperty\"::equals).orElse(false)) {\n                                newJavadoc.getBlockTags().add(tag);\n                            } else {\n                                newJavadoc.addBlockTag(\"param\", \"header\",\n                                    tag.getContent().toString().replace(\"headerProperty\", \"header\"));\n                            }\n                        }\n                        m.setJavadocComment(newJavadoc);\n                    });\n                });\n            }));\n    }\n\n    private void updateWhatsAppMessageTemplateItemWithBinaryDataContent(PackageCustomization channelsModelsPackage) {\n        channelsModelsPackage.getClass(\"WhatsAppMessageTemplateItem\").customizeAst(ast -> {\n            // ast.addImport(\"com.azure.core.util.BinaryData\");\n            ast.addImport(\"com.azure.communication.messages.implementation.accesshelpers.MessageTemplateItemAccessHelper\");\n            ast.getClassByName(\"WhatsAppMessageTemplateItem\").ifPresent(clazz -> {\n                // clazz.getMethodsByName(\"getContent\")\n                //     .get(0)\n                //     .setType(\"BinaryData\")\n                //     .setBody(StaticJavaParser.parseBlock(\"{return BinaryData.fromObject(this.content);}\"));\n\n                clazz.getMethodsByName(\"fromJson\").forEach(method -> method.getBody().ifPresent(body -> {\n                    String bodyStr = body.toString().replace(\"deserializedWhatsAppMessageTemplateItem.setName(name);\",\n                        \"MessageTemplateItemAccessHelper.setName(deserializedWhatsAppMessageTemplateItem, name);\");\n                    method.setBody(parseBlock(bodyStr));\n                }));\n            });\n        });\n    }\n\n    private void removeJsonKnownDiscriminatorMethod(PackageCustomization modelPackage, String className) {\n        modelPackage.getClass(className).customizeAst(ast -> ast.getClassByName(className).ifPresent( clazz -> {\n            clazz.getMethodsByName(\"fromJson\").forEach(method -> method.getBody().ifPresent(body -> {\n                String bodyStr = body.toString().replace(\"return fromJsonKnownDiscriminator(readerToUse.reset());\",\n                    \"throw new IllegalStateException(\\\"Invalid Kind value - \\\" +discriminatorValue);\");\n                method.setBody(parseBlock(bodyStr));\n            }));\n            clazz.getMethodsByName(\"fromJsonKnownDiscriminator\").forEach(Node::remove);\n        }));\n    }\n\n    private void addDeprecateAnnotationToMediaNotificationContent(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"MediaNotificationContent\").customizeAst(ast -> ast.getClassByName(\"MediaNotificationContent\")\n            .ifPresent(clazz -> clazz.addMarkerAnnotation(Deprecated.class).getJavadoc()\n                .ifPresent(doc -> {\n                    // Remove the @deprecated comment as it cause special character and fails in style check\n                    String description = doc.getDescription().getElements().get(0).toText().replace(\"&#064;deprecated\", \"@deprecated\");\n                    doc.getDescription().getElements().set(0, new JavadocSnippet(description));\n                    clazz.setJavadocComment(doc.toComment());\n                })));\n    }\n\n    private  void addDeprecateAnnotationForImageV0CommunicationKind(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"CommunicationMessageKind\").customizeAst(ast -> ast.getClassByName(\"CommunicationMessageKind\")\n            .flatMap(clazz -> clazz.getFieldByName(\"IMAGE_V0\"))\n            .ifPresent(f -> {\n                f.addMarkerAnnotation(Deprecated.class);\n                // Reducing size comment by replacing with @deprecated since it doesn't fit single line and fails in style check\n                f.getJavadocComment().ifPresent(comment ->\n                    f.setJavadocComment(comment.getContent().replace(\"Image message type.\", \"@deprecated\")));\n            }));\n    }\n\n    private void updateJavaDocForMethodFromJson(PackageCustomization modelPackage, String className) {\n        String originalDocText = String.format(\"@throws IOException If an error occurs while reading the %s.\", className);\n        modelPackage.getClass(className).customizeAst(ast -> ast.getClassByName(className).ifPresent( clazz ->\n            clazz.getMethodsByName(\"fromJson\").forEach(method -> method.getJavadoc().ifPresent(javadoc -> {\n                String javadocStr = javadoc.toText().replace(originalDocText, \"@throws IllegalStateException If the \"\n                    + \"deserialized JSON object was missing any required properties.\\n\" + originalDocText);\n                method.setJavadocComment(javadocStr);\n            }))));\n    }\n\n    private void customizeActionGroup(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"ActionGroup\").customizeAst(ast -> ast.getClassByName(\"ActionGroup\").ifPresent(clazz -> {\n            clazz.getConstructorByParameterTypes(String.class, List.class).ifPresent(ctor -> ctor.setBody(\n                parseBlock(ctor.getBody().toString().replace(\"this.items = items;\", \"this.items = new ArrayList<>(items);\"))));\n\n            clazz.getMethodsByName(\"getItems\").forEach(method -> method.getBody().ifPresent(body -> method.setBody(\n                parseBlock(body.toString().replace(\"return this.items;\", \"return new ArrayList<>(this.items);\")))));\n        }));\n    }\n\n    private void customizeActionGroupContent(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"ActionGroupContent\").customizeAst(ast -> ast.getClassByName(\"ActionGroupContent\").ifPresent(clazz -> {\n            clazz.getConstructorByParameterTypes(String.class, List.class).ifPresent(ctor -> ctor.setBody(\n                parseBlock(ctor.getBody().toString().replace(\"this.groups = groups;\", \"this.groups = new ArrayList<>(groups);\"))));\n\n            clazz.getMethodsByName(\"getGroups\").forEach(method -> method.getBody().ifPresent(body -> method.setBody(\n                parseBlock(body.toString().replace(\"return this.groups;\", \"return new ArrayList<>(this.groups);\")))));\n        }));\n    }\n\n    private void customizeButtonSetContent(PackageCustomization modelsPackage) {\n        modelsPackage.getClass(\"ButtonSetContent\").customizeAst(ast -> ast.getClassByName(\"ButtonSetContent\").ifPresent(clazz -> {\n            clazz.getConstructorByParameterTypes(List.class).ifPresent(ctor -> ctor.setBody(parseBlock(\n                ctor.getBody().toString().replace(\"this.buttons = buttons;\", \"this.buttons = new ArrayList<>(buttons);\"))));\n\n            clazz.getMethodsByName(\"getButtons\").forEach(method -> method.getBody().ifPresent(body -> method.setBody(\n                parseBlock(body.toString().replace(\"return this.buttons;\", \"return new ArrayList<>(this.buttons);\")))));\n        }));\n    }\n}\n",
+      "contentHash": "4741aa5029b60934645aeafe28d48d1e902d21970d92853abd7f08bd2ceb3a3f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/customization/src/main/java/MessagesSdkCustomization.java",
+      "startLine": 1,
+      "endLine": 311,
+      "kind": "handwritten-marker",
+      "id": "c874779505a78a4a8562940c65198ffb1c48d6c6dd6e222df4c5d8a27a8dce9a"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/MessageTemplateClientBuilder.java",
+      "text": "    /**\n     * Set a connection string for authorization.\n     *\n     * @param connectionString valid connectionString as a string.\n     * @return the updated NotificationMessagesClientBuilder object.\n     */\n    @Override\n    public MessageTemplateClientBuilder connectionString(String connectionString) {\n        CommunicationConnectionString connection = new CommunicationConnectionString(connectionString);\n        this.credential(new KeyCredential(connection.getAccessKey()));\n        this.endpoint(connection.getEndpoint());\n        return this;\n    }",
+      "contentHash": "f108740cb7176a6c5069543e6fa9a5ea16c37c00be4046ad006c03675aa373ce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/MessageTemplateClientBuilder.java",
+      "startLine": 356,
+      "endLine": 368,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9fb7cc41c357427d722dcd978f13dfe7f8d65b25268eade56a24a92cc9adf824"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/MessageTemplateClientBuilder.java",
+      "text": "    private HttpPipelinePolicy createHttpPipelineAuthPolicy() {\n        if (tokenCredential != null) {\n            return new BearerTokenAuthenticationPolicy(tokenCredential, DEFAULT_SCOPES);\n        } else if (keyCredential != null) {\n            return new HmacAuthenticationPolicy(new AzureKeyCredential(keyCredential.getKey()));\n        } else {\n            throw LOGGER.logExceptionAsError(\n                new IllegalStateException(\"Missing credential information while building a client.\"));\n        }\n    }",
+      "contentHash": "61712778822aed2580ab8ad7ac3cc075b8a7fd01f1867d29b1e1dfdfcc4b9baf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/MessageTemplateClientBuilder.java",
+      "startLine": 370,
+      "endLine": 379,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "860684094467eac4a4fcb4abe217a9bf35857ffa79bedc1dc5166c393c8f19bf"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/InteractiveMessage.java",
+      "text": "    /**\n     * Get the headerProperty property: Gets or Sets Header content. Supports the following types:text, images etc.\n     *\n     * @return the headerProperty value.\n     */\n    public MessageContent getHeader() {\n        return this.headerProperty;\n    }",
+      "contentHash": "f5b2c0c58118ed08b6847b36708bd2a937c0bd0e92530d65e1d0afd522966480",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/InteractiveMessage.java",
+      "startLine": 151,
+      "endLine": 158,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "34f27c11b543736a16b1749d8e7de6780378b77c03063345f41c98aab94d891a"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/InteractiveMessage.java",
+      "text": "    /**\n     * Set the header property: Gets or Sets Header content. Supports the following types:text, images etc.\n     *\n     * @param header the header value to set.\n     * @return the InteractiveMessage object itself.\n     */\n    public InteractiveMessage setHeader(MessageContent header) {\n        this.headerProperty = header;\n        return this;\n    }",
+      "contentHash": "e5b82c357f5976987fe3e0cd0a66be453bf1ae22c69e8ecbb751d9ac272e44f6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/InteractiveMessage.java",
+      "startLine": 160,
+      "endLine": 169,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b8e2019e59826547a99d5c41cd9bdba593fe72e6e0ab87d54f58ecca465a46b2"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/MessageTemplateLocation.java",
+      "text": "    /**\n     * Creates an instance of MessageTemplateLocation class.\n     *\n     * @param refValue the refValue value to set.\n     * @param geoPosition the geoPosition value to set.\n     */\n    public MessageTemplateLocation(String refValue, GeoPosition geoPosition) {\n        super(refValue);\n        this.latitude = geoPosition.getLatitude();\n        this.longitude = geoPosition.getLongitude();\n    }",
+      "contentHash": "f45cccb750540f22dd3fe1f2ea7c44078d842cdcf6eff56d10cf9374cd007f28",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/MessageTemplateLocation.java",
+      "startLine": 181,
+      "endLine": 191,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f3a5c0a8ad6c8fb5d9d225a70bfb96564a27c99262ef318ecdd112888c283f0e"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/MessageTemplateLocation.java",
+      "text": "    /**\n     * Get the geo position: The longitude and latitude of the location.\n     *\n     * @return the GeoPosition object.\n     */\n    public GeoPosition getPosition() {\n        return new GeoPosition(this.longitude, this.latitude);\n    }",
+      "contentHash": "2101db87add3eb27f3d00ec0bc60a187c0b46a7dcf1d45a756f91d48cd9f4336",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/MessageTemplateLocation.java",
+      "startLine": 193,
+      "endLine": 200,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "63aec7c4f096d8d7656201b4322cb63b19bafea15a71fdd327183aaf6dfc2bba"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/NotificationMessagesClientBuilder.java",
+      "text": "    /**\n     * Set a connection string for authorization.\n     *\n     * @param connectionString valid connectionString as a string.\n     * @return the updated NotificationMessagesClientBuilder object.\n     */\n    @Override\n    public NotificationMessagesClientBuilder connectionString(String connectionString) {\n        CommunicationConnectionString connection = new CommunicationConnectionString(connectionString);\n        this.credential(new KeyCredential(connection.getAccessKey()));\n        this.endpoint(connection.getEndpoint());\n        return this;\n    }",
+      "contentHash": "abbd9f39f7c636cc412a7cd6b9a9357efba1fa1dc8759fac5a7724a45a260c1c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/NotificationMessagesClientBuilder.java",
+      "startLine": 356,
+      "endLine": 368,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8f8bf5c9f0211a8cb9decd60369995668a57d2f492db256a1caeef061c16f56e"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/NotificationMessagesClientBuilder.java",
+      "text": "    private HttpPipelinePolicy createHttpPipelineAuthPolicy() {\n        if (tokenCredential != null) {\n            return new BearerTokenAuthenticationPolicy(tokenCredential, DEFAULT_SCOPES);\n        } else if (keyCredential != null) {\n            return new HmacAuthenticationPolicy(new AzureKeyCredential(keyCredential.getKey()));\n        } else {\n            throw LOGGER.logExceptionAsError(\n                new IllegalStateException(\"Missing credential information while building a client.\"));\n        }\n    }",
+      "contentHash": "61712778822aed2580ab8ad7ac3cc075b8a7fd01f1867d29b1e1dfdfcc4b9baf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/NotificationMessagesClientBuilder.java",
+      "startLine": 370,
+      "endLine": 379,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b2cf4e6df18f9f8340471169d97ad1d6e2ca8287c6d4642d3bed36b019a77077"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/implementation/accesshelpers/MessageTemplateItemAccessHelper.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\npackage com.azure.communication.messages.implementation.accesshelpers;\n\nimport com.azure.communication.messages.models.MessageTemplateItem;\n\n/**\n * Access helper for {@link MessageTemplateItem}.\n */\npublic final class MessageTemplateItemAccessHelper {\n    private static MessageTemplateItemAccessor accessor;\n\n    /**\n     * The accessor for {@link MessageTemplateItem}.\n     */\n    public interface MessageTemplateItemAccessor {\n        /**\n         * Sets the name of the {@link MessageTemplateItem}.\n         *\n         * @param messageTemplateItem The {@link MessageTemplateItem} to set the name.\n         * @param name The name to set.\n         */\n        void setName(MessageTemplateItem messageTemplateItem, String name);\n    }\n\n    /**\n     * Sets the accessor.\n     *\n     * @param accessor The accessor.\n     */\n    public static void setAccessor(MessageTemplateItemAccessor accessor) {\n        MessageTemplateItemAccessHelper.accessor = accessor;\n    }\n\n    /**\n     * Sets the name of the {@link MessageTemplateItem}.\n     *\n     * @param messageTemplateItem The {@link MessageTemplateItem} to set the name.\n     * @param name The name to set.\n     */\n    public static void setName(MessageTemplateItem messageTemplateItem, String name) {\n        accessor.setName(messageTemplateItem, name);\n    }\n\n    private MessageTemplateItemAccessHelper() {\n    }\n}\n",
+      "contentHash": "8eac285985ef6b5bdefa0cd4d67001a9a99abee148b4e3a82b0b3ce5096492ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/implementation/accesshelpers/MessageTemplateItemAccessHelper.java",
+      "startLine": 1,
+      "endLine": 47,
+      "kind": "unknown",
+      "id": "71b3d5fac4904eda44fa7f6262cb5e70e303b119eee054535cdf0f7c6cab0c88"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/communication/azure-communication-messages/customization/pom.xml",
+      "text": "<!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-communication-messages-autorest-customization</artifactId>\n  <version>1.2.0-beta.2</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "8faf4049aa5dfb8f815398af8163f68295cac24f667c40afc5155fc5475593ed",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/customization/pom.xml"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\n ~ Licensed under the MIT License.\n ~ Code generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-communication-messages</artifactId>\n  <version>1.2.0-beta.2</version> <!-- {x-version-update;com.azure:azure-communication-messages;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure client library for Azure Communication Services - Messaging application</name>\n  <description>This package contains a Java SDK for Azure Communication Messages Services.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <jacoco.min.linecoverage>0.6</jacoco.min.linecoverage>\n    <jacoco.min.branchcoverage>0.6</jacoco.min.branchcoverage>\n    <jacoco.skip>true</jacoco.skip>\n\n    <spotbugs.skip>false</spotbugs.skip>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-json</artifactId>\n      <version>1.5.1</version> <!-- {x-version-update;com.azure:azure-json;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-communication-common</artifactId>\n      <version>1.4.9</version> <!-- {x-version-update;com.azure:azure-communication-common;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.nimbusds</groupId>\n      <artifactId>nimbus-jose-jwt</artifactId>\n      <version>9.37.3</version> <!-- {x-version-update;com.nimbusds:nimbus-jose-jwt;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.jacoco</groupId>\n        <artifactId>jacoco-maven-plugin</artifactId>\n        <version>0.8.15</version> <!-- {x-version-update;org.jacoco:jacoco-maven-plugin;external_dependency} -->\n        <configuration>\n          <includes>\n            <include>com/azure/communication/messages/*.class</include>\n          </includes>\n        </configuration>\n        <executions>\n          <execution>\n            <id>coverage-report</id>\n            <phase>verify</phase>\n            <goals>\n              <goal>report</goal>\n            </goals>\n          </execution>\n        </executions>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+      "contentHash": "e46951eedea9231901612d9d78e2d97ce464d6326803f49b9faeb8126ccb3362",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/pom.xml"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/tsp-location.yaml",
+      "text": "directory: specification/communication/Communication.Messages\ncommit: 3667ec7237617f766657ed23066f0b14ee0797f8\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: null\n",
+      "contentHash": "1738ff24c4dcdb561d5a1b10e896ea1deb88196480f6fbb079eeed0b74ba51e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/communication/azure-communication-messages/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/communication/azure-communication-messages/customization/src/main/java/MessagesSdkCustomization.java",
+      "startLine": 1,
+      "endLine": 311,
+      "provenance": "Java customization script",
+      "contentHash": "4741aa5029b60934645aeafe28d48d1e902d21970d92853abd7f08bd2ceb3a3f"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/MessageTemplateClientBuilder.java",
+      "startLine": 363,
+      "endLine": 370,
+      "provenance": "Java members without @Generated: connectionString, createHttpPipelineAuthPolicy",
+      "contentHash": "4d256c05b06bfacdb191fa9a94cc8a6e8ce2dd938dd4720c8b9adc1268b7bd65"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/NotificationMessagesClientBuilder.java",
+      "startLine": 363,
+      "endLine": 370,
+      "provenance": "Java members without @Generated: connectionString, createHttpPipelineAuthPolicy",
+      "contentHash": "8bbe316a63721f8454dbf07d9ea280566beef75b1e14c555712e969174468bce"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/implementation/accesshelpers/MessageTemplateItemAccessHelper.java",
+      "startLine": 1,
+      "endLine": 47,
+      "provenance": "Java handwritten source",
+      "contentHash": "8eac285985ef6b5bdefa0cd4d67001a9a99abee148b4e3a82b0b3ce5096492ec"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/InteractiveMessage.java",
+      "startLine": 156,
+      "endLine": 166,
+      "provenance": "Java members without @Generated: getHeader, setHeader",
+      "contentHash": "4a6cbfae0509f8f6f7fa9f439a1a26eafe50334231e43486507ab8cbe4b18c5b"
+    },
+    {
+      "path": "sdk/communication/azure-communication-messages/src/main/java/com/azure/communication/messages/models/MessageTemplateLocation.java",
+      "startLine": 187,
+      "endLine": 198,
+      "provenance": "Java members without @Generated: MessageTemplateLocation, getPosition",
+      "contentHash": "cc2efb8cb9b2ccafe6e8a321b196f9ead4c04b30eb1adf9ff97dc155dccadf94"
+    }
+  ]
+}

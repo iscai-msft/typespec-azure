@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 1,
+  "id": "621211aa-75b0-4b77-bee6-e75a282d800f",
+  "observedAt": "2026-10-22T20:17:29.947Z",
+  "identity": "javascript:@azure/monitor-query-logs:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/monitor-query-logs",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/monitor/monitor-query-logs"
+  },
+  "commit": "4fd827c0b64ceb2eb4cac3d79167f16f7d451506",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "2",
+    "reader": "git",
+    "packageTree": "e393586e79f17cdfb3951673280bbfe9dbe14b9d"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 98,
+    "eligibleFiles": 34,
+    "capturedFiles": 18,
+    "skipped": [
+      {
+        "path": "sdk/monitor/monitor-query-logs/README.md",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/vitest.int.config.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/vitest.unit.config.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/api/index.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/api/monitorQueryLogsContext.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/api/operations.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/api/options.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/index.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/logger.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/models/index.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/models/models.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/monitorQueryLogsClient.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/generated/static-helpers/urlTemplate.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/src/models/constants.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/src/models/index.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/monitor/monitor-query-logs/src/models/public.ts",
+        "reason": "File-count limit"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/samples-dev/logsQuery.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * @summary Demonstrates how to run a query against a Log Analytics workspace\n */\n\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport type { LogsTable, LogsQueryOptions } from \"@azure/monitor-query-logs\";\nimport { Durations, LogsQueryClient, LogsQueryResultStatus } from \"@azure/monitor-query-logs\";\nimport \"dotenv/config\";\nconst monitorWorkspaceId = process.env.MONITOR_WORKSPACE_ID;\n\nexport async function main(): Promise<void> {\n  const tokenCredential = new DefaultAzureCredential();\n  const logsQueryClient = new LogsQueryClient(tokenCredential);\n\n  if (!monitorWorkspaceId) {\n    throw new Error(\"MONITOR_WORKSPACE_ID must be set in the environment for this sample\");\n  }\n\n  const kustoQuery =\n    \"AppEvents | project TimeGenerated, Name, AppRoleInstance | order by TimeGenerated asc | limit 10\";\n\n  console.log(`Running '${kustoQuery}' over the last One Hour`);\n  const queryLogsOptions: LogsQueryOptions = {\n    // explicitly control the amount of time the server can spend processing the query.\n    serverTimeoutInSeconds: 600, // sets the timeout to 10 minutes\n    // optionally enable returning additional statistics about the query's execution.\n    // (by default this is off)\n    includeQueryStatistics: true,\n  };\n\n  const result = await logsQueryClient.queryWorkspace(\n    monitorWorkspaceId,\n    kustoQuery,\n    // The timespan is an ISO8601 formatted time (or interval). Some common aliases\n    // are available (like OneDay, OneHour, FoutyEightHours, etc..) but any properly formatted ISO8601\n    // value is valid.\n    { duration: Durations.oneHour },\n    queryLogsOptions,\n  );\n\n  console.log(`Results for query '${kustoQuery}'`);\n\n  if (result.status === LogsQueryResultStatus.Success) {\n    const tablesFromResult: LogsTable[] = result.tables;\n\n    if (tablesFromResult.length === 0) {\n      console.log(`No results for query '${kustoQuery}'`);\n      return;\n    }\n    console.log(`This query has returned table(s) - `);\n    processTables(tablesFromResult);\n  } else {\n    console.log(`Error processing the query '${kustoQuery}' - ${result.partialError}`);\n    if (result.partialTables.length > 0) {\n      console.log(`This query has also returned partial data in the following table(s) - `);\n      processTables(result.partialTables);\n    }\n  }\n}\n\nasync function processTables(tablesFromResult: LogsTable[]): Promise<void> {\n  for (const table of tablesFromResult) {\n    const columnHeaderString = table.columnDescriptors\n      .map((column) => `${column.name}(${column.type}) `)\n      .join(\"| \");\n    console.log(\"| \" + columnHeaderString);\n\n    for (const row of table.rows) {\n      const columnValuesString = row.map((columnValue) => `'${columnValue}' `).join(\"| \");\n      console.log(\"| \" + columnValuesString);\n    }\n  }\n}\n\nmain().catch((err) => {\n  console.error(\"The sample encountered an error:\", err);\n  process.exit(1);\n});\n",
+      "contentHash": "a98a4bc7d86148656b6f00ad40ee659c4199f5e817901163ce8a33fe8ad7d1ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/samples-dev/logsQuery.ts",
+      "id": "a4814740e199475efe62496dca91fd1264eeb2a265a97e1416b696f32f455b47",
+      "startLine": 1,
+      "endLine": 81,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/samples-dev/logsQueryBatch.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * @summary Demonstrates how to run a batch query against a Log Analytics workspace\n */\n\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport type { LogsTable } from \"@azure/monitor-query-logs\";\nimport { LogsQueryClient, LogsQueryResultStatus } from \"@azure/monitor-query-logs\";\nimport \"dotenv/config\";\nconst monitorWorkspaceId = process.env.MONITOR_WORKSPACE_ID;\n\nexport async function main(): Promise<void> {\n  if (!monitorWorkspaceId) {\n    throw new Error(\"MONITOR_WORKSPACE_ID must be set in the environment for this sample\");\n  }\n\n  const tokenCredential = new DefaultAzureCredential();\n  const logsQueryClient = new LogsQueryClient(tokenCredential);\n\n  const kqlQuery = \"AppEvents | project TimeGenerated, Name, AppRoleInstance | limit 1\";\n  const queriesBatch = [\n    {\n      workspaceId: monitorWorkspaceId,\n      query: kqlQuery,\n      timespan: { duration: \"P1D\" },\n    },\n    {\n      workspaceId: monitorWorkspaceId,\n      query: \"AzureActivity | summarize count()\",\n      timespan: { duration: \"PT1H\" },\n    },\n    {\n      workspaceId: monitorWorkspaceId,\n      query:\n        \"AppRequests | take 10 | summarize avgRequestDuration=avg(DurationMs) by bin(TimeGenerated, 10m), _ResourceId\",\n      timespan: { duration: \"PT1H\" },\n    },\n    {\n      workspaceId: monitorWorkspaceId,\n      query: \"AppRequests | take 2\",\n      timespan: { duration: \"PT1H\" },\n      includeQueryStatistics: true,\n    },\n  ];\n\n  const result = await logsQueryClient.queryBatch(queriesBatch);\n\n  let i = 0;\n  for (const response of result) {\n    console.log(`Results for query with query: ${queriesBatch[i]}`);\n    if (response.status === LogsQueryResultStatus.Success) {\n      console.log(\n        `Printing results from query '${queriesBatch[i].query}' for '${queriesBatch[i].timespan}'`,\n      );\n      processTables(response.tables);\n    } else if (response.status === LogsQueryResultStatus.PartialFailure) {\n      console.log(\n        `Printing partial results from query '${queriesBatch[i].query}' for '${queriesBatch[i].timespan}'`,\n      );\n      processTables(response.partialTables);\n      console.log(\n        ` Query had errors:${response.partialError.message} with code ${response.partialError.code}`,\n      );\n    } else {\n      console.log(`Printing errors from query '${queriesBatch[i].query}'`);\n      console.log(` Query had errors:${response.message} with code ${response.code}`);\n    }\n    // next query\n    i++;\n  }\n}\n\nasync function processTables(tablesFromResult: LogsTable[]): Promise<void> {\n  for (const table of tablesFromResult) {\n    const columnHeaderString = table.columnDescriptors\n      .map((column) => `${column.name}(${column.type}) `)\n      .join(\"| \");\n    console.log(\"| \" + columnHeaderString);\n\n    for (const row of table.rows) {\n      const columnValuesString = row.map((columnValue) => `'${columnValue}' `).join(\"| \");\n      console.log(\"| \" + columnValuesString);\n    }\n  }\n}\n\nmain().catch((err) => {\n  console.error(\"The sample encountered an error:\", err);\n  process.exit(1);\n});\n",
+      "contentHash": "78a209856b1089ef9293d616868754a585d10e9fa4f4bba4df58375624dbed8c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/samples-dev/logsQueryBatch.ts",
+      "id": "55af3d15ca78d396fc9d086fd88962279992f3960545de2892d775388d69038c",
+      "startLine": 1,
+      "endLine": 92,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/samples-dev/logsQueryMultipleWorkspaces.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * @summary Demonstrates how to run a query against a Log Analytics workspace\n */\n\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport type { LogsTable, LogsQueryOptions } from \"@azure/monitor-query-logs\";\nimport { Durations, LogsQueryClient, LogsQueryResultStatus } from \"@azure/monitor-query-logs\";\nimport \"dotenv/config\";\nconst monitorWorkspaceId = process.env.MONITOR_WORKSPACE_ID;\nconst additionalWorkspaces1 = process.env.ADDITIONAL_WORKSPACES_1 || \"workspace1\";\nconst additionalWorkspaces2 = process.env.ADDITIONAL_WORKSPACES_2 || \"workspace2\";\n\nexport async function main(): Promise<void> {\n  const tokenCredential = new DefaultAzureCredential();\n  const logsQueryClient = new LogsQueryClient(tokenCredential);\n\n  if (!monitorWorkspaceId) {\n    throw new Error(\"MONITOR_WORKSPACE_ID must be set in the environment for this sample\");\n  }\n\n  const kustoQuery =\n    \"AppEvents | project TimeGenerated, Name, AppRoleInstance | order by TimeGenerated asc | limit 10\";\n\n  console.log(`Running '${kustoQuery}' over the last 5 minutes`);\n  const queryLogsOptions: LogsQueryOptions = {\n    // explicitly control the amount of time the server can spend processing the query.\n    serverTimeoutInSeconds: 600, // sets the timeout to 10 minutes\n    // optionally enable returning additional statistics about the query's execution.\n    // (by default this is off)\n    includeQueryStatistics: true,\n    additionalWorkspaces: [additionalWorkspaces1, additionalWorkspaces2],\n  };\n\n  const result = await logsQueryClient.queryWorkspace(\n    monitorWorkspaceId,\n    kustoQuery,\n    // The timespan is an ISO8601 formatted time (or interval). Some common aliases\n    // are available (like durationOf1Day, durationOf1Hour, durationOf48Hours, etc..) but any properly formatted ISO8601\n    // value is valid.\n    { duration: Durations.oneHour },\n    queryLogsOptions,\n  );\n\n  console.log(`Results for query '${kustoQuery}'`);\n\n  if (result.status === LogsQueryResultStatus.Success) {\n    const tablesFromResult: LogsTable[] = result.tables;\n    if (tablesFromResult.length === 0) {\n      console.log(`No results for query '${kustoQuery}'`);\n      return;\n    }\n    processTables(tablesFromResult);\n  } else {\n    console.log(`Error processing the query '${kustoQuery}' - ${result.partialError}`);\n    if (result.partialTables.length > 0) {\n      console.log(`This query has also returned partial data in the following table(s) - `);\n      processTables(result.partialTables);\n    }\n  }\n}\n\nasync function processTables(tablesFromResult: LogsTable[]): Promise<void> {\n  for (const table of tablesFromResult) {\n    const columnHeaderString = table.columnDescriptors\n      .map((column) => `${column.name}(${column.type}) `)\n      .join(\"| \");\n    console.log(\"| \" + columnHeaderString);\n\n    for (const row of table.rows) {\n      const columnValuesString = row.map((columnValue) => `'${columnValue}' `).join(\"| \");\n      console.log(\"| \" + columnValuesString);\n    }\n  }\n}\n\nmain().catch((err) => {\n  console.error(\"The sample encountered an error:\", err);\n  process.exit(1);\n});\n",
+      "contentHash": "d81c384f9e9fa2c58d853e0a40ec3e2ab2ff26a63a916606f46b98b0665c5c13",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/samples-dev/logsQueryMultipleWorkspaces.ts",
+      "id": "cde5d0c57142d8deed2d88aee59f2b56001bb74d875db5892296fc167f055d5e",
+      "startLine": 1,
+      "endLine": 82,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/samples-dev/logsResourceCentricQuery.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * @summary Demonstrates how to run a query against a Log Analytics workspace, using an Azure resource ID.\n */\n\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport type { LogsTable, LogsQueryOptions } from \"@azure/monitor-query-logs\";\nimport { Durations, LogsQueryClient, LogsQueryResultStatus } from \"@azure/monitor-query-logs\";\nimport \"dotenv/config\";\nconst logsResourceId = process.env.LOGS_RESOURCE_ID;\n\nexport async function main(): Promise<void> {\n  const tokenCredential = new DefaultAzureCredential();\n  const logsQueryClient = new LogsQueryClient(tokenCredential);\n\n  if (!logsResourceId) {\n    throw new Error(\"LOGS_RESOURCE_ID must be set in the environment for this sample\");\n  }\n\n  const kustoQuery = `MyTable_CL | summarize count()`;\n\n  console.log(`Running '${kustoQuery}' over the last One Hour`);\n  const queryLogsOptions: LogsQueryOptions = {\n    // explicitly control the amount of time the server can spend processing the query.\n    serverTimeoutInSeconds: 600, // sets the timeout to 10 minutes\n    // optionally enable returning additional statistics about the query's execution.\n    // (by default, this is off)\n    includeQueryStatistics: true,\n  };\n\n  const result = await logsQueryClient.queryResource(\n    logsResourceId,\n    kustoQuery,\n    { duration: Durations.sevenDays },\n    queryLogsOptions,\n  );\n\n  console.log(`Results for query '${kustoQuery}'`);\n\n  if (result.status === LogsQueryResultStatus.Success) {\n    const tablesFromResult: LogsTable[] = result.tables;\n\n    if (tablesFromResult.length === 0) {\n      console.log(`No results for query '${kustoQuery}'`);\n      return;\n    }\n    console.log(`This query has returned table(s) - `);\n    processTables(tablesFromResult);\n  } else {\n    console.log(`Error processing the query '${kustoQuery}' - ${result.partialError}`);\n    if (result.partialTables.length > 0) {\n      console.log(`This query has also returned partial data in the following table(s) - `);\n      processTables(result.partialTables);\n    }\n  }\n}\n\nasync function processTables(tablesFromResult: LogsTable[]): Promise<void> {\n  for (const table of tablesFromResult) {\n    const columnHeaderString = table.columnDescriptors\n      .map((column) => `${column.name}(${column.type}) `)\n      .join(\"| \");\n    console.log(\"| \" + columnHeaderString);\n\n    for (const row of table.rows) {\n      const columnValuesString = row.map((columnValue) => `'${columnValue}' `).join(\"| \");\n      console.log(\"| \" + columnValuesString);\n    }\n  }\n}\n\nmain().catch((err) => {\n  console.error(\"The sample encountered an error:\", err);\n  process.exit(1);\n});\n",
+      "contentHash": "b18044575af0e69b8ab2efed2af323302d6ea4dd74e5003c951faa76a6cbf25c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/samples-dev/logsResourceCentricQuery.ts",
+      "id": "7ce338b42c613bf02fc05fa48e900f5bf754a406df4813c9e54ab28c6063d0c7",
+      "startLine": 1,
+      "endLine": 77,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  createMonitorQueryLogs,\n  type MonitorQueryLogsContext,\n  type LogsQueryClientOptions,\n} from \"./monitorQueryLogsContext.js\";\nexport { batch, executeWithResourceId, execute } from \"./operations.js\";\nexport type {\n  LogsQueryBatchOptions,\n  LogsQueryOptions,\n  ExecuteWithResourceIdOptionalParams,\n  ExecuteOptionalParams,\n  QueryLogsOptions,\n} from \"./options.js\";\n",
+      "contentHash": "7b9bcd59dd6680aadf1448be12d8017ae573815c1679ac4250667a6b01c16655",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "id": "cbbc0c9ba5a3a1ac8e27099c8cd545970f6c5a40c829cc55efb63fd988ac9b16",
+      "startLine": 1,
+      "endLine": 16,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential } from \"@azure/core-auth\";\n\nexport interface MonitorQueryLogsContext extends Client {\n  /** The service API version. */\n  apiVersion: string;\n}\n\n/** Optional parameters for the client. */\nexport interface LogsQueryClientOptions extends ClientOptions {\n  /** The service API version. */\n  apiVersion?: string;\n  /**\n   * The Audience to use for authentication with Microsoft Entra ID. The\n   * audience is not considered when using a shared key.\n   */\n  audience?: string;\n}\n\nexport function createMonitorQueryLogs(\n  credential: TokenCredential,\n  options: LogsQueryClientOptions = {},\n): MonitorQueryLogsContext {\n  const endpointParam = options.endpoint ?? \"https://api.loganalytics.io\";\n  const apiVersion = options.apiVersion ?? \"v1\";\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? `${endpointParam}/${apiVersion}`;\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-monitor-query-logs/1.0.1`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://api.loganalytics.io/.default\"],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  return { ...clientContext, apiVersion } as MonitorQueryLogsContext;\n}\n",
+      "contentHash": "792195cc0ab2cd52871086534628115aa65d438ac3b179dfc2f3148bd8f8c472",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "id": "543da7c9354bb34f7bbf2ff38bdf88ca4c27d4f851004b012f23217e4640e616",
+      "startLine": 1,
+      "endLine": 48,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { MonitorQueryLogsContext as Client, LogsQueryBatchOptions } from \"./index.js\";\nimport type { QueryBody, BatchRequest } from \"../models/models.js\";\nimport type { LogsQueryBatchResult, LogsQueryResult } from \"../models/public.js\";\nimport {\n  queryBodySerializer,\n  queryResultsDeserializer,\n  convertToLogsQueryResult,\n  errorResponseDeserializer,\n  batchRequestSerializer,\n  batchResponseDeserializer,\n  convertToLogsBatchResult,\n} from \"../models/models.js\";\nimport { expandUrlTemplate } from \"../static-helpers/urlTemplate.js\";\nimport type { ExecuteWithResourceIdOptionalParams, ExecuteOptionalParams } from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _batchSend(\n  context: Client,\n  body: BatchRequest,\n  options: LogsQueryBatchOptions = { requestOptions: {} },\n): StreamableMethod {\n  return context.path(\"/$batch\").post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: batchRequestSerializer(body),\n  });\n}\n\nexport async function _batchDeserialize(\n  result: PathUncheckedResponse,\n): Promise<LogsQueryBatchResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  const internalResult = batchResponseDeserializer(result.body);\n  return convertToLogsBatchResult(internalResult);\n}\n\n/**\n * Executes a batch of Analytics queries for data.\n * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/batch-queries)\n * is an example for using POST with an Analytics query.\n */\nexport async function batch(\n  context: Client,\n  body: BatchRequest,\n  options: LogsQueryBatchOptions = { requestOptions: {} },\n): Promise<LogsQueryBatchResult> {\n  const result = await _batchSend(context, body, options);\n  return _batchDeserialize(result);\n}\n\nexport function _executeWithResourceIdSend(\n  context: Client,\n  resourceId: string,\n  body: QueryBody,\n  options: ExecuteWithResourceIdOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/{+resourceId}/query\",\n    {\n      resourceId: resourceId,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      ...(options?.prefer !== undefined ? { Prefer: options?.prefer } : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: queryBodySerializer(body),\n  });\n}\n\nexport async function _executeWithResourceIdDeserialize(\n  result: PathUncheckedResponse,\n): Promise<LogsQueryResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return convertToLogsQueryResult(queryResultsDeserializer(result.body));\n}\n\n/**\n * Executes an Analytics query for data in the context of a resource.\n * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/azure-resource-queries)\n * is an example for using POST with an Analytics query.\n */\nexport async function executeWithResourceId(\n  context: Client,\n  resourceId: string,\n  body: QueryBody,\n  options: ExecuteWithResourceIdOptionalParams = { requestOptions: {} },\n): Promise<LogsQueryResult> {\n  const result = await _executeWithResourceIdSend(context, resourceId, body, options);\n  return _executeWithResourceIdDeserialize(result);\n}\n\nexport function _executeSend(\n  context: Client,\n  workspaceId: string,\n  body: QueryBody,\n  options: ExecuteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/workspaces/{workspaceId}/query\",\n    {\n      workspaceId: workspaceId,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      ...(options?.prefer !== undefined ? { Prefer: options?.prefer } : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: queryBodySerializer(body),\n  });\n}\n\nexport async function _executeDeserialize(result: PathUncheckedResponse): Promise<LogsQueryResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return convertToLogsQueryResult(queryResultsDeserializer(result.body));\n}\n\n/**\n * Executes an Analytics query for data.\n * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/request-format)\n * is an example for using POST with an Analytics query.\n */\nexport async function execute(\n  context: Client,\n  workspaceId: string,\n  body: QueryBody,\n  options: ExecuteOptionalParams = { requestOptions: {} },\n): Promise<LogsQueryResult> {\n  const result = await _executeSend(context, workspaceId, body, options);\n  return _executeDeserialize(result);\n}\n",
+      "contentHash": "feaac82537eed5c2127925afddc0f05f243a7d5a2080bece9e5f4a6530e3cbac",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "id": "4908e6373b1bae60ff55cdaf10bc788a7c6e8916b1f276cadbad656ccdd2976d",
+      "startLine": 1,
+      "endLine": 171,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters for batch query operations. */\nexport interface LogsQueryBatchOptions extends OperationOptions {}\n\n/**\n * Options for querying logs.\n */\nexport interface LogsQueryOptions extends OperationOptions {\n  /**\n   * A list of workspaces that are included in the query, except for the one set as the `workspaceId` parameter.\n   * These may consist of the following identifier formats:\n   * - Qualified workspace names\n   * - Workspace IDs\n   * - Azure resource IDs\n   */\n  additionalWorkspaces?: string[];\n  /**\n   * Results will also include statistics about the query.\n   */\n  includeQueryStatistics?: boolean;\n  /**\n   * Results will also include visualization information, in JSON format.\n   */\n  includeVisualization?: boolean;\n  /**\n   * The maximum amount of time the server will spend processing the query.\n   * Default: 180 seconds (3 minutes), maximum allowed is 600 seconds (10 minutes)\n   */\n  serverTimeoutInSeconds?: number;\n}\n\n/** Optional parameters. */\nexport interface QueryLogsOptions extends OperationOptions {\n  /**\n   * Optional. The prefer header to set server timeout, query statistics and\n   * visualization information.\n   */\n  prefer?: string;\n}\n\n/** Optional parameters. */\nexport interface ExecuteWithResourceIdOptionalParams extends QueryLogsOptions {}\n\n/** Optional parameters. */\nexport interface ExecuteOptionalParams extends QueryLogsOptions {}\n",
+      "contentHash": "9e8d59b47d7b3a0c048a7a6fd74b3295f96b2d871da6d628c82c3ad4e4fc08da",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "id": "e8b6856a9eec72bfb9f652ed1a5facb2ac69caa7f66d3f55c47a2034dff39798",
+      "startLine": 1,
+      "endLine": 49,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { LogsQueryClient } from \"./logsQueryClient.js\";\nexport {\n  type QueryBody,\n  type Table,\n  type Column,\n  type ColumnDataType,\n  type ErrorInfo,\n  type ErrorDetail,\n  type ErrorResponse,\n  type BatchRequest,\n  type BatchQueryRequest,\n  type LogsQueryBatchResult,\n  type BatchQueryResponse,\n  type BatchQueryResults,\n  type QueryBatch,\n  type QueryTimeInterval,\n  Durations,\n} from \"./models/index.js\";\nexport {\n  type LogsQueryResult,\n  LogsQueryResultStatus,\n  type LogsTable,\n  type LogsColumn,\n  type LogsErrorInfo,\n  type LogsQuerySuccessfulResult,\n  type LogsQueryPartialResult,\n  type LogsQueryError,\n  KnownMonitorLogsQueryAudience,\n} from \"./models/public.js\";\nexport type {\n  LogsQueryClientOptions,\n  LogsQueryBatchOptions,\n  LogsQueryOptions,\n  ExecuteWithResourceIdOptionalParams,\n  ExecuteOptionalParams,\n  QueryLogsOptions,\n} from \"./api/index.js\";\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n",
+      "contentHash": "2daa5ff1003ea5e755e35abcf9583cb47b3382a07cd12d48fedd701ca9a2f859",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/index.ts",
+      "id": "ec9f4c3a6a3d0eb4a34e8c929592ed6a32bb474a11d5bda8640cf9e82f1030a3",
+      "startLine": 1,
+      "endLine": 41,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/logger.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createClientLogger } from \"@azure/logger\";\nexport const logger = createClientLogger(\"monitor-query-logs\");\n",
+      "contentHash": "540e9b42b3581fb8cd26c5772e43ee970cb905872651d56764c955f933cd1fd9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/logger.ts",
+      "id": "21f3fcb7ea3c0c8080aae431df277e55eee1893b5322f4117e8128abcf742cc7",
+      "startLine": 1,
+      "endLine": 5,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { MonitorQueryLogsContext, LogsQueryClientOptions } from \"./api/index.js\";\nimport { createMonitorQueryLogs } from \"./api/index.js\";\nimport type { QueryTimeInterval } from \"./models/models.js\";\nimport { convertQueryBatch } from \"./models/models.js\";\nimport type { QueryBatch, LogsQueryBatchResult } from \"./models/public.js\";\nimport type { QueryBody } from \"./models/models.js\";\nimport type { LogsQueryBatchOptions, LogsQueryOptions } from \"./api/options.js\";\nimport { batch as batchOperation, executeWithResourceId, execute } from \"./api/operations.js\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { BatchQueryRequest } from \"./models/index.js\";\nimport { convertTimespanToInterval } from \"./static-helpers/timespanConversion.js\";\nimport type { LogsQueryResult } from \"./models/public.js\";\n\nexport type { LogsQueryClientOptions } from \"./api/monitorQueryLogsContext.js\";\n\n/**\n * Converts LogsQueryOptions to internal option format\n */\nfunction convertToInternalOptions(options?: LogsQueryOptions): {\n  prefer?: string;\n  requestOptions: {};\n} {\n  if (!options) {\n    return { requestOptions: {} };\n  }\n\n  // Convert LogsQueryOptions properties to prefer header format\n  const preferParts: string[] = [];\n\n  if (options.serverTimeoutInSeconds !== undefined) {\n    preferParts.push(`wait=${options.serverTimeoutInSeconds}`);\n  }\n\n  if (options.includeQueryStatistics) {\n    preferParts.push(\"include-statistics=true\");\n  }\n\n  if (options.includeVisualization) {\n    preferParts.push(\"include-render=true\");\n  }\n\n  const prefer = preferParts.length > 0 ? preferParts.join(\",\") : undefined;\n\n  return {\n    prefer,\n    requestOptions: options.requestOptions ? options.requestOptions : {},\n  };\n}\n\n/**\n * The client to query Azure Monitor logs.\n */\nexport class LogsQueryClient {\n  private _client: MonitorQueryLogsContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  /**\n   * Initializes a new instance of the LogsQueryClient.\n   * @param tokenCredential - The credential to use for authentication.\n   * @param options - The optional parameters for the client.\n   */\n  constructor(tokenCredential: TokenCredential, options: LogsQueryClientOptions = {}) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createMonitorQueryLogs(tokenCredential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n  }\n\n  /**\n   * Executes a batch of Analytics queries for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/batch-queries)\n   * is an example for using POST with an Analytics query.\n   * @param batch - The batch of queries to execute.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the batch of queries.\n   */\n  queryBatch(\n    batch: QueryBatch[],\n    options: LogsQueryBatchOptions = { requestOptions: {} },\n  ): Promise<LogsQueryBatchResult> {\n    const requests: BatchQueryRequest[] = batch.map((q, index) => {\n      // Generate a unique ID for each query\n      const id = `query-${index}`;\n      // Convert public QueryBatch to internal InternalQueryBatch\n      const internalQuery = convertQueryBatch(q, id);\n\n      return {\n        id: internalQuery.id,\n        body: {\n          query: internalQuery.query,\n          timespan: internalQuery.timespan\n            ? convertTimespanToInterval(internalQuery.timespan)\n            : undefined,\n          workspaces: internalQuery.workspaces,\n        },\n        path: \"/query\" as const,\n        method: \"POST\" as const,\n        workspace: internalQuery.workspace,\n        headers: internalQuery.headers,\n      };\n    });\n    return batchOperation(this._client, { requests: requests }, options);\n  }\n\n  /**\n   * Executes an Analytics query for data in the context of a resource.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/azure-resource-queries)\n   * is an example for using POST with an Analytics query.\n   * @param resourceId - The resource ID to query the data for.\n   * @param query - The query to execute.\n   * @param timespan - The timespan for the query.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the query.\n   */\n  queryResource(\n    resourceId: string,\n    query: string,\n    timespan: QueryTimeInterval,\n    // eslint-disable-next-line @azure/azure-sdk/ts-naming-options\n    options?: LogsQueryOptions,\n  ): Promise<LogsQueryResult> {\n    const internalOptions = convertToInternalOptions(options);\n    const body: QueryBody = {\n      query,\n      timespan: convertTimespanToInterval(timespan),\n      workspaces: options?.additionalWorkspaces,\n    };\n    return executeWithResourceId(this._client, resourceId, body, internalOptions);\n  }\n\n  /**\n   * Executes an Analytics query for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/request-format)\n   * is an example for using POST with an Analytics query.\n   * @param workspaceId - The workspace ID to query the data for.\n   * @param query - The query to execute.\n   * @param timespan - The timespan for the query.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the query.\n   */\n  queryWorkspace(\n    workspaceId: string,\n    query: string,\n    timespan: QueryTimeInterval,\n    // eslint-disable-next-line @azure/azure-sdk/ts-naming-options\n    options?: LogsQueryOptions,\n  ): Promise<LogsQueryResult> {\n    const internalOptions = convertToInternalOptions(options);\n    const body: QueryBody = {\n      query,\n      timespan: convertTimespanToInterval(timespan),\n      workspaces: options?.additionalWorkspaces,\n    };\n    return execute(this._client, workspaceId, body, internalOptions);\n  }\n}\n",
+      "contentHash": "afd80ea628d38b0ee7b3d35947d4cbabdea6a8eeefe022f9b7447ff74395b6f3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "id": "3fa8516776bf68afe3232bd6aa846c8d84a98300ae148e1e95c892e7001939ec",
+      "startLine": 1,
+      "endLine": 166,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type {\n  ExecuteOptionalParams,\n  ExecuteWithResourceIdOptionalParams,\n  LogsQueryBatchOptions,\n  LogsQueryClientOptions,\n  MonitorQueryLogsContext,\n} from \"./api/index.js\";\nimport { createMonitorQueryLogs } from \"./api/index.js\";\nimport { batch, executeWithResourceId, execute } from \"./api/operations.js\";\nimport type { LogsQueryBatchResult, LogsQueryResult } from \"./models/public.js\";\nimport type { BatchRequest, QueryBody } from \"./models/models.js\";\n\nexport type { LogsQueryClientOptions } from \"./api/monitorQueryLogsContext.js\";\n\nexport class LogsQueryClient {\n  private _client: MonitorQueryLogsContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  constructor(credential: TokenCredential, options: LogsQueryClientOptions = {}) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createMonitorQueryLogs(credential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n  }\n\n  /**\n   * Executes a batch of Analytics queries for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/batch-queries)\n   * is an example for using POST with an Analytics query.\n   */\n  batch(\n    body: BatchRequest,\n    options: LogsQueryBatchOptions = { requestOptions: {} },\n  ): Promise<LogsQueryBatchResult> {\n    return batch(this._client, body, options);\n  }\n\n  /**\n   * Executes an Analytics query for data in the context of a resource.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/azure-resource-queries)\n   * is an example for using POST with an Analytics query.\n   */\n  executeWithResourceId(\n    resourceId: string,\n    body: QueryBody,\n    options: ExecuteWithResourceIdOptionalParams = { requestOptions: {} },\n  ): Promise<LogsQueryResult> {\n    return executeWithResourceId(this._client, resourceId, body, options);\n  }\n\n  /**\n   * Executes an Analytics query for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/request-format)\n   * is an example for using POST with an Analytics query.\n   */\n  execute(\n    workspaceId: string,\n    body: QueryBody,\n    options: ExecuteOptionalParams = { requestOptions: {} },\n  ): Promise<LogsQueryResult> {\n    return execute(this._client, workspaceId, body, options);\n  }\n}\n",
+      "contentHash": "43b09c9a5936b283102bfad7089a2a4e51c0eda21aa5a19f2c7e5deacfd90316",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "id": "0b808d51756c76a1be72b1da547980dfe0312ead5f6e89c64f79e0abdb2296e0",
+      "startLine": 1,
+      "endLine": 74,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { QueryTimeInterval } from \"./../models/index.js\";\nimport { isObjectWithProperties } from \"@azure/core-util\";\n\nexport function convertTimespanToInterval(timespan: QueryTimeInterval): string {\n  if (isObjectWithProperties(timespan, [\"startTime\", \"endTime\", \"duration\"])) {\n    throw new TypeError(\"Invalid Timespan - contains startTime, endTime, and duration.\");\n  }\n\n  if (isObjectWithProperties(timespan, [\"startTime\", \"endTime\"])) {\n    return `${(timespan as any).startTime.toISOString()}/${(\n      timespan as any\n    ).endTime.toISOString()}`;\n  } else if (isObjectWithProperties(timespan, [\"startTime\", \"duration\"])) {\n    return `${(timespan as any).startTime.toISOString()}/${(timespan as any).duration}`;\n  } else if (isObjectWithProperties(timespan, [\"duration\", \"endTime\"])) {\n    return `${timespan.duration}/${(timespan as any).endTime.toISOString()}`;\n  } else if (isObjectWithProperties(timespan, [\"duration\"])) {\n    return timespan.duration;\n  }\n\n  throw new TypeError(\"Invalid Timespan - no valid fields assigned.\");\n}\n\nexport function convertIntervalToTimeIntervalObject(timespan: string): QueryTimeInterval {\n  if (timespan.includes(\"/\")) {\n    const intervalUnits: string[] = timespan.split(\"/\");\n    if (Date.parse(intervalUnits[0]) && Date.parse(intervalUnits[1])) {\n      return { startTime: new Date(intervalUnits[0]), endTime: new Date(intervalUnits[1]) };\n    } else if (Date.parse(intervalUnits[0]) && !Date.parse(intervalUnits[1])) {\n      return { startTime: new Date(intervalUnits[0]), duration: intervalUnits[1] };\n    } else if (!Date.parse(intervalUnits[0]) && Date.parse(intervalUnits[1])) {\n      return { duration: intervalUnits[0], endTime: new Date(intervalUnits[1]) };\n    } else {\n      return { duration: timespan };\n    }\n  } else {\n    return { duration: timespan };\n  }\n}\n",
+      "contentHash": "fb4fde194ba70ee2fa8a4c4f09c603fd8e20893c590d86b447d814597f84211e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "id": "04215706336342dd638c7292cd3a17e46b4b368ad89d9b4f8353af9ca842af5b",
+      "startLine": 1,
+      "endLine": 42,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n// ---------------------\n// interfaces\n// ---------------------\ninterface ValueOptions {\n  isFirst: boolean; // is first value in the expression\n  op?: string; // operator\n  varValue?: any; // variable value\n  varName?: string; // variable name\n  modifier?: string; // modifier e.g *\n  reserved?: boolean; // if true we'll keep reserved words with not encoding\n}\n\nexport interface UrlTemplateOptions {\n  // if set to true, reserved characters will not be encoded\n  allowReserved?: boolean;\n}\n\n// ---------------------\n// helpers\n// ---------------------\nfunction encodeComponent(val: string, reserved?: boolean, op?: string): string {\n  return (reserved ?? op === \"+\") || op === \"#\"\n    ? encodeReservedComponent(val)\n    : encodeRFC3986URIComponent(val);\n}\n\nfunction encodeReservedComponent(str: string): string {\n  return str\n    .split(/(%[0-9A-Fa-f]{2})/g)\n    .map((part) => (!/%[0-9A-Fa-f]/.test(part) ? encodeURI(part) : part))\n    .join(\"\");\n}\n\nfunction encodeRFC3986URIComponent(str: string): string {\n  return encodeURIComponent(str).replace(\n    /[!'()*]/g,\n    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,\n  );\n}\n\nfunction isDefined(val: any): boolean {\n  return val !== undefined && val !== null;\n}\n\nfunction getNamedAndIfEmpty(op?: string): [boolean, string] {\n  return [!!op && [\";\", \"?\", \"&\"].includes(op), !!op && [\"?\", \"&\"].includes(op) ? \"=\" : \"\"];\n}\n\nfunction getFirstOrSep(op?: string, isFirst = false): string {\n  if (isFirst) {\n    return !op || op === \"+\" ? \"\" : op;\n  } else if (!op || op === \"+\" || op === \"#\") {\n    return \",\";\n  } else if (op === \"?\") {\n    return \"&\";\n  } else {\n    return op;\n  }\n}\n\nfunction getExpandedValue(option: ValueOptions): string {\n  let isFirst = option.isFirst;\n  const { op, varName, varValue: value, reserved } = option;\n  const vals: string[] = [];\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      // prepare the following parts: separator, varName, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (named && varName) {\n        vals.push(`${encodeURIComponent(varName)}`);\n        if (val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      const val = value[key];\n      if (!isDefined(val)) {\n        continue;\n      }\n      // prepare the following parts: separator, key, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (key) {\n        vals.push(`${encodeURIComponent(key)}`);\n        if (named && val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  }\n  return vals.join(\"\");\n}\n\nfunction getNonExpandedValue(option: ValueOptions): string | undefined {\n  const { op, varName, varValue: value, isFirst, reserved } = option;\n  const vals: string[] = [];\n  const first = getFirstOrSep(op, isFirst);\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n  if (named && varName) {\n    vals.push(encodeComponent(varName, reserved, op));\n    if (value === \"\") {\n      if (!ifEmpty) {\n        vals.push(ifEmpty);\n      }\n      return !vals.join(\"\") ? undefined : `${first}${vals.join(\"\")}`;\n    }\n    vals.push(\"=\");\n  }\n\n  const items = [];\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      items.push(encodeComponent(val, reserved, op));\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      if (!isDefined(value[key])) {\n        continue;\n      }\n      items.push(encodeRFC3986URIComponent(key));\n      items.push(encodeComponent(value[key], reserved, op));\n    }\n  }\n  vals.push(items.join(\",\"));\n  return !vals.join(\",\") ? undefined : `${first}${vals.join(\"\")}`;\n}\n\nfunction getVarValue(option: ValueOptions): string | undefined {\n  const { op, varName, modifier, isFirst, reserved, varValue: value } = option;\n\n  if (!isDefined(value)) {\n    return undefined;\n  } else if ([\"string\", \"number\", \"boolean\"].includes(typeof value)) {\n    let val = value.toString();\n    const [named, ifEmpty] = getNamedAndIfEmpty(op);\n    const vals: string[] = [getFirstOrSep(op, isFirst)];\n    if (named && varName) {\n      // No need to encode varName considering it is already encoded\n      vals.push(varName);\n      if (val === \"\") {\n        vals.push(ifEmpty);\n      } else {\n        vals.push(\"=\");\n      }\n    }\n    if (modifier && modifier !== \"*\") {\n      val = val.substring(0, parseInt(modifier, 10));\n    }\n    vals.push(encodeComponent(val, reserved, op));\n    return vals.join(\"\");\n  } else if (modifier === \"*\") {\n    return getExpandedValue(option);\n  } else {\n    return getNonExpandedValue(option);\n  }\n}\n\n// ---------------------------------------------------------------------------------------------------\n// This is an implementation of RFC 6570 URI Template: https://datatracker.ietf.org/doc/html/rfc6570.\n// ---------------------------------------------------------------------------------------------------\nexport function expandUrlTemplate(\n  template: string,\n  context: Record<string, any>,\n  option?: UrlTemplateOptions,\n): string {\n  return template.replace(/\\{([^{}]+)\\}|([^{}]+)/g, (_, expr, text) => {\n    if (!expr) {\n      return encodeReservedComponent(text);\n    }\n    let op;\n    let expressionToParse = expr;\n    if ([\"+\", \"#\", \".\", \"/\", \";\", \"?\", \"&\"].includes(expressionToParse[0])) {\n      op = expressionToParse[0];\n      expressionToParse = expressionToParse.slice(1);\n    }\n    const varList = expressionToParse.split(/,/g);\n    const result = [];\n    for (const varSpec of varList) {\n      const varMatch = /([^:*]*)(?::(\\d+)|(\\*))?/.exec(varSpec);\n      if (!varMatch || !varMatch[1]) {\n        continue;\n      }\n      const varValue = getVarValue({\n        isFirst: result.length === 0,\n        op,\n        varValue: context[varMatch[1]],\n        varName: varMatch[1],\n        modifier: varMatch[2] || varMatch[3],\n        reserved: option?.allowReserved,\n      });\n      if (varValue) {\n        result.push(varValue);\n      }\n    }\n    return result.join(\"\");\n  });\n}\n",
+      "contentHash": "d7277961b69420f95147a659c23df696cbabd0f7101ecc2c392ae21febf5d55b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "id": "d0a9bc586617482390c869e43f91d3e1e3fd4d95ffbdba32b71367ece07dce97",
+      "startLine": 1,
+      "endLine": 211,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/vitest.browser.config.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport viteConfig from \"../../../vitest.browser.shared.config.ts\";\n\nexport default viteConfig;\n",
+      "contentHash": "4d99aead2bd334a8b457d84c094e1c3e4d5792c3338d4834edaa4b3a4aae1dbf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/vitest.browser.config.ts",
+      "id": "785df9c4409211c7b20be9e17925046d9f991f279d32b00ddfcead77f8151321",
+      "startLine": 1,
+      "endLine": 6,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/vitest.browser.int.config.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport viteConfig from \"../../../vitest.browser.shared.config.js\";\n\nexport default viteConfig;\n",
+      "contentHash": "91a962c7705800cb32f066052d1a2ec13599cfe4d2611545837c04efea23fb7f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/vitest.browser.int.config.ts",
+      "id": "4a57944110cab3fbe835107c7d401f444ed2b708e39c8423313d83c07726ddc3",
+      "startLine": 1,
+      "endLine": 6,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/vitest.browser.unit.config.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { defineConfig, mergeConfig } from \"vitest/config\";\nimport viteConfig from \"../../../vitest.browser.shared.config.js\";\n\nexport default mergeConfig(\n  viteConfig,\n  defineConfig({\n    test: {\n      exclude: [\"dist-test/browser/test/internal/{,!(unit)/**/}*.spec.js\", \"dist-test/browser/test/public/**/*.spec.js\"],\n      typecheck: {\n        enabled: false,\n      },\n    },\n  }),\n);\n",
+      "contentHash": "3ccb11ff4a79c18de2647c7cab21e19be33a8ec3720db73234b5bbff53ef1d46",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/vitest.browser.unit.config.ts",
+      "id": "b383218804ecb5293e3349f9a920c09fabc15f61f81c1ad5b84b8d3394d5d2ae",
+      "startLine": 1,
+      "endLine": 17,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/vitest.config.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport viteConfig from \"../../../vitest.shared.config.ts\";\n\nexport default viteConfig;\n",
+      "contentHash": "cc62872543cb3ba4595f7c6a0304ee5c82483bba4c07b806a2cf9e98cb432a51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/vitest.config.ts",
+      "id": "fbe631e317596ef8b9bea11b182bc1b59d792cca20992655b74fe36a5a9a695a",
+      "startLine": 1,
+      "endLine": 6,
+      "kind": "unknown"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/package.json",
+      "text": "{\n  \"name\": \"@azure/monitor-query-logs\",\n  \"version\": \"1.0.1\",\n  \"description\": \"An isomorphic client library for querying Azure Monitor's Logs data sources.\",\n  \"sdk-type\": \"client\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/monitorQueryLogsContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* temp types *.tgz *.log coverage coverage-browser\",\n    \"execute:samples\": \"echo Obsolete\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"test:node:live\": \"dev-tool run test:vitest -- -c vitest.int.config.ts\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/monitor/monitor-query-logs\"\n  },\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"keywords\": [\n    \"azure\",\n    \"cloud\",\n    \"typescript\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/monitor/monitor-query-logs/README.md\",\n  \"sideEffects\": false,\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.5.0\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure/core-paging\": \"^1.6.2\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/abort-controller\": \"^2.0.0\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/monitor-opentelemetry-exporter\": \"1.0.0-beta.45\",\n    \"@opentelemetry/api\": \"^1.9.1\",\n    \"@opentelemetry/sdk-trace-base\": \"^2.9.0\",\n    \"@opentelemetry/sdk-trace-node\": \"^2.9.0\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"//sampleConfiguration\": {\n    \"skipFolder\": false,\n    \"productName\": \"Monitor Query Logs\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-monitor\"\n    ],\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/\",\n    \"requiredResources\": {\n      \"Azure Monitor\": \"https://learn.microsoft.com/azure/azure-monitor/\"\n    }\n  },\n  \"type\": \"module\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "6389a58aa91d952375c4d0864729f3dbe914c159a57c2f8c3f455d20028686fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/package.json"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Query.Logs\ncommit: fe3a4c5e55bff5ef805503fa9260a5cd3118cbf2\nrepo: azure/azure-rest-api-specs\n",
+      "contentHash": "3bdcf38f5480b80739bee06371854b4860521946dffeb9d0f290816d1b3f71d9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/monitor/monitor-query-logs/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 16,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "7b9bcd59dd6680aadf1448be12d8017ae573815c1679ac4250667a6b01c16655"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "startLine": 1,
+      "endLine": 48,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "792195cc0ab2cd52871086534628115aa65d438ac3b179dfc2f3148bd8f8c472"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 171,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "feaac82537eed5c2127925afddc0f05f243a7d5a2080bece9e5f4a6530e3cbac"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 49,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "9e8d59b47d7b3a0c048a7a6fd74b3295f96b2d871da6d628c82c3ad4e4fc08da"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/index.ts",
+      "startLine": 1,
+      "endLine": 41,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "2daa5ff1003ea5e755e35abcf9583cb47b3382a07cd12d48fedd701ca9a2f859"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "startLine": 1,
+      "endLine": 166,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "afd80ea628d38b0ee7b3d35947d4cbabdea6a8eeefe022f9b7447ff74395b6f3"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/constants.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f1724534e32ae7c8d37d7a6a66ea8a99830d1a2f9cdc3fffcc84e9f4928d9606"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "2a831b9b0f6dde04ab7f3ce85fb2e38121d02f7f7ea9e31a5f54d117e3ba10f0"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 535,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "60cb123c45cf1971921af8445fcc0e922bd99ff9d563174b37e480489e047df9"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/public.ts",
+      "startLine": 1,
+      "endLine": 130,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "9e5d8ffb39baf50e851a3ce961b07e5883d3407cb3404574aa06c3b2fb9d3c85"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 1,
+      "endLine": 74,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "43b09c9a5936b283102bfad7089a2a4e51c0eda21aa5a19f2c7e5deacfd90316"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "startLine": 1,
+      "endLine": 42,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fb4fde194ba70ee2fa8a4c4f09c603fd8e20893c590d86b447d814597f84211e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 211,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d7277961b69420f95147a659c23df696cbabd0f7101ecc2c392ae21febf5d55b"
+    }
+  ]
+}

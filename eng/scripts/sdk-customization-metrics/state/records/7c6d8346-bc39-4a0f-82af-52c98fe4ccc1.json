@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "7c6d8346-bc39-4a0f-82af-52c98fe4ccc1",
+  "observedAt": "2026-10-22T20:42:37.756Z",
+  "identity": "python:azure-onlineexperimentation:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-onlineexperimentation",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/onlineexperimentation/azure-onlineexperimentation"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "66b725f9603d439e77703f1900d74a206b7b2900"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 53,
+    "eligibleFiles": 29,
+    "capturedFiles": 0,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [],
+  "generationContext": [
+    {
+      "path": "sdk/onlineexperimentation/azure-onlineexperimentation/README.md",
+      "text": "# Azure Online Experimentation client library for Python\n\nThis package contains Azure Online Experimentation client library for interacting with `Microsoft.OnlineExperimentation/workspaces` resources.\n\n## Getting started\n\n### Install the package\n\n```bash\npython -m pip install azure-onlineexperimentation\n```\n\n#### Prequisites\n\n- Python 3.9 or later is required to use this package.\n- You need an [Azure subscription][azure_sub] to use this package.\n- An [Azure Online Experimentation workspace][azure_exp_workspace] resource in the Azure subscription.\n\n### Create and authenticate the client\n\nThe Azure Online Experimentation client library initialization requires two parameters:\n\n- The `endpoint` property value from the [`Microsoft.OnlineExperimentation/workspaces`][azure_exp_workspace] resource.\n- A credential from `azure.identity`, the simplest approach is to use [DefaultAzureCredential][default_azure_credential] and `az login` to authenticate. See [Azure Identity client library for Python][azure_identity_credentials] for more details.\n\nTo construct a synchronous client:\n\n<!-- SNIPPET:sample_initialize_client.initialize_client -->\n\n```python\nimport os\nfrom azure.identity import DefaultAzureCredential\nfrom azure.onlineexperimentation import OnlineExperimentationClient\n\n# Create a client with your Online Experimentation workspace endpoint and credentials\nendpoint = os.environ[\"AZURE_ONLINEEXPERIMENTATION_ENDPOINT\"]\nclient = OnlineExperimentationClient(endpoint, DefaultAzureCredential())\nprint(f\"Client initialized with endpoint: {endpoint}\")\n```\n\n<!-- END SNIPPET -->\n\nTo construct an asynchronous client, instead import `OnlineExperimentationClient` from `azure.onlineexperimentation.aio` and `DefaultAzureCredential` from `azure.identity.aio` namespaces:\n\n<!-- SNIPPET:sample_initialize_async_client.initialize_async_client -->\n\n```python\nimport os\nfrom azure.identity.aio import DefaultAzureCredential\nfrom azure.onlineexperimentation.aio import OnlineExperimentationClient\n\n# Create a client with your Online Experimentation workspace endpoint and credentials\nendpoint = os.environ[\"AZURE_ONLINEEXPERIMENTATION_ENDPOINT\"]\nclient = OnlineExperimentationClient(endpoint, DefaultAzureCredential())\nprint(f\"Client initialized with endpoint: {endpoint}\")\n```\n\n<!-- END SNIPPET -->\n\n## Key concepts\n\n### Online Experimentation Workspace\n\n[`Microsoft.OnlineExperimentation/workspaces`][az_exp_workspace] Azure resources work in conjunction with [Azure App Configuration][app_config] and [Azure Monitor][azure_monitor]. The Online Experimentation workspace handles management of metrics definitions and their continuous computation to monitor and evaluate experiment results.\n\n### Experiment Metrics\n\nMetrics are used to measure the impact of your online experiments. See the [samples][azure_exp_samples] for how to create and manage various types of experiment metrics.\n\n## Troubleshooting\n\nErrors can occur during initial requests and will provide information about how to resolve the error.\n\n## Examples\n\nThis examples goes theough the experiment metric management lifecycle, to run the example:\n\n- Set `AZURE_ONLINEEXPERIMENTATION_ENDPOINT` environment variable to the `endpoint` property value (URL) from a [`Microsoft.OnlineExperimentation/workspaces`][az_exp_workspace] resource.\n- Enable `DefaultAzureCredential` by running `az login` or `Connect-AzAccount`, see [documentation][default_azure_credential] for details and troubleshooting.\n\n<!-- SNIPPET:sample_experiment_metrics_management.experiment_metrics_management -->\n\n```python\nimport os\nimport random\nimport json\nfrom azure.identity import DefaultAzureCredential\nfrom azure.onlineexperimentation import OnlineExperimentationClient\nfrom azure.onlineexperimentation.models import (\n    ExperimentMetric,\n    LifecycleStage,\n    DesiredDirection,\n    UserRateMetricDefinition,\n    ObservedEvent,\n)\nfrom azure.core.exceptions import HttpResponseError\n\n# [Step 1] Initialize the SDK client\n# The endpoint URL from the Microsoft.OnlineExperimentation/workspaces resource\nendpoint = os.environ.get(\"AZURE_ONLINEEXPERIMENTATION_ENDPOINT\", \"<endpoint-not-set>\")\ncredential = DefaultAzureCredential()\n\nprint(f\"AZURE_ONLINEEXPERIMENTATION_ENDPOINT is {endpoint}\")\n\nclient = OnlineExperimentationClient(endpoint=endpoint, credential=credential)\n\n# [Step 2] Define the experiment metric\nexample_metric = ExperimentMetric(\n    lifecycle=LifecycleStage.ACTIVE,\n    display_name=\"% users with LLM interaction who made a high-value purchase\",\n    description=\"Percentage of users who received a response from the LLM and then made a purchase of $100 or more\",\n    categories=[\"Business\"],\n    desired_direction=DesiredDirection.INCREASE,\n    definition=UserRateMetricDefinition(\n        start_event=ObservedEvent(event_name=\"ResponseReceived\"),\n        end_event=ObservedEvent(event_name=\"Purchase\", filter=\"Revenue > 100\"),\n    ),\n)\n\n# [Optional][Step 2a] Validate the metric - checks for input errors without persisting anything\nprint(\"Checking if the experiment metric definition is valid...\")\nprint(json.dumps(example_metric.as_dict(), indent=2))\n\ntry:\n    validation_result = client.validate_metric(example_metric)\n\n    print(f\"Experiment metric definition valid: {validation_result.is_valid}.\")\n    for detail in validation_result.diagnostics or []:\n        # Inspect details of why the metric definition was rejected as Invalid\n        print(f\"- {detail.code}: {detail.message}\")\n\n    # [Step 3] Create the experiment metric\n    example_metric_id = f\"sample_metric_id_{random.randint(10000, 20000)}\"\n\n    print(f\"Creating the experiment metric {example_metric_id}...\")\n    # Using upsert to create the metric with If-None-Match header\n    create_response = client.create_or_update_metric(\n        experiment_metric_id=example_metric_id,\n        resource=example_metric,\n        match_condition=None,  # This ensures If-None-Match: * header is sent\n        etag=None,\n    )\n\n    print(f\"Experiment metric {create_response.id} created, etag: {create_response.etag}.\")\n\n    # [Step 4] Deactivate the experiment metric and update the description\n    updated_metric = {\n        \"lifecycle\": LifecycleStage.INACTIVE,  # pauses computation of this metric\n        \"description\": \"No longer need to compute this.\",\n    }\n\n    update_response = client.create_or_update_metric(\n        experiment_metric_id=example_metric_id,\n        resource=updated_metric,\n        etag=create_response.etag,  # Ensures If-Match header is sent\n        match_condition=None,  # Not specifying match_condition as we're using etag\n    )\n\n    print(f\"Updated metric: {update_response.id}, etag: {update_response.etag}.\")\n\n    # [Step 5] Delete the experiment metric\n    client.delete_metric(\n        experiment_metric_id=example_metric_id, etag=update_response.etag  # Ensures If-Match header is sent\n    )\n\n    print(f\"Deleted metric: {example_metric_id}.\")\n\nexcept HttpResponseError as error:\n    print(f\"The operation failed with error: {error}\")\n```\n\n<!-- END SNIPPET -->\n\n## Next steps\n\nHave a look at the [samples][azure_exp_samples] folder, containing fully runnable Python code for synchronous and asynchronous clients.\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require\nyou to agree to a Contributor License Agreement (CLA) declaring that you have\nthe right to, and actually do, grant us the rights to use your contribution.\nFor details, visit <https://cla.microsoft.co>m.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether\nyou need to provide a CLA and decorate the PR appropriately (e.g., label,\ncomment). Simply follow the instructions provided by the bot. You will only\nneed to do this once across all repos using our CLA.\n\nThis project has adopted the\n[Microsoft Open Source Code of Conduct][code_of_conduct]. For more information,\nsee the Code of Conduct FAQ or contact <opencode@microsoft.com> with any\nadditional questions or comments.\n\n<!-- LINKS -->\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[azure_identity_credentials]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#credentials\n\n[default_azure_credential]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#defaultazurecredential\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_exp_workspace]: https://learn.microsoft.com/azure/templates/microsoft.onlineexperimentation/workspaces\n[app_config]: https://learn.microsoft.com/azure/azure-app-configuration/overview\n[azure_monitor]: https://learn.microsoft.com/azure/azure-monitor/overview\n[azure_exp_samples]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/onlineexperimentation/azure-onlineexperimentation/samples/\n",
+      "contentHash": "3e89f211e81cb4c74dd126426eb7ea5612b9567a3ffb288092c230278fabdb84",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/onlineexperimentation/azure-onlineexperimentation/README.md"
+    },
+    {
+      "path": "sdk/onlineexperimentation/azure-onlineexperimentation/tsp-location.yaml",
+      "text": "directory: specification/onlineexperimentation/Azure.Analytics.OnlineExperimentation\ncommit: 1a08b6408cd128e956f17c84ec2d5d5ef49306b9\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "e9b5791300e0460f45378c65cc4cfea02b5e76ad48b1b06817a0e03e6e4e3c3c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/onlineexperimentation/azure-onlineexperimentation/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": []
+}

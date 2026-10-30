@@ -1,0 +1,893 @@
+{
+  "schemaVersion": 1,
+  "id": "a5546005-c79e-4151-9489-992660bc758e",
+  "observedAt": "2026-10-27T08:57:16.100Z",
+  "identity": "dotnet:azure.resourcemanager.resources.deployments:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.Resources.Deployments",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/resources/Azure.ResourceManager.Resources.Deployments"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "f5ffc49248f7b4344f0ca304e478dcf456e02872"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 188,
+    "eligibleFiles": 164,
+    "capturedFiles": 6,
+    "skipped": [
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmDeploymentResource.cs",
+        "reason": "Review budget; only lines 1-407 sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/ResourcesDeploymentsExtensions.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/LongRunningOperation/ResourcesArmOperation.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/LongRunningOperation/ResourcesArmOperationOfT.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentOperationProperties.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentProperties.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentPropertiesExtended.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentValidateResult.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/StatusMessage.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/WhatIfOperationResult.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/RestOperations/ArmDeploymentsRestOperations.cs",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmDeploymentResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Collections.Generic;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Azure.ResourceManager.ManagementGroups;\nusing Azure.ResourceManager.Resources.Deployments.Models;\nusing Azure.ResourceManager.Resources.Models;\n\nnamespace Azure.ResourceManager.Resources.Deployments\n{\n    public partial class ArmDeploymentResource : ArmResource\n    {\n        // Preserve tag helpers shipped in the GA API. New resources with incompatible PUT body and\n        // resource data types do not generate these methods.\n\n        /// <summary> Add a tag to the current resource. </summary>\n        /// <param name=\"key\"> The key for the tag. </param>\n        /// <param name=\"value\"> The value for the tag. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"key\"/> or <paramref name=\"value\"/> is null. </exception>\n        public virtual async Task<Response<ArmDeploymentResource>> AddTagAsync(string key, string value, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(key, nameof(key));\n            Argument.AssertNotNull(value, nameof(value));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.AddTag\");\n            scope.Start();\n            try\n            {\n                if (await CanUseTagResourceAsync(cancellationToken).ConfigureAwait(false))\n                {\n                    Response<TagResource> originalTags = await GetTagResource().GetAsync(cancellationToken).ConfigureAwait(false);\n                    originalTags.Value.Data.TagValues[key] = value;\n                    await GetTagResource().CreateOrUpdateAsync(WaitUntil.Completed, originalTags.Value.Data, cancellationToken).ConfigureAwait(false);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = (await GetAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Value.Data;\n                    current.Tags[key] = value;\n                    ArmOperation<ArmDeploymentResource> result = await UpdateAsync(WaitUntil.Completed, current, cancellationToken: cancellationToken).ConfigureAwait(false);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Add a tag to the current resource. </summary>\n        /// <param name=\"key\"> The key for the tag. </param>\n        /// <param name=\"value\"> The value for the tag. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"key\"/> or <paramref name=\"value\"/> is null. </exception>\n        public virtual Response<ArmDeploymentResource> AddTag(string key, string value, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(key, nameof(key));\n            Argument.AssertNotNull(value, nameof(value));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.AddTag\");\n            scope.Start();\n            try\n            {\n                if (CanUseTagResource(cancellationToken))\n                {\n                    Response<TagResource> originalTags = GetTagResource().Get(cancellationToken);\n                    originalTags.Value.Data.TagValues[key] = value;\n                    GetTagResource().CreateOrUpdate(WaitUntil.Completed, originalTags.Value.Data, cancellationToken);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = Pipeline.ProcessMessage(message, context);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = Get(cancellationToken: cancellationToken).Value.Data;\n                    current.Tags[key] = value;\n                    ArmOperation<ArmDeploymentResource> result = Update(WaitUntil.Completed, current, cancellationToken: cancellationToken);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Replace the tags on the resource with the given set. </summary>\n        /// <param name=\"tags\"> The tags to set on the resource. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tags\"/> is null. </exception>\n        public virtual async Task<Response<ArmDeploymentResource>> SetTagsAsync(IDictionary<string, string> tags, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(tags, nameof(tags));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.SetTags\");\n            scope.Start();\n            try\n            {\n                if (await CanUseTagResourceAsync(cancellationToken).ConfigureAwait(false))\n                {\n                    await GetTagResource().DeleteAsync(WaitUntil.Completed, cancellationToken).ConfigureAwait(false);\n                    Response<TagResource> originalTags = await GetTagResource().GetAsync(cancellationToken).ConfigureAwait(false);\n                    originalTags.Value.Data.TagValues.ReplaceWith(tags);\n                    await GetTagResource().CreateOrUpdateAsync(WaitUntil.Completed, originalTags.Value.Data, cancellationToken).ConfigureAwait(false);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = (await GetAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Value.Data;\n                    current.Tags.ReplaceWith(tags);\n                    ArmOperation<ArmDeploymentResource> result = await UpdateAsync(WaitUntil.Completed, current, cancellationToken: cancellationToken).ConfigureAwait(false);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Replace the tags on the resource with the given set. </summary>\n        /// <param name=\"tags\"> The tags to set on the resource. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tags\"/> is null. </exception>\n        public virtual Response<ArmDeploymentResource> SetTags(IDictionary<string, string> tags, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(tags, nameof(tags));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.SetTags\");\n            scope.Start();\n            try\n            {\n                if (CanUseTagResource(cancellationToken))\n                {\n                    GetTagResource().Delete(WaitUntil.Completed, cancellationToken);\n                    Response<TagResource> originalTags = GetTagResource().Get(cancellationToken);\n                    originalTags.Value.Data.TagValues.ReplaceWith(tags);\n                    GetTagResource().CreateOrUpdate(WaitUntil.Completed, originalTags.Value.Data, cancellationToken);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = Pipeline.ProcessMessage(message, context);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = Get(cancellationToken: cancellationToken).Value.Data;\n                    current.Tags.ReplaceWith(tags);\n                    ArmOperation<ArmDeploymentResource> result = Update(WaitUntil.Completed, current, cancellationToken: cancellationToken);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Removes a tag by key from the resource. </summary>\n        /// <param name=\"key\"> The key for the tag. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"key\"/> is null. </exception>\n        public virtual async Task<Response<ArmDeploymentResource>> RemoveTagAsync(string key, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(key, nameof(key));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.RemoveTag\");\n            scope.Start();\n            try\n            {\n                if (await CanUseTagResourceAsync(cancellationToken).ConfigureAwait(false))\n                {\n                    Response<TagResource> originalTags = await GetTagResource().GetAsync(cancellationToken).ConfigureAwait(false);\n                    originalTags.Value.Data.TagValues.Remove(key);\n                    await GetTagResource().CreateOrUpdateAsync(WaitUntil.Completed, originalTags.Value.Data, cancellationToken).ConfigureAwait(false);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = (await GetAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Value.Data;\n                    current.Tags.Remove(key);\n                    ArmOperation<ArmDeploymentResource> result = await UpdateAsync(WaitUntil.Completed, current, cancellationToken: cancellationToken).ConfigureAwait(false);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Removes a tag by key from the resource. </summary>\n        /// <param name=\"key\"> The key for the tag. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"key\"/> is null. </exception>\n        public virtual Response<ArmDeploymentResource> RemoveTag(string key, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(key, nameof(key));\n\n            using DiagnosticScope scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.RemoveTag\");\n            scope.Start();\n            try\n            {\n                if (CanUseTagResource(cancellationToken))\n                {\n                    Response<TagResource> originalTags = GetTagResource().Get(cancellationToken);\n                    originalTags.Value.Data.TagValues.Remove(key);\n                    GetTagResource().CreateOrUpdate(WaitUntil.Completed, originalTags.Value.Data, cancellationToken);\n                    RequestContext context = new RequestContext\n                    {\n                        CancellationToken = cancellationToken\n                    };\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateGetAtScopeRequest(Id.Parent.ToString(), Id.Name, context);\n                    Response result = Pipeline.ProcessMessage(message, context);\n                    Response<ArmDeploymentData> response = Response.FromValue(ArmDeploymentData.FromResponse(result), result);\n                    return Response.FromValue(new ArmDeploymentResource(Client, response.Value), response.GetRawResponse());\n                }\n                else\n                {\n                    ArmDeploymentData current = Get(cancellationToken: cancellationToken).Value.Data;\n                    current.Tags.Remove(key);\n                    ArmOperation<ArmDeploymentResource> result = Update(WaitUntil.Completed, current, cancellationToken: cancellationToken);\n                    return Response.FromValue(result.Value, result.GetRawResponse());\n                }\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        // This operation is only used for tags operations: AddTag, SetTags, RemoveTag.\n        /// <summary>\n        /// Update a ArmDeployment.\n        /// </summary>\n        internal virtual async Task<ArmOperation<ArmDeploymentResource>> UpdateAsync(WaitUntil waitUntil, ArmDeploymentData data, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(data, nameof(data));\n            ArmDeploymentContent content = new ArmDeploymentContent(data.Location, new ArmDeploymentProperties(data.Properties.Mode.Value), data.Tags, null, null);\n            return await UpdateAsync(waitUntil, content, cancellationToken).ConfigureAwait(false);\n        }\n\n        // This operation is only used for tags operations: AddTag, SetTags, RemoveTag.\n        /// <summary>\n        /// Update a ArmDeployment.\n        /// </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> if the method should wait to return until the long-running operation has completed on the service; <see cref=\"WaitUntil.Started\"/> if it should return after starting the operation. For more information on long-running operations, please see <see href=\"https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/samples/LongRunningOperations.md\"> Azure.Core Long-Running Operation samples</see>. </param>\n        /// <param name=\"data\"> Additional parameters supplied to the operation. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"data\"/> is null. </exception>\n        internal virtual ArmOperation<ArmDeploymentResource> Update(WaitUntil waitUntil, ArmDeploymentData data, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(data, nameof(data));\n            ArmDeploymentContent content = new ArmDeploymentContent(data.Location, new ArmDeploymentProperties(data.Properties.Mode.Value), data.Tags, null, null);\n            return Update(waitUntil, content, cancellationToken);\n        }\n\n        /// <summary>\n        /// Returns changes that will be made by the deployment if executed at the scope of the tenant group.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Resources/deployments/{deploymentName}/whatIf</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_WhatIfAtTenantScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Management/managementGroups/{groupId}/providers/Microsoft.Resources/deployments/{deploymentName}/whatIf</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_WhatIfAtManagementGroupScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/subscriptions/{subscriptionId}/providers/Microsoft.Resources/deployments/{deploymentName}/whatIf</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_WhatIfAtSubscriptionScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/Microsoft.Resources/deployments/{deploymentName}/whatIf</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_WhatIf</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> if the method should wait to return until the long-running operation has completed on the service; <see cref=\"WaitUntil.Started\"/> if it should return after starting the operation. For more information on long-running operations, please see <see href=\"https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/samples/LongRunningOperations.md\"> Azure.Core Long-Running Operation samples</see>. </param>\n        /// <param name=\"content\"> Parameters to validate. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"content\"/> is null. </exception>\n        // In previous versions, all What-If operations were implemented as part of ArmDeploymentResource.\n        public virtual async Task<ArmOperation<WhatIfOperationResult>> WhatIfAsync(WaitUntil waitUntil, ArmDeploymentWhatIfContent content, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(content, nameof(content));\n\n            using var scope = _armDeploymentsClientDiagnostics.CreateScope(\"ArmDeploymentResource.WhatIf\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                if (Id.Parent.ResourceType == TenantResource.ResourceType)\n                {\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateWhatIfAtTenantScopeRequest(Id.Name, ArmDeploymentWhatIfContent.ToRequestContent(content), context);\n                    Response response = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                    ResourcesArmOperation<WhatIfOperationResult> operation = new ResourcesArmOperation<WhatIfOperationResult>(\n                        new WhatIfOperationResultOperationSource(),\n                        _armDeploymentsClientDiagnostics,\n                        Pipeline,\n                        message.Request,\n                        response,\n                        OperationFinalStateVia.Location);\n                    if (waitUntil == WaitUntil.Completed)\n                    {\n                        await operation.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);\n                    }\n                    return operation;\n                }\n                else if (Id.Parent.ResourceType == ManagementGroupResource.ResourceType)\n                {\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateWhatIfAtManagementGroupScopeRequest(Id.Parent.Name, Id.Name, ArmDeploymentWhatIfContent.ToRequestContent(content), context);\n                    Response response = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                    ResourcesArmOperation<WhatIfOperationResult> operation = new ResourcesArmOperation<WhatIfOperationResult>(\n                        new WhatIfOperationResultOperationSource(),\n                        _armDeploymentsClientDiagnostics,\n                        Pipeline,\n                        message.Request,\n                        response,\n                        OperationFinalStateVia.Location);\n                    if (waitUntil == WaitUntil.Completed)\n                    {\n                        await operation.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);\n                    }\n                    return operation;\n                }\n                else if (Id.Parent.ResourceType == SubscriptionResource.ResourceType)\n                {\n                    Core.HttpMessage message = _armDeploymentsRestClient.CreateWhatIfAtSubscriptionScopeRequest(Id.SubscriptionId, Id.Name, ArmDeploymentWhatIfContent.ToRequestContent(content), context);",
+      "contentHash": "1cec6ff472214f0eccb73d524dbc3f9c2d290911613f1f8f60835a6080d5d08e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmDeploymentResource.cs",
+      "startLine": 1,
+      "endLine": 407,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmResourcesModelFactory.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.Resources.Deployments.Models\n{\n    [CodeGenType(\"ArmResourcesDeploymentsModelFactory\")]\n    public static partial class ArmResourcesModelFactory\n    {\n    }\n}\n",
+      "contentHash": "c5bff512b5367a867f3019981fe734159e61d9a14f846cacb47b044fb22b62e7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmResourcesModelFactory.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "0fd86070c33ab3a9888e65503c8e6838685e7fde93d897f7dfc060830ced94d2"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsManagementGroupResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\n// NOTE: All the GetArmDeployments and GetArmDeployment operations are existed in the library before, but now can't be generated from TypeSpec because of the scope implementation change.\n// To avoid breaking customers who are using these operations, we use customization code to keep them, would like to be removed in the future when MPG can provide some better way to handle this kind of scenario.\nnamespace Azure.ResourceManager.Resources.Deployments.Mocking\n{\n    /// <summary> A class to add extension methods to ManagementGroupResource. </summary>\n    public partial class MockableResourcesDeploymentsManagementGroupResource : ArmResource\n    {\n        /// <summary> Initializes a new instance of the <see cref=\"MockableResourcesDeploymentsManagementGroupResource\"/> class for mocking. </summary>\n        protected MockableResourcesDeploymentsManagementGroupResource()\n        {\n        }\n\n        /// <summary> Initializes a new instance of the <see cref=\"MockableResourcesDeploymentsManagementGroupResource\"/> class. </summary>\n        /// <param name=\"client\"> The client parameters to use in these operations. </param>\n        /// <param name=\"id\"> The identifier of the resource that is the target of operations. </param>\n        internal MockableResourcesDeploymentsManagementGroupResource(ArmClient client, ResourceIdentifier id) : base(client, id)\n        {\n        }\n\n        private string GetApiVersionOrNull(ResourceType resourceType)\n        {\n            TryGetApiVersion(resourceType, out string apiVersion);\n            return apiVersion;\n        }\n\n        /// <summary> Gets a collection of ArmDeploymentResources in the ManagementGroupResource. </summary>\n        /// <returns> An object representing collection of ArmDeploymentResources and their operations over a ArmDeploymentResource. </returns>\n        public virtual ArmDeploymentCollection GetArmDeployments()\n        {\n            return GetCachedClient(client => new ArmDeploymentCollection(client, Id));\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual async Task<Response<ArmDeploymentResource>> GetArmDeploymentAsync(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return await GetArmDeployments().GetAsync(deploymentName, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual Response<ArmDeploymentResource> GetArmDeployment(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return GetArmDeployments().Get(deploymentName, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "1a0ccb3ec2969cec42eb4d2e9b25209a34af1e53915fb921b6574fd3d55e814e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsManagementGroupResource.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "kind": "handwritten-marker",
+      "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsResourceGroupResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\n// NOTE: All the GetArmDeployments and GetArmDeployment operations are existed in the library before, but now can't be generated from TypeSpec because of the scope implementation change.\n// To avoid breaking customers who are using these operations, we use customization code to keep them, would like to be removed in the future when MPG can provide some better way to handle this kind of scenario.\nnamespace Azure.ResourceManager.Resources.Deployments.Mocking\n{\n    /// <summary> A class to add extension methods to ResourceGroupResource. </summary>\n    public partial class MockableResourcesDeploymentsResourceGroupResource : ArmResource\n    {\n        /// <summary> Initializes a new instance of the <see cref=\"MockableResourcesDeploymentsResourceGroupResource\"/> class for mocking. </summary>\n        protected MockableResourcesDeploymentsResourceGroupResource()\n        {\n        }\n\n        /// <summary> Initializes a new instance of the <see cref=\"MockableResourcesDeploymentsResourceGroupResource\"/> class. </summary>\n        /// <param name=\"client\"> The client parameters to use in these operations. </param>\n        /// <param name=\"id\"> The identifier of the resource that is the target of operations. </param>\n        internal MockableResourcesDeploymentsResourceGroupResource(ArmClient client, ResourceIdentifier id) : base(client, id)\n        {\n        }\n\n        private string GetApiVersionOrNull(ResourceType resourceType)\n        {\n            TryGetApiVersion(resourceType, out string apiVersion);\n            return apiVersion;\n        }\n\n        /// <summary> Gets a collection of ArmDeploymentResources in the ResourceGroupResource. </summary>\n        /// <returns> An object representing collection of ArmDeploymentResources and their operations over a ArmDeploymentResource. </returns>\n        public virtual ArmDeploymentCollection GetArmDeployments()\n        {\n            return GetCachedClient(client => new ArmDeploymentCollection(client, Id));\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual async Task<Response<ArmDeploymentResource>> GetArmDeploymentAsync(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return await GetArmDeployments().GetAsync(deploymentName, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual Response<ArmDeploymentResource> GetArmDeployment(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return GetArmDeployments().Get(deploymentName, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "1b7d8b04052c8361b8be083edbb018f2f3247df5ae20e9048a45ee7a6a57dc22",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsResourceGroupResource.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "kind": "handwritten-marker",
+      "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsSubscriptionResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.ResourceManager.Resources.Deployments.Models;\nusing Azure.ResourceManager.Resources.Models;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\n// NOTE: All the GetArmDeployments and GetArmDeployment operations are existed in the library before, but now can't be generated from TypeSpec because of the scope implementation change.\n// To avoid breaking customers who are using these operations, we use customization code to keep them, would like to be removed in the future when MPG can provide some better way to handle this kind of scenario.\nnamespace Azure.ResourceManager.Resources.Deployments.Mocking\n{\n    [CodeGenSuppress(\"WhatIfAtSubscriptionScopeAsync\", typeof(WaitUntil), typeof(string), typeof(ArmDeploymentWhatIfContent), typeof(CancellationToken))]   // The WhatIf operations are all moved to ArmDeploymentResource. Not scope out this operation from the client.tsp is intentional for genrating other related classes for the customized WhatIf operations.\n    [CodeGenSuppress(\"WhatIfAtSubscriptionScope\", typeof(WaitUntil), typeof(string), typeof(ArmDeploymentWhatIfContent), typeof(CancellationToken))]        // The WhatIf operations are all moved to ArmDeploymentResource. Not scope out this operation from the client.tsp is intentional for genrating other related classes for the customized WhatIf operations.\n    public partial class MockableResourcesDeploymentsSubscriptionResource : ArmResource\n    {\n        /// <summary> Gets a collection of ArmDeploymentResources in the SubscriptionResource. </summary>\n        /// <returns> An object representing collection of ArmDeploymentResources and their operations over a ArmDeploymentResource. </returns>\n        public virtual ArmDeploymentCollection GetArmDeployments()\n        {\n            return GetCachedClient(client => new ArmDeploymentCollection(client, Id));\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [Azure.Core.ForwardsClientCalls]\n        public virtual async Task<Response<ArmDeploymentResource>> GetArmDeploymentAsync(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return await GetArmDeployments().GetAsync(deploymentName, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [Azure.Core.ForwardsClientCalls]\n        public virtual Response<ArmDeploymentResource> GetArmDeployment(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return GetArmDeployments().Get(deploymentName, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "e81917a5876dd6e8e6b2fc7fde0449361b8b14eb7d31bb5ffb527354107aa7d7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsSubscriptionResource.cs",
+      "startLine": 1,
+      "endLine": 82,
+      "kind": "handwritten-marker",
+      "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsTenantResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\n// NOTE: All the GetArmDeployments and GetArmDeployment operations are existed in the library before, but now can't be generated from TypeSpec because of the scope implementation change.\n// To avoid breaking customers who are using these operations, we use customization code to keep them, would like to be removed in the future when MPG can provide some better way to handle this kind of scenario.\nnamespace Azure.ResourceManager.Resources.Deployments.Mocking\n{\n    public partial class MockableResourcesDeploymentsTenantResource : ArmResource\n    {\n        /// <summary> Gets a collection of ArmDeploymentResources in the TenantResource. </summary>\n        /// <returns> An object representing collection of ArmDeploymentResources and their operations over a ArmDeploymentResource. </returns>\n        public virtual ArmDeploymentCollection GetArmDeployments()\n        {\n            return GetCachedClient(client => new ArmDeploymentCollection(client, Id));\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual async Task<Response<ArmDeploymentResource>> GetArmDeploymentAsync(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return await GetArmDeployments().GetAsync(deploymentName, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Gets a deployment.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Resources/deployments/{deploymentName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Deployments_GetAtScope</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"ArmDeploymentResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"deploymentName\"> The name of the deployment. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"deploymentName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"deploymentName\"/> is an empty string, and was expected to be non-empty. </exception>\n        [ForwardsClientCalls]\n        public virtual Response<ArmDeploymentResource> GetArmDeployment(string deploymentName, CancellationToken cancellationToken = default)\n        {\n            return GetArmDeployments().Get(deploymentName, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "0a7363c936f6a1b79fbd6efbcd5f6fadb83f8860d305a7dd8e9dc51d21bd04ed",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsTenantResource.cs",
+      "startLine": 1,
+      "endLine": 78,
+      "kind": "handwritten-marker",
+      "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/README.md",
+      "text": "# Microsoft Azure Resources.Deployments management client library for .NET\n\nAzure Resource Manager Deployments provide an Azure native Infrastructure-as-Code (IaC) solution for managing Azure resources declaratively. This library can be used to manage Template Deployments, and is also compatible with Bicep-generated Templates.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Resources.Deployments management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.Resources.Deployments\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html)\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://docs.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "afa9727694b66966357fc1ca7b91d6314122b741f2c6b6f15b1da10d57e92069",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/README.md"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Azure.ResourceManager.Resources.Deployments.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.1.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.0.0</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.Resources.Deployments</PackageId>\n    <Description>Azure Resource Manager client SDK for Azure resource provider Resources.Deployments.</Description>\n    <PackageTags>azure;management;arm;resource manager;resources.deployments</PackageTags>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "cd7238245592a0aa858fe222cfff201dbed17085ff76ad27a66aed2c3a63bb14",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Azure.ResourceManager.Resources.Deployments.csproj"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/tsp-location.yaml",
+      "text": "directory: specification/resources/resource-manager/Microsoft.Resources/deployments\ncommit: f8beca0ed7b433a34c234f776c06cc38bc799eac\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n\n",
+      "contentHash": "fb87286bf201a92fdd240cbaa3bac01c531af85727a4f274d2b3dfb8f9b04289",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resources/Azure.ResourceManager.Resources.Deployments/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "318820d94470bf453e378f692a86c111405ed1b2e304a4ec8548c488eaf996ff",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "46f6906fe96a4b24a8a7fc5933fd53e1cea9b7a85072f8f3085363e93c11c46c",
+        "category": "Convenience methods",
+        "subtype": "Capability-selected add-tag helpers",
+        "explanation": "The AddTag sync/async pair validates key and value and selects between tag-resource and deployment-update paths. The tag-resource path retrieves tags, assigns the requested key, submits CreateOrUpdate with WaitUntil.Completed, then performs an at-scope GET and constructs an ArmDeploymentResource from the parsed deployment response. The fallback reads deployment data, assigns its Tags entry and calls the data-taking Update overload with WaitUntil.Completed.",
+        "pattern": "resource-tag-management",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both concrete tag-mutation implementations are supplied in src/Custom/ArmDeploymentResource.cs outside Generated; the capability branch, mutation, completed update and response reconstruction are executable bodies rather than comments.",
+        "symbols": [
+          "ArmDeploymentResource.AddTag(string, string, CancellationToken)",
+          "ArmDeploymentResource.AddTagAsync(string, string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 28,
+            "endLine": 56
+          },
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 71,
+            "endLine": 99
+          }
+        ]
+      },
+      {
+        "key": "b135a88ea04adcd50272255d7bdf6772ce8e91b1f0c1edd79c5b62b6fede931e",
+        "category": "Convenience methods",
+        "subtype": "Capability-selected replace-tags helpers",
+        "explanation": "The SetTags sync/async pair rejects a null dictionary and selects a tag-resource or deployment-update path. The tag-resource path first deletes with WaitUntil.Completed, then gets the tag resource, calls ReplaceWith(tags), submits CreateOrUpdate with WaitUntil.Completed, and refetches deployment data through the at-scope GET before constructing the returned resource. The fallback retrieves deployment data, calls current.Tags.ReplaceWith(tags), and forwards it to Update with WaitUntil.Completed. These are observed call sequences, not a runtime correctness claim.",
+        "pattern": "resource-tag-management",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The replacement-specific Delete, ReplaceWith, CreateOrUpdate and fallback update sequences are concrete handwritten implementations in the Custom partial, distinct from adding or removing a single tag.",
+        "symbols": [
+          "ArmDeploymentResource.SetTags(IDictionary<string, string>, CancellationToken)",
+          "ArmDeploymentResource.SetTagsAsync(IDictionary<string, string>, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 113,
+            "endLine": 141
+          },
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 155,
+            "endLine": 183
+          }
+        ]
+      },
+      {
+        "key": "a80558ab51af8b04b1ebdf360f94d5bdee783bca7ff928c52c75df4b3cfdfe7c",
+        "category": "Convenience methods",
+        "subtype": "Capability-selected remove-tag helpers",
+        "explanation": "The RemoveTag sync/async pair validates the key, then either retrieves the tag resource, removes that key, updates the tag resource with WaitUntil.Completed and refetches deployment data, or retrieves deployment data, removes the key from current.Tags and passes that data to Update with WaitUntil.Completed. Each path constructs the returned ArmDeploymentResource from its response data.",
+        "pattern": "resource-tag-management",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both Custom method bodies implement the removal mutation and capability-dependent request sequence; no custom poller implementation is inferred from their calls to completed operations.",
+        "symbols": [
+          "ArmDeploymentResource.RemoveTag(string, CancellationToken)",
+          "ArmDeploymentResource.RemoveTagAsync(string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 197,
+            "endLine": 224
+          },
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 238,
+            "endLine": 265
+          }
+        ]
+      },
+      {
+        "key": "af39c5820e454649beb34da064a59d494fea373cd6e2f6e2a8a4cfcbb0fd5e11",
+        "category": "Convenience methods",
+        "subtype": "Deployment-data to update-content overload adapters",
+        "explanation": "The internal Update sync/async overloads reject null ArmDeploymentData and construct ArmDeploymentContent from data.Location, a new ArmDeploymentProperties initialized with data.Properties.Mode.Value, data.Tags and two null arguments. They forward that content, the caller's WaitUntil and cancellation token to the content-taking Update overload. The bodies do not show cloning of Tags or additional validation of Properties or Mode.",
+        "pattern": "model-input-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The Custom partial supplies concrete data-to-content construction and overload forwarding; the content-taking overload implementation and the referenced model definitions are not captured.",
+        "symbols": [
+          "ArmDeploymentResource.Update(WaitUntil, ArmDeploymentData, CancellationToken)",
+          "ArmDeploymentResource.UpdateAsync(WaitUntil, ArmDeploymentData, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 279,
+            "endLine": 284
+          },
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 294,
+            "endLine": 299
+          }
+        ]
+      },
+      {
+        "key": "69f899e5876b9dc6d0acc0d4b2957be82d4eec227f3699a261bf7cc1a303d522",
+        "category": "LRO / polling",
+        "subtype": "Scope-dispatched What-If LRO start and conditional wait",
+        "explanation": "The captured WhatIfAsync validates content and branches on Id.Parent.ResourceType. Its complete tenant and management-group branches create the respective raw What-If request, process the initial response through Pipeline, and construct ResourcesArmOperation<WhatIfOperationResult> with WhatIfOperationResultOperationSource and OperationFinalStateVia.Location. Each branch awaits WaitForCompletionAsync only when waitUntil is Completed, then returns the operation. Only the beginning of the subscription branch is captured; no subscription completion, resource-group branch, sync implementation or polling-helper internals are asserted.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is an executable handwritten LRO entry point in the Custom resource partial, including explicit start dispatch, final-state selection and wait handling, not a conclusion based merely on the existence of generated polling classes.",
+        "symbols": [
+          "ArmDeploymentResource.WhatIfAsync(WaitUntil, ArmDeploymentWhatIfContent, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 359,
+            "endLine": 386
+          },
+          {
+            "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+            "startLine": 388,
+            "endLine": 403
+          }
+        ]
+      },
+      {
+        "key": "56ee8324397f50fbbc38c94948bd35aacea467cc5ac571ade0294f51b399cac9",
+        "category": "Model overrides",
+        "subtype": "Model-factory generated-name mapping",
+        "explanation": "CodeGenType(\"ArmResourcesDeploymentsModelFactory\") maps the public static partial ArmResourcesModelFactory to the differently named generation type. The class body is empty, but the explicit name-mapping attribute is active metadata; this does not demonstrate any custom factory construction methods.",
+        "pattern": "model-type-rename",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The supplied src/Custom/ArmResourcesModelFactory.cs contains the concrete CodeGenType attribute on the factory declaration, rather than only an empty unannotated scaffold.",
+        "symbols": ["ArmResourcesModelFactory"],
+        "evidence": [
+          {
+            "id": "0fd86070c33ab3a9888e65503c8e6838685e7fde93d897f7dfc060830ced94d2",
+            "startLine": 10,
+            "endLine": 11
+          }
+        ]
+      },
+      {
+        "key": "9a6a06ed0e69b279fbf639b9ad564451dc362d962e8a33d13ec8d765ba96d557",
+        "category": "Convenience methods",
+        "subtype": "Management-group deployment collection accessor",
+        "explanation": "GetArmDeployments on the management-group mockable resource calls GetCachedClient with a factory constructing ArmDeploymentCollection from the callback client and the current Id. It exposes a collection handle, not a list traversal or an immediate deployment GET.",
+        "pattern": "arm-resource-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete scoped collection-factory method is in the captured Custom/Extensions partial; the cache implementation and collection implementation themselves are not supplied.",
+        "symbols": ["MockableResourcesDeploymentsManagementGroupResource.GetArmDeployments()"],
+        "evidence": [
+          {
+            "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+            "startLine": 38,
+            "endLine": 41
+          }
+        ]
+      },
+      {
+        "key": "31c9607ea040cef53592860afe74264729ef2fbd2358f92b963b937545626127",
+        "category": "Convenience methods",
+        "subtype": "Management-group deployment GET forwarding pair",
+        "explanation": "The ForwardsClientCalls-annotated GetArmDeployment sync/async methods obtain GetArmDeployments() and delegate to its Get or GetAsync with the deployment name and cancellation token; the async method awaits with ConfigureAwait(false). The wrapper bodies do not themselves validate the name despite their XML documentation.",
+        "pattern": "method-overload-forwarding",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both forwarding implementations and their attributes are present in the management-group Custom extension partial, independently of any generated collection implementation.",
+        "symbols": [
+          "MockableResourcesDeploymentsManagementGroupResource.GetArmDeployment(string, CancellationToken)",
+          "MockableResourcesDeploymentsManagementGroupResource.GetArmDeploymentAsync(string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+            "startLine": 64,
+            "endLine": 68
+          },
+          {
+            "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+            "startLine": 91,
+            "endLine": 95
+          }
+        ]
+      },
+      {
+        "key": "fe588c5ce2bdf29dc73d0ad8e87ee6057664758d81cbaabb44acee3d86bb9f2e",
+        "category": "Other",
+        "subtype": "Management-group resource-type API-version lookup helper",
+        "explanation": "The private GetApiVersionOrNull(ResourceType) calls TryGetApiVersion with the supplied resource type and returns the resulting out apiVersion without branching on the Boolean return. No caller of this helper or implementation of TryGetApiVersion is captured, so neither actual request-version selection nor a guaranteed null fallback is established.",
+        "pattern": "resource-type-api-version-lookup",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete private helper body occurs in the Custom management-group extension partial; it performs a lookup rather than validating, enumerating or curating service versions.",
+        "symbols": [
+          "MockableResourcesDeploymentsManagementGroupResource.GetApiVersionOrNull(ResourceType)"
+        ],
+        "evidence": [
+          {
+            "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+            "startLine": 30,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "657920a1afd724f58e7cc8ddc4afd54d2d038b1b7528fe741ded73456c024423",
+        "category": "Convenience methods",
+        "subtype": "Resource-group deployment collection accessor",
+        "explanation": "GetArmDeployments on the resource-group mockable resource calls GetCachedClient with a factory constructing ArmDeploymentCollection from the callback client and the current Id. This method supplies the scoped collection handle without itself fetching a deployment or traversing pages.",
+        "pattern": "arm-resource-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The resource-group Custom extension partial supplies the collection-factory method body; behavior of the cache and collection implementations is outside this capture.",
+        "symbols": ["MockableResourcesDeploymentsResourceGroupResource.GetArmDeployments()"],
+        "evidence": [
+          {
+            "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+            "startLine": 38,
+            "endLine": 41
+          }
+        ]
+      },
+      {
+        "key": "ab62ffb9fa077d2fcf7e8ff6c64a7dca681cd077002c80e0237b698798d185ee",
+        "category": "Convenience methods",
+        "subtype": "Resource-group deployment GET forwarding pair",
+        "explanation": "The ForwardsClientCalls-annotated GetArmDeployment sync/async methods delegate through GetArmDeployments() to collection.Get or collection.GetAsync, passing the deployment name and cancellation token. The async method uses ConfigureAwait(false). There is no local argument check in these bodies; the documented validation cannot be attributed to the wrappers from the captured code.",
+        "pattern": "method-overload-forwarding",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "These are concrete forwarding methods and annotations in the resource-group Custom extension partial, not inferred generated behavior.",
+        "symbols": [
+          "MockableResourcesDeploymentsResourceGroupResource.GetArmDeployment(string, CancellationToken)",
+          "MockableResourcesDeploymentsResourceGroupResource.GetArmDeploymentAsync(string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+            "startLine": 64,
+            "endLine": 68
+          },
+          {
+            "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+            "startLine": 91,
+            "endLine": 95
+          }
+        ]
+      },
+      {
+        "key": "26a6914e7840dd17611019a42146affe8cfc9c0bd1b60998a62b22e3b8290b0f",
+        "category": "Other",
+        "subtype": "Resource-group resource-type API-version lookup helper",
+        "explanation": "The private GetApiVersionOrNull(ResourceType) invokes TryGetApiVersion and returns its out apiVersion without examining the Boolean result. The capture supplies neither a caller nor TryGetApiVersion's body; it proves the helper's lookup-and-return sequence, not a request-version choice, supported-version list or guaranteed failure default.",
+        "pattern": "resource-type-api-version-lookup",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The resource-group Custom extension partial contains this private executable helper. Its behavior is lookup, not the validation or enumeration described by the catalog's api-version-validation pattern.",
+        "symbols": [
+          "MockableResourcesDeploymentsResourceGroupResource.GetApiVersionOrNull(ResourceType)"
+        ],
+        "evidence": [
+          {
+            "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+            "startLine": 30,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "1b5503a511be9db505b74d4ffc53689a1cc96393e8ff451a0a25755668088a6c",
+        "category": "Convenience methods",
+        "subtype": "Subscription deployment collection accessor",
+        "explanation": "GetArmDeployments on the subscription mockable resource calls GetCachedClient with a factory creating ArmDeploymentCollection from the callback client and Id. It exposes that scoped collection handle rather than implementing a deployment request or pager.",
+        "pattern": "arm-resource-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The supplied subscription Custom extension partial implements the accessor body; cache internals and collection implementation are not supplied.",
+        "symbols": ["MockableResourcesDeploymentsSubscriptionResource.GetArmDeployments()"],
+        "evidence": [
+          {
+            "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+            "startLine": 23,
+            "endLine": 26
+          }
+        ]
+      },
+      {
+        "key": "ba520a0e2337b6eb02f7180fb2a9d5527aab37ac7bf8a5cfe38a5721e2b4dc8a",
+        "category": "Convenience methods",
+        "subtype": "Subscription deployment GET forwarding pair",
+        "explanation": "The Azure.Core.ForwardsClientCalls-annotated GetArmDeployment methods obtain the deployment collection and forward name and cancellation token to Get or GetAsync; the async method awaits with ConfigureAwait(false). No local deployment-name validation appears in either wrapper.",
+        "pattern": "method-overload-forwarding",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The subscription Custom partial contains both concrete method bodies and forwarding annotations.",
+        "symbols": [
+          "MockableResourcesDeploymentsSubscriptionResource.GetArmDeployment(string, CancellationToken)",
+          "MockableResourcesDeploymentsSubscriptionResource.GetArmDeploymentAsync(string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+            "startLine": 49,
+            "endLine": 53
+          },
+          {
+            "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+            "startLine": 76,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "bdaeb137dcf9e5f2af2bd979be6900668da60c159d6f5647386d1ac160145a5c",
+        "category": "Other",
+        "subtype": "Subscription What-If signature suppression metadata",
+        "explanation": "Two class-level CodeGenSuppress attributes target WhatIfAtSubscriptionScopeAsync and WhatIfAtSubscriptionScope with WaitUntil, string, ArmDeploymentWhatIfContent and CancellationToken parameter types. This is explicit handwritten generation-suppression metadata for those signatures; no emitted API comparison or complete replacement implementation is supplied.",
+        "pattern": "generated-operation-suppression",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both concrete suppression attributes occur on the subscription Custom extension class. The adjacent comments' claims about moving operations and retaining client.tsp definitions are not needed to establish the observed annotations.",
+        "symbols": [
+          "MockableResourcesDeploymentsSubscriptionResource.WhatIfAtSubscriptionScope(WaitUntil, string, ArmDeploymentWhatIfContent, CancellationToken)",
+          "MockableResourcesDeploymentsSubscriptionResource.WhatIfAtSubscriptionScopeAsync(WaitUntil, string, ArmDeploymentWhatIfContent, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+            "startLine": 17,
+            "endLine": 19
+          }
+        ]
+      },
+      {
+        "key": "3b1c2fba522a28f4751a0f774c5135e1aef660dbee656d68a927f065467e059a",
+        "category": "Convenience methods",
+        "subtype": "Tenant deployment collection accessor",
+        "explanation": "GetArmDeployments on the tenant mockable resource calls GetCachedClient with a factory constructing ArmDeploymentCollection using the callback client and current Id. This is the collection-handle entry point, not itself an HTTP GET or page loop.",
+        "pattern": "arm-resource-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The captured tenant Custom extension partial supplies the concrete accessor; cache implementation and collection implementation are not captured.",
+        "symbols": ["MockableResourcesDeploymentsTenantResource.GetArmDeployments()"],
+        "evidence": [
+          {
+            "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51",
+            "startLine": 19,
+            "endLine": 22
+          }
+        ]
+      },
+      {
+        "key": "c0162e8067c8a876733a50fcb020d719a5724cdfd6cb8484c92e50ec8065407b",
+        "category": "Convenience methods",
+        "subtype": "Tenant deployment GET forwarding pair",
+        "explanation": "The tenant GetArmDeployment sync/async pair is annotated with ForwardsClientCalls and delegates through GetArmDeployments() to Get or GetAsync with name and cancellation token. The async wrapper awaits with ConfigureAwait(false). These bodies contain no local name validation and show no custom transport or paging logic.",
+        "pattern": "method-overload-forwarding",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both concrete tenant forwarding implementations are supplied in the Custom extension partial, rather than inferred from documentation.",
+        "symbols": [
+          "MockableResourcesDeploymentsTenantResource.GetArmDeployment(string, CancellationToken)",
+          "MockableResourcesDeploymentsTenantResource.GetArmDeploymentAsync(string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51",
+            "startLine": 45,
+            "endLine": 49
+          },
+          {
+            "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51",
+            "startLine": 72,
+            "endLine": 76
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "46f6906fe96a4b24a8a7fc5933fd53e1cea9b7a85072f8f3085363e93c11c46c",
+        "status": "accepted",
+        "reason": "The Custom partial implements both add-tag bodies: each branches on CanUseTagResource, mutates one tag, completes either a tag-resource write or deployment update, and returns a deployment resource. Both cited bodies and the service-independent tag-management pattern are supported."
+      },
+      {
+        "key": "b135a88ea04adcd50272255d7bdf6772ce8e91b1f0c1edd79c5b62b6fede931e",
+        "status": "accepted",
+        "reason": "The Custom SetTags pair really performs a distinct replace-tags sequence: delete/get/ReplaceWith/create-or-update on the tag-resource branch, or replace and update deployment data on the fallback. The proposal describes observed calls rather than asserting their runtime success."
+      },
+      {
+        "key": "a80558ab51af8b04b1ebdf360f94d5bdee783bca7ff928c52c75df4b3cfdfe7c",
+        "status": "revised",
+        "reason": "The capability-selected tag removal is handwritten, but the original incorrectly says both paths construct ArmDeploymentResource from response data. Only the tag-resource branches explicitly construct it; the fallback wraps the value of an Update operation whose content-taking implementation is not captured.",
+        "finding": {
+          "key": "a80558ab51af8b04b1ebdf360f94d5bdee783bca7ff928c52c75df4b3cfdfe7c",
+          "category": "Convenience methods",
+          "subtype": "Capability-selected remove-tag helpers",
+          "explanation": "The RemoveTag sync/async pair validates the key, then either retrieves and mutates the tag resource, calls CreateOrUpdate with WaitUntil.Completed, refetches deployment data and explicitly constructs an ArmDeploymentResource, or retrieves deployment data, removes the key from current.Tags and passes that data to Update with WaitUntil.Completed. The fallback wraps the returned operation's Value and raw response; construction of that value is not shown.",
+          "pattern": "resource-tag-management",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both Custom method bodies implement a removal mutation and capability-dependent request sequence outside Generated; the content-taking Update implementation and any poller internals are not captured.",
+          "symbols": [
+            "ArmDeploymentResource.RemoveTag(string, CancellationToken)",
+            "ArmDeploymentResource.RemoveTagAsync(string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+              "startLine": 197,
+              "endLine": 224
+            },
+            {
+              "id": "9a670613e041935b88d5775c40c40582cf45ab06ed407e3e28b67e83a6e99e50",
+              "startLine": 238,
+              "endLine": 265
+            }
+          ]
+        }
+      },
+      {
+        "key": "af39c5820e454649beb34da064a59d494fea373cd6e2f6e2a8a4cfcbb0fd5e11",
+        "status": "accepted",
+        "reason": "Both internal Custom Update overloads explicitly convert ArmDeploymentData to ArmDeploymentContent, forward WaitUntil and cancellation, and serve the tag fallback. The explanation does not attribute uncaptured validation or copying to the content-taking overload."
+      },
+      {
+        "key": "69f899e5876b9dc6d0acc0d4b2957be82d4eec227f3699a261bf7cc1a303d522",
+        "status": "accepted",
+        "reason": "The handwritten WhatIfAsync entry point selects the tenant or management-group begin request, builds a typed operation and conditionally waits. The full lro-custom-poller catalog definition explicitly includes begin-method behavior; the original disclaims uncaptured polling internals and later branches."
+      },
+      {
+        "key": "56ee8324397f50fbbc38c94948bd35aacea467cc5ac571ade0294f51b399cac9",
+        "status": "accepted",
+        "reason": "The CodeGenType attribute on the otherwise empty Custom factory declaration maps a generated name to a public factory name. The complete model-type-rename catalog description explicitly includes factory types, so the proposed pattern and model-shaping category are supportable without asserting new factory methods."
+      },
+      {
+        "key": "9a6a06ed0e69b279fbf639b9ad564451dc362d962e8a33d13ec8d765ba96d557",
+        "status": "accepted",
+        "reason": "The management-group Custom method constructs a scoped ArmDeploymentCollection through GetCachedClient and exposes it as a resource accessor; the proposal neither calls it a pager nor claims knowledge of the cache implementation."
+      },
+      {
+        "key": "31c9607ea040cef53592860afe74264729ef2fbd2358f92b963b937545626127",
+        "status": "revised",
+        "reason": "Both management-group forwarding bodies and their locations are supported, but synchronous and asynchronous named methods are not overloads of one method. Use a reusable scoped-collection GET forwarding pattern.",
+        "finding": {
+          "key": "31c9607ea040cef53592860afe74264729ef2fbd2358f92b963b937545626127",
+          "category": "Convenience methods",
+          "subtype": "Management-group deployment GET forwarding pair",
+          "explanation": "The management-group GetArmDeployment and GetArmDeploymentAsync methods forward the deployment name and cancellation token to GetArmDeployments().Get and GetAsync respectively; the async method awaits with ConfigureAwait(false). The bodies do not themselves validate the name.",
+          "pattern": "scoped-collection-get-forwarding",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The Custom extension partial supplies both concrete forwarding bodies and ForwardsClientCalls annotations outside Generated.",
+          "symbols": [
+            "MockableResourcesDeploymentsManagementGroupResource.GetArmDeployment(string, CancellationToken)",
+            "MockableResourcesDeploymentsManagementGroupResource.GetArmDeploymentAsync(string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+              "startLine": 64,
+              "endLine": 68
+            },
+            {
+              "id": "970eb30a97590e3076759de02c6b8834e3c1dbb8efa243d67e01dfcc848d4634",
+              "startLine": 91,
+              "endLine": 95
+            }
+          ]
+        }
+      },
+      {
+        "key": "fe588c5ce2bdf29dc73d0ad8e87ee6057664758d81cbaabb44acee3d86bb9f2e",
+        "status": "inconclusive",
+        "reason": "Lines 30-34 show an executable but private TryGetApiVersion forwarding helper in a Custom partial. No caller or generated counterpart is captured, so this evidence cannot establish whether the helper changes or extends the SDK rather than remaining unused scaffolding."
+      },
+      {
+        "key": "657920a1afd724f58e7cc8ddc4afd54d2d038b1b7528fe741ded73456c024423",
+        "status": "accepted",
+        "reason": "The resource-group Custom accessor constructs ArmDeploymentCollection from the callback client and Id via GetCachedClient. Its scoped collection-handle behavior is distinct from performing a GET or paging."
+      },
+      {
+        "key": "ab62ffb9fa077d2fcf7e8ff6c64a7dca681cd077002c80e0237b698798d185ee",
+        "status": "revised",
+        "reason": "The resource-group sync/async pair forwards GET calls as stated, but method-overload-forwarding incorrectly describes two separately named methods as overloads. Use the same scoped-collection GET pattern as the equivalent management-group wrapper.",
+        "finding": {
+          "key": "ab62ffb9fa077d2fcf7e8ff6c64a7dca681cd077002c80e0237b698798d185ee",
+          "category": "Convenience methods",
+          "subtype": "Resource-group deployment GET forwarding pair",
+          "explanation": "The resource-group GetArmDeployment and GetArmDeploymentAsync wrappers forward the name and cancellation token through GetArmDeployments() to collection Get and GetAsync. The async method awaits with ConfigureAwait(false); neither wrapper contains its documented name validation.",
+          "pattern": "scoped-collection-get-forwarding",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both forwarding implementations occur in the resource-group Custom extension partial outside Generated.",
+          "symbols": [
+            "MockableResourcesDeploymentsResourceGroupResource.GetArmDeployment(string, CancellationToken)",
+            "MockableResourcesDeploymentsResourceGroupResource.GetArmDeploymentAsync(string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+              "startLine": 64,
+              "endLine": 68
+            },
+            {
+              "id": "a9c9b57c4e5bab6e7fcc58f9ad662ce71d5449ff0a283aaa4f0180070f95f5ab",
+              "startLine": 91,
+              "endLine": 95
+            }
+          ]
+        }
+      },
+      {
+        "key": "26a6914e7840dd17611019a42146affe8cfc9c0bd1b60998a62b22e3b8290b0f",
+        "status": "inconclusive",
+        "reason": "The resource-group private GetApiVersionOrNull body calls TryGetApiVersion and returns its out parameter, but no caller or generated counterpart is supplied. Handwritten location alone cannot establish that this helper changes or extends SDK behavior."
+      },
+      {
+        "key": "1b5503a511be9db505b74d4ffc53689a1cc96393e8ff451a0a25755668088a6c",
+        "status": "accepted",
+        "reason": "The subscription Custom method supplies a collection accessor with GetCachedClient and ArmDeploymentCollection(client, Id); the collection's internals are not claimed."
+      },
+      {
+        "key": "ba520a0e2337b6eb02f7180fb2a9d5527aab37ac7bf8a5cfe38a5721e2b4dc8a",
+        "status": "revised",
+        "reason": "The annotated subscription wrappers forward to the deployment collection as proposed, but they are sync/async named counterparts, not overloads; use the scoped-collection GET pattern.",
+        "finding": {
+          "key": "ba520a0e2337b6eb02f7180fb2a9d5527aab37ac7bf8a5cfe38a5721e2b4dc8a",
+          "category": "Convenience methods",
+          "subtype": "Subscription deployment GET forwarding pair",
+          "explanation": "The subscription GetArmDeployment and GetArmDeploymentAsync wrappers forward the name and cancellation token to GetArmDeployments().Get and GetAsync. The async wrapper awaits with ConfigureAwait(false), and neither wrapper locally validates the name.",
+          "pattern": "scoped-collection-get-forwarding",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both executable forwarding bodies and their attributes occur in the subscription Custom extension partial outside Generated.",
+          "symbols": [
+            "MockableResourcesDeploymentsSubscriptionResource.GetArmDeployment(string, CancellationToken)",
+            "MockableResourcesDeploymentsSubscriptionResource.GetArmDeploymentAsync(string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+              "startLine": 49,
+              "endLine": 53
+            },
+            {
+              "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+              "startLine": 76,
+              "endLine": 80
+            }
+          ]
+        }
+      },
+      {
+        "key": "bdaeb137dcf9e5f2af2bd979be6900668da60c159d6f5647386d1ac160145a5c",
+        "status": "revised",
+        "reason": "The two class-level CodeGenSuppress attributes are concrete handwritten suppression of generated method signatures, fitting the catalog's hide-generated-surface pattern rather than a new generated-operation-suppression synonym. The emitted API and replacement are not captured.",
+        "finding": {
+          "key": "bdaeb137dcf9e5f2af2bd979be6900668da60c159d6f5647386d1ac160145a5c",
+          "category": "Other",
+          "subtype": "Subscription What-If signature suppression",
+          "explanation": "Two CodeGenSuppress attributes on the subscription mockable resource target the sync and async WhatIfAtSubscriptionScope signatures with WaitUntil, string, ArmDeploymentWhatIfContent and CancellationToken parameters. The capture demonstrates suppression metadata, not a comparison of emitted API or a complete replacement implementation.",
+          "pattern": "hide-generated-surface",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both explicit suppression attributes are in the subscription Custom partial outside Generated; no claim about their motivation depends on adjacent comments.",
+          "symbols": [
+            "MockableResourcesDeploymentsSubscriptionResource.WhatIfAtSubscriptionScope(WaitUntil, string, ArmDeploymentWhatIfContent, CancellationToken)",
+            "MockableResourcesDeploymentsSubscriptionResource.WhatIfAtSubscriptionScopeAsync(WaitUntil, string, ArmDeploymentWhatIfContent, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "da38c92beb4c320327f3107365d4744d927588099c7d379d937f0cc148e3b103",
+              "startLine": 17,
+              "endLine": 19
+            }
+          ]
+        }
+      },
+      {
+        "key": "3b1c2fba522a28f4751a0f774c5135e1aef660dbee656d68a927f065467e059a",
+        "status": "accepted",
+        "reason": "The tenant Custom accessor creates a scoped collection through GetCachedClient and returns it; it does not itself make an HTTP request, and the proposed pattern is reusable across ARM resources."
+      },
+      {
+        "key": "c0162e8067c8a876733a50fcb020d719a5724cdfd6cb8484c92e50ec8065407b",
+        "status": "revised",
+        "reason": "The tenant forwarding bodies and annotations are supported, but sync and async methods are differently named rather than overloads of one method. Use the scoped-collection GET forwarding pattern.",
+        "finding": {
+          "key": "c0162e8067c8a876733a50fcb020d719a5724cdfd6cb8484c92e50ec8065407b",
+          "category": "Convenience methods",
+          "subtype": "Tenant deployment GET forwarding pair",
+          "explanation": "The tenant GetArmDeployment and GetArmDeploymentAsync methods delegate through GetArmDeployments() to Get or GetAsync with name and cancellation token. The async method awaits with ConfigureAwait(false); neither wrapper locally validates the name.",
+          "pattern": "scoped-collection-get-forwarding",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The tenant Custom extension partial contains both concrete forwarding implementations and ForwardsClientCalls attributes outside Generated.",
+          "symbols": [
+            "MockableResourcesDeploymentsTenantResource.GetArmDeployment(string, CancellationToken)",
+            "MockableResourcesDeploymentsTenantResource.GetArmDeploymentAsync(string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51",
+              "startLine": 45,
+              "endLine": 49
+            },
+            {
+              "id": "69bbf7d3dd6401696f17eb44afb79352301cea7444e9943a3fe85283c125df51",
+              "startLine": 72,
+              "endLine": 76
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Coverage is partial: six of 164 eligible files among 188 discovered files are captured. All eleven skipped entries were read: ArmDeploymentResource is only captured through line 407, and ResourcesDeploymentsExtensions, ResourcesArmOperation, ResourcesArmOperationOfT, ArmDeploymentOperationProperties, ArmDeploymentProperties, ArmDeploymentPropertiesExtended, ArmDeploymentValidateResult, StatusMessage, WhatIfOperationResult and ArmDeploymentsRestOperations have no captured implementation. Errors are empty; this is not package-wide completeness or absence evidence.",
+      "The ArmDeploymentResource capture ends in the subscription WhatIfAsync request-construction line. Only the complete tenant and management-group branches establish start, Location final-state selection and conditional waiting. Polling-helper internals, subscription completion, other scope branches, sync What-If and the content-taking Update implementations are not shown. XML documentation, filenames and links do not establish those missing bodies.",
+      "No generated counterpart, historical release source, client.tsp body or runtime execution is supplied. Comments about preserving GA surface, past versions, operation relocation and emitter limitations are unverified history or intent, not established current generator capability. The empty protected mockable constructors and ordinary client/Id base-constructor forwarding are not independently counted as additional behavioral customizations; no specialized constructor behavior is shown.",
+      "The API-version helpers have no captured callers and do not expose TryGetApiVersion's implementation. GetCachedClient's internals and collection-level validation are also absent. The cited calls and attributes establish their concrete local behavior or metadata, not request-version selection, guaranteed null defaults, actual cache reuse, emitted API absence or successful runtime network sequences.",
+      "The project declares 1.1.0-beta.1 with ApiCompatVersion 1.0.0, while supplied release metadata names stable 1.0.0. README and tsp-location are generation context, not additional handwritten implementations. Generator-addressable yes indicates plausible reusable generation features such as tag helpers, input adaptation, scope-aware LRO entry points, name/suppression metadata and scoped resource wrappers; it does not assert existing support or a measured root cause.",
+      "Coverage is partial: 6 of 164 eligible source files are captured among 188 discovered files, including only lines 1-407 of ArmDeploymentResource.cs. The remaining lines and 11 listed skipped entries are unavailable; this assessment does not establish package-wide completeness or absence.",
+      "The captured WhatIfAsync subscription branch ends during request creation at line 407. Subsequent branches, the synchronous method, operation-source internals, and final-result/polling behavior cannot be assessed from this capture.",
+      "The two private GetApiVersionOrNull helpers have no callers in the supplied files; their effect on public or generated behavior cannot be established. The model-factory mapping, suppression attributes, and extension methods cannot be compared against generated output because none is supplied.",
+      "Generation context identifies the project and TypeSpec location but does not establish current generator support for any pattern. A yes generatorAddressable judgment describes plausible generalization, not an implemented feature or measured reduction."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmDeploymentResource.cs",
+      "startLine": 1,
+      "endLine": 601,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "69780530fb9826f761d41de78536a31aad56196cdf4db7f54274355c70d4d284"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/ArmResourcesModelFactory.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c5bff512b5367a867f3019981fe734159e61d9a14f846cacb47b044fb22b62e7"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsManagementGroupResource.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1a0ccb3ec2969cec42eb4d2e9b25209a34af1e53915fb921b6574fd3d55e814e"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsResourceGroupResource.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1b7d8b04052c8361b8be083edbb018f2f3247df5ae20e9048a45ee7a6a57dc22"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsSubscriptionResource.cs",
+      "startLine": 1,
+      "endLine": 82,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e81917a5876dd6e8e6b2fc7fde0449361b8b14eb7d31bb5ffb527354107aa7d7"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/MockableResourcesDeploymentsTenantResource.cs",
+      "startLine": 1,
+      "endLine": 78,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0a7363c936f6a1b79fbd6efbcd5f6fadb83f8860d305a7dd8e9dc51d21bd04ed"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Extensions/ResourcesDeploymentsExtensions.cs",
+      "startLine": 1,
+      "endLine": 373,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "632038f5f0e013426b01513d448e107a06ca0d46cc9cd2acbba0783e9e3fd122"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/LongRunningOperation/ResourcesArmOperation.cs",
+      "startLine": 1,
+      "endLine": 94,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "dd6c595b0f3a7b85766bc5614198013be090f98bec9e4dc08ae1d002025baf2c"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/LongRunningOperation/ResourcesArmOperationOfT.cs",
+      "startLine": 1,
+      "endLine": 100,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f50ff460487e8133474d99874e74aea3e93e95f803d83bdd9cd4cd60f80ccab7"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentOperationProperties.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "02b5916d516cdfe8779f3c2f1efb4e2000275cd7cd7a81104cc7f4980293bb99"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentProperties.cs",
+      "startLine": 1,
+      "endLine": 101,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1a217732ae3964335baeaa20a776ea37be5d738dfc535f92cbb2084a8035189a"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentPropertiesExtended.cs",
+      "startLine": 1,
+      "endLine": 105,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "dfb8f249aec41db5625b55b57a2bbf5d59cd385929b12f36811003746c15ac90"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/ArmDeploymentValidateResult.cs",
+      "startLine": 1,
+      "endLine": 41,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0e1fa23b09a775c361cb8207e9a823e24d6afd4500aff03b2592174eeb75caf9"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/StatusMessage.cs",
+      "startLine": 1,
+      "endLine": 41,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7a4e8e7f0b50f940eb8bbac42e3e0e5684e37d5e9fdb6711f71093bec385d4ba"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/Models/WhatIfOperationResult.cs",
+      "startLine": 1,
+      "endLine": 41,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a95173b66fcfd9989d788574829d8c9cba9ab29adac18dfa442bfc15ec8cb3fa"
+    },
+    {
+      "path": "sdk/resources/Azure.ResourceManager.Resources.Deployments/src/Custom/RestOperations/ArmDeploymentsRestOperations.cs",
+      "startLine": 1,
+      "endLine": 109,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "62dc33a8c2c8840a9140b1d99020c633a46bc33002373a21df6807a51479baca"
+    }
+  ]
+}

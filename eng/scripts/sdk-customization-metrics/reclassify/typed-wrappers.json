@@ -1,0 +1,884 @@
+{
+  "version": 1,
+  "note": "Re-homes findings that reviewers labelled \"Typed convenience method over a protocol method\" onto the reason the wrapper exists. Protocol methods are a generator fallback, so the wrapper label hides the real cause. Applied when the dashboard is published; review records are unchanged. Classified by one AI pass over each finding's code (low-confidence ones left as they were), October 26, 2026.",
+  "from": "convenience-typed-wrapper",
+  "patterns": [
+    {
+      "id": "public-model-mapping",
+      "name": "Map to handwritten public models",
+      "description": "Wraps a generated operation to convert inputs or results to a handwritten public model or shared type."
+    },
+    {
+      "id": "request-parameter-reshaping",
+      "name": "Reshape request parameters",
+      "description": "Renames, spreads or regroups request inputs (body into parameters, path id from the body, options bags) before calling the generated operation."
+    },
+    {
+      "id": "client-level-parameters",
+      "name": "Client-level parameters filled in by the client",
+      "description": "Supplies operation parameters (such as a topic or subscription) from values stored on the client."
+    },
+    {
+      "id": "hide-or-fix-parameters",
+      "name": "Hide or fix generated parameters",
+      "description": "Calls the generated operation with a fixed or internal argument so it does not appear on the public method."
+    },
+    {
+      "id": "response-reshaping",
+      "name": "Reshape responses",
+      "description": "Turns a generated response into a different result: a boolean or None for a status code, headers projected into a result, or an unwrapped envelope."
+    },
+    {
+      "id": "conditional-request-parameters",
+      "name": "ETag and conditional request parameters",
+      "description": "Maps ETags or match conditions to If-Match / If-None-Match headers around a generated operation."
+    },
+    {
+      "id": "alternative-input-forms",
+      "name": "Accept alternative input forms",
+      "description": "Accepts several input shapes (string, list or model; bytes or URL; id or name) and dispatches to the generated operation."
+    },
+    {
+      "id": "parameter-value-conversion",
+      "name": "Convert parameter values",
+      "description": "Converts typed values (enums, scopes, dates) to the strings a generated operation takes."
+    },
+    {
+      "id": "request-body-encoding",
+      "name": "Encode request bodies the generator could not type",
+      "description": "Builds multipart, merge-patch or content-type-specific request bodies for a generated protocol method."
+    },
+    {
+      "id": "back-compat-overload",
+      "name": "Keep older method signatures",
+      "description": "Keeps an earlier public overload working after the generated signature gained parameters."
+    }
+  ],
+  "findings": {
+    "dotnet:azure.ai.documentintelligence:module-v1:e8dcb0c3d8ee3b143ce1c92daa08c805c257b47d8d401bf91e64a66f457a8dcd": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Re-declares generated convenience methods verbatim except that the body parameter is renamed."
+    },
+    "dotnet:azure.ai.extensions.openai:module-v1:e439215299a7bfa4c4a5bfa29eb35bae4341a0fb9cd16723d49c0e9f2529c1cb": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Builds create-response options from an agent reference and conversation id, deletes the JSON input member, calls the BinaryContent protocol overload and normalizes the cast ResponseResult."
+    },
+    "dotnet:azure.ai.language.questionanswering.authoring:module-v1:8e2203f01e9431b1f5ac7eeaae2d262d86695cbee4e865ef948c0c7c8451a00b": {
+      "pattern": "request-body-encoding",
+      "reason": "content-type-and-body-encoding",
+      "note": "Private Import helpers serialize ImportJobOptions to RequestContent, drop the unused contentType, and call the protocol LRO overload."
+    },
+    "dotnet:azure.ai.language.questionanswering.inference:module-v1:9e7a547fc76066fb347169ed29c4b0ad7c0af5c1e58b22ecec5b0306ba553c99": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "Accepts question plus string or TextDocument collections, defaults language from client options and builds the options body."
+    },
+    "dotnet:azure.ai.language.questionanswering.inference:module-v1:b9664fb534070325a2ebdb4dddf20ae7f9a7bd3643a99cc36242a665eee1d81f": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Validates question/documents and builds AnswersFromTextOptions from a question, a string or TextDocument collection and a resolved default language, then calls an internal method."
+    },
+    "dotnet:azure.ai.speech.transcription:module-v1:0d0b06b6a81baa6ab6d8772aa39d8e2c1ca9581e6b5a984e92f2258a5ddc8d46": {
+      "pattern": "request-body-encoding",
+      "reason": "content-type-and-body-encoding",
+      "note": "Turns TranscriptionOptions into request content plus a content type via CreateRequestContent, calls the protocol overload and casts the result to TranscriptionResult."
+    },
+    "dotnet:azure.ai.translation.document:module-v1:a869dbef8c4b6b1b6dec058781f8f8724539e5a8f4173ce0c546220d25eb791d": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Converts FileFormatType to string and wraps the protocol response as SupportedFileFormats, plus a hidden nullable compat overload that throws on null."
+    },
+    "dotnet:azure.ai.translation.document:module-v1:ce36b7c1e9cf9b8900fa1f9681b2321716efb827b76ec3a4e714f86f028db1a1": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Converts the FileFormatType enum to string for the protocol call and keeps a hidden nullable overload that throws on null."
+    },
+    "dotnet:azure.ai.translation.text:module-v1:6877b397192d32405e2be6b40ffea17a18afd6043cbf7ad68ae2c7f9ce5a1ec9": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "Translate overloads wrap a single string into a list, map strings to TranslateInputItem with targets/source language, wrap in TranslateBody and project the list (or FirstOrDefault) from the result."
+    },
+    "dotnet:azure.ai.translation.text:module-v1:a4e717f1d325044d53b2f53db25217d915939eb4ee177560ac02ed6c70d3b024": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "Suppresses the generated TransliterateAsync and adds overloads that wrap a single string or a string sequence into InputTextItem objects."
+    },
+    "dotnet:azure.ai.translation.text:module-v1:fb8ca2dea9570f8dbf245d7b1503e6e1cbeb1698c612b5fbac2bc6f022dd16cf": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "Normalizes a single string, string list or input models into TranslateBody and unwraps/first-selects the list result."
+    },
+    "dotnet:azure.analytics.onlineexperimentation:module-v1:3de847f6eb513d282fc5148808e50d0eef7664a3083e3438866c74ea3549473e": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "CreateMetric fixes RequestConditions.IfNoneMatch = ETag.All, calls the create-or-update protocol overload and casts to ExperimentMetric."
+    },
+    "dotnet:azure.analytics.onlineexperimentation:module-v1:5121b4d0516099e96758b50f524aef8ba51d5f45c4c5a1279a04703c3aa6463c": {
+      "pattern": "request-body-encoding",
+      "reason": "content-type-and-body-encoding",
+      "note": "UpdateMetric serializes an ExperimentMetricUpdate model, builds RequestConditions from ifMatch and calls the CreateOrUpdateMetric protocol method, casting to ExperimentMetric."
+    },
+    "dotnet:azure.analytics.onlineexperimentation:module-v1:cac12576be5da4fa1a3c472c49ab79bbeb756ff3493c90f1a94bceab1e0be064": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Typed create-or-update that builds RequestConditions from separate ifMatch/ifNoneMatch ETags and wraps the cast model."
+    },
+    "dotnet:azure.analytics.planetarycomputer:module-v1:a5b6506884bcb8ecdc3dfbfd326d2586aa01d126a2fe4883456e7a78332d7f01": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Suppresses the generated overload and replaces it with one taking the whole RegisterMosaic body, serializing it with WireOptions and casting the result."
+    },
+    "dotnet:azure.analytics.planetarycomputer:module-v1:cb2a9974467386d8ae8436a438b5b5d8ae743ef5742e2b98308f0cf8e2d4b1c5": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Suppresses the generated RegisterMosaicsSearch (labelled a generator workaround for spread body forwarding) and serializes the full RegisterMosaic body to the protocol method."
+    },
+    "dotnet:azure.communication.identity:module-v1:1ff32e99fdb4040474d44e5a83e235c53ecb03974734dcc612561367979d8d5f": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Takes a shared CommunicationUserIdentifier, passes its Id to the delete operation inside a diagnostic scope."
+    },
+    "dotnet:azure.communication.identity:module-v1:42fbca14b38f5dee9af7a9e7e8bbc31094c0f0100eac2ccd68620ec0a5ab76dd": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Extracts Id from a shared CommunicationUserIdentifier and calls RevokeAccessTokens inside a diagnostic scope."
+    },
+    "dotnet:azure.communication.identity:module-v1:5052921bb6f68c57299661137332aa393e9132dc11aca04c55666d2c3f96c65a": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Builds the exchange request from GetTokenForTeamsUserOptions, calls the REST client and returns a shared AccessToken with the raw response inside a diagnostic scope."
+    },
+    "dotnet:azure.communication.identity:module-v1:a4b5ca1711c93845fd106b0492b767474b165bb4eba7cc5668c2981d5ba4ab5c": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls create with an empty request, extracts Identity.Id and returns a shared CommunicationUserIdentifier."
+    },
+    "dotnet:azure.communication.identity:module-v1:d9a5edefd077886f7dae205b676420f06748406afb7f86bb619da1bd7f29aba3": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Takes a shared user identifier, scopes and TimeSpan, converts expiry to minutes, calls IssueAccessToken and projects the result into Azure.Core.AccessToken."
+    },
+    "dotnet:azure.communication.jobrouter:module-v1:0bc1ef3628bb699f6401fc1c480e0df4923b3c30181742e7bba730bf6bdb7274": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "UpdateClassificationPolicy extracts the id from the model, serializes it, defaults RequestConditions and calls the Upsert protocol method, casting the result."
+    },
+    "dotnet:azure.communication.jobrouter:module-v1:4e917c7eb6a51508f325d04c494b4798e46c7dabdd11d3d25b510fef210089af": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Typed UpdateJob that takes the RouterJob, pulls jobId from it, defaults request conditions and calls the UpsertJob protocol method."
+    },
+    "dotnet:azure.compute.batch:module-v1:24e99a6397dbb100517789ea066e1a78abbcfab08f3fd915e0a949f7519a28f0": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Builds the HEAD request from a private internal request builder and returns Response<bool> via ProcessHeadAsBoolMessage."
+    },
+    "dotnet:azure.compute.batch:module-v1:781efe12d8dc3e97a8abb6bd11454124e63dd371ade3b75c72691ea833024068": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Calls the internal raw GetTaskFileProperties operation and builds BatchFileProperties from response headers via FromResponse."
+    },
+    "dotnet:azure.compute.batch:module-v1:ee4224abc9bce443b8936dc43141559282138b2a992451ac554a54f288d03b30": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "HEAD pool-exists wrapper returning Response<bool> via ProcessHeadAsBoolMessage."
+    },
+    "dotnet:azure.data.appconfiguration:module-v1:8139e6ad3041d0a7684d3157e86e9ae8fd8d22c22ba2cf649ceb376225690d5a": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Serializes the ConfigurationSetting, fixes IfNoneMatch=ETag.All, passes the client sync token, accepts only 200/201 and throws with a custom error-details parser."
+    },
+    "dotnet:azure.data.appconfiguration:module-v1:a1fa1bd225f93c164ab1e9f8c790912e218ca3441fba34d0b082d5c583a6d729": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Overloads that construct a ConfigurationSetting from key/value/label and delegate to the model-taking AddConfigurationSetting."
+    },
+    "dotnet:azure.data.schemaregistry:module-v1:0e7a872e3c37c4680f3515d94077cbcc8a6ccc5884167abc876ac7336abc131f": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Sends the schema string as BinaryData with the format's content type and projects Schema-* response headers into SchemaProperties."
+    },
+    "dotnet:azure.data.schemaregistry:module-v1:2a4b9f98ea06780b46a9d7d92503922939b9de0dae02842c4289dd90e1514b5f": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Sends the schema definition string as BinaryData with the format's content type and builds SchemaProperties from Schema-* response headers."
+    },
+    "dotnet:azure.data.schemaregistry:module-v1:6553de6dbf71f59173fb9ffbc7b0e0b5065739fd14f5151db5d49496ccf3f3ae": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "GetSchema overloads map Schema-* and Content-Type headers to SchemaProperties, read the body as a string definition and return a SchemaRegistrySchema aggregate."
+    },
+    "dotnet:azure.health.deidentification:module-v1:8486c55255dc450efb36fda3529ea35ce80e2d48acdc389cdd3157bc39854789": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public GetJobsAsync pageables forward to an internal method passing null for the internal continuation-token argument."
+    },
+    "dotnet:azure.health.deidentification:module-v1:896bd742c2f169391d259d7914a1328917503794b10599fb304f858fc97d59a8": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public GetJobDocuments forwards to an internal pager with the continuation-token argument fixed to null."
+    },
+    "dotnet:azure.health.deidentification:module-v1:96bd37fb3ddc7d9cfd587413abb83321fb486a01f7e68ea22079f18900863bed": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "GetJobs wraps GetJobsInternal, passing null for an internal continuation argument, in sync typed and protocol paging overloads."
+    },
+    "dotnet:azure.health.deidentification:module-v1:ede9a8fef23162076acdc0d0b0e23ba7d75aa700c5964513f65beb364e5bebec": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public GetJobDocumentsAsync pageables forward to an internal method passing null for the internal continuation-token argument."
+    },
+    "dotnet:azure.messaging.eventgrid.namespaces:module-v1:19d361afcc5b9fe49069ed896962552895596a5f48195630cc7e20c7391d6c7d": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Sends a shared CloudEvent or a collection of them via custom CloudEvent request content to the protocol op, using the client-stored topic name."
+    },
+    "dotnet:azure.messaging.webpubsub.chat:module-v1:1747116a962c9cce8a6035ae0427447333c78a00772e3bb6df429bf203023f54": {
+      "pattern": "request-body-encoding",
+      "reason": "content-type-and-body-encoding",
+      "note": "Serializes a WebPubSubChatMessage to RequestContent, forwards match conditions to the protocol UpdateMessage and casts the response."
+    },
+    "dotnet:azure.monitor.query.logs:module-v1:7a60d0a565672dd3d7dd5e6d5b646ce41fa011fb53d8a2d0816b62aed98bea73": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Generic QueryWorkspaceAsync<T> awaits the typed query and binds all result tables to T via RowBinder; it wraps a convenience method, not a protocol call."
+    },
+    "dotnet:azure.resourcemanager.apimanagement:module-v1:cb621f0cbecd5dc021c99b46d0866b07759b7d655ce08677573b774fbe828f3c": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Hidden mgmt delete wrapper that validates ids and builds the REST request with resource-id parts and ifMatch.ToString()."
+    },
+    "dotnet:azure.resourcemanager.apimanagement:module-v1:d3ac4d7e8c5442720e669f4f646bc8dca0c3833146ed86b327b204f61950d6f5": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Hidden back-compat delete overload that takes a typed ETag ifMatch, converts it to string and sends the generated delete request using ids derived from the resource Id."
+    },
+    "dotnet:azure.security.keyvault.administration:module-v1:28ad720376f79df4a9200b332636ae2e2fe00e1eda152c1d75f897797feb5042": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Stringifies a KeyVaultRoleScope and Guid and delegates to the string GetRoleDefinition overload inside a diagnostic scope."
+    },
+    "dotnet:azure.security.keyvault.administration:module-v1:c75f18c84ed82df1915e1b3c07fd999863a373223b5572ab1e64c89c06dd5d50": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Stringifies a KeyVaultRoleScope and delegates to the string-scope pageable overload inside a diagnostic scope."
+    },
+    "dotnet:azure.security.keyvault.administration:module-v1:d46069877b1861fd612573444bacd3baef9d04bdd47a60b1e5c7e8a1bfe1144c": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Stringifies a KeyVaultRoleScope and calls the string-scope pageable overload within a diagnostic scope."
+    },
+    "dotnet:azure.security.keyvault.secrets:module-v1:37609a81b92843081f3862b14bbb67a12677a7f7da1656b8ecae04473cbc5b02": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Takes public SecretProperties, validates Version, serializes an update body via SecretMapper, calls the internal update and deserializes to SecretProperties."
+    },
+    "dotnet:azure.security.keyvault.secrets:module-v1:3f31d0a9536bcbfc506bd7384a57729d4434ee3930844a1647f6d4249947d33c": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Takes public SecretProperties, maps it to the update body, pulls name/version from it and deserializes back to SecretProperties."
+    },
+    "dotnet:azure.security.keyvault.secrets:module-v1:96c90bb629262dab145a5794f2c0c8ffc08d4735eeeb1e95cbd05e3f1c36fe22": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Converts the optional SecretContentType to string, calls the internal protocol GetSecret and deserializes into the public KeyVaultSecret model."
+    },
+    "dotnet:azure.security.keyvault.secrets:module-v1:f4a76348138a63193f2f2c14d5af7fdfaf5ff67952a493d27ab6f6ae6d3a5168": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls the internal GetSecret protocol method with a stringified content type and deserializes the raw response into the public KeyVaultSecret, with tracing attributes."
+    },
+    "dotnet:azure.storage.blobs:module-v1:5245a20dc83cb4d0fb4c605d041cfdff4b43dec8b8a309426a6b48fff5267f1b": {
+      "pattern": "back-compat-overload",
+      "reason": "new:back-compat-overload",
+      "note": "Editor-hidden legacy Create overload forwarding to handwritten CreateInternal with defaults for later-added tags/immutability/legal-hold."
+    },
+    "dotnet:azure.storage.files.datalake:module-v1:975f86f93d506e91df155197e9d23e144b579a43f880c55bac06edb593328e86": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Directory Create delegates to the path client's Create with resourceType fixed to Directory, inside a diagnostic scope."
+    },
+    "go:github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig/v2:module-v2:0ef4513b9f718463b6acd38be88548202ffeeb79dc4bfb3b5070970dc58dec8b": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Maps IfMatch/IfNoneMatch/Select options to the generated getter and copies the result into a public Snapshot with renamed filter fields, SyncToken and Link."
+    },
+    "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azblob:module-v1:0200e2dca34c1f97cf4261aac12feae3a6af914ab51c30b03fc0f4d5d0d2d0f1": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Go Create that converts handwritten CreateOptions into the generated options via format() and calls the generated client."
+    },
+    "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azblob:module-v1:8bdcec8503024c3a6a595c2c4a9ff444cb4f64a699b601dd5fbfaf01ca656ce5": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Seal formats handwritten SealOptions into the generated options and calls the generated Seal."
+    },
+    "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2:module-v2:89b6cde6e837422f5e1d0c8cb676e670099a3037b5fa5c7d65a7be916f9664e2": {
+      "pattern": "credential-client-constructor",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Package-level NewSharedKeyCredential that re-exports an internal credential constructor."
+    },
+    "java:azure-ai-agents:module-v1:be527e6907c775416264135aa439ca2aec2e2406557aa915b9373c034465658c": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Wraps internalDelete* operations, replacing the response body with null and exposing Void-returning delete methods."
+    },
+    "java:azure-ai-contentsafety:module-v1:115841d878b2d51a9e3204f0ede9a290aea8d4952f6fd2674cf9a722f5d1a215": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "analyzeImage(BinaryData) wraps the bytes in ContentSafetyImageData/AnalyzeImageOptions and delegates to the options overload."
+    },
+    "java:azure-ai-contentsafety:module-v1:4362f348243337c032f6d1279c3d65451fb1f2f5d0c2031e138a425649409855": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "analyzeText(String) wraps the text in AnalyzeTextOptions and delegates to the options overload."
+    },
+    "java:azure-ai-contentsafety:module-v1:51a0b82f269045acd59ac09e03bfc08e09f293b36c823e7242dabbfa35089e22": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "analyzeImage(String blobUrl) builds AnalyzeImageOptions with a blob URL image and delegates to the typed analyzeImage."
+    },
+    "java:azure-ai-contentunderstanding:module-v1:7f199f6a992bdccf5b43e6982196f309ce4f789f9df726e8adc887319167d26e": {
+      "pattern": "back-compat-overload",
+      "reason": "new:back-compat-overload",
+      "note": "Customization script injects a package-private six-arg beginAnalyzeBinary overload that forwards with a trailing null to preserve GA descriptors."
+    },
+    "java:azure-ai-contentunderstanding:module-v1:b6e5c7cd7b04a18bf923200d9c5b1b677edb26a5267a6fdbffa5df17fddc88ad": {
+      "pattern": "back-compat-overload",
+      "reason": "new:version-compat-overload",
+      "note": "Customization script adds a package-private five-argument beginAnalyze that forwards to the six-argument overload with a trailing null, preserving the GA signature."
+    },
+    "java:azure-ai-translation-document:module-v1:009da30acc42efb73d9a4adc8f2f96488debc858a0b7ee13721f2dd62bf9fbfc": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Stringifies FileFormatType, calls the protocol getSupportedFormatsWithResponse and returns SupportedFileFormats.getValue() as List<FileFormat>."
+    },
+    "java:azure-ai-translation-document:module-v1:76a8c47306f2674d1bbcd8b5924032a49567ea8e79bf5cd31ede87a03e3e7f4a": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Passes FileFormatType.toString(), deserializes SupportedFileFormats and returns its value list."
+    },
+    "java:azure-ai-vision-imageanalysis:module-v1:363eca29d0f46f86135bed09d60d7b88b85148077369fbe550022a2fabd38464": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "analyze/analyzeFromUrl take a VisualFeatures list and options, stringify the features, wrap the URL in an ImageUrl body, map options into RequestOptions and wrap a typed response."
+    },
+    "java:azure-ai-vision-imageanalysis:module-v1:da7869400d11749ef3abd3ebef1f73e0cdfb3b3e13b2890a790511a8b4a51ffd": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async analyze/analyzeFromUrl overloads stringify the VisualFeatures list, map ImageAnalysisOptions into RequestOptions and deserialize BinaryData to ImageAnalysisResult."
+    },
+    "java:azure-search-documents:module-v1:4117b80cc69095cf3ad70986d7ce38e44a2753395088f5bf4e3d2b04f321ca7d": {
+      "pattern": "model-alternate-constructors",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Model setters accepting varargs and wrapping them with Arrays.asList."
+    },
+    "java:azure-search-documents:module-v1:e63748d0dfecddd693886127dd295bf853f9416e6e6bc3d0819ccd5908d3c379": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Customization script injects retrieveStream overloads that set x-ms-query-source-authorization headers on RequestOptions and call the hidden generated method."
+    },
+    "java:azure-search-documents:module-v1:f9f7bec021cf4e4c2c1af74b8da70330a93177cdcf670866b7068109eabc6c14": {
+      "pattern": "model-alternate-constructors",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Model constructors accepting varargs for a required list property."
+    },
+    "java:azure-security-keyvault-administration:module-v1:keyvault-v2:da864f2cb2f7db8d849f10a6517949b624f16d6dc8a65e9797a1089701b99c09": {
+      "pattern": "lro-custom-poller",
+      "reason": "lro-or-paging",
+      "note": "Script injects a typed selectiveKeyRestoreOperationWithResponse into the impl, returning Response<SelectiveKeyRestoreOperation> for the restore LRO."
+    },
+    "java:azure-security-keyvault-certificates:module-v1:keyvault-v2:e6bbfedd683d50213606886dc1f8e4424b86d629f6d71447482a05ae70f0d21c": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Validates name, calls getCertificateWithResponse with an empty or supplied version and converts the result via createCertificateWithPolicy."
+    },
+    "javascript:@azure/ai-voicelive:module-v1:5fcdee05b66e21294dc58e7d89d381b2907d4a65d638bc18bee0cd6e37ec5828": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds typed websocket client events (session update, conversation item create) with generated event ids and sends them on the session."
+    },
+    "javascript:@azure/app-configuration:module-v1:c0c6c58b646c15d60c75928db7680264d32e877be9947f0fa53b513274477dba": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Deletes by encoded key/label from a ConfigurationSettingId, maps If-Match/If-None-Match, captures HTTP status and transforms the response."
+    },
+    "javascript:@azure/app-configuration:module-v1:d0679530f857627e97b03fd91bad0087b70b23547aa697fa2023e9e34d296eb8": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Serializes the typed setting, calls putKeyValue with ifNoneMatch '*' and encoded key, transforms the response and rewrites the 412 error message."
+    },
+    "javascript:@azure/eventgrid-namespaces:module-v1:5b69d9f29b37291552078b95a2142b1f2199c74f1db44a964196937ac08f7667": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "renewEventLocks forwards stored topic/subscription and lock tokens to generated renewCloudEventLocks."
+    },
+    "javascript:@azure/eventgrid-namespaces:module-v1:6b1f5063bcf532c2bb50b234b02097de1de5bdaf1fb77ed0a06c9626d339dd34": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "acknowledgeEvents forwards lock tokens to acknowledgeCloudEvents with topic/subscription taken from the client instance."
+    },
+    "javascript:@azure/eventgrid-namespaces:module-v1:d0885d9f7e9d9c2fd7767658ecf86b394a971e657e8d057b71c86a214c98bdc6": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "rejectEvents fills in the client-stored topic and subscription names and forwards lock tokens to rejectCloudEvents."
+    },
+    "javascript:@azure/schema-registry:module-v1:155194a8004b77c3e841edc6252c3a10f9a8bee7f5668eb7f33d77bff3100096": {
+      "pattern": "request-body-encoding",
+      "reason": "content-type-and-body-encoding",
+      "note": "Maps a SchemaDescription to the :get-id POST with a format-derived content type and raw schema body, then converts response headers to SchemaProperties."
+    },
+    "javascript:@azure/schema-registry:module-v1:8c30f146b5cb8ac2d62b5485b7f93d4156ff3bac949688bb8eb81903f35db265": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "One getSchema overload set dispatching to get-by-id or get-by-version routes and converting the raw response to Schema."
+    },
+    "javascript:@azure/schema-registry:module-v1:d21bef87da7c0ed0b981a5b31d218bb96aacdfbcc885ec190d2c7a496e06cb22": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Unpacks SchemaDescription into a raw RLC put with a format-derived content type and converts the header-only response into SchemaProperties."
+    },
+    "javascript:@azure/storage-file-datalake:module-v1:07287b5c33b100e1856761ce5cd4e5cbb675d4521230404738e7fc296d6eba32": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "deleteIfExists calls delete and converts a PathNotFound error into a succeeded:false result; other errors rethrow."
+    },
+    "javascript:@azure/storage-file-datalake:module-v1:4a7415d6e7c62eb8752b8a6cafeea40eb0810a5c04b6350450f24eeea6c5b98f": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Calls getProperties with fixed action=getAccessControl, flattens condition options and parses acl/permissions header strings into typed values."
+    },
+    "javascript:@azure/storage-file-datalake:module-v1:73200de7291343fbf1ef6b356020ee88e3867bb78b58542107e5be91a59d12b3": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "createIfNotExists forces ifNoneMatch '*' on create and turns a PathAlreadyExists error into a succeeded:false result."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:3638968721c9de3523ce147ea5223daac72713e5cd076ab363212df7c129e0c1": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async begin_update_qnas renames the body parameter to qnas and forwards to the generated method."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:603eca06127b6109323e316e44ec24607d769ca7b946aa2da688835532137403": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async create_project override that only renames the body parameter to options for backward compatibility."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:66e651ce9701cd3f958ba79ac1ede3db9db5cb1b205fa8016acff80deb6a5af4": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "create_project renames the body parameter to options and forwards it unchanged as body."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:71fd7c0c2f0af637441ee493ad0ed4d851f5147b7014ca5378f4e96b3ce7e656": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "begin_update_sources renames the body parameter to sources and forwards to the generated method."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:736847222a39f0a1e3e5a6823966cf26689f77778770333a2e06da2d634dd894": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "begin_update_qnas override that only renames the body parameter to qnas."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:7ead041583663e3cf157b25f51c0f6fd7905edb1db246f3f501555dc38b38bb0": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "update_synonyms renames the body parameter to synonyms and forwards it unchanged as body."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:abd22594e30f09a6c75e63afe5b75654c1fcb47e7e11677e8069331c041c54d5": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async begin_update_sources renames the body parameter to sources and forwards to the generated method."
+    },
+    "python:azure-ai-language-questionanswering-authoring:module-v1:cf26e53f14023125d21459a399cf0f1ed849682b434adf3341425e2db5136256": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async update_synonyms override that only renames the body parameter to synonyms."
+    },
+    "python:azure-ai-translation-text:module-v1:29af4b175dd05b4996c8c8f30fba950bd1ceed21f4bbbddbb7eef52924449d66": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "transliterate accepts strings or InputTextItem lists, wraps them in TransliterateBody, calls generated transliterate and returns result.value."
+    },
+    "python:azure-ai-translation-text:module-v1:427f3de5e81b99c45949a4ea3a883dc93b9dc348ebfdf9d0d78e27412c72cb23": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "translate converts string lists (with to/from language) or TranslateInputItem lists into TranslateBody and returns result.value."
+    },
+    "python:azure-ai-translation-text:module-v1:44d614c1879809b064b4985017cbce64426baf775737939639ed0b383ceeb3b7": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "Wraps string or InputTextItem lists into TransliterateBody and returns result.value."
+    },
+    "python:azure-ai-translation-text:module-v1:d17061e9d6a1590bb10a0c550fd1d943e1f7651c26527cbdf2bbf4f203e49f1d": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "translate converts string lists to TranslateInputItems with targets/source language or wraps model lists, rejects mixed lists, and returns result.value."
+    },
+    "python:azure-ai-vision-face:module-v1:0c2a3c793763868eed963f8587d8d8ac2e2fc35ec76ab15e0f1b21d00304a699": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Async detect_from_url exposes required detection_model/recognition_model/return_face_id keywords and forwards everything to private _detect_from_url."
+    },
+    "python:azure-ai-vision-face:module-v1:6dc8b1ab05fce50add9b2957e2eb597bd08c243d0ab769de7a4b1e60e5ca9bfe": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Public async detect(image bytes) that forwards to the private generated _detect with required model/return_face_id keywords."
+    },
+    "python:azure-ai-vision-face:module-v1:7afc9d5986ed7037a28e9046c0af8c79929066f3e36cdd94a7f2b6c08326c62e": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public detect_from_url forwards all arguments unchanged to the private generated _detect_from_url, only restating the signature with required keyword arguments."
+    },
+    "python:azure-ai-vision-face:module-v1:7db5a755b44086c3523afc261f14b8a0472518e4a7395ced0a02d90c014eceac": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "detect exposes image_content bytes and required detection keywords, forwarding to private _detect unchanged."
+    },
+    "python:azure-ai-vision-imageanalysis:module-v1:6d199aa386e78fe3febb0b71475489d0dddfa7d06ddabab1e99f9c7b4be45c09": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "analyze(image_data bytes) delegates to the private _analyze_from_image_data, converting visual_features to a list."
+    },
+    "python:azure-ai-voicelive:module-v1:1dc2d08ade128a6ed741a7a1e9709f796e926b5abf5b671cacb2ac9166398e38": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a ClientEventConversationItemDelete websocket event with optional event_id and sends it on the connection."
+    },
+    "python:azure-ai-voicelive:module-v1:389bf51d7db3ace864f236e74b33a6a21e55f94f6050e15b9150e422a1f4aef8": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds an input_audio_buffer.append websocket event with optional event_id and sends it on the connection."
+    },
+    "python:azure-ai-voicelive:module-v1:43a7a16d816cdc0e138c4f985207ab2f710688638bb5d49379436ecedfec6d57": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a response.cancel websocket event with optional ids and sends it over the connection."
+    },
+    "python:azure-ai-voicelive:module-v1:784e8528099d0f2ba7bf8263f8fdc2f19adb1fd6e150199fb679b6d6b04a370b": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Normalizes a mapping into ConversationRequestItem and sends a conversation.item.create websocket event."
+    },
+    "python:azure-ai-voicelive:module-v1:911cfccfd8becb5b57970c4f1459ec036963d64376f3715721e4a93ff832805d": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds an input_audio_buffer.clear websocket event with optional event_id and sends it."
+    },
+    "python:azure-ai-voicelive:module-v1:9683b045c53f807c19711271dc95b606e0d70dc102db0d66255150805cf36df6": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a ClientEventConversationItemTruncate websocket event from item id, end ms and content index and sends it."
+    },
+    "python:azure-ai-voicelive:module-v1:9aebf8b087c76998ced02a65729ed796af1a5059df450c88a52b599504965d43": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Normalizes a mapping into ResponseCreateParams and sends a response.create websocket event."
+    },
+    "python:azure-ai-voicelive:module-v1:a6a2368ee7f4886c17587cd350be5eed1cf047d603abef4dde2de96a5233737a": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a transcription_session.update websocket event dict and sends it."
+    },
+    "python:azure-ai-voicelive:module-v1:ba1e5a7d707666e41ec35e5369a5e03e3e05bb4feb6afd4df5c2b5e57ca659b7": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a ClientEventConversationItemRetrieve websocket event with optional event_id and sends it."
+    },
+    "python:azure-ai-voicelive:module-v1:d98a10a3230e2b602d29213d857b96a1d7d396a655c540512bc5a27ad0230955": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds a session.update websocket event from a RequestSession or mapping and sends it."
+    },
+    "python:azure-ai-voicelive:module-v1:df2c4c963e2a2956de58c61cc7b293116bf1f9143c3a8d39afe2baec0813a668": {
+      "pattern": "sse-typed-event-stream",
+      "reason": "not-a-protocol-wrapper",
+      "note": "Builds an input_audio_buffer.commit websocket event with optional event_id and sends it."
+    },
+    "python:azure-appconfiguration:module-v1:117d09ce6c576626a4cc11aaabdc345dd33bada2299d69497b0588ead3bc8e0a": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Converts the public setting, uses the explicit etag or the model's etag with match_condition, maps 409 to ResourceReadOnlyError and converts the result back."
+    },
+    "python:azure-appconfiguration:module-v1:6aac52c45fee23f4e6df56c53fc41867ceb3d82b1e9f2bc9fda0e502f89f258e": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Forwards key/label/etag/match_condition to the generated delete with a 409 ResourceReadOnlyError map and converts the result to ConfigurationSetting or None."
+    },
+    "python:azure-appconfiguration:module-v1:bc2e112992a0632b8ab437a7cb021cbaa886ecb15620c3ab2a82a17c187a94b1": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Converts accept_datetime to string, forwards etag/match condition, maps result via ConfigurationSetting._from_generated and returns None on 304."
+    },
+    "python:azure-appconfiguration:module-v1:dd789c1e2a0316e843e95ed15f6c070821d5e294635971bb97c453b502e9efbe": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Converts the public ConfigurationSetting to KeyValue, calls _put_key_value with MatchConditions.IfMissing and converts the result back."
+    },
+    "python:azure-eventgrid:module-v1:1f1d63cc99638b44619cf243bf4ae3fc46592ee770a6fbaf777a8252adcebb46": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "release supplies stored namespace/subscription and maps release_delay to release_delay_in_seconds on private _release."
+    },
+    "python:azure-eventgrid:module-v1:2f1629484ef5420df5b27e3a6e70cb316d78a70c5eccba4a7c8f3af4af570253": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls _receive with stored topic/subscription and converts each detail event into a shared CloudEvent."
+    },
+    "python:azure-eventgrid:module-v1:32eb956411e8f50d7789a71aafc1487e66a84603e809c3777fdf5a3bca8ea6a9": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async reject forwards stored namespace and subscription plus lock tokens to the private _reject."
+    },
+    "python:azure-eventgrid:module-v1:496751a2ba0d9a778984c321248c671915b5395d03a415faad4fbade4fb19495": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "renew_locks forwards stored namespace/subscription and lock tokens to private _renew_locks."
+    },
+    "python:azure-eventgrid:module-v1:ae1c783e6843bb0e5e27fd4979f776f5c03a4fb7fc33184a2940a3514d9c4ed4": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async renew_locks forwards lock tokens to _renew_locks with namespace/subscription from the client instance."
+    },
+    "python:azure-eventgrid:module-v1:c239401b35fe84f615b164019ca0053f3bf4ca78a4f977b5ae3dc0b2da7b208d": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Async receive calls _receive with stored context, converts each event to azure.core CloudEvent and returns a list of patched ReceiveDetails."
+    },
+    "python:azure-eventgrid:module-v1:d1cdfe4826297533941ab4f747ea0848f4a772b3ca1f97631389496a5de822d3": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "reject forwards stored namespace/subscription and lock tokens to private _reject."
+    },
+    "python:azure-eventgrid:module-v1:eb56abfe545e86d2b5f1e9042a7c29e8edc1c7083211d60f26dafbedf686125f": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async acknowledge forwards lock tokens to _acknowledge with namespace/subscription from the client instance."
+    },
+    "python:azure-eventgrid:module-v1:edc754c046bd21040bc3b3e7dc993d8feba5678329859b7d025a6f1ead0a4f3f": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async release forwards stored namespace/subscription and maps release_delay to release_delay_in_seconds on the private _release."
+    },
+    "python:azure-eventgrid:module-v1:fd73319d058ed0ed663b57f57c0855df590103ef034b50b0a3bab3d0edc3cdb2": {
+      "pattern": "client-level-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "acknowledge forwards stored namespace/subscription and lock tokens to private _acknowledge."
+    },
+    "python:azure-health-deidentification:module-v1:6492bb1726fd2c1f42f8ef1af762371bf128073a102e4996566a5a4045bcf09b": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public list_jobs forwards to _list_jobs_internal with continuation_token_parameter=None."
+    },
+    "python:azure-health-deidentification:module-v1:cc448198efc47638a2a5d8527123a982fe0d3c5adb907605a88039bd0fe79930": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Public list_job_documents forwards to the internal pager with continuation_token_parameter=None."
+    },
+    "python:azure-health-deidentification:module-v1:f63b741d08747f99fe2d88d3c33bd600c88b8759b32a997f3994121429204b0a": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async list_jobs calls _list_jobs_internal with continuation_token_parameter=None."
+    },
+    "python:azure-health-deidentification:module-v1:ff0decf62ce17742cef22972ea50b8cfb2f80de6f7c04d9a969c2480b8927617": {
+      "pattern": "next-link-handling",
+      "reason": "hide-or-fix-parameters",
+      "note": "Async list_job_documents forwards job_name to the internal method with continuation_token_parameter=None."
+    },
+    "python:azure-iot-deviceupdate:module-v1:13e9c812b825439db686848d7d280007d298f74630f72b46b7d512a695117d20": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Adds an if_none_match keyword that is injected as a raw If-None-Match header before calling the generated get_operation_status."
+    },
+    "python:azure-iot-deviceupdate:module-v1:2227cbd16814b4369e2be811d7d7e20c0e73f45ed9cad9ed2d94326ecdb658d9": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "get_update accepts a raw if_none_match and injects it as an If-None-Match header before calling the generated method."
+    },
+    "python:azure-iot-deviceupdate:module-v1:67cf183022b81127b394012e30780dd4ff23d62224b9679c674c755e19742b46": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Restores the 1.0.0 raw if_none_match keyword by injecting an If-None-Match header before calling generated get_file."
+    },
+    "python:azure-iot-deviceupdate:module-v1:8171fba7676e56f0af064458bc5ab0786fa528d9a88df83fdea3860b7fc50f17": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Async get_file adds an if_none_match keyword injected as a raw If-None-Match header before calling the generated method."
+    },
+    "python:azure-iot-deviceupdate:module-v1:e393950b4b7b6b3560187807122ac710d78e4f1d5d7fa349b4f67d9894cd0bd8": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Async get_operation_status injects a raw If-None-Match header then awaits the generated method."
+    },
+    "python:azure-iot-deviceupdate:module-v1:ebe7ec133ad348ff650afc43cb51d4713d37b2722c1f7c7b017a5260862746e0": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Restores the 1.0.0 raw if_none_match keyword by injecting an If-None-Match header before calling generated get_update."
+    },
+    "python:azure-iot-deviceupdate:module-v1:fb8c694cc9f56498cfdc5d09bb26516eece75245ec47af430d471f97bc519cc2": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Adds an if_none_match keyword injected as a raw If-None-Match header before calling generated get_operation_status."
+    },
+    "python:azure-iot-deviceupdate:module-v1:fc81eeafc93cdbb67b7c3cba88482649713af7fa1a5ee09d79906fc6ace68f73": {
+      "pattern": "conditional-request-parameters",
+      "reason": "conditional-requests",
+      "note": "Async management get_operation_status injects a raw If-None-Match header then awaits the generated method."
+    },
+    "python:azure-keyvault-administration:module-v1:6870320fd2636b3641d19f62eabbdd61086abc8347f7021c403fc4f1f863d44a": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Stringifies the name, calls role_assignments.get and converts to KeyVaultRoleAssignment._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:785b6db40a0343fdea2600f73944ad854a2a122b30ae5f216296270efaae57d3": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls internal delete_ekm_connection and converts the result with KeyVaultEkmConnection._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:7dd3cb9da15234673b23f334db7835d466ccb71165de25b1d6a64b4bdcfea3d8": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "check_ekm_connection calls the internal operation and converts with KeyVaultEkmProxyInfo._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:b0a5213108c24551fa79a6c6c026256e8a41684d5b70c9b7b0f6070078c26771": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Converts the public EKM connection to generated, calls update and converts the result back."
+    },
+    "python:azure-keyvault-administration:module-v1:ca8e64214c16a057a3835c54d392143fa555cf9c08c98388f7255257527296e5": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls internal get_ekm_certificate and converts the result with KeyVaultEkmProxyClientCertificateInfo._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:cb9e9235ef24fdc337e3218e0433f314bc913fe25fe78ea29dc0a51bc612576b": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "get_ekm_connection calls the internal getter and converts with KeyVaultEkmConnection._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:d818f652c2b7c7a9ae770e61856c8cd22b9e26f49a586bbd1a5807ed8a49ac07": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Stringifies the name, calls role_definitions.get and converts to KeyVaultRoleDefinition._from_generated."
+    },
+    "python:azure-keyvault-administration:module-v1:db8aaacffed83df317792bc7d838d4cecae3e7c2ab622768494e941c96bd952f": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Converts the public connection with _to_generated, passes it as ekm_connection and converts the result back with _from_generated."
+    },
+    "python:azure-keyvault-certificates:module-v1:0adf62fc0f47c5c52d6445d591ce06c081fd99547d92a7d0d19075ae29a8d6a6": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Converts a public CertificatePolicy to a policy bundle, calls the inner update and converts the bundle back."
+    },
+    "python:azure-keyvault-certificates:module-v1:208eda9718cf84d2e9ac2fb0fa9e1ffab750063c85b77ac7a4708527f57f3714": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls get_deleted_certificate and converts the bundle to the public DeletedCertificate."
+    },
+    "python:azure-keyvault-certificates:module-v1:88b671e17b53f836b18227fea2b066b690ecaea5449060e7f0aeb36abc8257c1": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Builds CertificateUpdateParameters from enabled/tags, defaults version to empty string and converts the bundle to KeyVaultCertificate."
+    },
+    "python:azure-keyvault-certificates:module-v1:a5eb572dd412c987a93a4b10f2498719439ad87ac51457ef54dd353804f41d5f": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls get_certificate_policy and converts the bundle to the public CertificatePolicy."
+    },
+    "python:azure-keyvault-certificates:module-v1:e3c10654fe3c5b34c2261addfc3832e4e63a266a436fb4a0a79697b9dc77c05c": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls inner get_certificate with certificate_version=\"\" and converts the bundle with KeyVaultCertificate._from_certificate_bundle."
+    },
+    "python:azure-keyvault-certificates:module-v1:fe263329199caba1a2fb96a422137f3bdb93d4db1b0f3fe48d136ed5ac5b362d": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "get_certificate_version calls the inner get_certificate with a version and converts the bundle to KeyVaultCertificate."
+    },
+    "python:azure-keyvault-secrets:module-v1:6a69910bb6cad64db4f8ee8202ec12d827b0488aedb8a96d5754d7da5c0c2462": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Normalizes a missing version to empty string, forwards out_content_type and converts the bundle to KeyVaultSecret."
+    },
+    "python:azure-keyvault-secrets:module-v1:be55b83c67af5e9855e81125a4570c2680371e0d7f661ad3e37ef4183dca3e0a": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "backup_secret returns the .value bytes of the generated backup result."
+    },
+    "python:azure-keyvault-secrets:module-v1:bef27aadb47dacc80b43610fb7deed397da45f086dd5e601cb5bcb6f5780652a": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "get_deleted_secret calls the inner operation and converts with DeletedSecret._from_deleted_secret_bundle."
+    },
+    "python:azure-monitor-query:module-v1:1ad7437b3d62a9674d92a2883ae05e20dec7cc58d378a93093afc63772fa9322": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Builds the query body from flat args, converts timespan to ISO8601, composes the Prefer header and returns full or partial result models."
+    },
+    "python:azure-monitor-query:module-v1:294f438dcaef41d2b1d762f11c35071eb7bf9ec6feb9780cf6f01171cd7d33f9": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Converts timespan to ISO 8601, builds the Prefer header and JSON body, calls _execute_with_resource_id, maps errors and returns LogsQueryResult or LogsQueryPartialResult via _from_generated."
+    },
+    "python:azure-monitor-query:module-v1:f7323e6d13b8493530bc0da987a2eecaaefa613fb667b23ecfd95fa9cbba40e7": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "query_batch converts dicts or LogsBatchQuery to generated requests, calls _batch and reorders responses by id into result/error/partial-result objects."
+    },
+    "python:azure-monitor-querymetrics:module-v1:9d219bf78c707ff7056fa2d36dd0e5e7fa3e130c6187a1e8e37ec3a2909b3703": {
+      "pattern": "request-parameter-reshaping",
+      "reason": "param-shape",
+      "note": "Validates resource ids, encodes metric names, converts timespan/granularity, derives subscription id, builds the body and maps values to MetricsQueryResult."
+    },
+    "python:azure-monitor-querymetrics:module-v1:fe0977ea29a4fb097fa0420aa865de0d35a998811329733cabe4f915c4e50e1f": {
+      "pattern": "parameter-value-conversion",
+      "reason": "value-conversion",
+      "note": "Validates resource_ids, encodes commas in metric names, converts timespan/granularity, joins aggregations, renames max_results to top, builds the body and maps values to MetricsQueryResult."
+    },
+    "python:azure-schemaregistry:module-v1:62365e7cc3b91874ac23a6ef362c5a12b670f1ed85491ac36523c6d83901a3bd": {
+      "pattern": "alternative-input-forms",
+      "reason": "input-overloads",
+      "note": "get_schema dispatches to id or group/name/version lookups, sets a multi-format Accept header, streams the body and builds Schema from text and header properties."
+    },
+    "python:azure-schemaregistry:module-v1:772810dfef66c2e9707bf5575991cef8276d8061a440c04bfd2693ee8ef221f3": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Sends the definition with a format-derived content type to the internal by-content op and builds SchemaProperties from response headers."
+    },
+    "python:azure-schemaregistry:module-v1:fa11a2130e10f820db40963c5be62401490bc627eba900901bce9fd812cfdda7": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Normalizes the format, sends the definition string with a format-derived content type to _register_schema and builds SchemaProperties from response headers via a cls callback."
+    },
+    "python:azure-security-attestation:module-v1:a2e8f3f0748db8efdd068af06f0ef456f20eef74333eefadbf90cec9742d0c1d": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Calls signing_certificates.get and converts each entry of keys with AttestationSigner._from_generated."
+    },
+    "python:azure-security-attestation:module-v1:bc39d4f2d725f03daf1a17e89d55ab5e3308e26d9b18827089b5d7938f4ea688": {
+      "pattern": "public-model-mapping",
+      "reason": "public-model-mapping",
+      "note": "Fetches signing certificates and converts each keys entry into a public AttestationSigner."
+    },
+    "python:azure-storage-blob:module-v1:79cae160edc303aec13aef44d0a5d14b755cd048382ba46251c058a7af0ba114": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Calls generated get_account_info with return_response_headers as cls to return a headers dict and maps errors through process_storage_error."
+    },
+    "python:azure-storage-file-datalake:module-v1:12691c15e7aa617f20d6f0de7290b0874127ef5209d3c47e0b1ce2b00f07d410": {
+      "pattern": "response-reshaping",
+      "reason": "response-shape",
+      "note": "Public exists delegates to inherited _exists, which returns a bool; the status interpretation is not shown."
+    },
+    "python:azure-storage-file-datalake:module-v1:14c257b51dffabeeb55a71e6ea34a3cfd59382a9561d59a41ebe437b08636a13": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "create_file calls the shared _create with the literal 'file' resource selector."
+    },
+    "python:azure-storage-file-datalake:module-v1:8b016649b6fdb839e5bffefbf56f912668276e230a7fc0d9fe46ca2b00ae4572": {
+      "pattern": "hide-or-fix-parameters",
+      "reason": "hide-or-fix-parameters",
+      "note": "create_directory calls the shared _create helper with the literal resource selector \"directory\"."
+    }
+  }
+}
