@@ -37,6 +37,9 @@ type Bindings = Override["bindings"];
 
 interface DatasetOptions {
   includeFixtures?: boolean;
+  // Only libraries in the TypeSpec inventory (`repo` + `root`) are published, so a scan of a
+  // library that is not TypeSpec-generated (an old starter target) never counts.
+  libraries?: Set<string>;
   historyStateDirectory?: string;
   runGapMinutes?: number;
 }
@@ -674,18 +677,27 @@ export function reclassify(findings: FindingRecord[], files: Reclassification[])
   });
 }
 
+export const libraryKey = (repo: string, root: string) => `${repo}/${root}`;
+
 export async function exportData(
   stateDirectory: string,
   outputDirectory: string,
   options: DatasetOptions = {},
 ): Promise<Dataset> {
-  const { scans, overrides } = await readState(stateDirectory);
+  const state = await readState(stateDirectory);
+  const inScope = (scan: (typeof state.scans)[number]) =>
+    !options.libraries || options.libraries.has(libraryKey(scan.target.repo, scan.target.root));
+  const scans = state.scans.filter(inScope);
+  const overrides = state.overrides;
   const dataset = effectiveDataset(scans, overrides, options);
   const reclassifications = await readReclassifications();
   dataset.findings = reclassify(dataset.findings, reclassifications);
   dataset.historyVersion = 1;
   const historical = options.historyStateDirectory
-    ? await readState(options.historyStateDirectory)
+    ? await readState(options.historyStateDirectory).then((history) => ({
+        ...history,
+        scans: history.scans.filter(inScope),
+      }))
     : { scans, overrides };
   for (const [history, current] of [
     [historical.scans, scans],

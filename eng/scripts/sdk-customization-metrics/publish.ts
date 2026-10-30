@@ -2,8 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { offlineTracking, readLinks } from "./tracking.ts";
 import { join, resolve } from "node:path";
-import { exportData, readState } from "./store.ts";
-import { exportInventory } from "./discover.ts";
+import { exportData, libraryKey, readState } from "./store.ts";
+import { exportInventory, readInventory } from "./discover.ts";
 import { exportTracker } from "./tracker.ts";
 import { readReviewLog } from "./apply-reviews.ts";
 import type { SiteConfig } from "./web/human-review.ts";
@@ -36,7 +36,12 @@ export async function publishSite(
   const output = join(root, "sdk-customization-metrics");
   // Refuse a route collision rather than replacing existing site content.
   await mkdir(output);
-  const dataset = await exportData(stateDirectory, output, options);
+  // Publish only libraries in the TypeSpec inventory, when one is given.
+  const inventory = options.inventory ? await readInventory(options.inventory) : null;
+  const libraries = inventory
+    ? new Set(inventory.libraries.map((item) => libraryKey(item.repo, item.root)))
+    : undefined;
+  const dataset = await exportData(stateDirectory, output, { ...options, libraries });
   if (!dataset.packages.length) throw new Error("Publication has no public packages");
   // The manual tracker is published only when explicitly passed (owner-approved data).
   if (options.tracker) await exportTracker(options.tracker, output);
