@@ -18,6 +18,29 @@ libraries in that scope. The exported database has one additional out-of-scope i
 with missing analysis, so global and scoped missing counts differ. All source coverage
 is bounded, including libraries whose assessments are complete.
 
+## Provisioning run (to do)
+
+Scope: the 33 .NET `Azure.Provisioning.*` libraries whose code scan (October 30, 2026) found
+handwritten code, listed in [`review-targets/provisioning.txt`](./review-targets/provisioning.txt).
+The other 42 provisioning libraries are fully generated and need no review. Requests are about
+3.5 MB per step.
+
+Everything below applies, with these changes:
+
+- Use `--plane provisioning`, `--exchange .local/exchange-prov` and
+  `--only @review-targets/provisioning.txt --limit 10` (four cohorts: 10, 10, 10, 3).
+- Commit messages say "provisioning batch N".
+- Use the same analyst and reviewer models as the data-plane and management runs.
+
+```bash
+cd eng/scripts/sdk-customization-metrics
+export AM="copilot/gpt-6.1-sol" RM="copilot/gpt-6-sol"
+review() {
+  mise exec -- node cli.ts review --state state --plane provisioning --exchange .local/exchange-prov \
+    --analyst-model "$AM" --reviewer-model "$RM" --only @review-targets/provisioning.txt --limit 10
+}
+```
+
 ## Management-plane run (complete)
 
 Completed October 27, 2026 in 19 batches: all 181 libraries in the list have completed

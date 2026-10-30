@@ -31,6 +31,7 @@ import {
   historyCommits,
   readHistoryBlobs,
   specCommitDates,
+  readQuality,
   syncHistory,
   type QualityLibrary,
   type QualityStore,
@@ -483,13 +484,23 @@ export async function main(args: string[] = process.argv.slice(2)) {
       const specDir = join(historyDir, "Azure__azure-rest-api-specs");
       const specSince = new Date(Date.parse(since) - 180 * 86400000).toISOString().slice(0, 10);
       await syncHistory(specDir, "Azure/azure-rest-api-specs", specSince);
+      // Libraries of other planes computed earlier with the same method and window are kept,
+      // so `--plane provisioning` adds to a data-plane run instead of replacing it.
+      const previous = await readQuality(state);
+      const keep =
+        previous && previous.method === QUALITY_METHOD && previous.since === since
+          ? previous
+          : null;
+      const recomputed = new Set(libraries.map((item) => item.identity));
       const store: QualityStore = {
         version: 1,
         method: QUALITY_METHOD,
         since,
         computedAt: new Date().toISOString(),
-        heads: {},
-        libraries: {},
+        heads: { ...(keep?.heads ?? {}) },
+        libraries: Object.fromEntries(
+          Object.entries(keep?.libraries ?? {}).filter(([identity]) => !recomputed.has(identity)),
+        ),
       };
       const repos = [...new Set(libraries.map((item) => item.target.repo))].sort();
       for (const repo of repos) {
