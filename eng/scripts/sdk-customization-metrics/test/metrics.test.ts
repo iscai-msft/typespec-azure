@@ -1592,7 +1592,7 @@ test("inventory changes report added, removed and changed libraries", async () =
   assert.equal(inventory.repositories["Azure/azure-sdk-for-python"].commit, "c".repeat(40));
 });
 
-test("library rows join inventory, tracker and scans by path without hiding any source", () => {
+test("library rows join inventory, tracker and scans by path; stale tracker entries are left out", () => {
   const inventory = {
     libraries: [
       {
@@ -1626,9 +1626,10 @@ test("library rows join inventory, tracker and scans by path without hiding any 
     [
       ["azure-x", "data", true, true],
       ["azure-mgmt-x", "management", true, false],
-      ["azure-y", "data", false, true],
     ],
   );
+  // azure-y is only in the tracker: its folder is gone, so it is not a library today.
+  assert.equal(mergeLibraries(tracker, [], null).length, 2);
   // Libraries with a spec location use it as the service; others fall back to the folder.
   assert.equal(rows[0].service, "x");
   assert.equal(rows[1].service, "x");
@@ -1641,8 +1642,8 @@ test("library rows join inventory, tracker and scans by path without hiding any 
   const [python] = trackerBreakdown(rows, "language");
   assert.deepEqual(python, {
     key: "python",
-    libraries: 3,
-    tracked: 2,
+    libraries: 2,
+    tracked: 1,
     customized: 1,
     candidates: 0,
   });

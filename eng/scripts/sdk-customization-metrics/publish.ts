@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { offlineTracking, readLinks } from "./tracking.ts";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { exportData, libraryKey, readState } from "./store.ts";
 import { exportInventory, readInventory } from "./discover.ts";
 import { exportTracker } from "./tracker.ts";
@@ -45,7 +45,15 @@ export async function publishSite(
   if (!dataset.packages.length) throw new Error("Publication has no public packages");
   // The manual tracker is published only when explicitly passed (owner-approved data).
   if (options.tracker) await exportTracker(options.tracker, output);
-  if (options.inventory) await exportInventory(options.inventory, output);
+  if (options.inventory) {
+    await exportInventory(options.inventory, output);
+    // Deprecated libraries (cli.ts deprecations), kept next to the inventory.
+    const deprecated = await readFile(
+      join(dirname(options.inventory), "deprecated.json"),
+      "utf8",
+    ).catch(() => "");
+    if (deprecated) await writeFile(join(output, "deprecated.json"), deprecated);
+  }
   // Outcomes of applied web reviews (applied, or failed with the reason) for the page.
   await writeFile(
     join(output, "review-log.json"),

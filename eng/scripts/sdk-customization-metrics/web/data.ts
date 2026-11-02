@@ -3,6 +3,7 @@ import type {
   PooledDataset,
   CandidateLink,
   Dataset,
+  DeprecationStore,
   Filters,
   FindingRecord,
   GeneratorAddressable,
@@ -460,16 +461,29 @@ export function folderService(item: ServiceSource): string {
 // - tracker: the manual survey answer;
 // - scan: the latest code scan (pinned customization entry points, findings).
 // Libraries known to only one source still get a row, so nothing is hidden.
+// The folder a library comes from when the same package is published from two folders
+// (Java sdk/keyvault and sdk/keyvault-v2): the identity's last part, after module-vN.
+export function libraryVariant(row: { id: string }): string | null {
+  const parts = row.id.split(":");
+  const module = parts.findIndex((part) => /^module-v\d+$/.test(part));
+  return module >= 0 && module < parts.length - 1 ? parts.slice(module + 1).join(":") : null;
+}
+
 export function mergeLibraries(
   tracker: Tracker | null | undefined,
   packages: PackageRecord[],
   inventory: Inventory | null = null,
+  deprecations: DeprecationStore | null = null,
 ): LibraryRow[] {
   const keyOf = (item: { repo: string; root: string }) => `${item.repo}:${item.root}`;
   const scans = new Map(packages.map((item) => [keyOf(item), item]));
   const surveys = new Map((tracker?.libraries ?? []).map((item) => [item.key, item]));
   const discovered = new Map((inventory?.libraries ?? []).map((item) => [keyOf(item), item]));
-  const keys = [...new Set([...discovered.keys(), ...surveys.keys(), ...scans.keys()])];
+  // With an inventory loaded, a tracker entry that matches no library folder and no scan is
+  // stale (the library was removed or renamed in its repository) and is left out.
+  const keys = [...new Set([...discovered.keys(), ...surveys.keys(), ...scans.keys()])].filter(
+    (key) => !inventory || discovered.has(key) || scans.has(key),
+  );
   const rows = keys.map((key): LibraryRow => {
     const found = discovered.get(key) ?? null;
     const survey = surveys.get(key) ?? null;
@@ -497,6 +511,7 @@ export function mergeLibraries(
       lastChanged: found?.lastChanged ?? null,
       tracker: survey,
       scan,
+      deprecated: deprecations?.libraries[key] ?? null,
     };
   });
   return unifyServiceSpelling(matchNamespaceByPackage(rows));

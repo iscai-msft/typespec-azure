@@ -7,6 +7,7 @@ import {
   languageLabel,
   hasHeuristicDetection,
   healthSummary,
+  libraryVariant,
   lineShare,
   mergeLibraries,
   patternLabel,
@@ -34,6 +35,7 @@ import { findingReview, libraryReview, loadReviewState, type ReviewState } from 
 import type {
   CandidateLink,
   Dataset,
+  DeprecationStore,
   FeatureCoverage,
   FeatureMap,
   QualityStore,
@@ -939,6 +941,15 @@ export async function start() {
       const candidate = await trackingResponse.json();
       if (candidate.trackingVersion === 1 && Array.isArray(candidate.items)) tracking = candidate;
     }
+    // Libraries whose own files say they are deprecated (cli.ts deprecations), optional.
+    let deprecations: DeprecationStore | null = null;
+    const deprecatedResponse = await fetch("./deprecated.json", { cache: "no-store" }).catch(
+      () => null,
+    );
+    if (deprecatedResponse?.ok) {
+      const candidate = await deprecatedResponse.json();
+      if (candidate.version === 1 && candidate.libraries) deprecations = candidate;
+    }
     const qualityResponse = await fetch("./quality.json", { cache: "no-store" }).catch(() => null);
     if (qualityResponse?.ok) {
       const candidate = await qualityResponse.json();
@@ -952,7 +963,7 @@ export async function start() {
       if (candidate.version === 1 && candidate.patterns) features = candidate;
     }
     reviewState = await loadReviewState(catalog.patterns.map((item) => item.id));
-    const allLibraries = mergeLibraries(tracker, data.packages, inventory);
+    const allLibraries = mergeLibraries(tracker, data.packages, inventory, deprecations);
     const languages = LANGUAGES.map((language) => language.id);
     for (const plane of PLANES) {
       const option = element("option", plane.label);
@@ -1029,6 +1040,7 @@ export async function start() {
       control("category").value = canonicalCategory(params.get("category")!);
     byId<HTMLInputElement>("accepted").checked = params.get("accepted") === "true";
     byId<HTMLInputElement>("fixed").checked = params.get("fixed") !== "false";
+    byId<HTMLInputElement>("deprecated").checked = params.get("deprecated") === "true";
     let instance = params.get("instance") ?? "";
     // Statuses from earlier definitions, so older links keep working.
     const legacyStatus = new Map([
@@ -1100,7 +1112,14 @@ export async function start() {
       const snapshot =
         data.observations?.find((item) => item.observedAt === filters.observation) ?? data;
       // Libraries come from the tracker (always current) joined to the selected scan observation.
-      const libraries = mergeLibraries(tracker, snapshot.packages, inventory);
+      const merged = mergeLibraries(tracker, snapshot.packages, inventory, deprecations);
+      const staleTracker = tracker
+        ? tracker.libraries.length - merged.filter((row) => row.tracker).length
+        : 0;
+      // Deprecated libraries are left out of every count unless asked for.
+      const includeDeprecated = byId<HTMLInputElement>("deprecated").checked;
+      const deprecatedCount = merged.filter((row) => row.deprecated).length;
+      const libraries = includeDeprecated ? merged : merged.filter((row) => !row.deprecated);
       const rows = filterLibraries(libraries, snapshot.findings, filters, resolvePattern);
       const identities = new Set(rows.filter((row) => row.scan).map((row) => row.scan!.identity));
       const scanFilters = {
@@ -1137,6 +1156,7 @@ export async function start() {
       for (const id of ["from", "group", "measure"])
         if (control(id).value) query.set(id, control(id).value);
       if (!byId<HTMLInputElement>("fixed").checked) query.set("fixed", "false");
+      if (includeDeprecated) query.set("deprecated", "true");
       if (instance) query.set("instance", instance);
       if (patternStatus !== "reducible") query.set("patterns", patternStatus);
       if (trackingFilter) query.set("tracking", trackingFilter);
@@ -1177,10 +1197,17 @@ export async function start() {
       byId("observation-meta").textContent = [
         `${number.format(rows.length)} ${rows.length === 1 ? "library" : "libraries"} across ${repos.size} Azure SDK ${repos.size === 1 ? "repository" : "repositories"}`,
         tracker
-          ? `Manual tracker: ${number.format(tracker.libraries.length)} libraries (${tracker.source})`
+          ? `Manual tracker: ${number.format(tracker.libraries.length)} libraries (${tracker.source})${staleTracker ? `, ${number.format(staleTracker)} no longer in the SDK repositories and left out` : ""}`
           : "No manual tracker loaded",
+        deprecatedCount
+          ? includeDeprecated
+            ? `${number.format(deprecatedCount)} deprecated included`
+            : `${number.format(deprecatedCount)} deprecated left out`
+          : "",
         `${scanned.length} with scanned code${filters.observation ? ` as of ${formatDate(filters.observation)} UTC` : latest ? `, latest ${formatDate(latest)} UTC` : ""}`,
-      ].join(" | ");
+      ]
+        .filter(Boolean)
+        .join(" | ");
       // Share of code lines that are handwritten, across scanned libraries with a line count.
       const share = lineShare(scanned.map((row) => row.scan!));
       const shareCard = kpi(
@@ -1190,9 +1217,11 @@ export async function start() {
           ? `${compact.format(share.handwritten)} of ${compact.format(share.total)} code lines in ${number.format(share.counted)} ${share.counted === 1 ? "library" : "libraries"}${share.missing ? ` · ${number.format(share.missing)} not counted yet` : ""}${scanned.some((row) => hasHeuristicDetection(row.language)) ? " · JavaScript not counted" : ""}`
           : "Line counts appear once libraries are counted",
       );
-      // The manual tracker drives the overview where it covers the libraries in view (data
-      // plane); elsewhere (management, provisioning) the cards come from the code scans.
-      if (tracked.length) {
+      // The manual tracker drives the overview on the data plane, which it covers; elsewhere
+      // (management, provisioning, all planes) the cards come from the code scans.
+      // Only when every library in view is on the data plane: with all planes selected the
+      // tracker covers a small part of the view, so the scan-based cards describe it better.
+      if (tracked.length && rows.every((row) => row.plane === "data")) {
         const counts = new Map<string, number>();
         for (const row of customized)
           for (const category of row.tracker.categories)
@@ -1992,6 +2021,13 @@ export async function start() {
           button.type = "button";
           button.addEventListener("click", () => chooseLibrary(item.id));
           name.append(button);
+          const variant = libraryVariant(item);
+          if (variant) name.append(element("span", ` sdk/${variant}`, "muted variant"));
+          if (item.deprecated) {
+            const tag = element("span", "Deprecated", "pill pill-muted deprecated-tag");
+            tag.title = item.deprecated.evidence;
+            name.append(" ", tag);
+          }
           const status = element("td");
           status.append(
             item.tracker
@@ -2060,7 +2096,12 @@ export async function start() {
             languageLabel(selectedLibrary.language),
             `language-tag lang-${selectedLibrary.language}`,
           ),
-          element("h3", selectedLibrary.package),
+          element(
+            "h3",
+            libraryVariant(selectedLibrary)
+              ? `${selectedLibrary.package} (sdk/${libraryVariant(selectedLibrary)})`
+              : selectedLibrary.package,
+          ),
           element("span", selectedLibrary.service, "muted"),
         );
         const close = element("button", "Show all libraries", "secondary small");
@@ -2094,6 +2135,11 @@ export async function start() {
         );
         const plane = PLANES.find((item) => item.id === selectedLibrary.plane);
         fact("Plane", plane?.label ?? selectedLibrary.plane);
+        if (selectedLibrary.deprecated)
+          fact(
+            "Deprecated",
+            `${selectedLibrary.deprecated.evidence} (${selectedLibrary.deprecated.file})`,
+          );
         if (selectedLibrary.spec?.directory) {
           const specRepo = /^Azure\/[A-Za-z0-9._-]+$/.test(selectedLibrary.spec.repo)
             ? selectedLibrary.spec.repo
@@ -2580,7 +2626,7 @@ export async function start() {
       }
       update();
     });
-    const controls = [...fields, "accepted", "from", "fixed", "group", "measure"];
+    const controls = [...fields, "accepted", "deprecated", "from", "fixed", "group", "measure"];
     for (const id of controls)
       control(id).addEventListener(id === "search" || id === "from" ? "input" : "change", () => {
         if (fields.includes(id) || id === "accepted") instance = "";

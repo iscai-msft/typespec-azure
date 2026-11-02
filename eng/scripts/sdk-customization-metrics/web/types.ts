@@ -352,6 +352,20 @@ export interface LibraryRow {
   lastChanged: string | null;
   tracker: TrackerLibrary | null;
   scan: PackageRecord | null;
+  // Set when the library's own files say it is deprecated (inventory/deprecated.json).
+  deprecated: Deprecation | null;
+}
+
+// cli.ts deprecations: deprecated libraries keyed by "<repo>:<root>" (published as deprecated.json).
+export interface Deprecation {
+  file: string;
+  evidence: string;
+}
+export interface DeprecationStore {
+  version: 1;
+  method: string;
+  checkedAt: string;
+  libraries: Record<string, Deprecation>;
 }
 
 export interface PatternCatalog {

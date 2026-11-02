@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -8,6 +8,7 @@ import type { Inventory, Scan, Target } from "./web/types.ts";
 import { ModelClient, analyze } from "./analysis.ts";
 import { importLegacy } from "./legacy.ts";
 import { publishSite } from "./publish.ts";
+import { findDeprecations, writeDeprecations } from "./deprecation.ts";
 import { identity, overrideSchema, scanSchema, targetSchema, validate } from "./schema.ts";
 import { COLLECTOR_VERSION, GitHubSource, GitSource } from "./source.ts";
 import { append, createOverride, exportData, readState, validateScan } from "./store.ts";
@@ -104,7 +105,7 @@ export async function main(args: string[] = process.argv.slice(2)) {
   });
   if (positionals.length !== 1)
     throw new Error(
-      "Specify exactly one command: discover, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, count-lines, quality, check-exchange, namespaces, import-legacy, query, schema",
+      "Specify exactly one command: discover, deprecations, collect, review, validate, export, publish, override, apply-reviews, serve, track, language-tables, count-lines, quality, check-exchange, namespaces, import-legacy, query, schema",
     );
   const state = resolve(values.state);
   const specRepository = () =>
@@ -309,6 +310,20 @@ export async function main(args: string[] = process.argv.slice(2)) {
           warnings: inventory.warnings.length,
         }),
       );
+      break;
+    }
+    case "deprecations": {
+      // Which inventory libraries say in their own files that they are deprecated
+      // (deprecation.ts). Writes inventory/deprecated.json next to the inventory.
+      const inventory = await readInventory(resolve(values.inventory));
+      if (!inventory) throw new Error("No inventory; run discover first");
+      const store = await findDeprecations(
+        inventory,
+        (repo) =>
+          new GitRepository(repo, join(resolve(values["repos-dir"]), repo.replace("/", "__"))),
+      );
+      await writeDeprecations(join(dirname(resolve(values.inventory)), "deprecated.json"), store);
+      console.log(JSON.stringify({ deprecated: Object.keys(store.libraries).length }));
       break;
     }
     case "namespaces": {

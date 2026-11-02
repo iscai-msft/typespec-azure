@@ -342,7 +342,9 @@ try {
   await page.goto(url);
   await page.locator("#load-status").filter({ hasText: "Metrics loaded." }).waitFor();
   assert.equal(await page.locator("#plane").inputValue(), "data");
-  assert.equal(await page.locator("#library-rows tr").count(), 3);
+  // The two tracker-only libraries match no inventory folder or scan: stale, so left out.
+  assert.equal(await page.locator("#library-rows tr").count(), 1);
+  assert.match(await page.locator("#observation-meta").innerText(), /2 no longer in the SDK/);
   await page.locator("#plane").selectOption("management");
   assert.equal(await page.locator("#library-rows tr").count(), 1);
   await page.locator("#library-rows button.library-select").first().click();
