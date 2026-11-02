@@ -9,8 +9,9 @@ commonly in folders named `Custom/`, `Customization/`, `Customized/` or `Customi
 also directly in `src/` or `src/Models/`. Handwritten files are usually `partial` classes that
 extend or reshape a generated type of the same name.
 
-Proposed (to confirm): treat every non-generated `.cs` file under `src/` as handwritten, and
-report each behavior in it as an instance.
+Confirmed by the .NET team (Josh Love, November 2026): all generated C# code lives under
+`Generated/`. Every `.cs` file under `src/` outside `Generated/` is handwritten, even one that
+starts with a copied "auto-generated" header; report each behavior in it as an instance.
 
 ## Signals
 

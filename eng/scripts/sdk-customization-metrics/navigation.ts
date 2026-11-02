@@ -57,7 +57,8 @@ export function entryPoint(
   }
   if (language === "dotnet") {
     if (/(?:^|\/)generated(?:\/|$)/i.test(path)) return "";
-    if (/\/src\/.*\.cs$/.test(path) && !/GlobalSuppressions\.cs$/.test(path))
+    // Resource designer files (*.Designer.cs) come from resgen, not the SDK generator.
+    if (/\/src\/.*\.cs$/.test(path) && !/(?:GlobalSuppressions|\.Designer)\.cs$/.test(path))
       return "C# handwritten source candidate";
     return "";
   }
@@ -141,7 +142,12 @@ export function codeNavigation(
     return /\b(?:class|interface|enum|record)\s+\w+/.test(code) ? whole : null;
   }
 
-  if (GENERATED_HEADER.test(header) || (language !== "java" && /@Generated\b/.test(header)))
+  // .NET: the folder decides. All generated code is under Generated/ (confirmed by the .NET
+  // team), so a file elsewhere is handwritten even when it kept a copied generated header.
+  if (
+    language !== "dotnet" &&
+    (GENERATED_HEADER.test(header) || (language !== "java" && /@Generated\b/.test(header)))
+  )
     return null;
 
   const comparable = (value: string) =>
@@ -173,7 +179,10 @@ export function codeNavigation(
         code,
       );
   } else if (language === "dotnet")
-    substantive = /\b(?:class|struct|enum|interface|record)\s+\w+/.test(code);
+    // A type, or assembly-level generator directives ([assembly: CodeGenSuppressType(...)]).
+    substantive =
+      /\b(?:class|struct|enum|interface|record)\s+\w+/.test(code) ||
+      /\[\s*assembly\s*:\s*CodeGen\w*/.test(code);
   // Go functions, methods (with a receiver) and types.
   else if (language === "go") substantive = /\bfunc\s*(?:\([^)]*\)\s*)?\w+|\btype\s+\w+/.test(code);
   else substantive = /\b(?:function|class|const|interface|type)\s+\w+/.test(code);

@@ -123,6 +123,21 @@ export async function main(args: string[] = process.argv.slice(2)) {
           ),
         );
       } else targets = await readJson(values.targets);
+      // --only a,b,c or --only @file: just these identities or package names.
+      if (values.only) {
+        const text = values.only.startsWith("@")
+          ? await readFile(resolve(values.only.slice(1)), "utf8")
+          : values.only;
+        const only = new Set(
+          text
+            .split(/[,\n]/)
+            .map((item) => item.replace(/#.*/, "").trim())
+            .filter(Boolean),
+        );
+        targets = targets.filter(
+          (target) => only.has(identity(target)) || only.has(target.package),
+        );
+      }
       if (values.limit) targets = targets.slice(0, Number(values.limit));
       validate({ type: "array", items: targetSchema, minItems: 1 }, targets);
       if (new Set(targets.map(identity)).size !== targets.length)
