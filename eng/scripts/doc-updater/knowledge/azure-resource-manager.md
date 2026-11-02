@@ -158,17 +158,31 @@ Concrete ARM resource identities are seeded only by registered read or createOrU
 
 Identity paths are matched case-insensitively for literal segments and by position for variable segments. A createOrUpdate operation can establish a resource without a read operation; list-only and action-only operation sets cannot.
 
+`resolveArmResources(program)` returns the declaration view by default. Passing `version` projects one exact service version. Passing `serviceVersions` selects exact `Namespace` and versioning `Version` references for independently versioned ARM services and combines their projected provider results atomically.
+
+Selected-version results use projected models, operations, properties, and HTTP metadata. Projection state is isolated and cached per program, service namespace, and version so resolving one version cannot alter another version or the default view.
+
+Consumers can pass `nameResolver` to customize logical resource, operation, and operation-group names. Naming is applied after structural association and never changes provider namespaces, resource type segments, instance paths, HTTP metadata, serialized names, parent/scope identity, or singleton keys. Use `resourceInstancePath` to distinguish occurrences of the same model or resource type. Synthetic resources receive `type: undefined` for the complete `resource` naming phase.
+
+Public `ResolvedResource.kind` is only `"Tracked"` or `"Proxy"`; extension, built-in, virtual, custom, generic, external, and synthetic resources are presented as `"Proxy"`.
+
 ## ARM Request and Response Rules
 
 - `no-query-in-collection` allows only `api-version` and case-sensitive `$filter` on collection GET operations.
 - `no-query-in-point-op` allows only `api-version` (case-insensitively) on GET, PUT, PATCH, and DELETE resource-instance paths.
 - `no-query-in-post` allows only `api-version` on POST operations; other inputs belong in the request body.
 - `list-operation-missing-pageable` requires collection GET operations to use TypeSpec paging metadata with a continuation link. Standard ARM list operation templates supply this metadata.
-- `list-response-envelope` requires collection GET response models to contain exactly `value` and `nextLink`.
+- `list-response-envelope` requires ARM list responses to contain an array-valued `value` and the standard `nextLink` envelope. It checks ARM-provider collection GET paths and authored paged `@list` operations with `@nextLink`, including eligible POST list actions.
 - `use-application-json-content-type` requires `application/json` request and response bodies in ARM provider namespaces.
 - `use-model-request-body` requires non-multipart request bodies to use plain models without indexers.
 - `no-tenant-level-apis` reports ARM PUT routes beginning with `/providers`, except the `/operations` endpoint.
 - `lro-response-mismatch` validates that PUT and PATCH final results match the resource type, DELETE final results are `void`, and POST final results match successful response bodies.
+- `scope-path-segment-casing` requires the literal scope segments `subscriptions` and `resourceGroups` to use canonical casing.
+- `resource-missing-read` reports a resource that has a registered create or update operation but no registered read operation. It reports once per resource and does not treat list operations or unregistered HTTP GET operations as reads.
+- `use-resource-path-for-put` requires concrete PUT paths to end in resource type/name pairs after the provider namespace. It is disabled in the Azure resource-manager ruleset.
+- `use-standard-response-codes` allows only `200`, `201`, `202`, `204`, and `default`; GET operations inside services must include `200` and may only add `202` or `default`. It is disabled in the Azure resource-manager ruleset.
+- `use-scope-for-extension-routing` is an opt-in RPaaS routing rule that warns on paths with multiple case-sensitive `/providers/` segments. It is not a general ARM extension-resource restriction and is disabled in both the ARM `all` and Azure resource-manager rulesets.
+- `no-tags-on-proxy-resource` rejects JSON envelope properties named `tags` on non-tracked registered resources, including proxy and extension resources. A `tags` field inside the resource-specific `properties` bag is not an ARM envelope tag. The rule is disabled in the Azure resource-manager ruleset.
 
 When these rules are added or promoted, update both the generated linter reference and the manually maintained rule evaluation and RPC coverage guides.
 
