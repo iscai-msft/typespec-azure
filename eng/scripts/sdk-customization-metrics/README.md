@@ -337,7 +337,7 @@ names. `Multiple content types`, `Multipart`, `SSE / streaming` and `Byte range`
 **Content types & streaming**; `Retry / error handling` and `Tracing / telemetry` as **Errors,
 retries & telemetry**; `LRO / polling` as **Long-running operations**, `Auth` as
 **Authentication**, `Crypto / signing` as **Cryptography & signing** and `Hand-written client`
-as **Handwritten clients**. Reviewed findings filed under `Other` whose pattern is about API
+as **Client layering & construction**. Reviewed findings filed under `Other` whose pattern is about API
 versions, backward compatibility, or naming and visibility move to a category of that name
 (`reclassify/other-category.json`).
 

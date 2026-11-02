@@ -309,7 +309,7 @@ const findingCategories: Record<string, string> = {
   "SSE / streaming": "Content types & streaming",
   "Byte range": "Content types & streaming",
   "Crypto / signing": "Cryptography & signing",
-  "Hand-written client": "Handwritten clients",
+  "Hand-written client": "Client layering & construction",
 };
 // Display order: largest first, then the ones split out of "Other" (reclassify/other-category.json).
 export const DISPLAY_CATEGORIES = [
@@ -322,7 +322,7 @@ export const DISPLAY_CATEGORIES = [
   "Errors, retries & telemetry",
   "Content types & streaming",
   "Cryptography & signing",
-  "Handwritten clients",
+  "Client layering & construction",
   "API versions",
   "Backward compatibility",
   "Naming & visibility",
@@ -678,8 +678,14 @@ const SPELLINGS: Record<string, string> = {
 
 // "binary-stream-event-encoding" -> "Binary stream event encoding"; "lro-operation-id" ->
 // "LRO operation ID". For pattern ids that are not in the catalog (which has its own names).
+// Every pattern is handwritten code, so names leave those words out ("handwritten-enum-definition"
+// reads "Enum definition").
+const IMPLIED_WORDS = new Set(["handwritten", "custom", "customized", "customization", "manual"]);
+
 export function patternLabel(id: string): string {
-  const words = id.split("-").filter(Boolean);
+  const all = id.split("-").filter(Boolean);
+  const kept = all.filter((word) => !IMPLIED_WORDS.has(word));
+  const words = kept.length ? kept : all;
   if (!words.length) return id;
   return words
     .map((word, index) => {

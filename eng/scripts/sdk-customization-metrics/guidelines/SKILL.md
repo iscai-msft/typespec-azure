@@ -49,6 +49,10 @@ language has its own file, owned by that language's specialists:
    `convenience-typed-wrapper` (typed method over a protocol method) and
    `convenience-options-unpacking` are last resorts. Protocol methods are a generator
    fallback, so a typed wrapper over one always has a more specific reason.
+9. **Don't say it's handwritten.** Every finding is handwritten code, so pattern names (and
+   any new category) never use "handwritten", "hand-written", "custom", "customized" or
+   "manual": `lro-poller`, not `custom-lro-poller`; "Public options model", not "Handwritten
+   public model". Existing pattern ids keep their spelling; their names follow this rule.
 
 ## Categories
 
