@@ -39,6 +39,16 @@ edit is a candidate instance. Some libraries also describe their customizations 
 - Package-info files, `module-info.java`, and implementation helpers emitted by the generator.
 - Tests and samples.
 
+## Report what the code changes, not the wiring
+
+A `Customization` script often removes a generated client or builder and points the package
+at a handwritten one. That wiring is not the customization: report what the handwritten client
+or builder adds or changes (for example, an audience setting used for bearer-token scopes, or a
+reshaped method), with its own category and pattern. If the changed behavior isn't in the
+evidence, mark the finding inconclusive rather than filing the wiring as "client layered over
+generated code" or "hidden generated surface". (From the owner-reviewed accuracy sample,
+November 2026.)
+
 ## Examples
 
 | Library                                  | Source                                                                                                                                                                                                                                                                     | Handwritten customization                                                                                                                                                                                                                                                                                                                                   |

@@ -636,7 +636,18 @@ interface Reclassification {
   patterns: { id: string; name: string; description: string }[];
   // `category`, when set, also moves the finding to another category (e.g. a "Convenience
   // methods" finding that is really model or auth work).
-  findings: Record<string, { pattern: string; reason: string; note: string; category?: string }>;
+  // `generatorAddressable`, when set, records an owner decision (e.g. backcompat code is never
+  // generated) over the reviewer's call.
+  findings: Record<
+    string,
+    {
+      pattern: string;
+      reason: string;
+      note: string;
+      category?: string;
+      generatorAddressable?: "yes" | "no" | "unclear";
+    }
+  >;
 }
 
 export async function readReclassifications(
@@ -665,11 +676,13 @@ export function reclassify(findings: FindingRecord[], files: Reclassification[])
     const move = moves.get(item.id);
     if (!move) return item;
     const category = move.category ?? item.category;
+    const generatorAddressable = move.generatorAddressable ?? item.generatorAddressable;
     return {
       ...item,
       pattern: move.pattern,
       category,
-      finding: { ...item.finding, pattern: move.pattern, category },
+      generatorAddressable,
+      finding: { ...item.finding, pattern: move.pattern, category, generatorAddressable },
       reclassified: {
         from: item.pattern,
         reason: move.reason,

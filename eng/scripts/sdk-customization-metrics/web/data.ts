@@ -326,6 +326,7 @@ export const DISPLAY_CATEGORIES = [
   "API versions",
   "Backward compatibility",
   "Naming & visibility",
+  "Callbacks & hooks",
   "Other",
 ];
 export function canonicalCategory(category: string): string {
