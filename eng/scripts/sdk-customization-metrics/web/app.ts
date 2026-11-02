@@ -607,6 +607,32 @@ function renderFinding(item: FindingRecord, inspect?: (id: string) => void) {
 }
 
 // Code health section: figures, monthly churn, and a per-language table.
+// Two or more shares on one 0-100% scale, labelled, so they compare at a glance.
+function compareMeters(rows: [string, number, number][]) {
+  const shown = rows.filter(([, , whole]) => whole);
+  if (shown.length < 2) return null;
+  const figure = element("div", undefined, "compare");
+  shown.forEach(([label, part, whole], index) => {
+    const row = element("div", undefined, "compare-row");
+    row.append(
+      element("span", label, "compare-label"),
+      meter(part, whole, label, index ? "neutral" : "custom")!,
+      element("span", percent(part, whole), "compare-value"),
+    );
+    figure.append(row);
+  });
+  return figure;
+}
+
+// A table cell: the figure, with a thin meter under it.
+function cellWithMeter(text: string, part: number, whole: number) {
+  const cell = element("td", undefined, "num meter-cell");
+  cell.append(element("span", text));
+  const bar = whole ? meter(part, whole, text) : null;
+  if (bar) cell.append(bar);
+  return cell;
+}
+
 function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
   const section = byId("health-title").closest("section")!;
   section.hidden = !quality;
@@ -627,6 +653,16 @@ function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
       "Regenerations with handwritten edits",
       pct(all.handwrittenInCommit, all.judgedRegenerations),
       `Handwritten files changed in the same pull request${all.handwrittenFollowUp ? ` · another ${pct(all.handwrittenFollowUp, all.judgedRegenerations)} within ${14} days` : ""}`,
+      "",
+      splitBar([
+        { label: "Same PR", value: all.handwrittenInCommit, tone: "custom" },
+        { label: "Within 14 days", value: all.handwrittenFollowUp, tone: "neutral" },
+        {
+          label: "No edits",
+          value: all.judgedRegenerations - all.handwrittenInCommit - all.handwrittenFollowUp,
+          tone: "generated",
+        },
+      ]),
     ),
     kpi(
       "Handwritten churn",
@@ -637,6 +673,15 @@ function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
       "Bug fixes in handwritten code",
       pct(all.bugFixesHandwritten, all.bugFixes),
       `${number.format(all.bugFixesHandwritten)} of ${number.format(all.bugFixes)} bug-fix commits${all.codeShare !== null ? ` · ${percent(all.codeShare * 100, 100)} of code is handwritten` : ""}`,
+      "",
+      compareMeters([
+        ["Bug fixes", all.bugFixesHandwritten, all.bugFixes],
+        [
+          "Code",
+          all.codeShare === null ? 0 : all.codeShare * 100,
+          all.codeShare === null ? 0 : 100,
+        ],
+      ]),
     ),
   );
   byId("health-chart").replaceChildren(
@@ -669,10 +714,10 @@ function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
         element("td", number.format(summary.libraries), "num"),
         element("td", number.format(summary.regenerations), "num"),
         element("td", summary.leadDays === null ? "—" : summary.leadDays.toFixed(1), "num"),
-        element(
-          "td",
+        cellWithMeter(
           judged ? pct(summary.handwrittenInCommit, summary.judgedRegenerations) : "Not judged",
-          "num",
+          judged ? summary.handwrittenInCommit : 0,
+          judged ? summary.judgedRegenerations : 0,
         ),
         element(
           "td",
@@ -681,17 +726,17 @@ function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
             : "—",
           "num",
         ),
-        element(
-          "td",
+        cellWithMeter(
           judged
             ? `${pct(summary.bugFixesHandwritten, summary.bugFixes)} of ${number.format(summary.bugFixes)}`
             : "Not judged",
-          "num",
+          judged ? summary.bugFixesHandwritten : 0,
+          judged ? summary.bugFixes : 0,
         ),
-        element(
-          "td",
+        cellWithMeter(
           judged && summary.codeShare !== null ? percent(summary.codeShare * 100, 100) : "—",
-          "num",
+          judged && summary.codeShare !== null ? summary.codeShare * 100 : 0,
+          judged && summary.codeShare !== null ? 100 : 0,
         ),
       );
       return tr;
@@ -838,14 +883,57 @@ export function renderTrendChart(
   return chart;
 }
 
-function kpi(label: string, value: string, note: string, variant = "") {
+function kpi(label: string, value: string, note: string, variant = "", figure?: Node | null) {
   const card = element("article", undefined, `kpi metric-card ${variant}`.trim());
   card.append(
     element("span", label, "metric-label"),
     element("strong", value, `metric-value${value.length > 9 ? " metric-value-text" : ""}`),
-    element("span", note, "metric-note"),
   );
+  if (figure) card.append(figure);
+  card.append(element("span", note, "metric-note"));
   return card;
+}
+
+// One whole split into parts, as a thin segmented bar with a legend of names (the card's text
+// carries the figures). Each segment's tooltip gives its count and share.
+type Part = { label: string; value: number; tone: "custom" | "generated" | "neutral" | "faint" };
+function splitBar(parts: Part[]): HTMLElement | null {
+  const shown = parts.filter((part) => part.value > 0);
+  const total = shown.reduce((sum, part) => sum + part.value, 0);
+  if (!total || shown.length < 2) return null;
+  const figure = element("div", undefined, "split");
+  const bar = element("div", undefined, "split-bar");
+  const summary = shown
+    .map((part) => `${part.label}: ${number.format(part.value)} (${percent(part.value, total)})`)
+    .join("; ");
+  bar.setAttribute("role", "img");
+  bar.setAttribute("aria-label", summary);
+  const legend = element("div", undefined, "split-legend");
+  for (const part of shown) {
+    const segment = element("span", undefined, `split-part tone-${part.tone}`);
+    segment.style.flexGrow = String(part.value);
+    segment.title = `${part.label}: ${number.format(part.value)} (${percent(part.value, total)})`;
+    bar.append(segment);
+    const key = element("span", undefined, "split-key");
+    key.append(element("span", undefined, `split-swatch tone-${part.tone}`), part.label);
+    legend.append(key);
+  }
+  legend.setAttribute("aria-hidden", "true");
+  figure.append(bar, legend);
+  return figure;
+}
+
+// A single ratio against its whole: a filled track.
+function meter(part: number, whole: number, label: string, tone: Part["tone"] = "custom") {
+  if (!whole) return null;
+  const track = element("div", undefined, `meter tone-${tone}`);
+  const fill = element("span", undefined, "meter-fill");
+  fill.style.width = `${Math.min(100, (part / whole) * 100)}%`;
+  track.append(fill);
+  track.title = `${label}: ${percent(part, whole)}`;
+  track.setAttribute("role", "img");
+  track.setAttribute("aria-label", `${label}: ${percent(part, whole)}`);
+  return track;
 }
 
 function renderCodeLink(item: CandidateLink, inspect: (id: string) => void, selected: boolean) {
@@ -1217,6 +1305,8 @@ export async function start() {
         share.total
           ? `${compact.format(share.handwritten)} of ${compact.format(share.total)} code lines in ${number.format(share.counted)} ${share.counted === 1 ? "library" : "libraries"}${share.missing ? ` · ${number.format(share.missing)} not counted yet` : ""}${scanned.some((row) => hasHeuristicDetection(row.language)) ? " · JavaScript not counted" : ""}`
           : "Line counts appear once libraries are counted",
+        "",
+        meter(share.handwritten, share.total, "Handwritten share of code lines"),
       );
       // The manual tracker drives the overview on the data plane, which it covers; elsewhere
       // (management, provisioning, all planes) the cards come from the code scans.
@@ -1255,6 +1345,14 @@ export async function start() {
               ? `${number.format(customized.length)} of ${number.format(tracked.length)} tracked libraries`
               : "None of these libraries are in the tracker yet",
             "featured",
+            splitBar([
+              { label: "Customized", value: customized.length, tone: "custom" },
+              {
+                label: "Fully generated",
+                value: tracked.length - customized.length,
+                tone: "generated",
+              },
+            ]),
           ),
           shareCard,
           kpi(
@@ -1306,6 +1404,12 @@ export async function start() {
                 ? "Detection rules for these languages are not settled yet"
                 : "No library in this view has been scanned yet",
             "featured",
+            splitBar([
+              { label: "Handwritten code", value: withCode, tone: "custom" },
+              { label: "Fully generated", value: judged.length - withCode, tone: "generated" },
+              { label: "JavaScript not judged", value: unsettled, tone: "neutral" },
+              { label: "Not scanned", value: notScanned, tone: "faint" },
+            ]),
           ),
           shareCard,
           kpi(
@@ -1372,6 +1476,9 @@ export async function start() {
             ? `${number.format(reducible.filter((pattern) => pattern.recurring).length)} recur across services · of ${number.format(scopedPatterns.length)} patterns found`
             : "No libraries reviewed yet",
           "featured",
+          reviewedLibraries
+            ? meter(reducible.length, scopedPatterns.length, "Reducible share of patterns found")
+            : null,
         ),
         kpi(
           "Reducible instances",
