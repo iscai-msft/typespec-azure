@@ -1,4 +1,5 @@
 import {
+  DISPLAY_CATEGORIES,
   canonicalCategory,
   filterCodeLinks,
   filterFindings,
@@ -904,6 +905,9 @@ export async function start() {
     ) {
       throw new Error("Unsupported metrics data schema");
     }
+    // Findings use the dashboard's category names (canonicalCategory) from here on.
+    for (const set of [data, ...(data.observations ?? [])])
+      for (const item of set.findings ?? []) item.category = canonicalCategory(item.category);
     // The manual tracker is optional; without it the dashboard shows scanned libraries only.
     let tracker: Tracker | null = null;
     const trackerResponse = await fetch("./tracker.json", { cache: "no-store" }).catch(() => null);
@@ -912,6 +916,10 @@ export async function start() {
       if (candidate.trackerVersion !== 1 || !Array.isArray(candidate.libraries))
         throw new Error("Unsupported tracker data schema");
       tracker = candidate;
+      // The tracker's categories in the dashboard's names, merged where they are grouped.
+      for (const library of tracker!.libraries)
+        library.categories = [...new Set(library.categories.map(canonicalCategory))];
+      tracker!.categories = DISPLAY_CATEGORIES;
     }
     // The library inventory (every tsp-location.yaml) is optional too.
     let inventory: Inventory | null = null;
@@ -972,14 +980,7 @@ export async function start() {
     }
     const defaultPlane = inventory ? "data" : "";
     if (!inventory) byId("plane").closest("label")!.hidden = true;
-    const categories = tracker?.categories ?? [
-      "Auth",
-      "Convenience methods",
-      "LRO / polling",
-      "Pagination",
-      "Serialization",
-      "Other",
-    ];
+    const categories = DISPLAY_CATEGORIES;
     const services = [...new Set(allLibraries.map((item) => item.service))].sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: "base" }),
     );
@@ -1968,8 +1969,61 @@ export async function start() {
           "aria-sort",
           button.dataset.sort === sort ? (descending ? "descending" : "ascending") : "none",
         );
-      byId("library-count").textContent =
-        `${number.format(libraryRows.length)} matching ${libraryRows.length === 1 ? "library" : "libraries"}. Select one for its details and code.`;
+      // Say which filters the list follows, each with a way to clear it.
+      const libraryCount = byId("library-count");
+      libraryCount.replaceChildren(
+        `${number.format(libraryRows.length)} matching ${libraryRows.length === 1 ? "library" : "libraries"}. Select one for its details and code.`,
+      );
+      const active: [string, string, () => void][] = [];
+      const clearControl = (id: string) => () => {
+        control(id).value = "";
+        update();
+      };
+      if (filters.plane)
+        active.push([
+          "Plane",
+          PLANES.find((item) => item.id === filters.plane)?.label ?? filters.plane,
+          clearControl("plane"),
+        ]);
+      if (filters.language)
+        active.push(["Language", languageLabel(filters.language), clearControl("language")]);
+      if (filters.service) active.push(["Service", filters.service, clearControl("service")]);
+      if (filters.category) active.push(["Category", filters.category, clearControl("category")]);
+      if (filters.customized)
+        active.push(["Customized", filters.customized, clearControl("customized")]);
+      if (filters.pattern)
+        active.push(["Pattern", resolvePattern(filters.pattern).name, clearControl("pattern")]);
+      if (filters.status) active.push(["Review status", filters.status, clearControl("status")]);
+      if (filters.search) active.push(["Search", filters.search, clearControl("search")]);
+      if (filters.accepted)
+        active.push([
+          "Only counted customizations",
+          "",
+          () => {
+            byId<HTMLInputElement>("accepted").checked = false;
+            update();
+          },
+        ]);
+      if (active.length) {
+        const line = element("span", " Filtered by: ", "muted");
+        libraryCount.append(line);
+        for (const [label, value, clear] of active) {
+          const chip = element("button", `${label}${value ? `: ${value}` : ""} ✕`, "chip");
+          chip.type = "button";
+          chip.setAttribute("aria-label", `Clear ${label.toLowerCase()} filter`);
+          chip.addEventListener("click", clear);
+          libraryCount.append(chip, " ");
+        }
+      }
+      // The pattern table's status and issue chips choose patterns, not libraries.
+      if (patternStatus !== "reducible" || trackingFilter)
+        libraryCount.append(
+          element(
+            "span",
+            " The pattern table's status and issue filters don't narrow this list; select a pattern to see its libraries.",
+            "muted",
+          ),
+        );
       const chooseLibrary = (id: string) => {
         control("library").value = id;
         instance = "";
@@ -2670,7 +2724,7 @@ export async function start() {
     byId("java-lro").addEventListener("click", () => {
       reset();
       control("language").value = "java";
-      control("category").value = "LRO / polling";
+      control("category").value = "Long-running operations";
       update();
       jump("explorer-title");
     });

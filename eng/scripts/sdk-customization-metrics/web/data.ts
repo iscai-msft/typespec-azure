@@ -292,14 +292,42 @@ export function historyRows(
 }
 
 // Reviewed findings use short category names; the tracker and filters use the canonical names.
+// Display categories. Reviews and the tracker use the original names (and reviews from older
+// definitions the short ones); the dashboard shows these, with the four small content-format
+// categories and the two diagnostics categories grouped. Raw records are unchanged.
 const findingCategories: Record<string, string> = {
-  LRO: "LRO / polling",
+  LRO: "Long-running operations",
+  "LRO / polling": "Long-running operations",
   Paging: "Pagination",
-  Serialization: "Serialization",
-  Authentication: "Auth",
+  Authentication: "Authentication",
+  Auth: "Authentication",
   Convenience: "Convenience methods",
-  Other: "Other",
+  "Retry / error handling": "Errors, retries & telemetry",
+  "Tracing / telemetry": "Errors, retries & telemetry",
+  "Multiple content types": "Content types & streaming",
+  Multipart: "Content types & streaming",
+  "SSE / streaming": "Content types & streaming",
+  "Byte range": "Content types & streaming",
+  "Crypto / signing": "Cryptography & signing",
+  "Hand-written client": "Handwritten clients",
 };
+// Display order: largest first, then the ones split out of "Other" (reclassify/other-category.json).
+export const DISPLAY_CATEGORIES = [
+  "Model overrides",
+  "Convenience methods",
+  "Long-running operations",
+  "Pagination",
+  "Serialization",
+  "Authentication",
+  "Errors, retries & telemetry",
+  "Content types & streaming",
+  "Cryptography & signing",
+  "Handwritten clients",
+  "API versions",
+  "Backward compatibility",
+  "Naming & visibility",
+  "Other",
+];
 export function canonicalCategory(category: string): string {
   return findingCategories[category] ?? category;
 }
@@ -538,10 +566,14 @@ export function filterLibraries(
     if (filters.library && row.id !== filters.library) return false;
     if (filters.customized === "yes" && customizedAnswer(row) !== true) return false;
     if (filters.customized === "no" && customizedAnswer(row) !== false) return false;
+    // A category matches the tracker's tags or a counted finding; with "only counted
+    // customizations" on, only a counted finding in that category does.
+    const category = filters.category ? canonicalCategory(filters.category) : "";
     if (
-      filters.category &&
-      !row.tracker?.categories.includes(filters.category) &&
-      !counted.some((item) => canonicalCategory(item.category) === filters.category)
+      category &&
+      (filters.accepted ||
+        !row.tracker?.categories.some((item) => canonicalCategory(item) === category)) &&
+      !counted.some((item) => canonicalCategory(item.category) === category)
     )
       return false;
     if (filters.status && !own.some((item) => item.status === filters.status)) return false;

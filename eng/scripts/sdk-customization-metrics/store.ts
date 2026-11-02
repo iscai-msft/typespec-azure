@@ -655,7 +655,12 @@ export async function readReclassifications(
 }
 
 export function reclassify(findings: FindingRecord[], files: Reclassification[]): FindingRecord[] {
-  const moves = new Map(files.flatMap((file) => Object.entries(file.findings)));
+  // Files apply in name order; a later file's fields win, and fields it leaves out (such as
+  // `category`) are kept from earlier ones.
+  const moves = new Map<string, Reclassification["findings"][string]>();
+  for (const file of files)
+    for (const [id, move] of Object.entries(file.findings))
+      moves.set(id, { ...moves.get(id), ...move });
   return findings.map((item) => {
     const move = moves.get(item.id);
     if (!move) return item;

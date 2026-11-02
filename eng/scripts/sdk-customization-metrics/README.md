@@ -331,6 +331,16 @@ can map to several. Tracker rows join scans by `repo` + `root`, so a scanned lib
 shows its pinned code entry points under the tracker answer, and scan-only libraries
 keep their own row.
 
+The dashboard shows categories under display names (`DISPLAY_CATEGORIES` and
+`canonicalCategory` in `web/data.ts`); tracker, reviews and the review schema keep the original
+names. `Multiple content types`, `Multipart`, `SSE / streaming` and `Byte range` show as
+**Content types & streaming**; `Retry / error handling` and `Tracing / telemetry` as **Errors,
+retries & telemetry**; `LRO / polling` as **Long-running operations**, `Auth` as
+**Authentication**, `Crypto / signing` as **Cryptography & signing** and `Hand-written client`
+as **Handwritten clients**. Reviewed findings filed under `Other` whose pattern is about API
+versions, backward compatibility, or naming and visibility move to a category of that name
+(`reclassify/other-category.json`).
+
 The tracker is a person's survey, not reviewed evidence: the dashboard labels it as
 such, keeps reviewed findings separate ("Only counted customizations"), and never
 turns tracker categories into classifications of individual files. `publish` includes
@@ -358,7 +368,8 @@ review status, override provenance and assessment-version metadata.
 URL parameters persist the filters (`language`, `service`, `library`, `category`,
 `customized`, `status`, `search`, `accepted`), as-of `observation` timestamp, selected `instance`,
 breakdown `group`/`measure`, sorting and history range/cohort. Categories use the
-canonical names (`LRO / polling`); older `category=LRO` links are mapped. The Java/LRO
+display names (`Long-running operations`); older `category=LRO` and `category=LRO / polling`
+links are mapped. The Java/LRO
 shortcut lists Java libraries tagged LRO in the tracker or with an accepted LRO finding.
 Their code entry points are shown as files of matching libraries, never as LRO
 classifications; "Only counted customizations" restricts to accepted findings. The

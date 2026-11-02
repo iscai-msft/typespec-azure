@@ -1293,8 +1293,10 @@ test("tracker rows join scans by repository path and keep scan-only libraries", 
   assert.deepEqual(ids({ search: "addPollingStrategy" }), ["azure-ai-documentintelligence"]);
   assert.deepEqual(ids({ search: "quoted poller" }), ["azure-ai-documentintelligence"]);
   assert.deepEqual(ids({ service: "keyvault-v2" }), ["azure-security-keyvault-keys"]);
-  assert.equal(canonicalCategory("LRO"), "LRO / polling");
-  assert.equal(findingCategory("LRO / polling"), "LRO");
+  assert.equal(canonicalCategory("LRO"), "Long-running operations");
+  assert.equal(canonicalCategory("LRO / polling"), "Long-running operations");
+  assert.equal(canonicalCategory("Multipart"), "Content types & streaming");
+  assert.equal(findingCategory("Long-running operations"), "LRO");
   assert.equal(findingCategory("Byte range"), "Byte range");
 
   const byLanguage = Object.fromEntries(

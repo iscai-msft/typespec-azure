@@ -155,7 +155,7 @@ try {
   await page.getByText("Captured source files (1)", { exact: true }).click();
   assert.equal(await page.locator(".package-card table a").count(), 2);
   await page.getByRole("button", { name: "Show Java LRO customizations" }).click();
-  assert.equal(await page.locator("#category").inputValue(), "LRO / polling");
+  assert.equal(await page.locator("#category").inputValue(), "Long-running operations");
   // The library matches through its reviewed LRO finding; its files are listed as unclassified.
   assert.equal(await page.locator(".code-link-card").count(), 1);
   assert.match(await page.locator("#code-link-status").innerText(), /not classified yet/);
@@ -308,11 +308,11 @@ try {
   assert.equal(await page.locator("#library-rows tr").count(), 1);
   assert.equal(await page.locator("#accepted").isChecked(), false);
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await page.getByRole("button", { name: "Filter by LRO / polling" }).first().click();
-  assert.equal(await page.locator("#category").inputValue(), "LRO / polling");
+  await page.getByRole("button", { name: "Filter by Long-running operations" }).first().click();
+  assert.equal(await page.locator("#category").inputValue(), "Long-running operations");
   await page.locator("#library-rows button.library-select").first().click();
   assert.match(await page.locator("#library-detail").innerText(), /Synthetic tracker note/);
-  assert.equal(await page.locator("#q-category").inputValue(), "LRO / polling");
+  assert.equal(await page.locator("#q-category").inputValue(), "Long-running operations");
   await page.locator("#q-language").selectOption("python");
   await page.locator("#q-category").selectOption("");
   await page.locator("#query").getByRole("button", { name: "Show results" }).click();
