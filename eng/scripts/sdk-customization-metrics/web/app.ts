@@ -2173,6 +2173,14 @@ export async function start() {
           );
         }
       }
+      const packageCounts = new Map<string, number>();
+      for (const row of libraries) {
+        const key = `${row.language}:${row.package}`;
+        packageCounts.set(key, (packageCounts.get(key) ?? 0) + 1);
+      }
+      const sharedPackages = new Set(
+        [...packageCounts].filter(([, count]) => count > 1).map(([key]) => key),
+      );
       byId("library-rows").replaceChildren(
         ...libraryRows.map((item) => {
           const row = element("tr");
@@ -2182,7 +2190,10 @@ export async function start() {
           button.type = "button";
           button.addEventListener("click", () => chooseLibrary(item.id));
           name.append(button);
-          const variant = libraryVariant(item);
+          // Show the folder only when another library in view has the same package name.
+          const variant = sharedPackages.has(`${item.language}:${item.package}`)
+            ? libraryVariant(item)
+            : null;
           if (variant) name.append(element("span", ` sdk/${variant}`, "muted variant"));
           if (item.deprecated) {
             const tag = element("span", "Deprecated", "pill pill-muted deprecated-tag");
@@ -2259,7 +2270,12 @@ export async function start() {
           ),
           element(
             "h3",
-            libraryVariant(selectedLibrary)
+            libraryVariant(selectedLibrary) &&
+              libraries.filter(
+                (row) =>
+                  row.language === selectedLibrary.language &&
+                  row.package === selectedLibrary.package,
+              ).length > 1
               ? `${selectedLibrary.package} (sdk/${libraryVariant(selectedLibrary)})`
               : selectedLibrary.package,
           ),

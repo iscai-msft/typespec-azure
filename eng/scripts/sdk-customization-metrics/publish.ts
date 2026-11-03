@@ -1,3 +1,4 @@
+import { isSkippedRoot } from "./web/languages.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { offlineTracking, readLinks } from "./tracking.ts";
@@ -39,7 +40,11 @@ export async function publishSite(
   // Publish only libraries in the TypeSpec inventory, when one is given.
   const inventory = options.inventory ? await readInventory(options.inventory) : null;
   const libraries = inventory
-    ? new Set(inventory.libraries.map((item) => libraryKey(item.repo, item.root)))
+    ? new Set(
+        inventory.libraries
+          .filter((item) => !isSkippedRoot(item.language, item.root))
+          .map((item) => libraryKey(item.repo, item.root)),
+      )
     : undefined;
   const dataset = await exportData(stateDirectory, output, { ...options, libraries });
   if (!dataset.packages.length) throw new Error("Publication has no public packages");

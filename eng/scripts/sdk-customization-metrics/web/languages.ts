@@ -27,6 +27,9 @@ export const LANGUAGES: LanguageConfig[] = [
     manifests: ["pom.xml"],
     packageName: "directory",
     rootPattern: "^sdk/[^/]+/[^/]+$",
+    // sdk/*-v2 folders are for Java core-v2 (the paused "azure-v2" emitter), not shipped
+    // libraries, so they are skipped (Java team, November 2026).
+    skippedRoots: "^sdk/[^/]+-v2/",
     planes: { management: "^azure-resourcemanager(-|$)" },
   },
   {
@@ -84,6 +87,12 @@ export const MANAGEMENT_WORD = "(^|[-_./])(mgmt|management)([-_./]|$)";
 export const languageById = new Map<LanguageId, LanguageConfig>(
   LANGUAGES.map((language) => [language.id, language]),
 );
+
+// Libraries in folders the language skips (LanguageConfig.skippedRoots).
+export function isSkippedRoot(languageId: LanguageId, root: string): boolean {
+  const pattern = languageById.get(languageId)?.skippedRoots;
+  return Boolean(pattern && new RegExp(pattern).test(root));
+}
 
 export function planeOf(languageId: LanguageId, packageName: string, root = ""): Plane {
   const planes = languageById.get(languageId)?.planes ?? {};

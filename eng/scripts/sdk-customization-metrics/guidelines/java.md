@@ -49,6 +49,14 @@ evidence, mark the finding inconclusive rather than filing the wiring as "client
 generated code" or "hidden generated surface". (From the owner-reviewed accuracy sample,
 November 2026.)
 
+Some teams own their builder and client outright. Key Vault, for example, keeps the Swagger-era
+"vanilla" setup, where codegen produced the internals and the team wrote the builder and client:
+its `Customization` uses `removeFiles` to drop the generated ones. That is one finding ("client
+layered over generated code"); the behaviors inside the handwritten client are their own findings.
+
+Folders named `sdk/*-v2/` are Java core-v2 copies for the paused `azure-v2` emitter; they are
+skipped (`skippedRoots` in `web/languages.ts`).
+
 ## Examples
 
 | Library                                  | Source                                                                                                                                                                                                                                                                     | Handwritten customization                                                                                                                                                                                                                                                                                                                                   |

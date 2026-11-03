@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isSkippedRoot } from "./web/languages.ts";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -117,11 +118,12 @@ export async function main(args: string[] = process.argv.slice(2)) {
       if (values["from-inventory"]) {
         const inventory = await readInventory(resolve(values.inventory));
         if (!inventory) throw new Error("No inventory; run discover first");
+        // Variants are worked out with skipped folders included, then those are dropped.
         targets = inventoryTargets(
           inventory.libraries.filter(
             (item) => values.plane === "all" || item.plane === values.plane,
           ),
-        );
+        ).filter((target) => !isSkippedRoot(target.language, target.root));
       } else targets = await readJson(values.targets);
       // --only a,b,c or --only @file: just these identities or package names.
       if (values.only) {

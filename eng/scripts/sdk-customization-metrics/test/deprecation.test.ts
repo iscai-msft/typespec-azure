@@ -89,3 +89,10 @@ test("a package published from two folders shows its folder", () => {
   assert.equal(libraryVariant({ id: "java:azure-x:module-v1" }), null);
   assert.equal(libraryVariant({ id: "library:a/b:sdk/x" }), null);
 });
+
+test("Java core-v2 folders are skipped", async () => {
+  const { isSkippedRoot } = await import("../web/languages.ts");
+  assert.equal(isSkippedRoot("java", "sdk/keyvault-v2/azure-security-keyvault-keys"), true);
+  assert.equal(isSkippedRoot("java", "sdk/keyvault/azure-security-keyvault-keys"), false);
+  assert.equal(isSkippedRoot("python", "sdk/keyvault-v2/azure-keyvault-keys"), false);
+});

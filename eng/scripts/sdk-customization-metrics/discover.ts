@@ -14,7 +14,7 @@ import type {
   ReleaseInfo,
   Target,
 } from "./web/types.ts";
-import { LANGUAGES, planeOf } from "./web/languages.ts";
+import { LANGUAGES, isSkippedRoot, planeOf } from "./web/languages.ts";
 import { applyNamespaces, resolveNamespaces, type SpecRepository } from "./namespaces.ts";
 
 const run = promisify(execFile);
@@ -475,8 +475,13 @@ export async function writeInventory(path: string, inventory: Inventory) {
 
 // Copies the inventory next to metrics.json for the dashboard. Missing inventory is not an error.
 export async function exportInventory(path: string, outputDirectory: string) {
-  const inventory = await readInventory(path);
-  if (!inventory) return null;
+  const read = await readInventory(path);
+  if (!read) return null;
+  // Skipped folders (LanguageConfig.skippedRoots) are not published as libraries.
+  const inventory = {
+    ...read,
+    libraries: read.libraries.filter((item) => !isSkippedRoot(item.language, item.root)),
+  };
   await writeFile(join(outputDirectory, "inventory.json"), `${JSON.stringify(inventory)}\n`);
   return inventory;
 }

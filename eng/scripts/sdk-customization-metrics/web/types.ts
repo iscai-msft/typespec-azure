@@ -14,6 +14,9 @@ export interface LanguageConfig {
   manifests: string[];
   packageName: "directory" | "package.json" | "go.mod";
   rootPattern?: string;
+  // Folders still discovered (so packages sharing a name keep their variant) but neither
+  // scanned nor counted, e.g. Java core-v2 copies.
+  skippedRoots?: string;
   planes?: Partial<Record<Plane, string>>;
   // "heuristic": the language's rule for spotting handwritten files is not settled, so its
   // scans list candidates but do not say whether a library is customized.
