@@ -44,6 +44,10 @@ review() {
 
 Commit messages say "re-review batch N".
 
+Rescans need commit `ee` or later (see below): .NET scans record `provenance.dotnetGeneratedRule:
+"folder"`, so evidence outside `Generated/` is never classified as generated. Rescans made with
+an older checkout must be deleted and redone.
+
 ## Provisioning run (complete)
 
 Completed November 2, 2026 in 4 batches. Scope: the 33 .NET `Azure.Provisioning.*` libraries whose code scan (October 30, 2026) found

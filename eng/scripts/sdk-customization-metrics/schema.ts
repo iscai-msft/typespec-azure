@@ -123,8 +123,11 @@ export const scanSchema = object(
         packageTree: { type: "string", pattern: "^[a-f0-9]{40}$" },
         // How the source was read: the GitHub REST API or a git clone.
         reader: choice("github-api", "git"),
+        // "folder": .NET evidence outside Generated/ is never classified as generated, even
+        // with a copied generated header. Absent on scans made before the rule.
+        dotnetGeneratedRule: choice("folder"),
       },
-      ["packageTree", "reader"],
+      ["packageTree", "reader", "dotnetGeneratedRule"],
     ),
     coverage: object({
       status: choice("partial", "failed"),

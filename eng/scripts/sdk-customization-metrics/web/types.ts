@@ -138,6 +138,7 @@ export interface Scan {
     collectorVersion: string;
     packageTree?: string;
     reader?: "github-api" | "git";
+    dotnetGeneratedRule?: "folder";
   };
   coverage: Coverage;
   evidence: Evidence[];

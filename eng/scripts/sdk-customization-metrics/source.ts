@@ -63,7 +63,11 @@ export function newScan(
     identity: identity(target),
     target,
     commit: "",
-    provenance: { origin, collectorVersion: COLLECTOR_VERSION },
+    provenance: {
+      origin,
+      collectorVersion: COLLECTOR_VERSION,
+      ...(target.language === "dotnet" ? { dotnetGeneratedRule: "folder" as const } : {}),
+    },
     coverage: {
       status: "partial",
       discoveredFiles: 0,
@@ -90,8 +94,16 @@ export function sourceUrl(
   return start ? `${url}#L${start}-L${end}` : url;
 }
 
-export function classify(path: string, text: string): Evidence["kind"] {
+// `dotnetFolder`: the scan follows the .NET rule that only Generated/ holds generated code
+// (provenance.dotnetGeneratedRule), so a copied generated header outside it doesn't count.
+export function classify(
+  path: string,
+  text: string,
+  { dotnetFolder = false }: { dotnetFolder?: boolean } = {},
+): Evidence["kind"] {
+  const headerApplies = !dotnetFolder || /(?:^|\/)generated(?:\/|$)/i.test(path);
   if (
+    headerApplies &&
     /auto[- ]generated|automatically generated|code generated|@Generated\b/i.test(
       text.slice(0, 6000),
     )
@@ -184,7 +196,9 @@ export function capture(
         id: digest(file.path),
         startLine: 1,
         endLine: sourceLineCount(file.text),
-        kind: classify(file.path, file.text),
+        kind: classify(file.path, file.text, {
+          dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+        }),
       });
     } else {
       scan.generationContext.push(common);
@@ -263,7 +277,9 @@ export function reviewEvidence(
       sourceUrl: sourceUrl(scan.target.repo, scan.commit, path),
       startLine,
       endLine: startLine + sourceLineCount(lineText) - 1,
-      kind: classify(path, lineText),
+      kind: classify(path, lineText, {
+        dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+      }),
       ...(excerpt ? { excerpt: true } : {}),
     };
     item.id = evidenceId(item);

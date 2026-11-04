@@ -91,7 +91,12 @@ export function validateScan(scan: Scan): Scan {
     }
     if ("id" in evidence) {
       const captured = evidence as Evidence;
-      if (captured.kind !== classify(captured.path, captured.text))
+      if (
+        captured.kind !==
+        classify(captured.path, captured.text, {
+          dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+        })
+      )
         throw new Error("Evidence classification mismatch");
       if (ids.has(captured.id) || captured.id !== evidenceId(captured))
         throw new Error("Duplicate or invalid evidence ID");
