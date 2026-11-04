@@ -1,6 +1,7 @@
 import {
   DISPLAY_CATEGORIES,
   canonicalCategory,
+  customizedAnswer,
   filterCodeLinks,
   filterFindings,
   filterLibraries,
@@ -311,13 +312,20 @@ type FormFilters = Required<
 > & { accepted: boolean };
 
 // A measured history point; null means "not measured", never zero.
-type TrendRow = {
-  observedAt: string;
-  candidates: number | null;
-  accepted: number | null;
-  share?: number | null;
+type TrendRow = { observedAt: string } & Record<string, number | null | string | undefined>;
+// A line: its row key, label, and a class or a color (per-language lines use a color).
+type TrendSeries = { key: string; label: string; className?: string; color?: string };
+
+// Line colors per language, in fixed order so a language keeps its color whatever is filtered:
+// the first five slots of the validated categorical palette (adjacent CVD ΔE ≥ 9). Lines are
+// direct-labelled at their ends, as three of the hues are below 3:1 contrast on white.
+const LANGUAGE_COLORS: Record<string, string> = {
+  python: "#2a78d6",
+  java: "#eb6834",
+  dotnet: "#1baf7a",
+  javascript: "#eda100",
+  go: "#e87ba4",
 };
-type TrendSeries = { key: "candidates" | "accepted" | "share"; label: string; className: string };
 
 // diagnostics.json: per-package file inventories, fetched when the diagnostics panel opens.
 type Diagnostics = {
@@ -771,12 +779,18 @@ export function renderTrendChart(
     showCandidates = true,
     series: custom,
     format = (value: number) => number.format(value),
-  }: { showCandidates?: boolean; series?: TrendSeries[]; format?: (value: number) => string } = {},
+    endLabels = false,
+  }: {
+    showCandidates?: boolean;
+    series?: TrendSeries[];
+    format?: (value: number) => string;
+    endLabels?: boolean;
+  } = {},
 ) {
   const width = 640;
   const height = 240;
   const left = 44;
-  const right = 16;
+  const right = endLabels ? 84 : 16;
   const top = 14;
   const bottom = 34;
   const series: TrendSeries[] =
@@ -795,7 +809,8 @@ export function renderTrendChart(
         show: true,
       },
     ].filter((item) => item.show);
-  const value = (row: TrendRow, key: TrendSeries["key"]) => row[key] ?? null;
+  const value = (row: TrendRow, key: string): number | null =>
+    typeof row[key] === "number" ? (row[key] as number) : null;
   const values = rows
     .flatMap((row) => series.map((item) => value(row, item.key)))
     .filter((item): item is number => item !== null);
@@ -850,7 +865,16 @@ export function renderTrendChart(
       const previous = index > 0 ? value(rows[index - 1], item.key) : null;
       path += `${previous === null ? "M" : "L"}${x(index).toFixed(1)},${y(current).toFixed(1)}`;
     });
-    if (path) chart.append(svg("path", { d: path, class: `line ${item.className}` }));
+    // Presentation attributes, not inline style (the page's CSP blocks style attributes).
+    const tone: Record<string, string> = item.color ? { fill: item.color } : {};
+    if (path)
+      chart.append(
+        svg("path", {
+          d: path,
+          class: `line ${item.className ?? ""}`,
+          ...(item.color ? { stroke: item.color } : {}),
+        }),
+      );
     rows.forEach((row, index) => {
       const current = value(row, item.key);
       if (current === null) return;
@@ -858,13 +882,32 @@ export function renderTrendChart(
         cx: x(index),
         cy: y(current),
         r: 4,
-        class: `point ${item.className}`,
+        class: `point ${item.className ?? ""}`,
+        ...tone,
       });
       point.append(
         svg("title", {}, `${formatDate(row.observedAt)} UTC · ${item.label}: ${format(current)}`),
       );
       chart.append(point);
     });
+  }
+  // Direct labels at each line's last point, nudged apart so they don't overlap.
+  if (endLabels) {
+    const labels = series
+      .map((item) => {
+        const last = [...rows.keys()]
+          .reverse()
+          .find((index) => value(rows[index], item.key) !== null);
+        return last === undefined
+          ? null
+          : { label: item.label, x: x(last), y: y(value(rows[last], item.key)!) };
+      })
+      .filter((item): item is { label: string; x: number; y: number } => item !== null)
+      .sort((a, b) => a.y - b.y);
+    for (let index = 1; index < labels.length; index++)
+      labels[index].y = Math.max(labels[index].y, labels[index - 1].y + 13);
+    for (const item of labels)
+      chart.append(svg("text", { x: item.x + 8, y: item.y + 4, class: "line-label" }, item.label));
   }
   if (!values.length) {
     chart.append(
@@ -1277,6 +1320,29 @@ export async function start() {
         Boolean(row.tracker),
       );
       const customized = tracked.filter((row) => row.tracker.customized);
+      // Libraries the tracker doesn't list are answered from their code scan where the
+      // language's rule is settled (customizedAnswer), so new libraries still count.
+      const answered = rows.filter((row) => customizedAnswer(row) !== null);
+      const customizedAll = answered.filter((row) => customizedAnswer(row) === true);
+      const fromScans = answered.length - tracked.length;
+      // With a category filter, how many libraries in the plane have that category at all.
+      const planeTotal = filters.category
+        ? filterLibraries(
+            libraries,
+            snapshot.findings,
+            { ...filters, category: "" },
+            resolvePattern,
+          ).length
+        : rows.length;
+      const categoryCard = filters.category
+        ? kpi(
+            `Libraries with ${filters.category}`,
+            number.format(rows.length),
+            `${percent(rows.length, planeTotal)} of ${number.format(planeTotal)} libraries in view without the category filter`,
+            "featured",
+            meter(rows.length, planeTotal, `Share of libraries with ${filters.category}`),
+          )
+        : null;
       const repos = new Set(rows.map((row) => row.repo));
       const scanned = rows.filter((row) => row.scan);
       const latest = scanned
@@ -1338,51 +1404,49 @@ export async function start() {
         const services = new Set(rows.map((row) => row.service)).size;
         const langs = new Set(rows.map((row) => row.language)).size;
         byId("metric-cards").replaceChildren(
-          kpi(
-            "Customized libraries",
-            percent(customized.length, tracked.length),
-            tracked.length
-              ? `${number.format(customized.length)} of ${number.format(tracked.length)} tracked libraries`
-              : "None of these libraries are in the tracker yet",
-            "featured",
-            splitBar([
-              { label: "Customized", value: customized.length, tone: "custom" },
-              {
-                label: "Fully generated",
-                value: tracked.length - customized.length,
-                tone: "generated",
-              },
-            ]),
-          ),
+          categoryCard ??
+            kpi(
+              "Customized libraries",
+              percent(customizedAll.length, answered.length),
+              `${number.format(customizedAll.length)} of ${number.format(answered.length)} libraries${fromScans > 0 ? ` · ${number.format(fromScans)} not in the tracker, answered from their code scan` : ""}`,
+              "featured",
+              splitBar([
+                { label: "Customized", value: customizedAll.length, tone: "custom" },
+                {
+                  label: "Fully generated",
+                  value: answered.length - customizedAll.length,
+                  tone: "generated",
+                },
+                { label: "Not known", value: rows.length - answered.length, tone: "faint" },
+              ]),
+            ),
           shareCard,
           kpi(
             "Libraries in view",
             number.format(rows.length),
             `${services} ${services === 1 ? "service" : "services"} · ${langs} ${langs === 1 ? "language" : "languages"}`,
           ),
-          filters.category
+          topReason
             ? kpi(
-                "Selected category",
-                filters.category,
-                `${number.format(customized.length)} ${customized.length === 1 ? "library" : "libraries"} · ${percent(customized.length, tracked.length)}`,
+                filters.category ? `Most common in ${filters.category}` : "Most common reason",
+                topReason.name,
+                `${number.format(topReason.libraries)} ${topReason.libraries === 1 ? "library" : "libraries"} (reviewed customizations)${filters.category ? "" : ` · tracker's top category: ${top} (${number.format(topCount)})`}`,
               )
-            : topReason
-              ? kpi(
-                  "Most common reason",
-                  topReason.name,
-                  `${number.format(topReason.libraries)} ${topReason.libraries === 1 ? "library" : "libraries"} (reviewed customizations) · tracker's top category: ${top} (${number.format(topCount)})`,
-                )
-              : kpi(
-                  "Most common customization",
-                  top,
-                  `${number.format(topCount)} ${topCount === 1 ? "library" : "libraries"} · ${percent(topCount, tracked.length)} of tracked`,
+            : kpi(
+                "Most common customization",
+                top,
+                `${number.format(topCount)} ${topCount === 1 ? "library" : "libraries"} · ${percent(topCount, tracked.length)} of tracked`,
+              ),
+          ...(filters.category
+            ? []
+            : [
+                kpi(
+                  "Fully generated",
+                  number.format(answered.length - customizedAll.length),
+                  `${percent(answered.length - customizedAll.length, answered.length)} need no handwritten code`,
+                  "generated",
                 ),
-          kpi(
-            "Fully generated",
-            number.format(tracked.length - customized.length),
-            `${percent(tracked.length - customized.length, tracked.length)} need no handwritten code`,
-            "generated",
-          ),
+              ]),
         );
       } else {
         // Only languages with settled detection rules can say a library is customized.
@@ -1395,22 +1459,29 @@ export async function start() {
         const notScanned = rows.length - scanned.length;
         const reviewed = view.assessed.length || view.accepted.length;
         byId("metric-cards").replaceChildren(
-          kpi(
-            "Libraries with handwritten code",
-            judged.length ? percent(withCode, judged.length) : scanned.length ? "—" : "Not scanned",
-            judged.length
-              ? `${number.format(withCode)} of ${number.format(judged.length)} scanned libraries${unsettled ? ` · ${number.format(unsettled)} JavaScript not judged` : ""}${notScanned ? ` · ${number.format(notScanned)} not scanned` : ""}`
-              : scanned.length
-                ? "Detection rules for these languages are not settled yet"
-                : "No library in this view has been scanned yet",
-            "featured",
-            splitBar([
-              { label: "Handwritten code", value: withCode, tone: "custom" },
-              { label: "Fully generated", value: judged.length - withCode, tone: "generated" },
-              { label: "JavaScript not judged", value: unsettled, tone: "neutral" },
-              { label: "Not scanned", value: notScanned, tone: "faint" },
-            ]),
-          ),
+          categoryCard ??
+            kpi(
+              "Libraries with handwritten code",
+              judged.length
+                ? percent(withCode, judged.length)
+                : scanned.length
+                  ? "—"
+                  : "Not scanned",
+              judged.length
+                ? `${number.format(withCode)} of ${number.format(judged.length)} scanned libraries${unsettled ? ` · ${number.format(unsettled)} JavaScript not judged` : ""}${notScanned ? ` · ${number.format(notScanned)} not scanned` : ""}`
+                : scanned.length
+                  ? "Detection rules for these languages are not settled yet"
+                  : rows.length
+                    ? "No library in this view has been scanned yet"
+                    : "No library matches these filters",
+              "featured",
+              splitBar([
+                { label: "Handwritten code", value: withCode, tone: "custom" },
+                { label: "Fully generated", value: judged.length - withCode, tone: "generated" },
+                { label: "JavaScript not judged", value: unsettled, tone: "neutral" },
+                { label: "Not scanned", value: notScanned, tone: "faint" },
+              ]),
+            ),
           shareCard,
           kpi(
             "Customization entry points",
@@ -2208,7 +2279,13 @@ export async function start() {
                   item.tracker.customized ? "Yes" : "No",
                   `pill ${item.tracker.customized ? "pill-custom" : "pill-generated"}`,
                 )
-              : element("span", "Not tracked", "pill pill-muted"),
+              : customizedAnswer(item) !== null
+                ? element(
+                    "span",
+                    customizedAnswer(item) ? "Yes · scan" : "No · scan",
+                    `pill ${customizedAnswer(item) ? "pill-custom" : "pill-generated"}`,
+                  )
+                : element("span", item.scan ? "Not judged" : "Not scanned", "pill pill-muted"),
           );
           const what = element("td", undefined, "what-cell");
           if (item.tracker?.categories.length)
@@ -2737,15 +2814,66 @@ export async function start() {
           return tr;
         }),
       );
-      byId("trend-chart").replaceChildren(
-        renderTrendChart(
-          observationRows.map((row) => ({
-            ...row,
-            accepted: comparable.length >= 2 && sameVersion ? row.accepted : null,
-          })),
-          { showCandidates },
-        ),
-      );
+      // With two or more languages in view, one line per language (reviewed customizations,
+      // and the handwritten share below), each in its language's color.
+      const languagesInView = new Set(rows.map((row) => row.language));
+      const byLanguage =
+        filters.language || languagesInView.size < 2
+          ? []
+          : LANGUAGES.map((language) => language.id)
+              .filter((id) => rows.some((row) => row.language === id))
+              .map((id) => ({
+                id,
+                rows: historyRows(
+                  data.observations ?? [],
+                  { ...historyFilters, language: id },
+                  byId<HTMLInputElement>("fixed").checked,
+                  control("from").value,
+                ),
+              }));
+      const perLanguage = (pick: (row: (typeof observationRows)[number]) => number | null) =>
+        observationRows.map((row) => {
+          const merged: TrendRow = { observedAt: row.observedAt };
+          for (const language of byLanguage) {
+            const match = language.rows.find((item) => item.observedAt === row.observedAt);
+            merged[`lang:${language.id}`] = match ? pick(match) : null;
+          }
+          return merged;
+        });
+      const languageSeries = byLanguage.map((language) => ({
+        key: `lang:${language.id}`,
+        label: languageLabel(language.id),
+        color: LANGUAGE_COLORS[language.id],
+      }));
+      const trendLegend = byId("trend-legend");
+      trendLegend.replaceChildren();
+      if (byLanguage.length) {
+        for (const item of languageSeries) {
+          const key = element("span", item.label, "key key-line");
+          key.style.setProperty("--key-color", item.color ?? "");
+          trendLegend.append(key);
+        }
+        byId("trend-chart").replaceChildren(
+          renderTrendChart(
+            perLanguage((row) => (comparable.length >= 2 && sameVersion ? row.accepted : null)),
+            { series: languageSeries, endLabels: true },
+          ),
+        );
+      } else {
+        trendLegend.append(
+          ...(showCandidates ? [element("span", "Entry points", "key key-candidates")] : []),
+          element("span", "Customizations", "key key-accepted"),
+        );
+        byId("trend-chart").replaceChildren(
+          renderTrendChart(
+            observationRows.map((row) => ({
+              ...row,
+              accepted: comparable.length >= 2 && sameVersion ? row.accepted : null,
+            })),
+            { showCandidates },
+          ),
+        );
+      }
       // Handwritten share of code lines, where every library in scope was counted.
       const shareRows = observationRows.map((row) => ({
         observedAt: row.observedAt,
@@ -2757,11 +2885,25 @@ export async function start() {
       byId("share-status").textContent = shareMeasured
         ? `Handwritten share of code lines (non-blank, non-comment; tests and samples excluded; JavaScript not counted).${shareMeasured < shareRows.length ? ` ${shareRows.length - shareMeasured} observations are gaps: not every library in them was counted.` : ""} Generated code size also moves with emitter versions, so read it with the line counts in the table.`
         : "Handwritten share of code lines appears once the libraries in view are counted.";
+      const shareFormat = (value: number) => `${value.toFixed(value < 10 ? 1 : 0)}%`;
       byId("share-chart").replaceChildren(
-        renderTrendChart(shareRows, {
-          series: [{ key: "share", label: "Handwritten code", className: "series-share" }],
-          format: (value) => `${value.toFixed(value < 10 ? 1 : 0)}%`,
-        }),
+        byLanguage.length
+          ? renderTrendChart(
+              perLanguage((row) =>
+                row.totalLines ? (100 * row.handwrittenLines!) / row.totalLines : null,
+              ),
+              {
+                series: languageSeries.filter(
+                  (item) => !hasHeuristicDetection(item.key.slice("lang:".length)),
+                ),
+                format: shareFormat,
+                endLabels: true,
+              },
+            )
+          : renderTrendChart(shareRows, {
+              series: [{ key: "share", label: "Handwritten code", className: "series-share" }],
+              format: shareFormat,
+            }),
       );
 
       // Diagnostics
