@@ -1522,7 +1522,22 @@ export async function start() {
         languageLimited,
       );
       const inScope = new Set(rows.filter((row) => row.scan).map((row) => row.scan!.identity));
-      const scopedPatterns = patterns.filter((pattern) =>
+      // Counts (instances, libraries, services, languages) cover only the libraries in view, so
+      // a language or service filter doesn't compare against every language; the status
+      // (reducible, service-specific…) is still decided across the whole plane.
+      const planeStatus = new Map(patterns.map((pattern) => [pattern.id, pattern]));
+      const viewPatterns = reduciblePatterns(
+        snapshot.findings.filter((item) => inScope.has(item.identity)),
+        rows,
+        catalog,
+        undefined,
+        undefined,
+        languageLimited,
+      ).map((pattern) => {
+        const plane = planeStatus.get(pattern.id);
+        return plane ? { ...pattern, status: plane.status, recurring: plane.recurring } : pattern;
+      });
+      const scopedPatterns = viewPatterns.filter((pattern) =>
         snapshot.findings.some(
           (item) =>
             item.counted &&
@@ -1535,10 +1550,16 @@ export async function start() {
       const patternTracking = new Map(
         scopedPatterns.map((pattern) => [pattern.id, trackingStatus(patternItems(pattern.id))]),
       );
-      const reviewedLibraries = planeRows.filter(
-        (row) => row.scan && row.scan.analysisStatus === "complete",
+      const reviewedLibraries = rows.filter(
+        (row) =>
+          row.scan &&
+          row.scan.analysisStatus === "complete" &&
+          (row.scan.customizationLinks?.length ?? 0) > 0,
       ).length;
-      const scannedLibraries = planeRows.filter((row) => row.scan).length;
+      // Fully generated libraries need no review, so coverage counts libraries with code.
+      const scannedLibraries = rows.filter(
+        (row) => row.scan && (row.scan.customizationLinks?.length ?? 0) > 0,
+      ).length;
       byId("reducible-kpis").replaceChildren(
         kpi(
           "Reducible patterns",
@@ -1592,7 +1613,7 @@ export async function start() {
         kpi(
           "Review coverage",
           percent(reviewedLibraries, scannedLibraries),
-          `${number.format(reviewedLibraries)} of ${number.format(scannedLibraries)} scanned libraries reviewed`,
+          `${number.format(reviewedLibraries)} of ${number.format(scannedLibraries)} libraries with handwritten code reviewed`,
           "generated",
         ),
       );
@@ -1662,7 +1683,7 @@ export async function start() {
         element(
           "span",
           reviewedLibraries
-            ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries. Unreviewed libraries are not counted either way.${filters.category ? ` Showing patterns with reviewed “${filters.category}” findings; counts and status cover all of each pattern's instances.` : ""}`
+            ? `Based on ${number.format(reviewedLibraries)} AI-reviewed libraries in view. Unreviewed libraries are not counted either way. Counts cover the libraries in view; each pattern's status is decided across the whole ${filters.plane ? "plane" : "dashboard"}.${filters.category ? ` Showing patterns with reviewed “${filters.category}” findings.` : ""}`
             : "No library has been AI-reviewed yet, so no patterns are known.",
         ),
         element(
@@ -1768,7 +1789,7 @@ export async function start() {
               body: [
                 `**Customization pattern:** ${pattern.name} (\`${pattern.id}\`)`,
                 pattern.description,
-                `**Where it shows up:** ${pattern.instances} reviewed instances in ${pattern.activeLibraries} active libraries across ${pattern.services} ${pattern.services === 1 ? "service" : "services"} (${pattern.languages.map(languageLabel).join(", ")}). Dashboard status: ${statusLabel[pattern.status] ?? pattern.status}${pattern.status === "reducible" ? (pattern.recurring ? ", recurring" : ", one service so far") : ""}.`,
+                `**Where it shows up:** ${(planeStatus.get(pattern.id) ?? pattern).instances} reviewed instances in ${(planeStatus.get(pattern.id) ?? pattern).activeLibraries} active libraries across ${(planeStatus.get(pattern.id) ?? pattern).services} ${(planeStatus.get(pattern.id) ?? pattern).services === 1 ? "service" : "services"} (${(planeStatus.get(pattern.id) ?? pattern).languages.map(languageLabel).join(", ")}). Dashboard status: ${statusLabel[pattern.status] ?? pattern.status}${pattern.status === "reducible" ? (pattern.recurring ? ", recurring" : ", one service so far") : ""}.`,
                 support,
                 pattern.languages
                   .concat(pattern.limitedLanguages ?? [])
