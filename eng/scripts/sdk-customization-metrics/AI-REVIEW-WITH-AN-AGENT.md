@@ -44,7 +44,7 @@ review() {
 
 Commit messages say "re-review batch N".
 
-Rescans need commit `ee` or later (see below): .NET scans record `provenance.dotnetGeneratedRule:
+Rescans need commit `6cf9ef5e` or later: .NET scans record `provenance.dotnetGeneratedRule:
 "folder"`, so evidence outside `Generated/` is never classified as generated. Rescans made with
 an older checkout must be deleted and redone.
 
