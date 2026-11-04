@@ -18,9 +18,35 @@ libraries in that scope. The exported database has one additional out-of-scope i
 with missing analysis, so global and scoped missing counts differ. All source coverage
 is bounded, including libraries whose assessments are complete.
 
-## Provisioning run (to do)
+## Re-review run, November 2026 (to do)
 
-Scope: the 33 .NET `Azure.Provisioning.*` libraries whose code scan (October 30, 2026) found
+Scope: the 61 libraries in [`review-targets/rereview-2026-11.txt`](./review-targets/rereview-2026-11.txt):
+- 39 .NET libraries with handwritten files that kept a copied generated header. Under the
+  folder-only rule they now count as handwritten.
+- 22 Java libraries with `Customization` scripts, under the new Java rule (report what the
+  customization changes, not the wiring that swaps in a handwritten client or builder).
+
+Unlike earlier runs, these libraries are rescanned first, because the rules changed. Each
+batch commits its new scan records together with their reviews, so the dashboard never shows a
+library as unreviewed.
+
+```bash
+cd eng/scripts/sdk-customization-metrics
+export AM="copilot/gpt-6.1-sol" RM="copilot/gpt-6-sol"
+# once: rescan all 61 (no --skip-unchanged); do NOT commit these scan records yet
+mise exec -- node cli.ts collect --state state --from-inventory --plane all --reader git \
+  --only @review-targets/rereview-2026-11.txt
+review() {
+  mise exec -- node cli.ts review --state state --plane all --exchange .local/exchange-rereview \
+    --analyst-model "$AM" --reviewer-model "$RM" --only @review-targets/rereview-2026-11.txt --limit 10
+}
+```
+
+Commit messages say "re-review batch N".
+
+## Provisioning run (complete)
+
+Completed November 2, 2026 in 4 batches. Scope: the 33 .NET `Azure.Provisioning.*` libraries whose code scan (October 30, 2026) found
 handwritten code, listed in [`review-targets/provisioning.txt`](./review-targets/provisioning.txt).
 The other 42 provisioning libraries are fully generated and need no review. Requests are about
 3.5 MB per step.
