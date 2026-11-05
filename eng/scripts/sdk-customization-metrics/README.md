@@ -341,6 +341,16 @@ as **Client layering & construction**. Reviewed findings filed under `Other` who
 versions, backward compatibility, or naming and visibility move to a category of that name
 (`reclassify/other-category.json`).
 
+A reclassify file can also carry `patternRules`, keyed by pattern id: every finding whose pattern
+(or an alias of it in `guidelines/patterns.json`) matches gets the rule's category and
+generator-addressable value, unless the file lists that finding itself. Backcompat uses one, so
+every Backcompat finding, including ones from later review runs, is in **Backward compatibility**
+and marked not generator-addressable (`reclassify/backcompat.json`).
+
+Pattern ids never contain "custom", "handwritten" or "manual" (review requests show ids, and the
+naming rule forbids those words). Renamed ids stay as aliases, so older review records resolve
+to the new id.
+
 The tracker is a person's survey, not reviewed evidence: the dashboard labels it as
 such, keeps reviewed findings separate ("Only counted customizations"), and never
 turns tracker categories into classifications of individual files. `publish` includes
@@ -618,7 +628,7 @@ track them, and a **File or link issue** button.
   a library or finding goes to its SDK repository; emitter repositories are in
   `web/languages.ts` (`emitterRepo`).
 - **How issues link back.** The description ends with a marker line such as
-  `sdk-customization-metrics: pattern=lro-custom-poller` (also `library=<identity>` or
+  `sdk-customization-metrics: pattern=lro-poller` (also `library=<identity>` or
   `finding=<id>`). To link an existing issue or PR, add that line in a comment on it; the
   dialog's "Already tracked?" section gives the line to copy. Without comment access, add
   `{"url": "...", "pattern": "..."}` to [`tracking/links.json`](./tracking/links.json) by
@@ -638,6 +648,11 @@ the TCGC documentation (October 2026); its coverage calls are judgments, so corr
 pull request.
 
 ## Handwritten share of code
+
+The Trends section leads with the handwritten share of code lines. Reviewed finding counts come
+second, because they move when libraries are re-reviewed (a run can group related code into fewer
+findings) even if the code didn't change. Dates of review re-runs and rule changes are listed in
+`web/history-events.ts` and drawn as dashed markers on both charts.
 
 Besides "is this library customized?", the dashboard tracks how much of the code is
 handwritten: the overview's **Handwritten code** figure and the **Handwritten share of code**

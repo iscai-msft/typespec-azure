@@ -653,6 +653,27 @@ interface Reclassification {
       generatorAddressable?: "yes" | "no" | "unclear";
     }
   >;
+  // Rules for every finding whose pattern (or an alias of it, from the catalog) is the key,
+  // e.g. all Backcompat findings belong in the Backward compatibility category. A finding's
+  // own entry in `findings` wins over a rule.
+  patternRules?: Record<
+    string,
+    { reason: string; category?: string; generatorAddressable?: "yes" | "no" | "unclear" }
+  >;
+}
+
+type PatternAliases = { patterns: { id: string; aliases?: string[] }[] };
+
+export async function readPatternAliases(
+  path = fileURLToPath(new URL("./guidelines/patterns.json", import.meta.url)),
+): Promise<Map<string, string>> {
+  const catalog = JSON.parse(await readFile(path, "utf8")) as PatternAliases;
+  const ids = new Map<string, string>();
+  for (const entry of catalog.patterns) {
+    ids.set(entry.id, entry.id);
+    for (const alias of entry.aliases ?? []) ids.set(alias, entry.id);
+  }
+  return ids;
 }
 
 export async function readReclassifications(
@@ -670,16 +691,43 @@ export async function readReclassifications(
   );
 }
 
-export function reclassify(findings: FindingRecord[], files: Reclassification[]): FindingRecord[] {
+export function reclassify(
+  findings: FindingRecord[],
+  files: Reclassification[],
+  aliases: Map<string, string> = new Map(),
+): FindingRecord[] {
   // Files apply in name order; a later file's fields win, and fields it leaves out (such as
   // `category`) are kept from earlier ones.
   const moves = new Map<string, Reclassification["findings"][string]>();
-  for (const file of files)
+  const rules = new Map<string, NonNullable<Reclassification["patternRules"]>[string]>();
+  const canonicalId = (id: string) => aliases.get(id) ?? id;
+  for (const file of files) {
     for (const [id, move] of Object.entries(file.findings))
       moves.set(id, { ...moves.get(id), ...move });
+    for (const [id, rule] of Object.entries(file.patternRules ?? {}))
+      rules.set(canonicalId(id), { ...rules.get(canonicalId(id)), ...rule });
+  }
+  const canonical = (pattern: string) => aliases.get(pattern) ?? pattern;
   return findings.map((item) => {
-    const move = moves.get(item.id);
+    const own = moves.get(item.id);
+    const pattern = own?.pattern ?? item.pattern;
+    const rule = rules.get(canonical(pattern));
+    const move = rule
+      ? {
+          pattern,
+          reason: own?.reason ?? rule.reason,
+          note: own?.note ?? "",
+          category: own?.category ?? rule.category,
+          generatorAddressable: own?.generatorAddressable ?? rule.generatorAddressable,
+        }
+      : own;
     if (!move) return item;
+    if (
+      !own &&
+      (move.category ?? item.category) === item.category &&
+      (move.generatorAddressable ?? item.generatorAddressable) === item.generatorAddressable
+    )
+      return item;
     const category = move.category ?? item.category;
     const generatorAddressable = move.generatorAddressable ?? item.generatorAddressable;
     return {
@@ -714,7 +762,8 @@ export async function exportData(
   const overrides = state.overrides;
   const dataset = effectiveDataset(scans, overrides, options);
   const reclassifications = await readReclassifications();
-  dataset.findings = reclassify(dataset.findings, reclassifications);
+  const aliases = await readPatternAliases();
+  dataset.findings = reclassify(dataset.findings, reclassifications, aliases);
   dataset.historyVersion = 1;
   const historical = options.historyStateDirectory
     ? await readState(options.historyStateDirectory).then((history) => ({
@@ -738,7 +787,7 @@ export async function exportData(
   dataset.observations = effectiveObservations(historical.scans, historical.overrides, options).map(
     (observation) => ({
       ...observation,
-      findings: reclassify(observation.findings, reclassifications),
+      findings: reclassify(observation.findings, reclassifications, aliases),
     }),
   );
   // Lines of code per library at its scan's commit (state/line-counts.json), when counted.
@@ -916,7 +965,15 @@ export async function exportData(
   }
   // The page's modules are TypeScript; browsers get them with types stripped. Every asset URL
   // carries a version (a hash of the page's code), so a publish is never half-cached.
-  const modules = ["app", "data", "languages", "vocabulary", "human-review", "tracking"];
+  const modules = [
+    "app",
+    "data",
+    "languages",
+    "vocabulary",
+    "human-review",
+    "tracking",
+    "history-events",
+  ];
   const sources = new Map<string, string>();
   for (const name of modules)
     sources.set(name, await readFile(new URL(`./web/${name}.ts`, import.meta.url), "utf8"));

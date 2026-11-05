@@ -2,7 +2,7 @@
 //
 // An issue is linked to a pattern, library or finding in two ways:
 //   - a marker line in the issue body or any comment, e.g.
-//       sdk-customization-metrics: pattern=lro-custom-poller
+//       sdk-customization-metrics: pattern=lro-poller
 //     ("File an issue" on the dashboard adds it; anyone can comment it on an existing issue);
 //   - an entry in tracking/links.json, edited by pull request.
 // The refresh job reads each linked issue's status from GitHub; the page rolls them up.

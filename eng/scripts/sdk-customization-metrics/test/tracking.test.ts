@@ -47,12 +47,12 @@ test("marker lines name patterns, libraries and findings", () => {
   const text = [
     "Some text",
     "---",
-    "sdk-customization-metrics: pattern=lro-custom-poller",
+    "sdk-customization-metrics: pattern=lro-poller",
     "> sdk-customization-metrics: `finding=abc123` library=python:azure-ai-x:1.",
     "sdk-customization-metrics: nothing here",
   ].join("\n");
   assert.deepEqual(parseMarkers(text), [
-    { pattern: "lro-custom-poller" },
+    { pattern: "lro-poller" },
     { finding: "abc123", library: "python:azure-ai-x:1" },
   ]);
   assert.equal(
@@ -133,7 +133,7 @@ test("refresh reads markers, links file entries and statuses, read-only", async 
       ],
     },
     "/repos/Azure/typespec-azure/issues/5/comments": [
-      { body: "sdk-customization-metrics: pattern=lro-custom-poller" },
+      { body: "sdk-customization-metrics: pattern=lro-poller" },
     ],
     "/repos/Azure/typespec-azure/issues/5": {
       title: "LRO polling",
@@ -176,7 +176,7 @@ test("refresh reads markers, links file entries and statuses, read-only", async 
   }) as typeof fetch;
   const data = await refreshTracking({
     links: [
-      { url: "https://github.com/microsoft/typespec/pull/3", pattern: "lro-custom-poller" },
+      { url: "https://github.com/microsoft/typespec/pull/3", pattern: "lro-poller" },
       { url: "https://github.com/Azure/typespec-azure/issues/5", library: "python:azure-x:1" },
       { url: "https://github.com/Azure/gone/issues/1", finding: "f1" },
     ],
@@ -194,7 +194,7 @@ test("refresh reads markers, links file entries and statuses, read-only", async 
   assert.deepEqual(typespecAzure.sources, ["file", "marker"]);
   assert.deepEqual(typespecAzure.targets, [
     { library: "python:azure-x:1" },
-    { pattern: "lro-custom-poller" },
+    { pattern: "lro-poller" },
   ]);
   assert.equal(typespecAzure.pullRequests[0].state, "open");
   assert.equal(trackingStatus([typespecAzure]), "in-progress");

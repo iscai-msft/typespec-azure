@@ -21,6 +21,7 @@ import {
   unpoolDataset,
 } from "./data.ts";
 import { LANGUAGES, PLANES, languageById } from "./languages.ts";
+import { HISTORY_EVENTS, type HistoryEvent } from "./history-events.ts";
 import {
   COVERAGE_LABELS,
   TRACKING_LABELS,
@@ -780,11 +781,13 @@ export function renderTrendChart(
     series: custom,
     format = (value: number) => number.format(value),
     endLabels = false,
+    events = [],
   }: {
     showCandidates?: boolean;
     series?: TrendSeries[];
     format?: (value: number) => string;
     endLabels?: boolean;
+    events?: HistoryEvent[];
   } = {},
 ) {
   const width = 640;
@@ -855,6 +858,24 @@ export function renderTrendChart(
         formatDate(rows[index].observedAt),
       ),
     );
+  }
+  // Scan or review changes: a dashed marker just before the first observation on or after the
+  // date, so a step caused by a re-run isn't read as a change in the SDKs.
+  for (const event of events) {
+    const index = rows.findIndex((row) => row.observedAt.slice(0, 10) >= event.date);
+    if (index <= 0) continue;
+    const at = rows.length < 2 ? x(index) : (x(index - 1) + x(index)) / 2;
+    const marker = svg("g", { class: "event-marker" });
+    marker.append(
+      svg("line", { x1: at, x2: at, y1: top, y2: top + plotHeight, class: "event-line" }),
+      svg(
+        "text",
+        { x: at - 4, y: top + 10, class: "event-label", "text-anchor": "end" },
+        event.label,
+      ),
+      svg("title", {}, `${event.date} · ${event.label}: ${event.note}`),
+    );
+    chart.append(marker);
   }
   for (const item of series) {
     // Missing measurements break the line; they are never drawn as zero.
@@ -2877,7 +2898,7 @@ export async function start() {
         byId("trend-chart").replaceChildren(
           renderTrendChart(
             perLanguage((row) => (comparable.length >= 2 && sameVersion ? row.accepted : null)),
-            { series: languageSeries, endLabels: true },
+            { series: languageSeries, endLabels: true, events: HISTORY_EVENTS },
           ),
         );
       } else {
@@ -2891,7 +2912,7 @@ export async function start() {
               ...row,
               accepted: comparable.length >= 2 && sameVersion ? row.accepted : null,
             })),
-            { showCandidates },
+            { showCandidates, events: HISTORY_EVENTS },
           ),
         );
       }
@@ -2919,11 +2940,13 @@ export async function start() {
                 ),
                 format: shareFormat,
                 endLabels: true,
+                events: HISTORY_EVENTS,
               },
             )
           : renderTrendChart(shareRows, {
               series: [{ key: "share", label: "Handwritten code", className: "series-share" }],
               format: shareFormat,
+              events: HISTORY_EVENTS,
             }),
       );
 

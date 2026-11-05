@@ -82,7 +82,6 @@ Patterns whose Java support differs from their feature's row.
 | --- | --- | --- | --- | --- |
 | Base64 encoding of byte values (`base64-bytes-codec`) | @encode on scalars (TypeSpec core) | **Supported** | high |  |
 | Operations using client-bound parameters (`client-level-parameters`) | @clientInitialization + @paramAlias + @clientLocation | **Supported** | high |  |
-| Response status classification (`custom-response-classifier`) | Response projection (unwrap envelope, headers into result, status -> value) | **Emitter gap** | high | Per-status values and envelope projection are not expressible. |
 | Ignore not found on delete (`delete-not-found-suppression`) | Response projection (unwrap envelope, headers into result, status -> value) | **Emitter gap** | high | Per-status values and envelope projection are not expressible. |
 | Enum member renames (`enum-member-name-override`) | @clientName (+ exact()) | **Supported** | high |  |
 | Enum and field wire-name mapping (`enum-wire-value-mapping`) | @clientName (+ exact()) | **Supported** | high |  |
@@ -94,6 +93,7 @@ Patterns whose Java support differs from their feature's row.
 | Client with optional or no credential (`optional-credential-client`) | @useAuth with multiple schemes (incl. NoAuth) | **Supported** | medium | NoAuth builds without a credential. |
 | Paging parameter mapping or omission (`page-size-option-alias`) | @override + replaceParameter/removeParameter/addParameter/reorderParameters | **Supported** | medium | Expressible with @clientName or a single @override signature. |
 | Primitive request body adapter (`primitive-request-body-adapter`) | @override + replaceParameter/removeParameter/addParameter/reorderParameters | **Supported** | medium | Expressible with @clientName or a single @override signature. |
+| Response status classification (`response-classifier-override`) | Response projection (unwrap envelope, headers into result, status -> value) | **Emitter gap** | high | Per-status values and envelope projection are not expressible. |
 | Responses reshaped into result types (`response-model-projection`) | Response projection (unwrap envelope, headers into result, status -> value) | **Emitter gap** | high | Per-status values and envelope projection are not expressible. |
 | Sub-client factory methods (`scoped-subclient-factory`) | @clientInitialization + @paramAlias + @clientLocation | **Supported** | medium | Parent getters are generated with enable-subclient. |
 | Single page pageable adapter (`single-page-pageable-adapter`) | Paging metadata (next link / continuation token) + Legacy @nextLinkVerb/@markAsPageable/@disablePageable | **Supported** | medium | Legacy @markAsPageable makes a single-page list pageable. |
