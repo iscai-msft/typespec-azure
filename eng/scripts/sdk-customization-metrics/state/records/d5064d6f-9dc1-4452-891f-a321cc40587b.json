@@ -1,0 +1,404 @@
+{
+  "schemaVersion": 1,
+  "id": "d5064d6f-9dc1-4452-891f-a321cc40587b",
+  "observedAt": "2026-10-23T22:49:03.302Z",
+  "identity": "javascript:@azure-rest/communication-messages:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure-rest/communication-messages",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/communication/communication-messages-rest"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "af15919c12f34b8f3a292a92cbfa91d90e571393"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 107,
+    "eligibleFiles": 38,
+    "capturedFiles": 5,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/communication/communication-messages-rest/src/conversationEventListener.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { SignalingClient, SignalingClientOptions } from \"@azure/communication-signaling\";\nimport { ConnectionState } from \"@azure/communication-signaling\";\nimport type {\n  ChatEventId,\n  ChatMessageReceivedEvent,\n  ChatThreadPropertiesUpdatedEvent,\n  ParticipantsAddedEvent,\n  ParticipantsRemovedEvent,\n} from \"./signaling/events.js\";\nimport type { CommunicationTokenCredential } from \"@azure/communication-common\";\nimport { EventEmitter } from \"eventemitter3\";\nimport { logger } from \"./generated/src/logger.js\";\nimport { getSignalingClient } from \"#platform/signaling/signalingClient\";\nimport type { MessagesServiceClientOptions } from \"./generated/src/messagesServiceClient.js\";\n\nexport interface ConversationEventListener {\n  off(event: \"chatMessageReceived\", listener: (e: ChatMessageReceivedEvent) => void): void;\n  off(\n    event: \"chatThreadPropertiesUpdated\",\n    listener: (e: ChatThreadPropertiesUpdatedEvent) => void,\n  ): void;\n  off(event: \"participantsAdded\", listener: (e: ParticipantsAddedEvent) => void): void;\n  off(event: \"participantsRemoved\", listener: (e: ParticipantsRemovedEvent) => void): void;\n  on(event: \"chatMessageReceived\", listener: (e: ChatMessageReceivedEvent) => void): void;\n  on(\n    event: \"chatThreadPropertiesUpdated\",\n    listener: (e: ChatThreadPropertiesUpdatedEvent) => void,\n  ): void;\n  on(event: \"participantsAdded\", listener: (e: ParticipantsAddedEvent) => void): void;\n  on(event: \"participantsRemoved\", listener: (e: ParticipantsRemovedEvent) => void): void;\n  on(event: \"realTimeNotificationConnected\", listener: () => void): void;\n  on(event: \"realTimeNotificationDisconnected\", listener: () => void): void;\n  startRealtimeNotifications(): Promise<void>;\n  stopRealtimeNotifications(): Promise<void>;\n}\n\ndeclare interface InternalConversationEventListenerOptions extends SignalingClientOptions {\n  signalingClientOptions?: SignalingClientOptions;\n}\n\n/**\n * The client to do chat operations\n */\nclass ConversationEventListenerImpl {\n  private readonly tokenCredential: CommunicationTokenCredential;\n  private readonly clientOptions: InternalConversationEventListenerOptions;\n  private readonly signalingClient: SignalingClient | undefined = undefined;\n  private readonly emitter = new EventEmitter();\n  private isRealtimeNotificationsStarted: boolean = false;\n\n  constructor(\n    private readonly endpoint: string,\n    credential: CommunicationTokenCredential,\n    options: MessagesServiceClientOptions = {},\n  ) {\n    this.tokenCredential = credential;\n\n    this.clientOptions = { ...options };\n    this.clientOptions.signalingClientOptions = {\n      ...this.clientOptions.signalingClientOptions,\n      resourceEndpoint: this.endpoint,\n      gatewayApiVersion: \"2024-03-07\",\n    };\n\n    this.signalingClient = getSignalingClient(\n      this.tokenCredential,\n      logger,\n      this.clientOptions.signalingClientOptions,\n    );\n  }\n\n  /**\n   * Start receiving realtime notifications.\n   * Call this function before subscribing to any event.\n   */\n  public async startRealtimeNotifications(): Promise<void> {\n    if (this.signalingClient === undefined) {\n      throw new Error(\"Realtime notifications are not supported in node js.\");\n    }\n\n    if (this.isRealtimeNotificationsStarted) {\n      return;\n    }\n\n    this.isRealtimeNotificationsStarted = true;\n    await this.signalingClient.start();\n    this.subscribeToSignalingEvents();\n  }\n\n  /**\n   * Stop receiving realtime notifications.\n   * This function would unsubscribe to all events.\n   */\n  public async stopRealtimeNotifications(): Promise<void> {\n    if (this.signalingClient === undefined) {\n      throw new Error(\"Realtime notifications are not supported in node js.\");\n    }\n\n    this.isRealtimeNotificationsStarted = false;\n    await this.signalingClient.stop();\n    this.emitter.removeAllListeners();\n  }\n\n  /**\n   * Subscribe function for chatMessageReceived.\n   * The initial sender will also receive this event.\n   * You need to call startRealtimeNotifications before subscribing to any event.\n   * @param event - The ChatMessageReceivedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public on(event: \"chatMessageReceived\", listener: (e: ChatMessageReceivedEvent) => void): void;\n\n  /**\n   * Subscribe function for chatThreadPropertiesUpdated.\n   * @param event - The ChatThreadPropertiesUpdatedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public on(\n    event: \"chatThreadPropertiesUpdated\",\n    listener: (e: ChatThreadPropertiesUpdatedEvent) => void,\n  ): void;\n\n  /**\n   * Subscribe function for participantsAdded.\n   * @param event - The ParticipantsAddedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public on(event: \"participantsAdded\", listener: (e: ParticipantsAddedEvent) => void): void;\n\n  /**\n   * Subscribe function for participantsRemoved.\n   * @param event - The ParticipantsRemovedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public on(event: \"participantsRemoved\", listener: (e: ParticipantsRemovedEvent) => void): void;\n\n  /**\n   * Subscribe function for realTimeNotificationConnected.\n   * @param event - The realTimeNotificationConnected Event\n   * @param listener - The listener to handle the event.\n   */\n  public on(event: \"realTimeNotificationConnected\", listener: () => void): void;\n\n  /**\n   * Subscribe function for realTimeNotificationDisconnected.\n   * @param event - The realTimeNotificationDisconnected Event\n   * @param listener - The listener to handle the event.\n   */\n  public on(event: \"realTimeNotificationDisconnected\", listener: () => void): void;\n\n  public on(event: ChatEventId, listener: (e?: any) => void): void {\n    if (this.signalingClient === undefined) {\n      throw new Error(\"Realtime notifications are only supported in the browser.\");\n    }\n    if (\n      !this.isRealtimeNotificationsStarted &&\n      event !== \"realTimeNotificationConnected\" &&\n      event !== \"realTimeNotificationDisconnected\"\n    ) {\n      throw new Error(\n        \"You must call startRealtimeNotifications before you can subscribe to events.\",\n      );\n    }\n\n    this.emitter.on(event, listener);\n  }\n\n  /**\n   * Unsubscribe from chatMessageReceived.\n   * @param event - The ChatMessageReceivedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public off(event: \"chatMessageReceived\", listener: (e: ChatMessageReceivedEvent) => void): void;\n\n  /**\n   * Unsubscribe from chatThreadPropertiesUpdated.\n   * @param event - The ChatThreadPropertiesUpdatedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public off(\n    event: \"chatThreadPropertiesUpdated\",\n    listener: (e: ChatThreadPropertiesUpdatedEvent) => void,\n  ): void;\n\n  /**\n   * Unsubscribe from participantsAdded.\n   * @param event - The ParticipantsAddedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public off(event: \"participantsAdded\", listener: (e: ParticipantsAddedEvent) => void): void;\n\n  /**\n   * Unsubscribe from participantsRemoved.\n   * @param event - The ParticipantsRemovedEvent.\n   * @param listener - The listener to handle the event.\n   */\n  public off(event: \"participantsRemoved\", listener: (e: ParticipantsRemovedEvent) => void): void;\n\n  public off(event: ChatEventId, listener: (e: any) => void): void {\n    if (this.signalingClient === undefined) {\n      throw new Error(\"Realtime notifications are only supported in the browser.\");\n    }\n\n    this.emitter.removeListener(event, listener);\n  }\n\n  private subscribeToSignalingEvents(): void {\n    if (this.signalingClient === undefined) {\n      throw new Error(\"Realtime notifications are only supported in the browser.\");\n    }\n\n    this.signalingClient.on(\"connectionChanged\", (payload) => {\n      if (payload === ConnectionState.Connected) {\n        this.emitter.emit(\"realTimeNotificationConnected\");\n      } else if (payload === ConnectionState.Disconnected) {\n        this.emitter.emit(\"realTimeNotificationDisconnected\");\n      }\n    });\n\n    this.signalingClient.on(\"chatMessageReceived\", (payload) => {\n      this.emitter.emit(\"chatMessageReceived\", payload);\n    });\n\n    this.signalingClient.on(\"chatThreadPropertiesUpdated\", (payload) => {\n      this.emitter.emit(\"chatThreadPropertiesUpdated\", payload);\n    });\n\n    this.signalingClient.on(\"participantsAdded\", (payload) => {\n      this.emitter.emit(\"participantsAdded\", payload);\n    });\n\n    this.signalingClient.on(\"participantsRemoved\", (payload) => {\n      this.emitter.emit(\"participantsRemoved\", payload);\n    });\n  }\n}\n\nexport function createConversationEventListener(\n  endpoint: string,\n  credential: CommunicationTokenCredential,\n  options: MessagesServiceClientOptions = {},\n): ConversationEventListener {\n  return new ConversationEventListenerImpl(endpoint, credential, options);\n}\n",
+      "contentHash": "fb1d17233746831f39ab5ec371e8699e47938c66b0777caa2a7a4150c9f5a272",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/src/conversationEventListener.ts",
+      "startLine": 1,
+      "endLine": 247,
+      "kind": "unknown",
+      "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/messagesServiceClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { TokenCredential, KeyCredential } from \"@azure/core-auth\";\nimport { isTokenCredential, isKeyCredential } from \"@azure/core-auth\";\nimport type { ClientOptions } from \"@azure-rest/core-client\";\nimport { parseClientArguments, createCommunicationAuthPolicy } from \"@azure/communication-common\";\nimport type { MessagesServiceClient } from \"./generated/src/clientDefinitions.js\";\nimport GeneratedAzureCommunicationMessageServiceClient from \"./generated/src/messagesServiceClient.js\";\n\n/**\n * Initialize a new instance of `MessagesServiceClient`\n * @param connectionString - The connectionString or url of your Communication Services resource.\n * @param options - the parameter for all optional parameters\n */\nexport default function createClient(\n  connectionString: string,\n  options?: ClientOptions,\n): MessagesServiceClient;\n\n/**\n * Initialize a new instance of `MessagesServiceClient`\n * @param endpoint - The endpoint of your Communication Services resource.\n * @param credential - The key or token credential.\n * @param options - the parameter for all optional parameters\n */\nexport default function createClient(\n  endpoint: string,\n  credential: KeyCredential | TokenCredential,\n  options?: ClientOptions,\n): MessagesServiceClient;\n\n/**\n * Initialize a new instance of `MessagesServiceClient`\n * @param endpoint - The communication resource, for example https://my-resource.communication.azure.com\n * @param credentials - uniquely identify client credential\n * @param options - the parameter for all optional parameters\n */\nexport default function createClient(\n  endpointOrConnectionString: string,\n  credentialOrOptions?: ClientOptions | (TokenCredential | KeyCredential),\n  options?: ClientOptions,\n): MessagesServiceClient {\n  if (!(isTokenCredential(credentialOrOptions) || isKeyCredential(credentialOrOptions))) {\n    options = credentialOrOptions as ClientOptions;\n  }\n\n  if (options === undefined) {\n    options = {};\n  }\n\n  const { url, credential } = parseClientArguments(endpointOrConnectionString, credentialOrOptions);\n  const baseUrl = options.baseUrl ?? `${url}`;\n\n  const client = GeneratedAzureCommunicationMessageServiceClient(baseUrl, credential, options);\n\n  if (!isTokenCredential(credential)) {\n    const authPolicy = createCommunicationAuthPolicy(credential);\n    client.pipeline.addPolicy(authPolicy);\n  }\n\n  return client;\n}\n",
+      "contentHash": "48d57d92a8c004d68bc3c20725b4b7fe45a20a8c012b9a12f79b86b3e47dc1b6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/src/messagesServiceClient.ts",
+      "startLine": 1,
+      "endLine": 63,
+      "kind": "unknown",
+      "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/events.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  ChatMessageReceivedEvent,\n  ChatThreadPropertiesUpdatedEvent,\n  ParticipantsAddedEvent,\n  ParticipantsRemovedEvent,\n} from \"@azure/communication-signaling\";\n\ntype ChatEventId =\n  | \"chatMessageReceived\"\n  | \"chatMessageEdited\"\n  | \"chatMessageDeleted\"\n  | \"typingIndicatorReceived\"\n  | \"readReceiptReceived\"\n  | \"chatThreadCreated\"\n  | \"chatThreadDeleted\"\n  | \"chatThreadPropertiesUpdated\"\n  | \"participantsAdded\"\n  | \"participantsRemoved\"\n  | \"realTimeNotificationConnected\"\n  | \"realTimeNotificationDisconnected\";\n\nexport type {\n  ChatEventId,\n  ChatMessageReceivedEvent,\n  ChatThreadPropertiesUpdatedEvent,\n  ParticipantsAddedEvent,\n  ParticipantsRemovedEvent,\n};\n",
+      "contentHash": "09d5d8f9c83b41cbd2ad6d85e91f62a03865d56b2bae66ed7580085708318c06",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/src/signaling/events.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "unknown",
+      "id": "948606ed2c406edfb4031943426852de4d1a7dbefd1817f031d3dc50d7f7d56e"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/signalingClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { SignalingClient } from \"@azure/communication-signaling\";\nimport type { CommunicationTokenCredential } from \"@azure/communication-common\";\nimport type { AzureLogger } from \"@azure/logger\";\nimport type { SignalingClientOptions } from \"./signalingClientOptions.js\";\n\nexport const getSignalingClient = (\n  _credential: CommunicationTokenCredential,\n  _logger: AzureLogger,\n  _options?: SignalingClientOptions,\n): SignalingClient | undefined => {\n  // In node js\n  return undefined;\n};\n",
+      "contentHash": "d284d441da0f8729132d8f654b38151e4294aed056b392bdd53eb86fc49c45a3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/src/signaling/signalingClient.ts",
+      "startLine": 1,
+      "endLine": 16,
+      "kind": "unknown",
+      "id": "90ef67f739520537da2e098e195115da1bcf85291ddc4c7d97577296c8558808"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/signalingClientOptions.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\nimport type { CommonClientOptions } from \"@azure/core-client\";\n\nexport interface SignalingClientOptions extends CommonClientOptions {\n  resourceEndpoint?: string;\n  gatewayApiVersion?: string;\n}\n",
+      "contentHash": "c6593f823d140f8584f5e3cf800b6de56450d7ce4293018850095dc4419af38d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/src/signaling/signalingClientOptions.ts",
+      "startLine": 1,
+      "endLine": 8,
+      "kind": "unknown",
+      "id": "80ac758a20ca76d4cfeb24e8c5f14d35ae8fb48585365739564fb513e37fab59"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/communication/communication-messages-rest/package.json",
+      "text": "{\n  \"name\": \"@azure-rest/communication-messages\",\n  \"sdk-type\": \"client\",\n  \"author\": \"Microsoft Corporation\",\n  \"version\": \"2.2.0-beta.2\",\n  \"description\": \"Azure client library for Azure Communication Messages services\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"license\": \"MIT\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/communication/communication-messages-rest\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\",\n    \"review/\",\n    \"CHANGELOG.md\"\n  ],\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"*.{js,json}\\\"  \\\"test/**/*.ts\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"echo skipped\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"*.{js,json}\\\"  \\\"test/**/*.ts\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"test:browser\": \"dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.2\",\n    \"@azure/communication-common\": \"^2.3.1\",\n    \"@azure/communication-signaling\": \"1.0.0-beta.31\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure/core-paging\": \"^1.6.2\",\n    \"@azure/core-rest-pipeline\": \"^1.18.2\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"eventemitter3\": \"^5.0.1\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"autorest\": \"catalog:\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/communication/communication-messages-rest/README.md\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/generated/src/messagesServiceClient.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure client library for Azure Communication Messages Services\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-communication-services\"\n    ],\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/overview/azure/communication-messages-rest-readme?view=azure-node-latest\"\n  },\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"imports\": {\n    \"#platform/*\": {\n      \"browser\": \"./src/*-browser.mts\",\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "348e53c7fa7549e7c81900613eac742f80dfa4e0eb5d00001e3332389e2ae2eb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/package.json"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/README.md",
+      "text": "# Azure CommunicationMessages REST client library for JavaScript\n\nThis package contains a JavaScript SDK for Azure Communication Messages Services.\n\nKey links:\n\n- [Quick Start][azure_communication_messaging_qs]\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n\n### Prerequisites\n\n- You must have an [Azure subscription][azure_sub] to use this package.\n- An existing Communication Services resource. If you need to create the resource, you can use the [Azure Portal][azure_portal], the [Azure PowerShell][azure_powershell], or the [Azure CLI][azure_cli].\n- See [how to register whatsapp business account & create a channel][register_whatsapp_business_account] for registering whatsapp channel to your Communication Services resource.\n\n### Install the `@azure-rest/communication-messages` package\n\nInstall the Azure CommunicationMessages REST client REST client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure-rest/communication-messages\n```\n\n## Authentication\n\nYou can get a key and/or connection string from your Communication Services resource in [Azure Portal][azure_portal]. Once you have a key, you may authenticate with any of the following methods:\n\n### Using a connection string\n\n```ts snippet:ReadmeSampleCreateClient_ConnectionString\nimport MessageClient from \"@azure-rest/communication-messages\";\n\nconst connectionString = `endpoint=https://<resource-name>.communication.azure.com/;accessKey=<Base64-Encoded-Key>`;\nconst client = MessageClient(connectionString);\n```\n\n### Using `AzureKeyCredential`\n\n```ts snippet:ReadmeSampleCreateClient_KeyCredential\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport MessageClient from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new AzureKeyCredential(\"<Base64-Encoded-Key>\");\nconst client = MessageClient(endpoint, credential);\n```\n\n### Using Azure Active Directory managed identity\n\nClient API key authentication is used in most of the examples, but you can also authenticate with Azure Active Directory using the [Azure Identity library][azure_identity]. To use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the [`@azure/identity`][azure_identity] package:\n\n```bash\nnpm install @azure/identity\n```\n\nThe [`@azure/identity`][azure_identity] package provides a variety of credential types that your application can use to do this. The README for @azure/identity provides more details and samples to get you started.\nAZURE_CLIENT_SECRET, AZURE_CLIENT_ID and AZURE_TENANT_ID environment variables are needed to create a DefaultAzureCredential object.\n\n```ts snippet:ReadmeSampleCreateClient_DefaultAzureCredential\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n```\n\n## Send a Template Message with WhatsApp Channel\n\n`Note: Business always starts the conversation with a template message.`\n\nTo send an Template Message, you need add template to your WhatsApp Bussiness Account. For more detail on WhatsApp Template, refer [Create and Manage Templates][create-manage-whatsapp-template]. In below example, we are using\n\n```\n Template Name: sample_issue_resolution\n Template Language: en_US\n\n Template Body: \"Hi {{1}}, were we able to solve the issue that you were facing?\"\n\n With Quick Action Button (Yes, No)\n\n```\n\n```ts snippet:ReadmeSampleSendTemplateMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, { isUnexpected } from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst nameValue = {\n  kind: \"text\",\n  name: \"name\",\n  text: \"Arif\",\n};\n\nconst yesAction = {\n  kind: \"quickAction\",\n  name: \"Yes\",\n  payload: \"Yes\",\n};\n\nconst noAction = {\n  kind: \"quickAction\",\n  name: \"No\",\n  payload: \"No\",\n};\n\nconst templateBindings = {\n  kind: \"whatsApp\",\n  body: [\n    {\n      refValue: \"name\",\n    },\n  ],\n  buttons: [\n    {\n      subType: \"quickReply\",\n      refValue: \"Yes\",\n    },\n    {\n      subType: \"quickReply\",\n      refValue: \"No\",\n    },\n  ],\n};\n\nconst template = {\n  name: \"sample_issue_resolution\",\n  language: \"en_US\",\n  bindings: templateBindings,\n  values: [nameValue, yesAction, noAction],\n};\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"template\",\n    template: template,\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Send a Text Message with WhatsApp Channel\n\n`Note: Business can't start a conversation with a text message. It needs to be user initiated.`\n\n```ts snippet:ReadmeSampleSendTextMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, { isUnexpected } from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"text\",\n    content: \"Hello World!!\",\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Send a Media Message with WhatsApp Channel\n\n`Note: Business can't start a conversation with a media message. It needs to be user initiated.`\n\n```ts snippet:ReadmeSampleSendMediaMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, { isUnexpected } from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"image\",\n    mediaUri: \"https://<your-media-image-file>\",\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Send a Button Action Interactive Message with WhatsApp Channel\n\n`Note: Business can't start a conversation with a media message. It needs to be user initiated.`\n\n```ts snippet:ReadmeSampleSendButtonActionInteractiveMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, {\n  InteractiveMessage,\n  isUnexpected,\n} from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst interactiveMessage: InteractiveMessage = {\n  body: {\n    kind: \"text\",\n    text: \"Do you want to proceed?\",\n  },\n  action: {\n    kind: \"whatsAppButtonAction\",\n    content: {\n      kind: \"buttonSet\",\n      buttons: [\n        {\n          id: \"yes\",\n          title: \"Yes\",\n        },\n        {\n          id: \"no\",\n          title: \"No\",\n        },\n      ],\n    },\n  },\n};\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"interactive\",\n    interactiveMessage: interactiveMessage,\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Send a List Action Interactive Message with WhatsApp Channel\n\n`Note: Business can't start a conversation with a media message. It needs to be user initiated.`\n\n```ts snippet:ReadmeSampleSendListActionInteractiveMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, {\n  InteractiveMessage,\n  isUnexpected,\n} from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst interactiveMessage: InteractiveMessage = {\n  body: {\n    kind: \"text\",\n    text: \"Which shipping option do you want?\",\n  },\n  action: {\n    kind: \"whatsAppListAction\",\n    content: {\n      kind: \"group\",\n      title: \"Shipping Options\",\n      groups: [\n        {\n          title: \"Express Delivery\",\n          items: [\n            {\n              id: \"priority_mail_express\",\n              title: \"Priority Mail Express\",\n              description: \"Delivered on same day!\",\n            },\n            {\n              id: \"priority_mail\",\n              title: \"Priority Mail\",\n              description: \"Delivered in 1-2 days\",\n            },\n          ],\n        },\n        {\n          title: \"Normal Delivery\",\n          items: [\n            {\n              id: \"usps_ground_advantage\",\n              title: \"USPS Ground Advantage\",\n              description: \"Delivered in 2-5 days\",\n            },\n            {\n              id: \"usps_mail\",\n              title: \"Normal Mail\",\n              description: \"Delivered in 5-8 days\",\n            },\n          ],\n        },\n      ],\n    },\n  },\n};\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"interactive\",\n    interactiveMessage: interactiveMessage,\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Send a Url Action Interactive Message with WhatsApp Channel\n\n`Note: Business can't start a conversation with a media message. It needs to be user initiated.`\n\n```ts snippet:ReadmeSampleSendUrlActionInteractiveMessage\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport MessageClient, {\n  InteractiveMessage,\n  isUnexpected,\n} from \"@azure-rest/communication-messages\";\n\nconst endpoint = \"https://<resource-name>.communication.azure.com\";\nconst credential = new DefaultAzureCredential();\nconst client = MessageClient(endpoint, credential);\n\nconst interactiveMessage: InteractiveMessage = {\n  body: {\n    kind: \"text\",\n    text: \"Find more detail in the link.\",\n  },\n  action: {\n    kind: \"whatsAppUrlAction\",\n    content: {\n      kind: \"url\",\n      title: \"link\",\n      url: \"https://<your-url-link>\",\n    },\n  },\n  footer: {\n    kind: \"text\",\n    text: \"This is a footer message\",\n  },\n};\n\nconst result = await client.path(\"/messages/notifications:send\").post({\n  contentType: \"application/json\",\n  body: {\n    channelRegistrationId: \"<Channel_Registration_Id>\",\n    to: [\"<to-phone-number-1>\"],\n    kind: \"interactive\",\n    interactiveMessage: interactiveMessage,\n  },\n});\n\nif (!isUnexpected(result)) {\n  result.body.receipts.forEach((receipt) => {\n    console.log(\"Message sent to:\" + receipt.to + \" with message id:\" + receipt.messageId);\n  });\n}\n```\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the [samples](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/communication/communication-messages-rest/samples) directory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for Javascript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_powershell]: https://learn.microsoft.com/powershell/module/az.communication/new-azcommunicationservice\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[azure_communication_messaging_qs]: https://learn.microsoft.com/azure/communication-services/concepts/advanced-messaging/whatsapp/whatsapp-overview\n[register_whatsapp_business_account]: https://learn.microsoft.com/azure/communication-services/quickstarts/advanced-messaging/whatsapp/connect-whatsapp-business-account\n[create-manage-whatsapp-template]: https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates/\n",
+      "contentHash": "9b226bc0fd7fcc380ff1b030a9427ac94566694464bb04f1f396304fb618ed2c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/README.md"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/tsp-location.yaml",
+      "text": "directory: specification/communication/Communication.Messages\ncommit: ad8f361fbc5a2d826ddcd5abe78d1d91b2e4422c\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "2b2ef09fb1f07d3818bff5ef34381d6e96fd2ac1223bf03080044370c84b4e57",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-messages-rest/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "a51a6be8e39895a1e889ba2de74363f2b2de8e25558942389f82382b70d58022",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "53d607f59d7b7cd00a7adc8df16b1d4a1e1e511dc18a6c9bd0ea8b8e48911254",
+        "category": "Auth",
+        "subtype": "Connection-string/key/token client factory and policy wiring",
+        "explanation": "The wrapper distinguishes credentials from options, parses endpoint/connection-string arguments, honors options.baseUrl, constructs the imported generated client, and adds createCommunicationAuthPolicy only for a non-token credential.",
+        "pattern": "communication-credential-auth-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This src wrapper explicitly imports the separately generated factory and adds argument adaptation and conditional pipeline wiring around it.",
+        "symbols": [
+          "createClient"
+        ],
+        "evidence": [
+          {
+            "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+            "startLine": 4,
+            "endLine": 9
+          },
+          {
+            "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+            "startLine": 16,
+            "endLine": 31
+          },
+          {
+            "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+            "startLine": 39,
+            "endLine": 63
+          }
+        ]
+      },
+      {
+        "key": "294611361c1c958d88bb50567f51d7f997d0d3980df4cd20ba7c700613e5acbf",
+        "category": "SSE / streaming",
+        "subtype": "Conversation-listener construction with signaling configuration",
+        "explanation": "The public factory constructs an event-listener implementation that copies options, overlays nested signaling options with resourceEndpoint and gatewayApiVersion 2024-03-07, and obtains a platform signaling client using the communication credential and logger.",
+        "pattern": "signaling-client-configuration",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The src listener composes an external signaling client and EventEmitter alongside the generated REST client, providing substantive realtime behavior rather than an ordinary generated REST binding.",
+        "symbols": [
+          "ConversationEventListenerImpl.constructor",
+          "createConversationEventListener"
+        ],
+        "evidence": [
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 47,
+            "endLine": 73
+          },
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 241,
+            "endLine": 247
+          }
+        ]
+      },
+      {
+        "key": "79b6c14f55cc9c728d1ecbda18219e9da6ee1d8d0e1592430cf5918a5543b3e9",
+        "category": "SSE / streaming",
+        "subtype": "Realtime start/stop state and local-listener cleanup",
+        "explanation": "Start rejects an unavailable signaling client, returns when already marked started, sets the flag before awaiting start, then subscribes signaling handlers. Stop rejects an unavailable client, clears the flag before awaiting stop, and removes local emitter listeners after stop resolves.",
+        "pattern": "realtime-notification-lifecycle",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The listener implements its own lifecycle flag, platform guards, asynchronous sequencing and emitter cleanup outside the generated REST tree.",
+        "symbols": [
+          "ConversationEventListenerImpl.startRealtimeNotifications",
+          "ConversationEventListenerImpl.stopRealtimeNotifications"
+        ],
+        "evidence": [
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 79,
+            "endLine": 105
+          }
+        ]
+      },
+      {
+        "key": "8dab097bbce2dce46b675b8fa05f76f0c46a895ff8f137c6ece8cdccf641ea7c",
+        "category": "SSE / streaming",
+        "subtype": "Guarded local event subscription and removal",
+        "explanation": "on rejects an unavailable signaling client and requires started state for events other than the two connection notifications before registering on the emitter. off also requires an available signaling client, then removes the specified emitter listener without a started-state check.",
+        "pattern": "signaling-event-subscription-guards",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "These concrete listener methods implement state checks and local callback registration around a signaling transport rather than generated HTTP operations.",
+        "symbols": [
+          "ConversationEventListenerImpl.on",
+          "ConversationEventListenerImpl.off"
+        ],
+        "evidence": [
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 154,
+            "endLine": 169
+          },
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 202,
+            "endLine": 208
+          }
+        ]
+      },
+      {
+        "key": "e7e580f67ddc0166ebc647cbff3addefb62bede111001fe151cee00f590bbcec",
+        "category": "SSE / streaming",
+        "subtype": "Signaling events forwarded through a local emitter",
+        "explanation": "Subscribes to connectionChanged and emits local connected/disconnected notifications for those two states. It also forwards chatMessageReceived, chatThreadPropertiesUpdated, participantsAdded and participantsRemoved payloads unchanged through the local emitter.",
+        "pattern": "signaling-event-emitter-bridge",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The implementation explicitly registers signaling callbacks and adapts them to its own event-emitter API outside the generated REST tree.",
+        "symbols": [
+          "ConversationEventListenerImpl.subscribeToSignalingEvents"
+        ],
+        "evidence": [
+          {
+            "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+            "startLine": 210,
+            "endLine": 238
+          }
+        ]
+      },
+      {
+        "key": "f51e4a925289dab276caf205c391d704bf0a034035a08db130cbf6a0d8af1126",
+        "category": "SSE / streaming",
+        "subtype": "Default-platform signaling availability adapter",
+        "explanation": "The supplied default-platform getSignalingClient ignores its credential/logger/options and returns undefined. The listener's visible lifecycle and subscription methods explicitly reject that unavailable-client state.",
+        "pattern": "platform-specific-streaming-availability",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete src platform helper participates in the custom signaling layer; package import mappings select this .ts implementation by default and distinct platform files for browser/react-native.",
+        "symbols": [
+          "getSignalingClient"
+        ],
+        "evidence": [
+          {
+            "id": "90ef67f739520537da2e098e195115da1bcf85291ddc4c7d97577296c8558808",
+            "startLine": 9,
+            "endLine": 16
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "53d607f59d7b7cd00a7adc8df16b1d4a1e1e511dc18a6c9bd0ea8b8e48911254",
+        "status": "revised",
+        "reason": "The handwritten factory and conditional key-auth policy are visible, but the proposed pattern embeds the service name rather than describing the reusable credential-adapter shape. The imported argument parser and generated factory are not themselves demonstrated to be handwritten.",
+        "finding": {
+          "key": "53d607f59d7b7cd00a7adc8df16b1d4a1e1e511dc18a6c9bd0ea8b8e48911254",
+          "category": "Auth",
+          "subtype": "Connection-string and credential client factory with conditional key-auth policy",
+          "explanation": "The public factory overloads accept a connection string or endpoint and credential, select the options argument, pass the parsed URL and credential to the generated client, and add a communication auth policy when the parsed credential is not a token credential.",
+          "pattern": "connection-string-credential-auth-adapter",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "This source file imports the factory from ./generated/src/ and implements overloads, argument adaptation, and conditional pipeline policy insertion outside that generated tree.",
+          "symbols": [
+            "createClient"
+          ],
+          "evidence": [
+            {
+              "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+              "startLine": 4,
+              "endLine": 9
+            },
+            {
+              "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+              "startLine": 16,
+              "endLine": 31
+            },
+            {
+              "id": "d874f6da7a30432d6ee0aacd020bc60bba0c9116e715aaa0eb21cd0f60233010",
+              "startLine": 39,
+              "endLine": 63
+            }
+          ]
+        }
+      },
+      {
+        "key": "294611361c1c958d88bb50567f51d7f997d0d3980df4cd20ba7c700613e5acbf",
+        "status": "accepted",
+        "reason": "The non-generated listener constructor copies options, supplies resourceEndpoint and gatewayApiVersion to the external signaling-client factory, and the exported factory instantiates that listener. The proposed pattern describes this composition without claiming the external signaling implementation was inspected."
+      },
+      {
+        "key": "79b6c14f55cc9c728d1ecbda18219e9da6ee1d8d0e1592430cf5918a5543b3e9",
+        "status": "accepted",
+        "reason": "Lines 79-105 directly implement the unavailable-client guards, started flag and asynchronous start/stop ordering, signaling subscription, and post-stop local emitter cleanup. These are handwritten lifecycle behaviors outside the imported generated client."
+      },
+      {
+        "key": "8dab097bbce2dce46b675b8fa05f76f0c46a895ff8f137c6ece8cdccf641ea7c",
+        "status": "revised",
+        "reason": "The on/off checks and emitter registration are directly supported, but the supplied source does not establish that a generator could reproduce these signaling-specific state and event guards; generator addressability remains unclear.",
+        "finding": {
+          "key": "8dab097bbce2dce46b675b8fa05f76f0c46a895ff8f137c6ece8cdccf641ea7c",
+          "category": "SSE / streaming",
+          "subtype": "Guarded local event subscription and removal",
+          "explanation": "The on method rejects an unavailable signaling client and, unless the event is a connection notification, requires notifications to be started before adding a listener to the local emitter; off rejects an unavailable client and removes the specified local listener without a started-state check.",
+          "pattern": "signaling-event-subscription-guards",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "These concrete methods implement runtime state and platform checks and local callback registration in src/conversationEventListener.ts outside the imported generated REST client.",
+          "symbols": [
+            "ConversationEventListenerImpl.on",
+            "ConversationEventListenerImpl.off"
+          ],
+          "evidence": [
+            {
+              "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+              "startLine": 154,
+              "endLine": 169
+            },
+            {
+              "id": "557b0c474b2c7ad4c98a935b1091645ddaeffa7470a21b3465701522e7a28c48",
+              "startLine": 202,
+              "endLine": 208
+            }
+          ]
+        }
+      },
+      {
+        "key": "e7e580f67ddc0166ebc647cbff3addefb62bede111001fe151cee00f590bbcec",
+        "status": "accepted",
+        "reason": "The cited method registers handlers for connectionChanged and four named signaling events, maps connected/disconnected connection states to local notifications, and forwards the four event payloads through its emitter. The source supports the proposed event bridge, not any assertion about the underlying signaling transport."
+      },
+      {
+        "key": "f51e4a925289dab276caf205c391d704bf0a034035a08db130cbf6a0d8af1126",
+        "status": "revised",
+        "reason": "The default-platform function deliberately returns undefined, which the listener checks before using signaling, and the package import map selects the default .ts path. The other platform implementations were not supplied, and generator support for this platform-specific transport fallback cannot be established from the evidence.",
+        "finding": {
+          "key": "f51e4a925289dab276caf205c391d704bf0a034035a08db130cbf6a0d8af1126",
+          "category": "SSE / streaming",
+          "subtype": "Default-platform signaling availability adapter",
+          "explanation": "The default-platform getSignalingClient implementation returns undefined rather than creating a signaling client; the listener checks for that unavailable-client value before starting, stopping, or changing event subscriptions.",
+          "pattern": "platform-specific-transport-availability",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The src/signaling helper explicitly supplies the default-platform fallback for the #platform/signaling/signalingClient import, while the package import map points the default condition to .ts files and browser/react-native to separate .mts files.",
+          "symbols": [
+            "getSignalingClient"
+          ],
+          "evidence": [
+            {
+              "id": "90ef67f739520537da2e098e195115da1bcf85291ddc4c7d97577296c8558808",
+              "startLine": 9,
+              "endLine": 16
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only five of 38 eligible files were captured from 107 discovered files. All evidence is tagged unknown; the proposed handwritten distinction relies on explicit composition around separately imported generated REST code and the concrete signaling adapter, not that metadata label alone.",
+      "Generated factory internals, communication argument/auth-policy helpers, external signaling implementation, and browser/react-native platform files are absent. Their signing, connection, transport and delivery guarantees are not established. SSE / streaming is the broad realtime category, not a claim that this code uses the SSE protocol.",
+      "Start marks its flag before awaiting signaling start; stop clears it before awaiting stop. The supplied code removes local emitter listeners but shows no corresponding removal of signaling handlers. Restart/failure behavior was not executed or inferred as reliable.",
+      "ChatEventId declares more event names than the four payload events and two connection events forwarded by the captured implementation. Type-only imports/re-exports, options declarations and the event-name union were not counted as separate behavioral customizations.",
+      "Source package version is 2.2.0-beta.2, latestRelease is 2.2.0-beta.1, identity is module-v1 and inventory stable is true; those labels were retained without inferring shipped-version compatibility. No generated baseline, SDK execution or cross-service recurrence was supplied; addressability is prospective.",
+      "Coverage is partial: five of 38 eligible source files were captured from the configured package root, so this review makes no claim about uncaptured customizations or generated counterparts.",
+      "Captured evidence is marked kind unknown; the handwritten classification rests on source imports from ./generated/src/ and implementation in surrounding src files rather than a full generated-versus-overlay comparison.",
+      "The browser and react-native signaling implementations and the imported @azure/communication-signaling and @azure/communication-common helpers are not included; transport details, the behavior of those helpers, and runtime results are not independently established.",
+      "The supplied signaling/events.ts is a type-only event union and re-exports; signalingClientOptions.ts supplies a small interface, but neither demonstrates a distinct runtime customization beyond the listener and platform helper already reviewed.",
+      "Generator addressability is prospective for the auth adapter and unclear for signaling; no generator output or implementation capability was measured. Accepted and revised findings are AI-reviewed, not human-verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/communication/communication-messages-rest/src/conversationEventListener.ts",
+      "startLine": 1,
+      "endLine": 247,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fb1d17233746831f39ab5ec371e8699e47938c66b0777caa2a7a4150c9f5a272"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/messagesServiceClient.ts",
+      "startLine": 1,
+      "endLine": 63,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "48d57d92a8c004d68bc3c20725b4b7fe45a20a8c012b9a12f79b86b3e47dc1b6"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/events.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "09d5d8f9c83b41cbd2ad6d85e91f62a03865d56b2bae66ed7580085708318c06"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/signalingClient.ts",
+      "startLine": 1,
+      "endLine": 16,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d284d441da0f8729132d8f654b38151e4294aed056b392bdd53eb86fc49c45a3"
+    },
+    {
+      "path": "sdk/communication/communication-messages-rest/src/signaling/signalingClientOptions.ts",
+      "startLine": 1,
+      "endLine": 8,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "c6593f823d140f8584f5e3cf800b6de56450d7ce4293018850095dc4419af38d"
+    }
+  ]
+}

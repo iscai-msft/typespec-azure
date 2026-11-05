@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "63baaa50-cd56-4589-b556-97824d0201ba",
+  "observedAt": "2026-10-30T17:46:41.768Z",
+  "identity": "dotnet:azure.provisioning.machinelearning:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Provisioning.MachineLearning",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/machinelearningservices/Azure.Provisioning.MachineLearning"
+  },
+  "commit": "46c60441441d5e4d6ef965b6ce6560c717cc5307",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "5a2bf548cee87425e55c86f48fffb4f0c4a38069"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 572,
+    "eligibleFiles": 562,
+    "capturedFiles": 0,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [],
+  "generationContext": [
+    {
+      "path": "sdk/machinelearningservices/Azure.Provisioning.MachineLearning/README.md",
+      "text": "# Azure Provisioning Machine Learning client library for .NET\n\nAzure.Provisioning.MachineLearning simplifies declarative resource provisioning in .NET.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.Provisioning.MachineLearning --prerelease\n```\n\n### Prerequisites\n\n> You must have an [Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the client\n\n## Key concepts\n\nThis library allows you to specify your infrastructure in a declarative style using .NET. You can then use `azd` to deploy your infrastructure to Azure without needing to write or maintain Bicep or ARM templates.\n\n## Examples\n\n### Create a Machine Learning workspace with required dependencies\n\nThis example creates an Azure Machine Learning workspace with Azure Storage, Azure Key Vault, Application Insights, and Azure Container Registry, based on the [Azure quickstart template](https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.machinelearningservices/machine-learning-workspace/main.bicep).\n\n```C# Snippet:MachineLearningWorkspaceBasic\nInfrastructure infra = new();\n\nProvisioningVariable tenantId =\n    new(nameof(tenantId), typeof(string))\n    {\n        Value = BicepFunction.GetSubscription().TenantId\n    };\ninfra.Add(tenantId);\n\nStorageAccount storage =\n    new(nameof(storage), StorageAccount.ResourceVersions.V2022_05_01)\n    {\n        Kind = StorageKind.StorageV2,\n        Sku = new StorageSku { Name = StorageSkuName.StandardRagrs },\n        AllowBlobPublicAccess = false,\n        EnableHttpsTrafficOnly = true,\n        Encryption =\n            new StorageAccountEncryption\n            {\n                Services =\n                    new StorageAccountEncryptionServices\n                    {\n                        Blob = new StorageEncryptionService { IsEnabled = true },\n                        File = new StorageEncryptionService { IsEnabled = true },\n                    },\n                KeySource = StorageAccountKeySource.Storage,\n            },\n        MinimumTlsVersion = StorageMinimumTlsVersion.Tls12,\n        NetworkRuleSet =\n            new StorageAccountNetworkRuleSet\n            {\n                DefaultAction = StorageNetworkDefaultAction.Deny,\n            },\n    };\ninfra.Add(storage);\n\nKeyVaultService vault =\n    new(nameof(vault), KeyVaultService.ResourceVersions.V2022_07_01)\n    {\n        Properties =\n            new Azure.Provisioning.KeyVault.KeyVaultProperties\n            {\n                TenantId = tenantId,\n                Sku = new KeyVaultSku\n                {\n                    Family = KeyVaultSkuFamily.A,\n                    Name = KeyVaultSkuName.Standard,\n                },\n                AccessPolicies = new BicepList<KeyVaultAccessPolicy>([]),\n                EnableSoftDelete = true,\n            },\n    };\ninfra.Add(vault);\n\nApplicationInsightsComponent applicationInsight =\n    new(nameof(applicationInsight), ApplicationInsightsComponent.ResourceVersions.V2020_02_02)\n    {\n        Kind = \"web\",\n        ApplicationType = ApplicationInsightsApplicationType.Web,\n    };\ninfra.Add(applicationInsight);\n\nContainerRegistryService registry =\n    new(nameof(registry), ContainerRegistryService.ResourceVersions.V2022_12_01)\n    {\n        Sku = new ContainerRegistrySku { Name = ContainerRegistrySkuName.Standard },\n        IsAdminUserEnabled = false,\n    };\ninfra.Add(registry);\n\nMachineLearningWorkspace workspace =\n    new(nameof(workspace), MachineLearningWorkspace.ResourceVersions.V2026_05_01)\n    {\n        ApplicationInsights = applicationInsight.Id,\n        ContainerRegistry = registry.Id,\n        FriendlyName = \"Machine Learning workspace\",\n        Identity = new ManagedServiceIdentity\n        {\n            ManagedServiceIdentityType = ManagedServiceIdentityType.SystemAssigned\n        },\n        KeyVault = vault.Id,\n        StorageAccount = storage.Id,\n    };\ninfra.Add(workspace);\n```\n\n## Troubleshooting\n\n- File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n- Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (for example, label, comment). Follow the instructions provided by the bot. You'll only need to do this action once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "061acc5db7b1e76e63c524b78fa7233b964938c7add2c21f031e11a5368f815d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/machinelearningservices/Azure.Provisioning.MachineLearning/README.md"
+    },
+    {
+      "path": "sdk/machinelearningservices/Azure.Provisioning.MachineLearning/src/Azure.Provisioning.MachineLearning.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>Azure.Provisioning.MachineLearning simplifies declarative resource provisioning in .NET.</Description>\n    <Version>1.0.0-beta.1</Version>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Provisioning\" />\n  </ItemGroup>\n\n</Project>\n",
+      "contentHash": "e490503ec9c0b7935d20445b7f04ca021af2664ab561c568e9d64669275005a5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/machinelearningservices/Azure.Provisioning.MachineLearning/src/Azure.Provisioning.MachineLearning.csproj"
+    },
+    {
+      "path": "sdk/machinelearningservices/Azure.Provisioning.MachineLearning/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/MachineLearningServices.Management\ncommit: 00f0e0e39d642c91cb706e0aa5bda169e9b84129\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-provisioning-emitter-package.json\"\n",
+      "contentHash": "82f38c4db84c7c27546a725ddc62e4a5a0f226e0026af18f0e8fbee94364f971",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/machinelearningservices/Azure.Provisioning.MachineLearning/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": []
+}

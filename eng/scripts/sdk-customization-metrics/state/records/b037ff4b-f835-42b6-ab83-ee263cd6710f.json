@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "id": "b037ff4b-f835-42b6-ab83-ee263cd6710f",
+  "observedAt": "2026-10-23T22:49:03.295Z",
+  "identity": "python:azure-data-ai:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-data-ai",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/dataai/azure-data-ai"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "7eb60d0d74e74a0525dd6319df0be09ba8a0f49a"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 51,
+    "eligibleFiles": 26,
+    "capturedFiles": 1,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/dataai/azure-data-ai/azure/data/ai/models/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Serialization customizations for error details projected by Azure Core.\"\"\"\n\nfrom collections.abc import Mapping\nfrom copy import deepcopy\nfrom typing import Any, Optional\n\nfrom azure.core.exceptions import ODataV4Format\n\nfrom .._utils.model_base import rest_field\nfrom ._models import ProblemDetails as _GeneratedProblemDetails\n\n__all__ = [\"ProblemDetails\"]\n\n\ndef _error_fields(error: ODataV4Format) -> dict[str, Any]:\n    return {\n        \"code\": error.code,\n        \"message\": error.message,\n        \"target\": error.target,\n        \"details\": _json_value(error.details),\n        \"innererror\": _json_value(error.innererror),\n    }\n\n\ndef _json_value(value: Any) -> Any:\n    if isinstance(value, _SerializableError):\n        return value.as_dict()\n    if isinstance(value, ODataV4Format):\n        return {name: field for name, field in _error_fields(value).items() if field is not None}\n    if isinstance(value, Mapping):\n        return {name: _json_value(field) for name, field in value.items()}\n    if isinstance(value, (list, tuple)):\n        return [_json_value(field) for field in value]\n    return value\n\n\nclass _SerializableError(ODataV4Format):\n    def __init__(self, json_object: Mapping[str, Any]) -> None:\n        self._original = deepcopy(dict(json_object))\n        projected = deepcopy(self._original)\n        # A detail's additional \"error\" property is not the outer error envelope.\n        projected.pop(\"error\", None)\n        super().__init__(projected)\n        self._initial_fields = _error_fields(self)\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> dict[str, Any]:  # pylint: disable=unused-argument\n        # Core normalizes absent/null fields and drops extensions. Preserve the\n        # original JSON unless a caller actually changes a projected value.\n        result = deepcopy(self._original)\n        for name, value in _error_fields(self).items():\n            if value != self._initial_fields[name]:\n                result[name] = value\n        return result\n\n\ndef _deserialize_details(values: list[Any]) -> list[Any]:\n    return [\n        (\n            _SerializableError(value)\n            if isinstance(value, Mapping) and (value.get(\"code\") or value.get(\"message\"))\n            else value\n        )\n        for value in values\n    ]\n\n\nclass ProblemDetails(_GeneratedProblemDetails):\n    \"\"\"Details about an HTTP API error.\"\"\"\n\n    details: Optional[list[ODataV4Format]] = rest_field(\n        visibility=[\"read\", \"create\", \"update\", \"delete\", \"query\"],\n        deserializer=_deserialize_details,\n    )\n    \"\"\"An array of details about specific errors that led to this reported error.\"\"\"\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> dict[str, Any]:\n        \"\"\"Return a JSON-compatible dictionary, including projected error details.\n\n        :keyword bool exclude_readonly: Whether to remove readonly properties.\n        :return: A JSON-compatible dictionary.\n        :rtype: dict\n        \"\"\"\n        return _json_value(super().as_dict(exclude_readonly=exclude_readonly))\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "df99fe9c9364bfc746a3d5773e125e06f518f3555c932461829166380e31fe2a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/dataai/azure-data-ai/azure/data/ai/models/_patch.py",
+      "startLine": 1,
+      "endLine": 97,
+      "kind": "handwritten-marker",
+      "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/dataai/azure-data-ai/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-data-ai\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Data AI Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"Programming Language :: Python :: 3.14\",\n]\nrequires-python = \">=3.10\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0; python_version < '3.14'\",\n    \"typing-extensions>=4.14.0; python_version >= '3.14'\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.data.ai._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.data\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n",
+      "contentHash": "fd1ca1f7f371c27582d052cbddecb60f2308d59764b19054fa90690a4502e947",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/dataai/azure-data-ai/pyproject.toml"
+    },
+    {
+      "path": "sdk/dataai/azure-data-ai/README.md",
+      "text": "# Azure Data AI client library for Python\n\n`azure-data-ai` provides access to **Azure Data AI**, hosted by Azure Inference Service. This initial preview\nsupports semantic reranking: rank caller-supplied documents by their relevance to a\nquery, optionally returning the documents and sentence-level scores.\n\nThe package uses the `2026-09-01-preview` service API.\n\n## Getting started\n\n### Install the package\n\n```bash\npython -m pip install --pre azure-data-ai\n```\n\nFor local development before this preview is published, run `python -m pip install -e .`\nfrom this package directory instead.\n\n### Prerequisites\n\n- Python 3.10 or later.\n- An [Azure subscription][azure_sub] and an Azure Data AI endpoint.\n- A key issued for an Azure Data AI endpoint with key-based authentication\n  enabled, or a Microsoft Entra identity with permission to invoke the service.\n\nFor Cosmos-linked reranking, the [Cosmos DB Semantic Reranker setup][cosmos_reranker]\nhandles provisioning when you enable the feature in the portal. Follow that guide\nfor assigning **Semantic Reranker User** at the Cosmos account scope; there is no\nadditional manual inference-resource creation step in that portal workflow.\n\n### Authenticate the client\n\nUse `AzureKeyCredential` for API-key authentication:\n\n```python\nimport os\n\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.data.ai import InferenceClient\n\nwith InferenceClient(\n    endpoint=os.environ[\"AZURE_DATA_AI_ENDPOINT\"],\n    credential=AzureKeyCredential(os.environ[\"AZURE_DATA_AI_KEY\"]),\n) as client:\n    result = client.semantic_rerank(\n        {\n            \"query\": \"What is the capital of France?\",\n            \"documents\": [\n                \"Paris is the capital of France.\",\n                \"Berlin is the capital of Germany.\",\n            ],\n            \"topK\": 1,\n            \"returnDocuments\": True,\n        }\n    )\n\n    for score in result.get(\"scores\", []):\n        print(score[\"index\"], score[\"score\"], score.get(\"document\"))\n```\n\nThe key is sent in the `Ocp-Apim-Subscription-Key` header using Azure Core's\n`AzureKeyCredentialPolicy`. Wrap key strings in `AzureKeyCredential` for both\nsynchronous and asynchronous clients:\n\n```python\nclient = InferenceClient(endpoint, credential=AzureKeyCredential(key))\n```\n\nUse `AzureKeyCredential` when you need to rotate a key with `credential.update(new_key)`\nwithout recreating the client. Key authentication does not require `azure-identity`\nor a token credential.\n\nPass the endpoint and credential to the constructor. Environment variables in\nthese examples are only an application configuration choice; the SDK does not\nread `AZURE_DATA_AI_ENDPOINT` or `AZURE_DATA_AI_KEY`.\n\nFor Microsoft Entra authentication, install `azure-identity` separately and pass a\ntoken credential:\n\n```python\nimport os\n\nfrom azure.data.ai import InferenceClient\nfrom azure.identity import DefaultAzureCredential\n\nwith DefaultAzureCredential() as credential:\n    with InferenceClient(\n        os.environ[\"AZURE_DATA_AI_ENDPOINT\"], credential\n    ) as client:\n        result = client.semantic_rerank(\n            {\"query\": \"capital of France\", \"documents\": [\"Paris\", \"Berlin\"]}\n        )\n```\n\nThe client requests tokens for `https://dbinference.azure.com/.default`.\n\n## Key concepts\n\n`InferenceClient` is the entry point. Call `client.semantic_rerank(request)`\ndirectly; there is no intermediate inference subclient.\n\nDictionary keys use the service's JSON names, such as `\"topK\"`. Generated model\nattributes use Python names, such as `top_k`. Both response access forms work:\n`result[\"scores\"][0][\"score\"]` and `result.scores[0].score`. Use `result.as_dict()`\nwhen an ordinary nested dictionary is needed.\n\n```python\nfrom azure.data.ai.models import SemanticRerankingDocumentType, SemanticRerankingInferenceContent\n\nrequest = SemanticRerankingInferenceContent(\n    query=\"capital of France\",\n    documents=[\"Paris is the capital of France.\", \"Berlin is the capital of Germany.\"],\n    top_k=1,\n    return_documents=True,\n    return_sentence_score=True,\n    document_type=SemanticRerankingDocumentType.TEXT,\n)\nresult = client.semantic_rerank(request)\nfor score in result.scores or []:\n    print(score.index, score.score, score.document)\n```\n\n| Request key           | Type        | Meaning                                                                                                                                                |\n|-----------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|\n| `query`               | `str`       | Required nonempty query string.                                                                                                                        |\n| `documents`           | `list[str]` | Required nonempty list of strings to rank.                                                                                                             |\n| `model`               | `str`       | Optional model name supported by the endpoint. Omit it to use the service's default model.                                                             |\n| `returnDocuments`     | `bool`      | Optional. Include document text in the response.                                                                                                       |\n| `topK`                | `int`       | Optional. Maximum number of results to return, from 1 to 2147483647.                                                                                   |\n| `batchSize`           | `int`       | Optional. Number of documents processed per batch, from 1 to 2147483647.                                                                               |\n| `sort`                | `bool`      | Optional. Return scores sorted by relevance.                                                                                                           |\n| `documentType`        | `str`       | Optional document format, such as `text` or `json`. JSON documents are JSON-encoded strings.                                                           |\n| `targetPaths`         | `str`       | Required for JSON documents. Use dot notation for nested properties, such as `meta.content`, and commas for multiple paths, such as `meta.content,id`. |\n| `returnSentenceScore` | `bool`      | Optional. Include sentence-level scores.                                                                                                               |\n\nPut these options inside the request dictionary, not in method keyword arguments.\nOmitted options use service-defined defaults. The SDK does not restrict model names\nor filter additional request fields.\n\nResponses expose optional `scores` and `meta` fields. Score entries can include\n`index`, `score`, `document`, and `sentenceScores`. Metadata can include\n`tokenUsage`, `latency`, `modelName`, and `modelVersion` through dictionary access,\nor `token_usage`, `latency`, `model_name`, and `model_version` as model attributes\non `SemanticRerankingMetaResult`.\n\nLatency fields `dataPreprocessTime`, `inferenceTime`, and `postProcessTime` contain\nnumeric milliseconds in the JSON response. The corresponding `LatencyResult` model\nattributes, `data_preprocess_duration`, `inference_duration`, and\n`post_process_duration`, are `datetime.timedelta` values. Dictionary-style access\nand `as_dict()` retain the numeric millisecond representation.\n\nEach sentence score has a nonnegative, zero-based `index` and a `score` in the\ninclusive range 0–1. Sentence indices are not capped at 2.\n\n## Examples\n\nSee the [samples][samples] for runnable sync and async examples.\n\n### Model selection and JSON documents\n\nThe TypeSpec example uses `semantic-reranker-v1` as a model name. Model availability\ndepends on the endpoint: use a model your endpoint supports, or omit `model` to use\nits default.\n\n```python\nimport json\n\nresult = client.semantic_rerank(\n    {\n        \"query\": \"capital of France\",\n        \"documents\": [\n            json.dumps({\"description\": \"Paris is the capital of France.\"}),\n            json.dumps({\"description\": \"Berlin is the capital of Germany.\"}),\n        ],\n        \"model\": \"semantic-reranker-v1\",\n        \"documentType\": \"json\",\n        \"targetPaths\": \"description\",\n        \"topK\": 1,\n        \"batchSize\": 2,\n        \"sort\": True,\n        \"returnDocuments\": True,\n        \"returnSentenceScore\": True,\n    }\n)\n\nmetadata = result.get(\"meta\", {})\nprint(metadata.get(\"modelName\"), metadata.get(\"modelVersion\"))\n```\n\n### Sentence-level scores\n\n```python\nresult = client.semantic_rerank(\n    {\n        \"query\": \"capital of France\",\n        \"documents\": [\"Paris is the capital of France. It is on the Seine.\"],\n        \"returnDocuments\": True,\n        \"returnSentenceScore\": True,\n    }\n)\n\nfor document in result.get(\"scores\", []):\n    for sentence in document.get(\"sentenceScores\", []):\n        print(document[\"index\"], sentence[\"index\"], sentence[\"score\"])\n```\n\n### Async\n\nInstall `aiohttp` separately to use the default async transport. Use an async\ntoken credential from `azure.identity.aio` if authenticating with Microsoft Entra.\n\n```python\nimport os\n\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.data.ai.aio import InferenceClient\n\nasync def rerank():\n    async with InferenceClient(\n        os.environ[\"AZURE_DATA_AI_ENDPOINT\"],\n        AzureKeyCredential(os.environ[\"AZURE_DATA_AI_KEY\"]),\n    ) as client:\n        return await client.semantic_rerank(\n            {\"query\": \"capital of France\", \"documents\": [\"Paris\", \"Berlin\"]}\n        )\n```\n\n### Response diagnostics and retries\n\nUse the standard Azure Core response hook to capture `X-Correlation-ID` for\nservice diagnostics:\n\n```python\nfrom azure.core.utils import case_insensitive_dict\n\nresponse_headers = case_insensitive_dict()\nresult = client.semantic_rerank(\n    {\"query\": \"capital of France\", \"documents\": [\"Paris\", \"Berlin\"]},\n    raw_response_hook=lambda response: response_headers.update(\n        response.http_response.headers\n    ),\n)\nprint(response_headers.get(\"X-Correlation-ID\"))\n```\n\nThe generated clients inherit Azure Core's native retry and timeout defaults.\nThese are not necessarily identical to the .NET SDK's defaults. Configure the\ndesired values when constructing the client:\n\n```python\nclient = InferenceClient(\n    endpoint,\n    credential,\n    retry_total=3,          # Use 0 to disable automatic retries.\n    retry_backoff_max=60,\n    connection_timeout=100,\n    read_timeout=100,\n)\n```\n\nAzure Core also supports separate `retry_connect`, `retry_read`, and `retry_status`\nlimits. For reranking POST requests, include `retry_on_methods=[\"POST\"]` on the\noperation call when retries should apply to statuses such as 429 and 502 even\nwithout `Retry-After`:\n\n```python\nresult = client.semantic_rerank(request, retry_on_methods=[\"POST\"])\n```\n\nA service `Retry-After` can require a wait longer than the calculated backoff cap.\nConnection/read timeouts are not an overall deadline including retries. Automatic\nservice-level .NET retry-default customization is not part of this generated baseline.\n\n## Troubleshooting\n\nUnsuccessful service responses raise `azure.core.exceptions.HttpResponseError`\nor a more specific Azure Core exception, such as `ClientAuthenticationError`.\nFor a JSON error response, inspect `error.response.json()[\"error\"]` to retrieve\nthe required `code` and `message` and any additional `ProblemDetails` fields.\nErrors can include a `target`, detailed errors, and nested `innererror` information.\nResponse headers retain `x-ms-error-code`, `X-Correlation-ID`, and `Retry-After`.\n\nDo not log credentials or sensitive document content. For HTTP 401/403, confirm\nthe credential type and that the key belongs to the endpoint with key-based\nauthentication enabled, or that the Entra token has the correct audience and\nresource permissions.\n\n## Next steps\n\nExplore the [samples][samples] to rerank text or JSON documents with API-key or\nMicrosoft Entra authentication. Adapt the request's model, target paths, and\nscoring options to your application's documents and endpoint.\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require\nyou to agree to a Contributor License Agreement (CLA) declaring that you have\nthe right to, and actually do, grant us the rights to use your contribution.\nFor details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether\nyou need to provide a CLA and decorate the PR appropriately (e.g., label,\ncomment). Simply follow the instructions provided by the bot. You will only\nneed to do this once across all repos using our CLA.\n\nThis project has adopted the\n[Microsoft Open Source Code of Conduct][code_of_conduct]. For more information,\nsee the Code of Conduct FAQ or contact opencode@microsoft.com with any\nadditional questions or comments.\n\n<!-- LINKS -->\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[azure_sub]: https://azure.microsoft.com/free/\n[cosmos_reranker]: https://learn.microsoft.com/azure/cosmos-db/gen-ai/semantic-reranker\n[samples]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/dataai/azure-data-ai/samples/README.md\n",
+      "contentHash": "0d5b6d50e004a9ef0bea236f795d2f1e2c1aae44fb25b87eb09e7b0da8d08081",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/dataai/azure-data-ai/README.md"
+    },
+    {
+      "path": "sdk/dataai/azure-data-ai/tsp-location.yaml",
+      "text": "# Regeneration source for the generated Python SDK.\ndirectory: specification/inferenceservice/data-plane/InferenceService\ncommit: 42249b16839e7278d8c88cc9b136917dfd8970ac\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "0c1356502f62ff3dd8e6b0b478c473833e95abf4281f0ea5a84b144a9e4c0347",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/dataai/azure-data-ai/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "1d99be94c4fbf8d3256b9c7c1cd1218a69e3cf4fdf59d2a13097609eaf7a53d4",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "691b7475d36183e49bf6cbe8e01e3cad2aa07064acfbd7a2241aec92d9e13405",
+        "category": "Serialization",
+        "subtype": "Original-preserving projected error serialization",
+        "explanation": "The local ODataV4Format subclass deep-copies the original mapping, removes its error member only from the copy passed to the base initializer, snapshots projected core fields, and serializes a fresh original copy with only changed projected fields overlaid.",
+        "pattern": "lossless-error-details-roundtrip",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The nonempty models/_patch.py implements this concrete adapter used by its detail deserializer, rather than defining only the generated patch skeleton.",
+        "symbols": [
+          "_SerializableError.__init__",
+          "_SerializableError.as_dict"
+        ],
+        "evidence": [
+          {
+            "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764",
+            "startLine": 20,
+            "endLine": 58
+          }
+        ]
+      },
+      {
+        "key": "b205d281e31d3b6959838264352c8ca9de1f76191a72b6b1cfb68c7e031f7c9c",
+        "category": "Serialization",
+        "subtype": "Conditional projection of model error details",
+        "explanation": "The exported ProblemDetails subclass replaces the details field with a custom deserializer: mapping entries with a truthy code or message become _SerializableError objects, while other entries remain unchanged; the field declares read/create/update/delete/query visibility.",
+        "pattern": "error-detail-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "ProblemDetails is exported through __all__ in the populated model patch and subclasses the imported generated model with an explicit rest_field deserializer.",
+        "symbols": [
+          "ProblemDetails.details",
+          "_deserialize_details"
+        ],
+        "evidence": [
+          {
+            "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764",
+            "startLine": 14,
+            "endLine": 17
+          },
+          {
+            "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764",
+            "startLine": 61,
+            "endLine": 78
+          }
+        ]
+      },
+      {
+        "key": "27b0a2799de112f4871ee467fa53a9557b292430bfb9d9aa75733033092fd539",
+        "category": "Serialization",
+        "subtype": "Recursive JSON conversion of projected error objects",
+        "explanation": "ProblemDetails.as_dict forwards exclude_readonly to the generated base and recursively converts its result: local error adapters use their original-preserving serializer, other ODataV4Format objects become non-None core-field dictionaries, mappings recurse, and list/tuple values become recursively converted lists.",
+        "pattern": "recursive-error-json-conversion",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch subclass supplies an implemented as_dict override and a local recursive converter rather than re-exporting the generated model unchanged.",
+        "symbols": [
+          "ProblemDetails.as_dict",
+          "_json_value"
+        ],
+        "evidence": [
+          {
+            "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764",
+            "startLine": 20,
+            "endLine": 39
+          },
+          {
+            "id": "0c1f0d868c48642337b858832a58e6c081018ee0442e6cf7854dc2bd050ff764",
+            "startLine": 81,
+            "endLine": 88
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "691b7475d36183e49bf6cbe8e01e3cad2aa07064acfbd7a2241aec92d9e13405",
+        "status": "accepted",
+        "reason": "The populated handwritten models/_patch.py defines _SerializableError with original and projected deep copies, removes the nested error property only from the projected copy, snapshots core fields, and overlays changed fields when serializing. This is a distinct lossless error-detail serialization behavior; the pattern describes its reusable shape and a generator could prospectively implement this conversion."
+      },
+      {
+        "key": "b205d281e31d3b6959838264352c8ca9de1f76191a72b6b1cfb68c7e031f7c9c",
+        "status": "accepted",
+        "reason": "The nonempty patch exports a subclass of the generated ProblemDetails and explicitly replaces its details field with a rest_field deserializer. The local list conversion wraps only mapping entries with a truthy code or message in _SerializableError and leaves other entries untouched. This conditional model projection is supported by the cited source; generatorAddressable describes a possible generator feature, not current emitter support."
+      },
+      {
+        "key": "27b0a2799de112f4871ee467fa53a9557b292430bfb9d9aa75733033092fd539",
+        "status": "accepted",
+        "reason": "The handwritten ProblemDetails.as_dict override forwards exclude_readonly and calls the local _json_value converter, which handles projected errors, other ODataV4Format values, mappings, and list/tuple contents recursively. This JSON conversion of nested values differs from both deserialization into detail objects and preservation of an individual detail's original mapping; the pattern is service-independent and prospectively generator-addressable."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only one of 26 eligible source files was captured from 51 discovered files. The complete supplied model patch supports these local findings, not a package-wide count or an absence claim.",
+      "The imported generated ProblemDetails model, rest_field implementation and Azure Core ODataV4Format implementation were not supplied; integration, field-hook invocation and runtime behavior were not executed or independently verified.",
+      "README authentication, retry, inference and latency descriptions are generation context, not source evidence establishing additional handwritten customizations.",
+      "Generator addressability describes plausible reusable model/error serialization behavior, not a measured emitter capability or an established root cause. The docstring-only patch_sdk hook is not counted.",
+      "Only one of 26 eligible Python source files was captured. The supplied evidence supports these three instances in models/_patch.py but cannot establish that the remaining source contains no other customizations.",
+      "The generated base model, package import wiring, and live SDK behavior were not supplied; this review establishes the handwritten source behavior, not runtime integration or equivalence with a generated baseline."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/dataai/azure-data-ai/azure/data/ai/models/_patch.py",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "Python patch",
+      "contentHash": "df99fe9c9364bfc746a3d5773e125e06f518f3555c932461829166380e31fe2a"
+    }
+  ]
+}

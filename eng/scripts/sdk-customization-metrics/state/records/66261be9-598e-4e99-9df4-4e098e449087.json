@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 1,
+  "id": "66261be9-598e-4e99-9df4-4e098e449087",
+  "observedAt": "2026-10-24T19:14:24.073Z",
+  "identity": "python:azure-security-attestation:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-security-attestation",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/attestation/azure-security-attestation"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "2e84b7cd038beaceac607c712f38d93df98b298e"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 78,
+    "eligibleFiles": 46,
+    "capturedFiles": 2,
+    "skipped": [
+      {
+        "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/_patch.py",
+        "reason": "Review budget; only lines 1-502 sent for review"
+      },
+      {
+        "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/aio/_patch.py",
+        "reason": "Review budget; only lines 1-487 sent for review"
+      },
+      {
+        "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/models/_patch.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression,too-many-lines\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport base64\nimport json\nfrom typing import List, Any, Tuple, Union, Optional, Callable, cast\n\n\nfrom threading import Lock\nfrom cryptography.hazmat.primitives import serialization\nfrom cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey\nfrom cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey\nfrom cryptography.x509 import load_pem_x509_certificate, Certificate\nfrom typing_extensions import Self\n\nfrom azure.core.exceptions import raise_with_traceback  # pylint: disable=no-raise-with-traceback\nfrom azure.core.tracing.decorator import distributed_trace\nfrom azure.core.configuration import Configuration\nfrom azure.core.credentials import TokenCredential\nfrom azure.security.attestation.models import OpenIDConfigurationResponse\n\n\nfrom ._client import AttestationClient as AzureAttestationRestClient\nfrom .models import (  # pylint: disable=reimported\n    AttestationResult as GeneratedAttestationResult,\n    RuntimeData,\n    InitTimeData,\n    DataType,\n    AttestSgxEnclaveRequest,\n    AttestOpenEnclaveRequest,\n    AttestationResult,\n    TpmAttestationResult,\n    PolicyResult as GeneratedPolicyResult,\n    PolicyCertificatesResult as GeneratedPolicyCertificatesResult,\n    JsonWebKey as JSONWebKey,\n    AttestationCertificateManagementBody,\n    StoredAttestationPolicy as GeneratedStoredAttestationPolicy,\n    PolicyCertificatesModificationResult as GeneratedPolicyCertificatesModificationResult,\n    AttestationPolicyResult,\n    AttestationPolicyCertificateResult,\n)\n\nfrom .models._patch import (\n    AttestationTokenValidationException,\n    AttestationPolicyToken,\n    AttestationSigner,\n    AttestationToken,\n)\n\nfrom .models._enums import (\n    AttestationType,\n)\n\nfrom ._common import pem_from_base64, validate_signing_keys, merge_validation_args, base64url_decode\n\n\nclass AttestationClient:\n    # pylint: disable=protected-access\n    \"\"\"Provides access to the Attestation family of APIs for trusted environment attestation.\n\n    :param str endpoint: The attestation instance base URI, for example https://mytenant.attest.azure.net.\n    :param credential: Credentials for the caller used to interact with the service.\n    :type credential: :class:`~azure.core.credentials.TokenCredential`\n    :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n    :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n        if the token is invalid, the `validation_callback` function should throw\n        an exception.\n    :paramtype validation_callback: ~typing.Callable[[AttestationToken, AttestationSigner], None]\n    :keyword bool validate_signature: If True, validate the signature of the token being validated.\n    :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n    :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n    :keyword float validation_slack: Slack time for validation - tolerance applied\n        to help account for clock drift between the issuer and the current machine.\n    :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n    :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n    :keyword str api_version: The API version to use for the request.\n\n    .. tip::\n        The `validate_token`, `validation_callback`, `validate_signature`,\n        `validate_expiration`, `validate_not_before_time`, `validate_issuer`, and\n        `issuer` keyword arguments are default values applied to each API call within\n        the :py:class:`AttestationClient` class. These values can be\n        overridden on individual API calls as needed.\n\n    For additional client creation configuration options, please see `Python Request\n    Options <https://aka.ms/azsdk/python/options>`_.\n\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: TokenCredential, **kwargs) -> None:\n        if not credential:\n            raise ValueError(\"Missing credential.\")\n        self._config = AttestationClientConfiguration(**kwargs)\n        self._client = AzureAttestationRestClient(endpoint, credential, **kwargs)\n        self._statelock = Lock()\n        self._signing_certificates: list[AttestationSigner] = []\n\n    @distributed_trace\n    def get_open_id_metadata(self, **kwargs: Any) -> OpenIDConfigurationResponse:\n        \"\"\"Retrieves the OpenID metadata configuration document for this attestation instance.\n\n        The metadata configuration document is defined in the `OpenID Connect\n        Discovery <https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse>`_\n        specification.\n\n        The attestation service currently returns the following fields:\n\n        * issuer\n        * jwks_uri\n        * claims_supported\n\n        :return: OpenID metadata configuration\n        :rtype: Dict[str, Any]\n        \"\"\"\n        return self._client.metadata_configuration.get(**kwargs)\n\n    @distributed_trace\n    def get_signing_certificates(self, **kwargs) -> List[AttestationSigner]:\n        \"\"\"Returns the set of signing certificates used to sign attestation tokens.\n\n        :return: A list of :class:`azure.security.attestation.AttestationSigner` objects.\n\n        :rtype: List[~azure.security.attestation.AttestationSigner]\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n        signing_certificates = self._client.signing_certificates.get(**kwargs)\n        return [AttestationSigner._from_generated(key) for key in signing_certificates[\"keys\"]]  # type: ignore\n\n    @distributed_trace\n    def attest_sgx_enclave(\n        self,\n        quote: bytes,\n        *,\n        inittime_data: Optional[bytes] = None,\n        inittime_json: Optional[bytes] = None,\n        runtime_data: Optional[bytes] = None,\n        runtime_json: Optional[bytes] = None,\n        draft_policy: Optional[str] = None,\n        validate_token: Optional[bool] = None,\n        validation_callback: Optional[Callable[[\"AttestationToken\", \"AttestationSigner\"], None]] = None,\n        validate_signature: Optional[bool] = None,\n        validate_expiration: Optional[bool] = None,\n        issuer: Optional[str] = None,\n        validation_slack: Optional[float] = None,\n        validate_issuer: Optional[bool] = None,\n        validate_not_before_time: Optional[bool] = None,\n        **kwargs\n    ) -> Tuple[AttestationResult, AttestationToken]:\n        \"\"\"Attests the validity of an SGX quote.\n\n        :param bytes quote: An SGX quote generated from an Intel(tm) SGX enclave\n        :keyword bytes inittime_data: Data presented at the time that the SGX\n            enclave was initialized.\n        :keyword bytes inittime_json: Data presented at the time that the SGX\n            enclave was initialized, JSON encoded.\n        :keyword bytes runtime_data: Data presented at the time that the open_enclave\n            report was created.\n        :keyword bytes runtime_json: Data presented at the time that the open_enclave\n            report was created. JSON Encoded.\n        :keyword str draft_policy: \"draft\" or \"experimental\" policy to be used with\n            this attestation request. If this parameter is provided, then this\n            policy document will be used for the attestation request.\n            This allows a caller to test various policy documents against actual data\n            before applying the policy document via the set_policy API\n        :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n        :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n            if the token is invalid, the `validation_callback` function should throw\n            an exception.\n        :paramtype validation_callback: ~typing.Callable[[AttestationToken, AttestationSigner], None]\n        :keyword bool validate_signature: If True, validate the signature of the token being validated.\n        :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n        :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n        :keyword float validation_slack: Slack time for validation - tolerance applied\n            to help account for clock drift between the issuer and the current machine.\n        :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n        :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n\n\n        :return: :class:`AttestationResult` containing the claims in the returned attestation token.\n\n        :rtype: Tuple[~azure.security.attestation.AttestationResult, ~azure.security.attestation.AttestationToken]\n\n        .. note::\n            Note that if the `draft_policy` parameter is provided, the resulting\n            attestation token will be an unsecured attestation token.\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/sample_attest_enclave.py\n                :start-after: [START attest_sgx_enclave_shared]\n                :end-before: [END attest_sgx_enclave_shared]\n                :language: python\n                :dedent: 8\n                :caption: Attesting an SGX Enclave\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n\n        # Handle explicit validation parameters\n        validation_args = {\n            \"validate_token\": validate_token,\n            \"validation_callback\": validation_callback,\n            \"validate_signature\": validate_signature,\n            \"validate_expiration\": validate_expiration,\n            \"issuer\": issuer,\n            \"validation_slack\": validation_slack,\n            \"validate_issuer\": validate_issuer,\n            \"validate_not_before_time\": validate_not_before_time,\n        }\n        # Remove None values\n        validation_args = {k: v for k, v in validation_args.items() if v is not None}\n        # Add validation args to kwargs for merge_validation_args\n        kwargs.update(validation_args)\n\n        if inittime_json and inittime_data:\n            raise ValueError(\"Cannot provide both inittime_json and inittime_data.\")\n        if runtime_json and runtime_data:\n            raise ValueError(\"Cannot provide both runtime_data and runtime_json.\")\n\n        # If the input was JSON, make sure that it's valid JSON before sending it\n        # to the service.\n        if inittime_json:\n            try:\n                json.loads(inittime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        if runtime_json:\n            try:\n                json.loads(runtime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        runtime = None\n        if runtime_data:\n            runtime = RuntimeData(data=runtime_data, data_type=DataType.BINARY)\n\n        if runtime_json:\n            runtime = RuntimeData(data=runtime_json, data_type=DataType.JSON)\n\n        inittime = None\n        if inittime_data:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.BINARY)\n        if inittime_json:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.JSON)\n\n        request = AttestSgxEnclaveRequest(\n            quote=quote,\n            init_time_data=inittime,\n            runtime_data=runtime,\n            draft_policy_for_attestation=draft_policy,\n        )\n\n        # Merge our existing config options with the options for this API call.\n        # Note that this must be done before calling into the implementation\n        # layer because the implementation layer doesn't like keyword args that\n        # it doesn't expect :(.\n        options = merge_validation_args(self._config._kwargs, kwargs)\n\n        result = self._client.attestation.attest_sgx_enclave(request, **kwargs)\n        token = AttestationToken(token=result.token, body_type=GeneratedAttestationResult)\n\n        if options.get(\"validate_token\", True):\n            token._validate_token(self._get_signers(**kwargs), **options)\n\n        return (\n            AttestationResult._from_generated(token._get_body()),  # type: ignore\n            token,\n        )\n\n    @distributed_trace\n    def attest_open_enclave(\n        self,\n        report: bytes,\n        *,\n        inittime_data: Optional[bytes] = None,\n        inittime_json: Optional[bytes] = None,\n        runtime_data: Optional[bytes] = None,\n        runtime_json: Optional[bytes] = None,\n        draft_policy: Optional[str] = None,\n        validate_token: Optional[bool] = None,\n        validation_callback: Optional[Callable[[\"AttestationToken\", \"AttestationSigner\"], None]] = None,\n        validate_signature: Optional[bool] = None,\n        validate_expiration: Optional[bool] = None,\n        issuer: Optional[str] = None,\n        validation_slack: Optional[float] = None,\n        validate_issuer: Optional[bool] = None,\n        validate_not_before_time: Optional[bool] = None,\n        **kwargs\n    ) -> Tuple[AttestationResult, AttestationToken]:\n        \"\"\"Attests the validity of an Open Enclave report.\n\n        :param bytes report: An open_enclave report generated from an Intel(tm)\n            SGX enclave\n        :keyword bytes inittime_data: Data presented at the time that the SGX\n            enclave was initialized.\n        :keyword bytes inittime_json: Data presented at the time that the SGX\n            enclave was initialized, JSON encoded.\n        :keyword bytes runtime_data: Data presented at the time that the open_enclave\n            report was created.\n        :keyword bytes runtime_json: Data presented at the time that the open_enclave\n            report was created. JSON Encoded.\n        :keyword str draft_policy: \"draft\" or \"experimental\" policy to be used with\n            this attestation request. If this parameter is provided, then this\n            policy document will be used for the attestation request.\n            This allows a caller to test various policy documents against actual data\n            before applying the policy document via the set_policy API.\n        :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n        :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n            if the token is invalid, the `validation_callback` function should throw\n            an exception.\n        :paramtype validation_callback: ~typing.Callable[[AttestationToken, AttestationSigner], None]\n        :keyword bool validate_signature: If True, validate the signature of the token being validated.\n        :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n        :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n        :keyword float validation_slack: Slack time for validation - tolerance applied\n            to help account for clock drift between the issuer and the current machine.\n        :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n        :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n\n        :return: :class:`AttestationResult` containing the claims in the returned attestation token.\n\n        :rtype: Tuple[~azure.security.attestation.AttestationResult, ~azure.security.attestation.AttestationToken]\n\n        .. admonition:: Example: Simple OpenEnclave attestation.\n\n            .. literalinclude:: ../samples/sample_attest_enclave.py\n                :start-after: [START attest_open_enclave_shared]\n                :end-before: [END attest_open_enclave_shared]\n                :language: python\n                :dedent: 8\n                :caption: Attesting an open_enclave report for an SGX enclave.\n\n        .. admonition:: Example: Simple OpenEnclave attestation with draft attestation policy.\n\n            .. literalinclude:: ../samples/sample_attest_enclave.py\n                :start-after: [START attest_open_enclave_shared_draft]\n                :end-before: [END attest_open_enclave_shared_draft]\n                :language: python\n                :dedent: 8\n                :caption: Attesting using a draft attestation policy.\n\n        .. note::\n            Note that if the `draft_policy` parameter is provided, the resulting\n            attestation token will be an unsecured attestation token.\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n\n        # Handle explicit validation parameters\n        validation_args = {\n            \"validate_token\": validate_token,\n            \"validation_callback\": validation_callback,\n            \"validate_signature\": validate_signature,\n            \"validate_expiration\": validate_expiration,\n            \"issuer\": issuer,\n            \"validation_slack\": validation_slack,\n            \"validate_issuer\": validate_issuer,\n            \"validate_not_before_time\": validate_not_before_time,\n        }\n        # Remove None values\n        validation_args = {k: v for k, v in validation_args.items() if v is not None}\n        # Add validation args to kwargs for merge_validation_args\n        kwargs.update(validation_args)\n\n        if inittime_json and inittime_data:\n            raise ValueError(\"Cannot provide both inittime_json and inittime_data.\")\n        if runtime_json and runtime_data:\n            raise ValueError(\"Cannot provide both runtime_data and runtime_json.\")\n\n        # If the input was JSON, make sure that it's valid JSON before sending it\n        # to the service.\n        if inittime_json:\n            try:\n                json.loads(inittime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        if runtime_json:\n            try:\n                json.loads(runtime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        # Now create the RuntimeData object to be sent to the service.\n        runtime = None\n        if runtime_data:\n            runtime = RuntimeData(data=runtime_data, data_type=DataType.BINARY)\n\n        if runtime_json:\n            runtime = RuntimeData(data=runtime_json, data_type=DataType.JSON)\n\n        # And the InitTimeData object to be sent to the service.\n        inittime = None\n        if inittime_data:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.BINARY)\n        if inittime_json:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.JSON)\n\n        request = AttestOpenEnclaveRequest(\n            report=report,\n            init_time_data=inittime,\n            runtime_data=runtime,\n            draft_policy_for_attestation=draft_policy,\n        )\n\n        # Merge our existing config options with the options for this API call.\n        # Note that this must be done before calling into the implementation\n        # layer because the implementation layer doesn't like keyword args that\n        # it doesn't expect :(.\n        options = merge_validation_args(self._config._kwargs, kwargs)\n\n        result = self._client.attestation.attest_open_enclave(request, **kwargs)\n        token = AttestationToken(token=result.token, body_type=GeneratedAttestationResult)\n\n        if options.get(\"validate_token\", True):\n            token._validate_token(self._get_signers(**kwargs), **options)\n        return (AttestationResult._from_generated(token._get_body()), token)  # type: ignore\n\n    @distributed_trace\n    def attest_tpm(self, content: bytes, **kwargs) -> TpmAttestationResult:\n        \"\"\"Performs TPM attestation.\n\n        :param bytes content: Attestation request for Trusted Platform Module (TPM) attestation.\n        :returns: Attestation response for Trusted Platform Module (TPM) attestation.\n        :rtype: ~azure.security.attestation.TpmAttestationResult\n        \"\"\"\n\n        response = self._client.attestation.attest_tpm(data=content, **kwargs)\n        # Handle response.data as either bytes or base64-encoded string\n        data = response.data\n        if isinstance(data, str):\n            # If it's a base64-encoded string, decode it to bytes\n            # Use base64url_decode for proper handling of URL-safe base64\n            data = base64url_decode(data)\n        result = TpmAttestationResult(cast(bytes, data))\n        return result\n\n    def _get_signers(self, **kwargs: Any) -> list[AttestationSigner]:\n        \"\"\"Returns the set of signing certificates used to sign attestation tokens.\n\n        :return: A list of attestation signers used to validate tokens.\n        :rtype: list[AttestationSigner]\n        \"\"\"\n\n        with self._statelock:\n            if not self._signing_certificates:\n                signing_certificates = self._client.signing_certificates.get(**kwargs)\n                self._signing_certificates = []\n                for key in signing_certificates[\"keys\"]:\n                    # Convert the returned certificate chain into an array of X.509 Certificates.\n                    self._signing_certificates.append(AttestationSigner._from_generated(key))  # type: ignore\n            signers = self._signing_certificates\n        return signers\n\n    def close(self) -> None:\n        self._client.close()\n\n    def __enter__(self) -> Self:\n        self._client.__enter__()\n        return self\n\n    def __exit__(self, *exc_details) -> None:\n        self._client.__exit__(*exc_details)\n\n\nclass AttestationAdministrationClient:\n    # pylint: disable = line-too-long, protected-access\n    \"\"\"Provides administrative APIs for managing an instance of the Attestation Service.\n\n    The :class:`~azure.security.attestation.AttestationAdministrationClient` object implements the policy\n    management and policy certificate management functions.\n\n    :param str endpoint: The attestation instance base URI, for example https://mytenant.attest.azure.net.\n    :param credential: Credentials for the caller used to interact with the service.\n    :type credential: :class:`~azure.core.credentials.TokenCredential`\n    :keyword str signing_key: PEM encoded signing key to be used for all\n        operations.\n    :keyword str signing_certificate: PEM encoded X.509 certificate to be used for all\n        operations.\n    :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n    :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n        if the token is invalid, the `validation_callback` function should throw\n        an exception.\n    :paramtype validation_callback: ~typing.Callable[[~azure.security.attestation.AttestationToken, ~azure.security.attestation.AttestationSigner], None]\n    :keyword bool validate_signature: If True, validate the signature of the token being validated.\n    :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n    :keyword str issuer: Expected issuer, used if `validate_issuer` is true.",
+      "contentHash": "575d5b2a87bce4816b672ef2ef9f6c8c5dc2ff8b4d9fbcf7bcb268ea01c64a09",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/attestation/azure-security-attestation/azure/security/attestation/_patch.py",
+      "startLine": 1,
+      "endLine": 502,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8"
+    },
+    {
+      "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/aio/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression,too-many-lines\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport base64\nimport json\nfrom threading import Lock\nfrom typing import List, Any, TYPE_CHECKING, Tuple, Union, Optional, Callable\nfrom cryptography.hazmat.primitives import serialization\nfrom cryptography.x509.base import load_pem_x509_certificate\nfrom azure.core.tracing.decorator_async import distributed_trace_async\nfrom azure.core.exceptions import raise_with_traceback  # pylint: disable=no-raise-with-traceback\nfrom azure.security.attestation.models import OpenIDConfigurationResponse\n\nfrom ._client import AttestationClient as AzureAttestationRestClient\nfrom ..models import (  # pylint: disable=reimported\n    AttestationResult as GeneratedAttestationResult,\n    RuntimeData,\n    InitTimeData,\n    DataType,\n    AttestSgxEnclaveRequest,\n    AttestOpenEnclaveRequest,\n    AttestationResult,\n    TpmAttestationResult,\n    AttestationType,\n    AttestationPolicyCertificateResult,\n    AttestationPolicyResult,\n    PolicyResult as GeneratedPolicyResult,\n    PolicyCertificatesResult as GeneratedPolicyCertificatesResult,\n    JsonWebKey as JSONWebKey,\n    AttestationCertificateManagementBody,\n    StoredAttestationPolicy as GeneratedStoredAttestationPolicy,\n    PolicyCertificatesModificationResult as GeneratedPolicyCertificatesModificationResult,\n)\nfrom ..models._patch import (\n    AttestationSigner,\n    AttestationToken,\n)\n\nfrom .._patch import AttestationClientConfiguration\nfrom .._common import pem_from_base64, validate_signing_keys, merge_validation_args, base64url_decode\n\nif TYPE_CHECKING:\n    # pylint: disable=unused-import,ungrouped-imports\n    from azure.core.credentials_async import AsyncTokenCredential\n\nAttestationPolicyManagementCertificateResult = Tuple[AttestationPolicyCertificateResult, AttestationToken]\nAttestationGetPolicyResult = Tuple[str, AttestationToken]\nAttestationPolicyModificationResult = Tuple[AttestationPolicyResult, AttestationToken]\nAttestationGetPolicyManagementCertificatesResult = Tuple[List[List[str]], AttestationToken]\n\n\nclass AttestationClient:\n    # pylint: disable=line-too-long, protected-access\n    \"\"\"Provides access to the Attestation family of APIs for trusted environment attestation.\n\n    :param credential: Credentials for the caller used to interact with the service.\n    :type credential: :class:`~azure.core.credentials_async.AsyncTokenCredential`\n    :param str endpoint: The attestation instance base URI, for example https://mytenant.attest.azure.net.\n    :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n    :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n        if the token is invalid, the `validation_callback` function should throw\n        an exception.\n    :paramtype validation_callback: ~typing.Callable[[~azure.security.attestation.AttestationToken, ~azure.security.attestation.AttestationSigner], None]\n    :keyword bool validate_signature: If True, validate the signature of the token being validated.\n    :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n    :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n    :keyword float validation_slack: Slack time for validation - tolerance applied\n        to help account for clock drift between the issuer and the current machine.\n    :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n    :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n    :keyword str api_version: The API version to use for the request.\n\n    .. tip::\n        The `validate_token`, `validation_callback`, `validate_signature`,\n        `validate_expiration`, `validate_not_before_time`, `validate_issuer`, and\n        `issuer` keyword arguments are default values applied to each API call within\n        the :py:class:`AttestationClient` class. These values can be\n        overridden on individual API calls as needed.\n\n    For additional client creation configuration options, please see `Python Request\n    Options <https://aka.ms/azsdk/python/options>`_.\n\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: \"AsyncTokenCredential\", **kwargs: Any) -> None:\n        if not credential:\n            raise ValueError(\"Missing credential.\")\n        self._config = AttestationClientConfiguration(**kwargs)\n        self._client = AzureAttestationRestClient(endpoint, credential, **kwargs)\n        self._statelock = Lock()\n        self._signing_certificates: List[AttestationSigner] = []\n\n    @distributed_trace_async\n    async def get_open_id_metadata(self, **kwargs: Any) -> OpenIDConfigurationResponse:\n        \"\"\"Retrieves the OpenID metadata configuration document for this attestation instance.\n\n        The metadata configuration document is defined in the `OpenID Connect\n        Discovery <https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse>`_\n        specification.\n\n        The attestation service currently returns the following fields:\n\n        * issuer\n        * jwks_uri\n        * claims_supported\n\n        :return: OpenID metadata configuration\n        :rtype: Dict[str, Any]\n        \"\"\"\n        return await self._client.metadata_configuration.get(**kwargs)\n\n    @distributed_trace_async\n    async def get_signing_certificates(self, **kwargs: Any) -> List[AttestationSigner]:\n        \"\"\"Returns the set of signing certificates used to sign attestation tokens.\n\n        :return: A list of :class:`azure.security.attestation.AttestationSigner` objects.\n        :rtype: list[~azure.security.attestation.AttestationSigner]\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n        signing_certificates = await self._client.signing_certificates.get(**kwargs)\n        signers: List[AttestationSigner] = []\n        for key in signing_certificates[\"keys\"]:\n            signers.append(AttestationSigner._from_generated(key))  # type: ignore\n        return signers\n\n    @distributed_trace_async\n    async def attest_sgx_enclave(\n        self,\n        quote: bytes,\n        *,\n        inittime_json: Optional[bytes] = None,\n        inittime_data: Optional[bytes] = None,\n        runtime_json: Optional[bytes] = None,\n        runtime_data: Optional[bytes] = None,\n        validate_token: bool = True,\n        issuer: Optional[str] = None,\n        validate_not_before_time: bool = True,\n        validate_issuer: bool = True,\n        validate_signature: bool = True,\n        validate_expiration: bool = True,\n        validation_callback: Optional[Callable[[AttestationToken, AttestationSigner], None]] = None,\n        draft_policy: Optional[str] = None,\n        validation_slack: float = 0.5,\n        **kwargs: Any,\n    ) -> Tuple[AttestationResult, AttestationToken]:\n        \"\"\"Attests the validity of an SGX quote.\n\n        :param bytes quote: An SGX quote generated from an Intel(tm) SGX enclave\n        :keyword bytes inittime_data: Data presented at the time that the SGX\n            enclave was initialized.\n        :keyword bytes inittime_json: Data presented at the time that the SGX\n            enclave was initialized, JSON encoded.\n        :keyword bytes runtime_data: Data presented at the time that the open_enclave\n            report was created.\n        :keyword bytes runtime_json: Data presented at the time that the open_enclave\n            report was created. JSON Encoded.\n        :keyword str draft_policy: \"draft\" or \"experimental\" policy to be used with\n            this attestation request. If this parameter is provided, then this\n            policy document will be used for the attestation request.\n            This allows a caller to test various policy documents against actual data\n            before applying the policy document via the set_policy API\n        :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n        :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n            if the token is invalid, the `validation_callback` function should throw\n            an exception.\n        :paramtype validation_callback: ~typing.Callable[[~azure.security.attestation.AttestationToken, ~azure.security.attestation.AttestationSigner], None]\n        :keyword bool validate_signature: If True, validate the signature of the token being validated.\n        :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n        :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n        :keyword float validation_slack: Slack time for validation - tolerance applied\n            to help account for clock drift between the issuer and the current machine.\n        :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n        :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n\n        :return: :class:`AttestationResult` containing the claims in the returned attestation token.\n        :rtype: Tuple[~azure.security.attestation.AttestationResult, ~azure.security.attestation.AttestationToken]\n\n        .. note::\n            Note that if the `draft_policy` parameter is provided, the resulting\n            attestation token will be an unsecured attestation token.\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/sample_attest_enclave_async.py\n                :start-after: [START attest_sgx_enclave_shared]\n                :end-before: [END attest_sgx_enclave_shared]\n                :language: python\n                :dedent: 8\n                :caption: Attesting an SGX Enclave\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n\n        if inittime_json and inittime_data:\n            raise ValueError(\"Cannot provide both inittime_json and inittime_data.\")\n        if runtime_json and runtime_data:\n            raise ValueError(\"Cannot provide both runtime_data and runtime_json.\")\n\n        # If the input was JSON, make sure that it's valid JSON before sending it\n        # to the service.\n        if inittime_json:\n            try:\n                json.loads(inittime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        if runtime_json:\n            try:\n                json.loads(runtime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        # Now create the RuntimeData object to be sent to the service.\n        runtime = None\n        if runtime_data:\n            runtime = RuntimeData(data=runtime_data, data_type=DataType.BINARY)\n\n        if runtime_json:\n            runtime = RuntimeData(data=runtime_json, data_type=DataType.JSON)\n\n        # And the InitTimeData object to be sent to the service.\n        inittime = None\n        if inittime_data:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.BINARY)\n        if inittime_json:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.JSON)\n\n        request = AttestSgxEnclaveRequest(\n            quote=quote,\n            init_time_data=inittime,\n            runtime_data=runtime,\n            draft_policy_for_attestation=draft_policy,\n        )\n        # Merge our existing config options with the options for this API call.\n        # Note that this must be done before calling into the implementation\n        # layer because the implementation layer doesn't like keyword args that\n        # it doesn't expect :(.\n        validation_args = {\n            \"validate_token\": validate_token,\n            \"issuer\": issuer,\n            \"validate_not_before_time\": validate_not_before_time,\n            \"validate_issuer\": validate_issuer,\n            \"validate_signature\": validate_signature,\n            \"validate_expiration\": validate_expiration,\n            \"validation_callback\": validation_callback,\n            \"validation_slack\": validation_slack,\n        }\n        # Merge validation_args with kwargs to include any additional parameters\n        validation_args.update(kwargs)\n        options = merge_validation_args(self._config._kwargs, validation_args)\n\n        result = await self._client.attestation.attest_sgx_enclave(request, **kwargs)\n        token = AttestationToken(token=result.token, body_type=GeneratedAttestationResult)\n\n        if options.get(\"validate_token\", True):\n            token._validate_token(await self._get_signers(**kwargs), **options)\n        return (\n            AttestationResult._from_generated(token._get_body()),  # type: ignore\n            token,\n        )\n\n    @distributed_trace_async\n    async def attest_open_enclave(\n        self,\n        report: bytes,\n        *,\n        inittime_json: Optional[bytes] = None,\n        inittime_data: Optional[bytes] = None,\n        runtime_json: Optional[bytes] = None,\n        runtime_data: Optional[bytes] = None,\n        validate_not_before_time: bool = True,\n        validation_slack: float = 0.5,\n        issuer: Optional[str] = None,\n        draft_policy: Optional[str] = None,\n        validation_callback: Optional[Callable[[AttestationToken, AttestationSigner], None]] = None,\n        validate_expiration: bool = True,\n        validate_token: bool = True,\n        validate_signature: bool = True,\n        validate_issuer: bool = True,\n        **kwargs: Any,\n    ) -> Tuple[AttestationResult, AttestationToken]:\n        \"\"\"Attests the validity of an Open Enclave report.\n\n        :param bytes report: An open_enclave report generated from an Intel(tm) SGX enclave\n        :keyword bytes inittime_data: Data presented at the time that the SGX\n            enclave was initialized.\n        :keyword bytes inittime_json: Data presented at the time that the SGX\n            enclave was initialized, JSON encoded.\n        :keyword bytes runtime_data: Data presented at the time that the open_enclave\n            report was created.\n        :keyword bytes runtime_json: Data presented at the time that the open_enclave\n            report was created. JSON Encoded.\n        :keyword str draft_policy: \"draft\" or \"experimental\" policy to be used with\n            this attestation request. If this parameter is provided, then this\n            policy document will be used for the attestation request.\n            This allows a caller to test various policy documents against actual data\n            before applying the policy document via the set_policy API.\n        :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n        :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n            if the token is invalid, the `validation_callback` function should throw\n            an exception.\n        :paramtype validation_callback: ~typing.Callable[[~azure.security.attestation.AttestationToken, ~azure.security.attestation.AttestationSigner], None]\n        :keyword bool validate_signature: If True, validate the signature of the token being validated.\n        :keyword bool validate_expiration: If True, validate the expiration time of the token being validated.\n        :keyword str issuer: Expected issuer, used if `validate_issuer` is true.\n        :keyword float validation_slack: Slack time for validation - tolerance applied\n            to help account for clock drift between the issuer and the current machine.\n        :keyword bool validate_issuer: If True, validate that the issuer of the token matches the expected issuer.\n        :keyword bool validate_not_before_time: If true, validate the \"Not Before\" time in the token.\n        :return: :class:`AttestationResult` containing the claims in the returned attestation token.\n\n        :rtype: Tuple[~azure.security.attestation.AttestationResult, ~azure.security.attestation.AttestationToken]\n\n        .. admonition:: Example: Simple OpenEnclave attestation.\n\n            .. literalinclude:: ../samples/sample_attest_enclave_async.py\n                :start-after: [START attest_open_enclave_shared]\n                :end-before: [END attest_open_enclave_shared]\n                :language: python\n                :dedent: 8\n                :caption: Attesting an open_enclave report for an SGX enclave.\n\n        .. admonition:: Example: Simple OpenEnclave attestation with draft attestation policy.\n\n            .. literalinclude:: ../samples/sample_attest_enclave_async.py\n                :start-after: [START attest_open_enclave_shared_draft]\n                :end-before: [END attest_open_enclave_shared_draft]\n                :language: python\n                :dedent: 8\n                :caption: Attesting using a draft attestation policy.\n\n\n        .. note::\n            Note that if the `draft_policy` parameter is provided, the resulting\n            attestation token will be an unsecured attestation token.\n\n        For additional request configuration options, please see `Python Request\n        Options <https://aka.ms/azsdk/python/options>`_.\n\n        \"\"\"\n\n        if inittime_json and inittime_data:\n            raise ValueError(\"Cannot provide both inittime_json and inittime_data.\")\n        if runtime_json and runtime_data:\n            raise ValueError(\"Cannot provide both runtime_data and runtime_json.\")\n\n        # If the input was JSON, make sure that it's valid JSON before sending it\n        # to the service.\n        if inittime_json:\n            try:\n                json.loads(inittime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        if runtime_json:\n            try:\n                json.loads(runtime_json)\n            except json.JSONDecodeError:\n                raise_with_traceback(ValueError, \"Content must be valid JSON.\")\n\n        # Now create the RuntimeData object to be sent to the service.\n        runtime = None\n        if runtime_data:\n            runtime = RuntimeData(data=runtime_data, data_type=DataType.BINARY)\n\n        if runtime_json:\n            runtime = RuntimeData(data=runtime_json, data_type=DataType.JSON)\n\n        # And the InitTimeData object to be sent to the service.\n        inittime = None\n        if inittime_data:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.BINARY)\n        if inittime_json:\n            inittime = InitTimeData(data=inittime_data, data_type=DataType.JSON)\n\n        request = AttestOpenEnclaveRequest(\n            report=report,\n            init_time_data=inittime,\n            runtime_data=runtime,\n            draft_policy_for_attestation=draft_policy,\n        )\n\n        # Merge our existing config options with the options for this API call.\n        # Note that this must be done before calling into the implementation\n        # layer because the implementation layer doesn't like keyword args that\n        # it doesn't expect :(.\n        validation_args = {\n            \"validate_not_before_time\": validate_not_before_time,\n            \"validation_slack\": validation_slack,\n            \"issuer\": issuer,\n            \"validation_callback\": validation_callback,\n            \"validate_expiration\": validate_expiration,\n            \"validate_token\": validate_token,\n            \"validate_signature\": validate_signature,\n            \"validate_issuer\": validate_issuer,\n        }\n        # Merge validation_args with kwargs to include any additional parameters\n        validation_args.update(kwargs)\n        options = merge_validation_args(self._config._kwargs, validation_args)\n\n        result = await self._client.attestation.attest_open_enclave(request, **kwargs)\n        token = AttestationToken(token=result.token, body_type=GeneratedAttestationResult)\n\n        if options.get(\"validate_token\", True):\n            token._validate_token(await self._get_signers(**kwargs), **options)\n        return (\n            AttestationResult._from_generated(token._get_body()),  # type: ignore\n            token,\n        )\n\n    @distributed_trace_async\n    async def attest_tpm(self, content: bytes, **kwargs: Any) -> TpmAttestationResult:\n        \"\"\"Performs TPM attestation.\n\n        :param bytes content: Attestation request for Trusted Platform Module (TPM) attestation.\n        :returns: Attestation response for Trusted Platform Module (TPM) attestation.\n        :rtype: ~azure.security.attestation.TpmAttestationResult\n        \"\"\"\n\n        response = await self._client.attestation.attest_tpm(data=content, **kwargs)  # type: ignore\n        # Handle response.data as either bytes or base64-encoded string\n        data = response.data\n        if isinstance(data, str):\n            # If it's a base64-encoded string, decode it to bytes\n            # Use base64url_decode for proper handling of URL-safe base64\n            data = base64url_decode(data)\n        result = TpmAttestationResult(data)  # type: ignore\n        return result\n\n    async def _get_signers(self, **kwargs: Any) -> List[AttestationSigner]:\n        \"\"\"Returns the set of signing certificates used to sign attestation tokens.\n\n        :return: A list of attestation signers used to validate tokens.\n        :rtype: List[AttestationSigner]\n        \"\"\"\n\n        with self._statelock:\n            if not self._signing_certificates:\n                signing_certificates = await self._client.signing_certificates.get(**kwargs)\n                self._signing_certificates = []\n                for key in signing_certificates[\"keys\"]:\n                    self._signing_certificates.append(AttestationSigner._from_generated(key))  # type: ignore\n            signers = self._signing_certificates\n        return signers\n\n    async def close(self) -> None:\n        await self._client.close()\n\n    async def __aenter__(self) -> \"AttestationClient\":\n        await self._client.__aenter__()\n        return self\n\n    async def __aexit__(self, *exc_details: Any) -> None:\n        await self._client.__aexit__(*exc_details)\n\n\nclass AttestationAdministrationClient:\n    # pylint: disable=line-too-long, protected-access\n    \"\"\"Provides administrative APIs for managing an instance of the Attestation Service.\n\n    The :class:`~AttestationAdministrationClient` object implements the policy\n    management and policy certificate management functions.\n\n    :param credential: Credentials for the caller used to interact with the service.\n    :type credential: :class:`~azure.core.credentials_async.AsyncTokenCredential`\n    :param str endpoint: The attestation instance base URI, for example https://mytenant.attest.azure.net.\n    :keyword str signing_key: PEM encoded signing key to be used for all\n        operations.\n    :keyword str api_version: The API version to use for this operation. Default value is \"2025-06-01\".\n    :keyword str signing_certificate: PEM encoded X.509 certificate to be used for all\n        operations.\n    :keyword bool validate_token: If True, validate the token, otherwise return the token unvalidated.\n    :keyword validation_callback: Function callback to allow clients to perform custom validation of the token.\n        if the token is invalid, the `validation_callback` function should throw\n        an exception.",
+      "contentHash": "1905d2c4be31f5e43b6ae97debcd9350ca8200d364718a21d2e9ceba5fd16c8e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/attestation/azure-security-attestation/azure/security/attestation/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 487,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/attestation/azure-security-attestation/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-security-attestation\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Attestation Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.35.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.security.attestation._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.security\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-build]\npyright = false\nci_enabled = false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "c230dd48dd0e856972b87e8acabd9da3c60b2854ad2d92164215c16c0ecfc472",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/attestation/azure-security-attestation/pyproject.toml"
+    },
+    {
+      "path": "sdk/attestation/azure-security-attestation/swagger/README.md",
+      "text": "# Azure Attestation Service client library for Python\n\n## Setup\n\n```ps\nnpm install -g autorest\n```\n\n## Generation\n\n```ps\ncd <swagger-folder>\nautorest SWAGGER.md\n```\n\n### Code generation settings\n\n```yaml\ntitle: AzureAttestationRestClient\nrequire: \n  - https://raw.githubusercontent.com/Azure/azure-rest-api-specs/master/specification/attestation/data-plane/readme.md\noutput-folder: ../azure/security/attestation/_generated\nnamespace: azure.security.attestation._generated\nno-namespace-folders: true\nlicense-header: MICROSOFT_MIT_NO_VERSION\ntag: package-2020-10-01\npackage-version: 1.0.0b2\nenable-xml: false\nclear-output-folder: true\npython: true\nv3: true\nadd-credentials: true\nazure-arm: false\npayload-flattening-threshold: 2\npackage-name: azure-security-attestation\ncredential-scopes: 'https://attest.azure.net/.default'\n```\n\n```yaml\ndirective:\n  from: swagger-document\n  where: \"$.x-ms-parameterized-host.parameters\"\n  transform: >\n    $.name = \"endpoint\"\n```\n\n```yaml\ndirective:\n  where: \"$.x-ms-parameterized-host\"\n  transform: >\n    $.hostTemplate = \"endpoint\"\n```\n",
+      "contentHash": "c0a0689f3e6639cbb250b55dd1f34cc98a039c0206c7839d8de38cb02a944a16",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/attestation/azure-security-attestation/swagger/README.md"
+    },
+    {
+      "path": "sdk/attestation/azure-security-attestation/tsp-location.yaml",
+      "text": "directory: specification/attestation/data-plane/Attestation\ncommit: c5601446fc65494f18157aecbcc79cebcfbab1fb\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "aec987a814ecb5c03ff5380f2ea311f1cdd5855087aff836bb67262d3180d271",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/attestation/azure-security-attestation/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "534611d0b724307b41b9b0d7674b5572f07b1d040ed2d29619425fb39aa78e94",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "0a8f7d466be19fb1a89a4f829d1b91ffb51c408f0d7fe1838335d82c70470d0e",
+        "category": "Hand-written client",
+        "subtype": "configured-rest-client-facade-and-signer-cache-state",
+        "explanation": "The sync AttestationClient constructor rejects a falsey credential, constructs AttestationClientConfiguration and the imported REST client with caller kwargs, and initializes a threading.Lock plus an empty signer list. This is a composed facade, not evidence that the unseen configuration class implements every documented validation default.",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated customization patch defines a non-inheriting client facade with actual internal-client construction and cache state, rather than merely re-exporting a generated class.",
+        "symbols": [
+          "AttestationClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 30,
+            "endLine": 30
+          },
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 64,
+            "endLine": 64
+          },
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 97,
+            "endLine": 103
+          }
+        ]
+      },
+      {
+        "key": "f07c13c98efa092a3983eac0e143995e75f9e00e7056b27cb6638cda8d55b8d0",
+        "category": "Hand-written client",
+        "subtype": "configured-async-rest-facade-and-signer-cache-state",
+        "explanation": "The aio AttestationClient constructor rejects falsey credentials, constructs the shared configuration and its imported aio REST client, and initializes a regular threading.Lock and empty signer list. The constructor is synchronous; the supplied cache method later awaits network I/O while using that lock, so async-safe synchronization is not established.",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio customization patch defines an implemented composed client facade and state, not a generated client alias.",
+        "symbols": [
+          "AttestationClient.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 13,
+            "endLine": 13
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 21,
+            "endLine": 21
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 59,
+            "endLine": 59
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 92,
+            "endLine": 98
+          }
+        ]
+      },
+      {
+        "key": "a2e8f3f0748db8efdd068af06f0ef456f20eef74333eefadbf90cec9742d0c1d",
+        "category": "Crypto / signing",
+        "subtype": "jwks-keys-to-attestation-signer-list",
+        "explanation": "get_signing_certificates calls the inner signing-certificates operation and maps every element of its keys member through AttestationSigner._from_generated. This public method does not use the lazy signer cache. The conversion helper is absent, so actual certificate parsing or validation cannot be asserted.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The sync customization patch implements a concrete response-envelope-to-public-signer projection, beyond simple operation forwarding.",
+        "symbols": [
+          "AttestationClient.get_signing_certificates"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 124,
+            "endLine": 137
+          }
+        ]
+      },
+      {
+        "key": "bc39d4f2d725f03daf1a17e89d55ab5e3308e26d9b18827089b5d7938f4ea688",
+        "category": "Crypto / signing",
+        "subtype": "awaited-jwks-keys-to-attestation-signer-list",
+        "explanation": "The async get_signing_certificates awaits the inner operation, builds a fresh list by converting each keys element with AttestationSigner._from_generated and returns it. It does not access the cache, and the conversion helper's actual crypto/model behavior is unprovided.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio customization patch contains an executable result-conversion loop rather than only an async return annotation.",
+        "symbols": [
+          "AttestationClient.get_signing_certificates"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 119,
+            "endLine": 134
+          }
+        ]
+      },
+      {
+        "key": "61f849902745b9cbf9e9ea44b564e0c97523f5bfca0e6c841df1030f4882975b",
+        "category": "Crypto / signing",
+        "subtype": "sgx-input-adaptation-and-conditional-token-validation-hook",
+        "explanation": "attest_sgx_enclave collects non-None per-call validation options (retaining False), rejects simultaneous truthy JSON/binary inputs and JSON-decodes truthy JSON inputs before building the request. Runtime JSON uses runtime_json, but the init-time JSON branch actually passes inittime_data, not inittime_json. It merges options through the unprovided helper, invokes the inner operation, wraps result.token, conditionally calls _validate_token with cached signers and returns the converted body/token pair. Successful cryptographic validation is not established by the absent helper bodies.",
+        "pattern": "attestation-token-validation-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The sync customization patch implements request adaptation plus local token-validation orchestration around the REST call, rather than deriving customization from crypto imports.",
+        "symbols": [
+          "AttestationClient.attest_sgx_enclave"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 139,
+            "endLine": 158
+          },
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 211,
+            "endLine": 281
+          }
+        ]
+      },
+      {
+        "key": "e85d63567fbde493bad7ca2658071d6f7a263b9e459048a38a2287c127823e06",
+        "category": "Crypto / signing",
+        "subtype": "open-enclave-input-adaptation-and-token-validation-hook",
+        "explanation": "attest_open_enclave retains non-None explicit validation options, checks truthy JSON/binary exclusivity and JSON syntax, builds AttestOpenEnclaveRequest and invokes the inner operation. Its init-time JSON branch also supplies inittime_data rather than inittime_json. After helper-based option merging it wraps the token, conditionally invokes _validate_token with _get_signers, then converts the token body and returns it with the token. Actual validation and conversion algorithms are absent.",
+        "pattern": "attestation-token-validation-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "A separate implemented public operation in the sync patch performs request/model and token-validation adaptation beyond its generated REST operation.",
+        "symbols": [
+          "AttestationClient.attest_open_enclave"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 283,
+            "endLine": 302
+          },
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 364,
+            "endLine": 432
+          }
+        ]
+      },
+      {
+        "key": "54ad3d769ea91d29f18026f63c87795be41917d49fb3fb0c8c5dde8c6169f78d",
+        "category": "Crypto / signing",
+        "subtype": "async-sgx-request-and-token-validation-option-adapter",
+        "explanation": "The aio SGX method checks truthy input conflicts/JSON syntax and builds the SGX request, including the literal init-time JSON branch using inittime_data. Unlike sync's Optional defaults, it constructs validation_args with explicit boolean/slack defaults, updates that dictionary with kwargs and passes it to the merge helper. It awaits the operation and signers, calls the token's synchronous _validate_token conditionally and returns a converted-body/token tuple. The unseen merge helper determines effective configuration precedence.",
+        "pattern": "attestation-token-validation-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The aio patch supplies an actual request and local token-validation orchestration implementation, not merely an awaited generated call.",
+        "symbols": [
+          "AttestationClient.attest_sgx_enclave"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 136,
+            "endLine": 155
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 206,
+            "endLine": 272
+          }
+        ]
+      },
+      {
+        "key": "4683f12ec4c5ed6ff0b5b0015541665cd191bf5e7e6bd728737eadb2a3f732e8",
+        "category": "Crypto / signing",
+        "subtype": "async-open-enclave-request-and-token-validation-option-adapter",
+        "explanation": "The aio open-enclave method checks truthy binary/JSON exclusivity and parses JSON, builds its request and collects explicit validation defaults into a dictionary updated by kwargs before merging. Its init-time JSON branch passes inittime_data. After awaiting the operation it wraps result.token, conditionally calls _validate_token with awaited _get_signers and returns converted claims/token. It does not expose the helpers' actual signature, expiry or issuer checks.",
+        "pattern": "attestation-token-validation-wrapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "This distinct public aio operation has a supplied substantive input/validation orchestration body rather than documentation-only validation claims.",
+        "symbols": [
+          "AttestationClient.attest_open_enclave"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 274,
+            "endLine": 293
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 354,
+            "endLine": 421
+          }
+        ]
+      },
+      {
+        "key": "960b3cb4b56bd117506243486ca334fd856810c6f32d816382be0fcbea99415a",
+        "category": "Serialization",
+        "subtype": "conditional-base64url-response-unwrapping",
+        "explanation": "attest_tpm passes content as data to the inner operation, reads response.data and invokes base64url_decode only for str values, then constructs TpmAttestationResult. cast(bytes,data) is only a typing cast, not a runtime byte conversion. The decoder and result-model implementation are absent.",
+        "pattern": "encoded-response-unwrapping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The sync patch supplies explicit response unwrapping and conditional decoding beyond the REST call or return type.",
+        "symbols": [
+          "AttestationClient.attest_tpm"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 434,
+            "endLine": 451
+          }
+        ]
+      },
+      {
+        "key": "f37e3938cdd2d22da629b2721ca56488008cb85facbc9b11d4d30e5077147f96",
+        "category": "Serialization",
+        "subtype": "awaited-conditional-base64url-response-unwrapping",
+        "explanation": "The aio attest_tpm awaits the inner operation, extracts data, invokes base64url_decode when data is str and constructs TpmAttestationResult. Non-str values pass through; no general runtime byte validation or details of the imported decoding algorithm are supplied.",
+        "pattern": "encoded-response-unwrapping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The async customization patch contains an implemented result decoder/adapter rather than a simple generated-operation forwarder.",
+        "symbols": [
+          "AttestationClient.attest_tpm"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 423,
+            "endLine": 440
+          }
+        ]
+      },
+      {
+        "key": "946441de80216a17dc5eef11387c897f5bced8df7f472f7bde475f649740eda8",
+        "category": "Crypto / signing",
+        "subtype": "lock-guarded-lazy-signer-list-cache",
+        "explanation": "_get_signers holds the constructor's lock and fetches signing certificates only while the cached list is falsey, rebuilding it through AttestationSigner._from_generated and returning the stored list itself. Empty results are fetched again later. No expiration, refresh policy, defensive copy or atomic recovery from a partially converted list is implemented in the supplied body.",
+        "pattern": "attestation-signer-cache",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The sync patch implements local cache state/control flow used by both supplied token-validation wrappers, rather than inferring caching from a member declaration.",
+        "symbols": [
+          "AttestationClient._get_signers"
+        ],
+        "evidence": [
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 102,
+            "endLine": 103
+          },
+          {
+            "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+            "startLine": 453,
+            "endLine": 468
+          }
+        ]
+      },
+      {
+        "key": "92b5bd5062779a064eb12abeb314bf55a2b0382aea6cb469ec369441e1ad8ca0",
+        "category": "Crypto / signing",
+        "subtype": "awaited-lazy-signer-list-under-threading-lock",
+        "explanation": "The async _get_signers uses with self._statelock around a falsey-cache test, awaited certificate fetch, conversion loop and retrieval of the stored signer list. It returns that list without copying and does not add expiry/refresh logic. The lock is threading.Lock, not an asynchronous lock; no nonblocking concurrency or cancellation safety is asserted.",
+        "pattern": "attestation-signer-cache",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The aio patch supplies actual lazy cache and conversion logic called by both asynchronous attestation wrappers, not only a declared signer field.",
+        "symbols": [
+          "AttestationClient._get_signers"
+        ],
+        "evidence": [
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 13,
+            "endLine": 13
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 97,
+            "endLine": 98
+          },
+          {
+            "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+            "startLine": 442,
+            "endLine": 456
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "0a8f7d466be19fb1a89a4f829d1b91ffb51c408f0d7fe1838335d82c70470d0e",
+        "status": "accepted",
+        "reason": "The populated root _patch.py actually defines a public composed client, checks the credential, constructs the inner client/configuration and initializes signer-cache state. Its implementation, outside the documented generated output folder, supports a handwritten facade; the imported classes' behavior is not established."
+      },
+      {
+        "key": "f07c13c98efa092a3983eac0e143995e75f9e00e7056b27cb6638cda8d55b8d0",
+        "status": "accepted",
+        "reason": "The aio _patch.py implements the analogous public composed client and its own constructor/state rather than merely declaring or re-exporting one. The regular Lock is shown, but asynchronous safety of later use is not implied."
+      },
+      {
+        "key": "a2e8f3f0748db8efdd068af06f0ef456f20eef74333eefadbf90cec9742d0c1d",
+        "status": "revised",
+        "reason": "The public method projects a private operation's keys into public signer objects, but the supplied method performs no cryptographic operation; Convenience methods is more specific than Crypto / signing. The helper implementation remains unseen.",
+        "finding": {
+          "key": "a2e8f3f0748db8efdd068af06f0ef456f20eef74333eefadbf90cec9742d0c1d",
+          "category": "Convenience methods",
+          "subtype": "signing-keys-to-public-signer-wrapper",
+          "explanation": "The synchronous public method calls the inner signing-certificates operation and returns a new list produced by applying AttestationSigner._from_generated to its keys. It does not use the lazy signer cache; the conversion helper's behavior is unavailable.",
+          "pattern": "convenience-typed-wrapper",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The root _patch.py supplies an implemented public result-shaping method outside the documented generated output folder, not merely a re-export or generated operation.",
+          "symbols": [
+            "AttestationClient.get_signing_certificates"
+          ],
+          "evidence": [
+            {
+              "id": "aaceed32c3c8cc998c3402dd6069e0a222aeeb1715d8bb2e25cc8d9c7c88b7c8",
+              "startLine": 124,
+              "endLine": 137
+            }
+          ]
+        }
+      },
+      {
+        "key": "bc39d4f2d725f03daf1a17e89d55ab5e3308e26d9b18827089b5d7938f4ea688",
+        "status": "revised",
+        "reason": "The aio method awaits an inner operation and builds a typed public signer list; it does not itself demonstrate cryptographic processing, so this is a Convenience methods wrapper, with conversion details unknown.",
+        "finding": {
+          "key": "bc39d4f2d725f03daf1a17e89d55ab5e3308e26d9b18827089b5d7938f4ea688",
+          "category": "Convenience methods",
+          "subtype": "async-signing-keys-to-public-signer-wrapper",
+          "explanation": "The asynchronous public method awaits the inner signing-certificates operation, creates a fresh list and appends AttestationSigner._from_generated(key) for each keys entry. It does not use the lazy signer cache; the conversion helper's behavior is unavailable.",
+          "pattern": "convenience-typed-wrapper",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The aio _patch.py contains an executable public result-shaping loop outside the documented generated output folder, not merely a return annotation.",
+          "symbols": [
+            "AttestationClient.get_signing_certificates"
+          ],
+          "evidence": [
+            {
+              "id": "2a5cdbfe43fc35acc048bf55e6de1f485bd4e1675c5535275c1ef5cc16118bd9",
+              "startLine": 119,
+              "endLine": 134
+            }
+          ]
+        }
+      },
+      {
+        "key": "61f849902745b9cbf9e9ea44b564e0c97523f5bfca0e6c841df1030f4882975b",
+        "status": "accepted",
+        "reason": "The method implements input checks, request-model construction, validation-option collection, a conditional call to token validation using cached signers and body projection. Its JSON init-time branch really uses inittime_data rather than inittime_json. This establishes handwritten validation orchestration, not cryptographic correctness; merge helper and REST argument handling are unavailable."
+      },
+      {
+        "key": "e85d63567fbde493bad7ca2658071d6f7a263b9e459048a38a2287c127823e06",
+        "status": "accepted",
+        "reason": "The distinct open-enclave method contains the claimed request adaptation and conditional token-validation call, including the literal init-time JSON argument mismatch. The unprovided helpers do not substantiate any particular cryptographic check or effective option precedence."
+      },
+      {
+        "key": "54ad3d769ea91d29f18026f63c87795be41917d49fb3fb0c8c5dde8c6169f78d",
+        "status": "accepted",
+        "reason": "The aio SGX body performs the cited request preparation, passes explicit/default validation options through the merge helper, awaits the REST call and signers, then conditionally invokes the token validator. Its init-time JSON branch uses inittime_data; no unprovided helper or async-safety behavior is assumed."
+      },
+      {
+        "key": "4683f12ec4c5ed6ff0b5b0015541665cd191bf5e7e6bd728737eadb2a3f732e8",
+        "status": "accepted",
+        "reason": "The aio open-enclave implementation independently constructs the request, merges a populated validation-argument dictionary, conditionally invokes validation after awaiting the operation and signers, and shapes the return. Its init-time JSON branch also passes inittime_data; actual checks inside helpers remain unknown."
+      },
+      {
+        "key": "960b3cb4b56bd117506243486ca334fd856810c6f32d816382be0fcbea99415a",
+        "status": "accepted",
+        "reason": "The synchronous TPM method demonstrably adapts the private operation's response.data: a string is passed to base64url_decode, while other values pass through before constructing the public result. The cast does not convert at runtime, and the imported decoder's implementation is not supplied."
+      },
+      {
+        "key": "f37e3938cdd2d22da629b2721ca56488008cb85facbc9b11d4d30e5077147f96",
+        "status": "accepted",
+        "reason": "The aio TPM method contains the same conditional result-data adaptation after awaiting the private operation; the body, not its return annotation, supports the finding. Neither the decoder's actual algorithm nor the result model's implementation is in the bounded evidence."
+      },
+      {
+        "key": "946441de80216a17dc5eef11387c897f5bced8df7f472f7bde475f649740eda8",
+        "status": "accepted",
+        "reason": "The synchronous _get_signers body guards a falsey-list cache under the constructor's Lock, fetches/converts only on a miss and returns the stored list. The stated empty-result refetch and possibility of a partially populated list follow from the shown control flow; no cache expiry is shown."
+      },
+      {
+        "key": "92b5bd5062779a064eb12abeb314bf55a2b0382aea6cb469ec369441e1ad8ca0",
+        "status": "accepted",
+        "reason": "The aio body holds the shown threading.Lock across an awaited signing-certificate fetch and updates a falsey-list cache; it returns the stored list. This proves local handwritten caching, not nonblocking event-loop behavior or cancellation safety."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "These are analyst proposals awaiting independent AI review, not human verification. Both supplied fragments are populated customization patches with concrete wrapper bodies; no generated-client counterpart, complete public export wiring or runtime outcome was independently obtained.",
+      "Coverage is partial: two fragments/two paths among 46 eligible and 78 discovered files, with three skipped-path entries. Sync capture ends at 502 and aio at 487 inside administration-client documentation. Administration methods, configuration implementation and the models patch are absent.",
+      "AttestationToken, _validate_token, _get_body, signer/result converters, merge_validation_args and base64url_decode implementations are unprovided. Calling those helpers does not establish cryptographic correctness, actual validation checks, effective default precedence, decoding acceptance or complete error behavior.",
+      "All four enclave methods' init-time JSON branches literally pass inittime_data, not inittime_json. Both input-conflict checks and JSON adaptation are truthiness-gated. The proposals preserve these facts rather than claiming correct forwarding for empty or JSON init-time inputs.",
+      "Sync wrappers filter explicit validation options using is not None, preserving False, then update kwargs. Async wrappers use explicit boolean/slack defaults and update a separate validation_args dictionary from kwargs. The unseen merge helper prevents claiming those two paths have equivalent client-default precedence or downstream keyword removal.",
+      "The supplied AttestationResult and GeneratedAttestationResult names are imports of the same public model name under different aliases. No separately supplied generated model body proves they are distinct classes. The proposals describe the shown token-body and conversion calls only.",
+      "Signer cache methods return mutable stored lists, refetch empty lists and do not show expiry, rotation, defensive copies or recovery guarantees. The async method holds a regular threading.Lock across an await; async-safe execution was not tested or assumed.",
+      "OpenID metadata and lifecycle methods are thin inner-client passthroughs in the supplied fragments and are not counted independently. Crypto imports, aliases and administration documentation do not establish unseen signing or policy-management implementations.",
+      "Generation context includes historical AutoRest configuration/directives and tsp-location metadata, but not an executed transformation or generated artifact comparison. AutoRest's package-version 1.0.0b2 does not replace library latestRelease 1.0.0 or frozen module-v1 identity; no actual _version source is supplied.",
+      "No SDK code, network endpoint, external link or crypto operation was executed. Root causes and recurrence are unmeasured; addressability is unclear for service-specific attestation-validation/cache policies whose algorithms are missing, and plausible for the generic facade/result-adaptation shapes.",
+      "Coverage is partial: only lines 1-502 of root _patch.py and 1-487 of aio/_patch.py were supplied; models/_patch.py, later administrative-client implementations, generated REST clients, configuration and common/token helpers were not supplied. No absence, complete package inventory, or successful runtime behavior is established.",
+      "The frozen identity remains python:azure-security-attestation:module-v1. Supplied package metadata calls the release 1.0.0, the generation README cites AutoRest package-version 1.0.0b2 and an _generated output folder, while bounded patch imports name sibling _client modules; these differences do not resolve actual generation provenance or activation. The populated patch implementations and documented output path support the reviewed customization candidates without proving what the unprovided imports contain.",
+      "Both sync attestation wrappers update kwargs with explicit validation options, then call merge_validation_args and pass kwargs to the inner REST operation unchanged. The aio wrappers instead merge a separate validation_args dictionary updated by kwargs and pass the original kwargs to the operation. Effective option precedence, filtering and whether any inner call accepts those kwargs cannot be established without the missing implementations.",
+      "All four SGX/open-enclave request adapters test JSON/binary exclusivity and select data using truthiness rather than None checks. Each JSON init-time branch constructs InitTimeData(data=inittime_data, data_type=DataType.JSON), not from inittime_json. This is included within the same-symbol wrapper findings rather than duplicated as new omissions; whether model validation or runtime behavior masks it is unknown.",
+      "The asynchronous _get_signers holds a regular threading.Lock while awaiting network I/O. The supplied lines do not establish nonblocking concurrency, cancellation safety or refresh on key rotation. The synchronous cache can expose a partially populated list after a conversion failure; empty cached lists trigger another fetch.",
+      "The metadata getter and close/context-manager forwarding bodies are visible, but no separate response transformation or independent behavior beyond the already-counted client facade is substantiated. Tracing decorators on public methods are visible, but their runtime effect relative to unprovided generated operations is unknown; no speculative separate tracing omission is asserted.",
+      "GeneratorAddressable is a judgment of generic feasibility for a reusable wrapper/projection and not measured cross-service recurrence or reducibility. Accepted/revised means independent AI-reviewed, not human-verified; human overrides remain authoritative."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/_patch.py",
+      "startLine": 1,
+      "endLine": 1281,
+      "provenance": "Python patch",
+      "contentHash": "945766fdceabeae182748f51be1c19a64d7ec2a38cacf0a271c27a0cbeec53ad"
+    },
+    {
+      "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 1223,
+      "provenance": "Python patch",
+      "contentHash": "e78aadf46344cd4b29f9d3f490a56dfcacd83a90001d7770b3bb4b7339225947"
+    },
+    {
+      "path": "sdk/attestation/azure-security-attestation/azure/security/attestation/models/_patch.py",
+      "startLine": 1,
+      "endLine": 1014,
+      "provenance": "Python patch",
+      "contentHash": "b3ba60f9390099e48a7e7a9cf068e755ead0a3d773637e48a52a6186fc40a9c3"
+    }
+  ]
+}

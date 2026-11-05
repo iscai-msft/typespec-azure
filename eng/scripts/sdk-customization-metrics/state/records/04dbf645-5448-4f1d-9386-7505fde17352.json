@@ -1,0 +1,510 @@
+{
+  "schemaVersion": 1,
+  "id": "04dbf645-5448-4f1d-9386-7505fde17352",
+  "observedAt": "2026-10-24T04:59:20.885Z",
+  "identity": "java:azure-ai-translation-text:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-ai-translation-text",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/translation/azure-ai-translation-text"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "90d6d05e737ceaaf6e59a0aecf554d61f4f051d7"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 71,
+    "eligibleFiles": 37,
+    "capturedFiles": 23,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/translation/azure-ai-translation-text/customization/src/main/java/TextTranslationCustomization.java",
+      "text": "import com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.github.javaparser.ast.NodeList;\nimport com.github.javaparser.ast.type.ClassOrInterfaceType;\nimport org.slf4j.Logger;\n\n/**\n * This class contains the customization code to customize the TypeSpec generated code for Text Translation.\n */\npublic class TextTranslationCustomization extends Customization {\n\n    @Override\n    public void customize(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing the TextTranslationClientBuilder class\");\n        customization.getClass(\"com.azure.ai.translation.text\", \"TextTranslationClientBuilder\").customizeAst(ast -> {\n            // add KeyCredentialTrait and TokenCredentialTrait imports\n            ast.addImport(\"com.azure.core.client.traits.KeyCredentialTrait\");\n            ast.addImport(\"com.azure.core.client.traits.TokenCredentialTrait\");\n\n            ast.getClassByName(\"TextTranslationClientBuilder\").ifPresent(clazz -> {\n                NodeList<ClassOrInterfaceType> implementedTypes = clazz.getImplementedTypes();\n                boolean hasKeyCredentialTrait = implementedTypes.stream()\n                    .filter(implementedType -> implementedType.getNameAsString().equals(\"KeyCredentialTrait\"))\n                    .findFirst()\n                    .isPresent();\n                if (!hasKeyCredentialTrait) {\n                    clazz.addImplementedType(\"KeyCredentialTrait<TextTranslationClientBuilder>\");\n                }\n\n                boolean hasTokenCredentialTrait = implementedTypes.stream()\n                    .filter(implementedType -> implementedType.getNameAsString().equals(\"TokenCredentialTrait\"))\n                    .findFirst()\n                    .isPresent();\n                if (!hasTokenCredentialTrait) {\n                    clazz.addImplementedType(\"TokenCredentialTrait<TextTranslationClientBuilder>\");\n                }\n            });\n        });\n\n        logger.info(\"Customizing the TextTranslationServiceVersion enum - removing V3_0\");\n        customization.getClass(\"com.azure.ai.translation.text\", \"TextTranslationServiceVersion\")\n            .customizeAst(ast -> ast.getEnumByName(\"TextTranslationServiceVersion\")\n                .ifPresent(enumDeclaration -> {\n                    enumDeclaration.getEntries().stream()\n                        .filter(entry -> entry.getNameAsString().equals(\"V3_0\"))\n                        .findFirst()\n                        .ifPresent(enumConstant -> enumConstant.remove());\n                }\n            )\n        );\n\n        logger.info(\"Customizing the client classes - public protocol methods\");\n        customization.getClass(\"com.azure.ai.translation.text\", \"TextTranslationClient\").customizeAst(ast -> \n            ast.getClassByName(\"TextTranslationClient\").ifPresent(clazz -> {\n                clazz.getMethodsByName(\"translateWithResponse\").forEach(method -> method.setPublic(true));\n                clazz.getMethodsByName(\"transliterateWithResponse\").forEach(method -> method.setPublic(true));\n            }));\n        customization.getClass(\"com.azure.ai.translation.text\", \"TextTranslationAsyncClient\").customizeAst(ast -> \n            ast.getClassByName(\"TextTranslationAsyncClient\").ifPresent(clazz -> {\n                clazz.getMethodsByName(\"translateWithResponse\").forEach(method -> method.setPublic(true));\n                clazz.getMethodsByName(\"transliterateWithResponse\").forEach(method -> method.setPublic(true));\n            }));\n    }\n}\n",
+      "contentHash": "4b83a97b3ffd5fb2ec2c4b8ab82f362ad8aa9b7e6cc14b431e947ff0cf0408d5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/customization/src/main/java/TextTranslationCustomization.java",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "handwritten-marker",
+      "id": "dce29f03d8ff713eec28151b210f5505b21623814d647f95b654ba6bd8c8694b"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Gets the set of languages currently supported by other operations of the Translator.\n     *\n     * @param scope A comma-separated list of names defining the group of languages to return.\n     * Allowed group names are: `translation`, `transliteration` and `models`.\n     * If no scope is given, then all groups are returned, which is equivalent to passing\n     * `scope=translation,transliteration,models`. To decide which set of supported languages\n     * is appropriate for your scenario, see the description of the [response object](#response-body).\n     * @param acceptLanguage The language to use for user interface strings. Some of the fields in the response are\n     * names of languages or\n     * names of regions. Use this parameter to define the language in which these names are returned.\n     * The language is specified by providing a well-formed BCP 47 language tag. For instance, use the value `fr`\n     * to request names in French or use the value `zh-Hant` to request names in Chinese Traditional.\n     * Names are provided in the English language when a target language is not specified or when localization\n     * is not available.\n     * @param ifNoneMatch Passing the value of the ETag response header in an If-None-Match field will allow the service\n     * to optimize the response.\n     * If the resource has not been modified, the service will return status code 304 and an empty response body.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the set of languages currently supported by other operations of the Translator on successful completion\n     * of {@link Mono}.\n     */\n    private Mono<GetSupportedLanguagesResult> getSupportedLanguages(String scope, String acceptLanguage,\n        String ifNoneMatch) {\n        // Generated convenience method for getSupportedLanguagesWithResponse\n        RequestOptions requestOptions = new RequestOptions();\n        if (scope != null) {\n            requestOptions.addQueryParam(\"scope\", scope, false);\n        }\n        if (acceptLanguage != null) {\n            requestOptions.setHeader(HttpHeaderName.ACCEPT_LANGUAGE, acceptLanguage);\n        }\n        if (ifNoneMatch != null) {\n            requestOptions.setHeader(HttpHeaderName.IF_NONE_MATCH, ifNoneMatch);\n        }\n        return getSupportedLanguagesWithResponse(requestOptions).flatMap(FluxUtil::toMono)\n            .map(protocolMethodData -> protocolMethodData.toObject(GetSupportedLanguagesResult.class));\n    }",
+      "contentHash": "b590def3f7f10a5d0a75f07611e92f963da073615af08915e29d9f41bb7515f6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 178,
+      "endLine": 220,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1fd8f748c4c0b7ac34ae82d56df501c3072b1add16a027b365e67bdb04df584c"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Gets the set of languages currently supported by other operations of the Translator.\n     *\n     * @param scopes List of names defining the group of languages to return.\n     * @param acceptLanguage The language to use for user interface strings. Some of the fields in the response are\n     * names of languages or\n     * names of regions. Use this parameter to define the language in which these names are returned.\n     * The language is specified by providing a well-formed BCP 47 language tag. For instance, use the value `fr`\n     * to request names in French or use the value `zh-Hant` to request names in Chinese Traditional.\n     * Names are provided in the English language when a target language is not specified or when localization\n     * is not available.\n     * @param ifNoneMatch Passing the value of the ETag response header in an If-None-Match field will allow the service\n     * to optimize the response.\n     * If the resource has not been modified, the service will return status code 304 and an empty response body.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the set of languages currently supported by other operations of the Translator.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<GetSupportedLanguagesResult> getSupportedLanguages(List<LanguageScope> scopes, String acceptLanguage,\n        String ifNoneMatch) {\n        return getSupportedLanguages(convertToScopesString(scopes), acceptLanguage, ifNoneMatch);\n    }",
+      "contentHash": "4b8afd63f66d0e4a596aaf62d8a22570274da763ff6e188d10aeb8e05787b50a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 222,
+      "endLine": 248,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "440636acedda60854d0bc547873a6a635e244ef48b970af9ee998057bc48e8a4"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Transliterate Text.\n     * <p>\n     * This method is used when you have multiple texts to transliterate and you want to provide client trace id.\n     * </p>\n     *\n     * @param language Specifies the language of the text to convert from one script to another.\n     * Possible languages are listed in the transliteration scope obtained by querying the service\n     * for its supported languages.\n     * @param fromScript Specifies the script used by the input text. Look up supported languages using the\n     * transliteration scope,\n     * to find input scripts available for the selected language.\n     * @param toScript Specifies the output script. Look up supported languages using the transliteration\n     * scope, to find output\n     * scripts available for the selected combination of input language and input script.\n     * @param inputs Defines the text inputs to transliterate.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<List<TransliteratedText>> transliterate(String language, String fromScript, String toScript,\n        List<String> inputs) {\n        TransliterateBody transliterateBody = new TransliterateBody(convertTextsToInputTextItems(inputs));\n        return transliterate(language, fromScript, toScript, transliterateBody).map(result -> result.getValue());\n    }",
+      "contentHash": "06410311aa7e21b76895ceb030cefecca6167648b6ac648fe8af7520e95cd6e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 391,
+      "endLine": 420,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9a09b6f7b0390dc4c009acd2e9f931c9c5f5e71106c319da89cf14339f10db6c"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Transliterate Text.\n     * <p>\n     * This method is used when you have single text to transliterate and you want to provide client trace id.\n     * </p>\n     *\n     * @param language Specifies the language of the text to convert from one script to another.\n     * Possible languages are listed in the transliteration scope obtained by querying the service\n     * for its supported languages.\n     * @param fromScript Specifies the script used by the input text. Look up supported languages using the\n     * transliteration scope,\n     * to find input scripts available for the selected language.\n     * @param toScript Specifies the output script. Look up supported languages using the transliteration\n     * scope, to find output\n     * scripts available for the selected combination of input language and input script.\n     * @param text Defines the content of the request.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<TransliteratedText> transliterate(String language, String fromScript, String toScript, String text) {\n        return transliterate(language, fromScript, toScript, Arrays.asList(text))\n            .map(translatedTextItems -> translatedTextItems.isEmpty() ? null : translatedTextItems.get(0))\n            .defaultIfEmpty(null);\n    }",
+      "contentHash": "1035b17b860f40aec2ed5f268a99b0c9f7e989eab01c7e838e2a804e519e2f8f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 422,
+      "endLine": 451,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0b3007ecfb667aac9744b3fdff097be92991605b63ca6106302b10d9b2d3e71c"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Translate Text.\n     *\n     * @param inputs Defines the inputs to translate.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response body on successful completion of {@link Mono}.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<List<TranslatedTextItem>> translate(List<TranslateInputItem> inputs) {\n        TranslateBody translateBody = new TranslateBody(inputs);\n        return translate(translateBody).map(result -> result.getValue());\n    }",
+      "contentHash": "09d834ce3327457c978487b8ac432faf0e7235249e4c781d2c27103d2de90960",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 605,
+      "endLine": 621,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5ee77fb53e7745e304fcf2e9df9b3fcf373a0fcd8099de533f25301d4650b1d2"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    /**\n     * Translate Text.\n     * <p>\n     * This method is used when you have single target language and single text to translate.\n     * </p>\n     *\n     * @param targetLanguage Specifies the language of the output text. The target language must be one of the\n     * supported languages included\n     * in the translation scope. For example, use to=de to translate to German.\n     * It's possible to translate to multiple languages simultaneously by repeating the parameter in the query string.\n     * For example, use to=de&amp;to=it to translate to German and Italian.\n     * @param text Defines the content of the request.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<TranslatedTextItem> translate(String targetLanguage, String text) {\n        TranslateInputItem translateInputItem\n            = new TranslateInputItem(text, Arrays.asList(new TranslationTarget(targetLanguage)));\n        return translate(Arrays.asList(translateInputItem))\n            .map(translatedTextItems -> translatedTextItems.isEmpty() ? null : translatedTextItems.get(0))\n            .defaultIfEmpty(null);\n    }",
+      "contentHash": "39b11ead0e87549a43155c7d65dfde52aa577f415cc4c4cf88d76320b4c9ab08",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 623,
+      "endLine": 650,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2a467cb6721c3d63989b9d9a99888d3ab63a6bff30e8ff5e722991437e6e6d00"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    private List<InputTextItem> convertTextsToInputTextItems(List<String> texts) {\n        List<InputTextItem> content = new ArrayList<>();\n        for (String text : texts) {\n            content.add(new InputTextItem(text));\n        }\n        return content;\n    }",
+      "contentHash": "b55c9da258e1f06f2040eb50d2bf3eeb09c247ed7f2a4ac74143b0d50bc1709f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 652,
+      "endLine": 658,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3898968a655249e25a02b57aca0da36837fa7f47727b53b3be4a0cdd337029b0"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "text": "    private String convertToScopesString(List<LanguageScope> scopes) {\n        if (scopes == null) {\n            return null;\n        }\n        StringBuilder result = new StringBuilder();\n        for (LanguageScope scope : scopes) {\n            if (result.length() > 0) {\n                result.append(\",\");\n            }\n            result.append(scope.toString());\n        }\n        return result.toString();\n    }",
+      "contentHash": "4f352bf4a04c7fcc549bdbe8f2b8d1de762c9c8c0b8a494b5b8ec34003fff12e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 660,
+      "endLine": 672,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cf4e5be34df6f54e77186a8452105ffc9582e40fcab7bf655a07bdaeaa2e51d6"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Gets the set of languages currently supported by other operations of the Translator.\n     *\n     * @param scope A comma-separated list of names defining the group of languages to return.\n     * Allowed group names are: `translation`, `transliteration` and `models`.\n     * If no scope is given, then all groups are returned, which is equivalent to passing\n     * `scope=translation,transliteration,models`. To decide which set of supported languages\n     * is appropriate for your scenario, see the description of the [response object](#response-body).\n     * @param acceptLanguage The language to use for user interface strings. Some of the fields in the response are\n     * names of languages or\n     * names of regions. Use this parameter to define the language in which these names are returned.\n     * The language is specified by providing a well-formed BCP 47 language tag. For instance, use the value `fr`\n     * to request names in French or use the value `zh-Hant` to request names in Chinese Traditional.\n     * Names are provided in the English language when a target language is not specified or when localization\n     * is not available.\n     * @param ifNoneMatch Passing the value of the ETag response header in an If-None-Match field will allow the service\n     * to optimize the response.\n     * If the resource has not been modified, the service will return status code 304 and an empty response body.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the set of languages currently supported by other operations of the Translator.\n     */\n    private GetSupportedLanguagesResult getSupportedLanguages(String scope, String acceptLanguage, String ifNoneMatch) {\n        // Generated convenience method for getSupportedLanguagesWithResponse\n        RequestOptions requestOptions = new RequestOptions();\n        if (scope != null) {\n            requestOptions.addQueryParam(\"scope\", scope, false);\n        }\n        if (acceptLanguage != null) {\n            requestOptions.setHeader(HttpHeaderName.ACCEPT_LANGUAGE, acceptLanguage);\n        }\n        if (ifNoneMatch != null) {\n            requestOptions.setHeader(HttpHeaderName.IF_NONE_MATCH, ifNoneMatch);\n        }\n        return getSupportedLanguagesWithResponse(requestOptions).getValue().toObject(GetSupportedLanguagesResult.class);\n    }",
+      "contentHash": "d6092b2b7ae9bab925d6a902000949db366485d399a938f8adc4627e4ef8653a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 174,
+      "endLine": 213,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2705cbb683f7ff8d2e3039441926f204ce9460b632585cbb640d81469560ba78"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Gets the set of languages currently supported by other operations of the Translator.\n     *\n     * @param scopes List of names defining the group of languages to return.\n     * @param acceptLanguage The language to use for user interface strings. Some of the fields in the response are\n     * names of languages or\n     * names of regions. Use this parameter to define the language in which these names are returned.\n     * The language is specified by providing a well-formed BCP 47 language tag. For instance, use the value `fr`\n     * to request names in French or use the value `zh-Hant` to request names in Chinese Traditional.\n     * Names are provided in the English language when a target language is not specified or when localization\n     * is not available.\n     * @param ifNoneMatch Passing the value of the ETag response header in an If-None-Match field will allow the service\n     * to optimize the response.\n     * If the resource has not been modified, the service will return status code 304 and an empty response body.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the set of languages currently supported by other operations of the Translator.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public GetSupportedLanguagesResult getSupportedLanguages(List<LanguageScope> scopes, String acceptLanguage,\n        String ifNoneMatch) {\n        return getSupportedLanguages(convertToScopesString(scopes), acceptLanguage, ifNoneMatch);\n    }",
+      "contentHash": "e38f05edec3a71805f694dbe78ff4723cbe70ef2f97b51ece570cb138e1a5da0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 215,
+      "endLine": 241,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9755fb13989ac16d6d5821e0dade9dd56e4fd6e75dea1740c36e420b3624d3d4"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Transliterate Text.\n     * <p>\n     * This method is used when you have multiple texts to transliterate and you want to provide client trace id.\n     * </p>\n     *\n     * @param language Specifies the language of the text to convert from one script to another.\n     * Possible languages are listed in the transliteration scope obtained by querying the service\n     * for its supported languages.\n     * @param fromScript Specifies the script used by the input text. Look up supported languages using the\n     * transliteration scope,\n     * to find input scripts available for the selected language.\n     * @param toScript Specifies the output script. Look up supported languages using the transliteration\n     * scope, to find output\n     * scripts available for the selected combination of input language and input script.\n     * @param inputs Defines the text inputs to transliterate.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public List<TransliteratedText> transliterate(String language, String fromScript, String toScript,\n        List<String> inputs) {\n        TransliterateBody transliterateBody = new TransliterateBody(convertTextsToInputTextItems(inputs));\n        return transliterate(language, fromScript, toScript, transliterateBody).getValue();\n    }",
+      "contentHash": "f5c5dca14a8f734d34cffaffbbc76672a7997b468c017566ea582d3db3e0b396",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 381,
+      "endLine": 410,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "536dc1b3f16f64203a8f9f4ee0b18c8b0d6adc5495a1149b5638fe7685f0e1a0"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Transliterate Text.\n     * <p>\n     * This method is used when you have single text to transliterate and you want to provide client trace id.\n     * </p>\n     *\n     * @param language Specifies the language of the text to convert from one script to another.\n     * Possible languages are listed in the transliteration scope obtained by querying the service\n     * for its supported languages.\n     * @param fromScript Specifies the script used by the input text. Look up supported languages using the\n     * transliteration scope,\n     * to find input scripts available for the selected language.\n     * @param toScript Specifies the output script. Look up supported languages using the transliteration\n     * scope, to find output\n     * scripts available for the selected combination of input language and input script.\n     * @param text Defines the content of the request.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public TransliteratedText transliterate(String language, String fromScript, String toScript, String text) {\n        return transliterate(language, fromScript, toScript, Arrays.asList(text)).get(0);\n    }",
+      "contentHash": "3e7631602ae0369ea6f7c151eca5377713b118f7e8b686eaa425157b0d1c2941",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 412,
+      "endLine": 439,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "773abc856deaae77812b93703ba1a8041de91f3f00f98f166051bc471d11ed23"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Translate Text.\n     *\n     * @param inputs Defines the inputs to translate.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public List<TranslatedTextItem> translate(List<TranslateInputItem> inputs) {\n        TranslateBody translateBody = new TranslateBody(inputs);\n        TranslationResult result = translate(translateBody);\n        return result.getValue();\n    }",
+      "contentHash": "cde9639a6be3b867bf3d8124b945f6a95a7e948f01f17f3d2f96d322baa9f6e8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 593,
+      "endLine": 610,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "388cdede244ffc1cf90e3241b73fbf0548b3a927b766d752b96d594f8ddd48c4"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    /**\n     * Translate Text.\n     * <p>\n     * This method is used when you have single target language and single text to translate.\n     * </p>\n     *\n     * @param targetLanguage Specifies the language of the output text. The target language must be one of the\n     * supported languages included\n     * in the translation scope. For example, use to=de to translate to German.\n     * It's possible to translate to multiple languages simultaneously by repeating the parameter in the query string.\n     * For example, use to=de&amp;to=it to translate to German and Italian.\n     * @param text Defines the content of the request.\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     * @return the response.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public TranslatedTextItem translate(String targetLanguage, String text) {\n        TranslateInputItem translateInputItem\n            = new TranslateInputItem(text, Arrays.asList(new TranslationTarget(targetLanguage)));\n        return translate(Arrays.asList(translateInputItem)).get(0);\n    }",
+      "contentHash": "eaac7490bd8fbab8047253b077a2326c7003a944da2ef2e62b2170e684a2ab51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 612,
+      "endLine": 637,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "eedc10d1f5427d21b63f96d212260aca39fa57d76e128a3db3bcad28bcc70a06"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    private List<InputTextItem> convertTextsToInputTextItems(List<String> texts) {\n        List<InputTextItem> content = new ArrayList<>();\n        for (String text : texts) {\n            content.add(new InputTextItem(text));\n        }\n        return content;\n    }",
+      "contentHash": "b55c9da258e1f06f2040eb50d2bf3eeb09c247ed7f2a4ac74143b0d50bc1709f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 639,
+      "endLine": 645,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b07d024c124d75269d9b833ccf394ea49cf484d25a75ef5df4d91873f1d0c653"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "text": "    private String convertToScopesString(List<LanguageScope> scopes) {\n        if (scopes == null) {\n            return null;\n        }\n        StringBuilder result = new StringBuilder();\n        for (LanguageScope scope : scopes) {\n            if (result.length() > 0) {\n                result.append(\",\");\n            }\n            result.append(scope.toString());\n        }\n        return result.toString();\n    }",
+      "contentHash": "4f352bf4a04c7fcc549bdbe8f2b8d1de762c9c8c0b8a494b5b8ec34003fff12e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 647,
+      "endLine": 659,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "98455336e6fecb1e3954287542408639631e7915d5033369ab108fe6ee35991a"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "text": "    /**\n     * Sets the region used to authorize requests sent to the service.\n     *\n     * @param region where the Translator resource is created.\n     * @return The updated {@link TextTranslationClientBuilder} object.\n     * @throws NullPointerException If {@code region} is null.\n     */\n    public TextTranslationClientBuilder region(String region) {\n        Objects.requireNonNull(region, \"'region' cannot be null.\");\n        this.region = region;\n        return this;\n    }",
+      "contentHash": "6e474cd8fac54da9913c28c797ba2738b07ed69d70e8095ba1c189f2e87b8ff1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 276,
+      "endLine": 287,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "68855e13a2a29733222bdad9d1a83d9e43bf6d9a5f3f33f37b4fdf925c8f94b5"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "text": "    /**\n     * Sets the Azure Resource Id used to authorize requests sent to the service.\n     *\n     * @param resourceId Id of the Translator Resource.\n     * @return The updated {@link TextTranslationClientBuilder} object.\n     * @throws NullPointerException If {@code resourceId} is null.\n     */\n    public TextTranslationClientBuilder resourceId(String resourceId) {\n        Objects.requireNonNull(resourceId, \"'resourceId' cannot be null.\");\n        this.resourceId = resourceId;\n        return this;\n    }",
+      "contentHash": "9b9ba3f97fbc49350544c02bb812d9b409dbaccdd07259678be09de10f044a20",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 289,
+      "endLine": 300,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "50ffbf738c51054d3fc7e45514deb9f240f31d41049d7c5460b9c75a96bdd1ea"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "text": "    /**\n     * Sets the Authentication audience used to authorize requests sent to the service.\n     *\n     * @param audience Token Audience.\n     * @return The updated {@link TextTranslationClientBuilder} object.\n     * @throws NullPointerException If {@code audience} is null.\n     */\n    public TextTranslationClientBuilder audience(TextTranslationAudience audience) {\n        Objects.requireNonNull(audience, \"'audience' cannot be null.\");\n        this.audience = audience;\n        return this;\n    }",
+      "contentHash": "64048d17db162509e18f4079ad1d2142d2e1a96de99eeafa977e4559918f0b6b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 302,
+      "endLine": 313,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "106d67e17a942dcbb75b55a02223c8d4304af9fa70a3ddfab7d5b321f60bc0c1"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "text": "    /**\n     * Builds an instance of TextTranslationClientImpl with the provided parameters.\n     *\n     * @return an instance of TextTranslationClientImpl.\n     */\n    private TextTranslationClientImpl buildInnerClient() {\n        HttpPipeline localPipeline = (pipeline != null) ? pipeline : createHttpPipeline();\n        TextTranslationServiceVersion localServiceVersion\n            = (serviceVersion != null) ? serviceVersion : TextTranslationServiceVersion.getLatest();\n        String serviceEndpoint;\n        if (this.endpoint == null) {\n            serviceEndpoint = \"https://api.cognitive.microsofttranslator.com\";\n        } else if (CustomEndpointUtils.isPlatformHost(endpoint)) {\n            try {\n                URL hostUri = new URL(endpoint);\n                URL fullUri = new URL(hostUri, \"/translator/text\");\n                serviceEndpoint = fullUri.toString();\n            } catch (MalformedURLException ex) {\n                serviceEndpoint = endpoint;\n            }\n        } else {\n            serviceEndpoint = this.endpoint;\n        }\n        if (tokenCredential != null && (this.region != null || this.resourceId != null)) {\n            Objects.requireNonNull(this.region, \"'region' cannot be null.\");\n            Objects.requireNonNull(this.resourceId, \"'resourceId' cannot be null.\");\n        }\n        if (this.keyCredential != null && !CoreUtils.isNullOrEmpty(this.resourceId)) {\n            throw LOGGER.logExceptionAsError(\n                new IllegalStateException(\"Resource Id cannot be used with key credential. Set resourceId to null.\"));\n        }\n        if (tokenCredential != null && this.keyCredential != null) {\n            throw LOGGER.logExceptionAsError(\n                new IllegalStateException(\"Both token credential and key credential cannot be set.\"));\n        }\n        TextTranslationClientImpl client = new TextTranslationClientImpl(localPipeline,\n            JacksonAdapter.createDefaultSerializerAdapter(), serviceEndpoint, localServiceVersion);\n        return client;\n    }",
+      "contentHash": "785aecac4313d5fa0ec3964009a02a721c973956d7760a89946225cfe6c86ebd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 325,
+      "endLine": 363,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cdf17b9bf56fc8f74ce9e6e8a25ce8473f121be78774a09fbf5811fce1c192da"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "text": "    private HttpPipeline createHttpPipeline() {\n        Configuration buildConfiguration\n            = (configuration == null) ? Configuration.getGlobalConfiguration() : configuration;\n        HttpLogOptions localHttpLogOptions = this.httpLogOptions == null ? new HttpLogOptions() : this.httpLogOptions;\n        ClientOptions localClientOptions = this.clientOptions == null ? new ClientOptions() : this.clientOptions;\n        List<HttpPipelinePolicy> policies = new ArrayList<>();\n        String clientName = PROPERTIES.getOrDefault(SDK_NAME, \"UnknownName\");\n        String clientVersion = PROPERTIES.getOrDefault(SDK_VERSION, \"UnknownVersion\");\n        String applicationId = CoreUtils.getApplicationId(localClientOptions, localHttpLogOptions);\n        policies.add(new UserAgentPolicy(applicationId, clientName, clientVersion, buildConfiguration));\n        policies.add(new RequestIdPolicy());\n        policies.add(new AddHeadersFromContextPolicy());\n        HttpHeaders headers = new HttpHeaders();\n        localClientOptions.getHeaders()\n            .forEach(header -> headers.set(HttpHeaderName.fromString(header.getName()), header.getValue()));\n        if (headers.getSize() > 0) {\n            policies.add(new AddHeadersPolicy(headers));\n        }\n        this.pipelinePolicies.stream()\n            .filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_CALL)\n            .forEach(p -> policies.add(p));\n        HttpPolicyProviders.addBeforeRetryPolicies(policies);\n        policies.add(ClientBuilderUtil.validateAndGetRetryPolicy(retryPolicy, retryOptions, new RetryPolicy()));\n        policies.add(new AddDatePolicy());\n        if (tokenCredential != null) {\n            TextTranslationAudience authAudience = TextTranslationAudience.AZURE_PUBLIC_CLOUD;\n            if (this.audience != null) {\n                authAudience = this.audience;\n            }\n            policies.add(new BearerTokenAuthenticationPolicy(tokenCredential, authAudience + DEFAULT_SCOPE));\n            if (this.region != null || this.resourceId != null) {\n                HttpHeaders aadHeaders = new HttpHeaders();\n                aadHeaders.put(OCP_APIM_RESOURCE_ID_KEY, this.resourceId);\n                aadHeaders.put(OCP_APIM_SUBSCRIPTION_REGION, this.region);\n                policies.add(new AddHeadersPolicy(aadHeaders));\n            }\n        }\n        if (this.keyCredential != null) {\n            policies.add(new KeyCredentialPolicy(OCP_APIM_SUBSCRIPTION_KEY, keyCredential));\n            if (this.region != null) {\n                HttpHeaders regionHeaders = new HttpHeaders();\n                regionHeaders.put(OCP_APIM_SUBSCRIPTION_REGION, this.region);\n                policies.add(new AddHeadersPolicy(regionHeaders));\n            }\n        }\n        this.pipelinePolicies.stream()\n            .filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_RETRY)\n            .forEach(p -> policies.add(p));\n        HttpPolicyProviders.addAfterRetryPolicies(policies);\n        policies.add(new HttpLoggingPolicy(localHttpLogOptions));\n        HttpPipeline httpPipeline = new HttpPipelineBuilder().policies(policies.toArray(new HttpPipelinePolicy[0]))\n            .httpClient(httpClient)\n            .clientOptions(localClientOptions)\n            .build();\n        return httpPipeline;\n    }",
+      "contentHash": "08ea0e421d4999b7964f8cefa13288b382a1cb45e327a0d56b97de8a023167e1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 365,
+      "endLine": 420,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3d58c5374b864bb12d5aae272155bff1b96335163b47e8b79683a874df1aeaf1"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/models/TextTranslationAudience.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.ai.translation.text.models;\n\nimport com.azure.core.annotation.Immutable;\nimport com.azure.core.util.ExpandableStringEnum;\n\nimport java.util.Collection;\n\n/** Defines values for TextTranslationAudience. */\n@Immutable\npublic final class TextTranslationAudience extends ExpandableStringEnum<TextTranslationAudience> {\n\n    /**\n     * Constructs a TextTranslationAudience object.\n     * @deprecated Use the {@link #fromString(String)} factory method.\n     */\n    @Deprecated\n    public TextTranslationAudience() {\n    }\n\n    /** Static value AZURE_RESOURCE_MANAGER_CHINA for TextTranslationAudience. */\n    public static final TextTranslationAudience AZURE_CHINA = fromString(\"https://cognitiveservices.azure.cn\");\n\n    /** Static value AZURE_RESOURCE_MANAGER_GOVERNMENT for TextTranslationAudience. */\n    public static final TextTranslationAudience AZURE_GOVERNMENT = fromString(\"https://cognitiveservices.azure.us\");\n\n    /** Static value AZURE_RESOURCE_MANAGER_PUBLIC_CLOUD for TextTranslationAudience. */\n    public static final TextTranslationAudience AZURE_PUBLIC_CLOUD = fromString(\"https://cognitiveservices.azure.com\");\n\n    /**\n     * Creates or finds a TextTranslationAudience from its string representation.\n     *\n     * @param name a name to look for.\n     * @return the corresponding TextTranslationAudience.\n     */\n    public static TextTranslationAudience fromString(String name) {\n        return fromString(name, TextTranslationAudience.class);\n    }\n\n    /**\n     * Returns known TextTranslationAudience values.\n     * @return known TextTranslationAudience values.\n     */\n    public static Collection<TextTranslationAudience> values() {\n        return values(TextTranslationAudience.class);\n    }\n}\n",
+      "contentHash": "4cfc796ed37c0b87a16c3f347cab01ca91a7f1d0e18e2653c602a088cd95707b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/models/TextTranslationAudience.java",
+      "startLine": 1,
+      "endLine": 49,
+      "kind": "unknown",
+      "id": "de44b63cfea0c65fa742b77a5e646f9d267407a81b9af71be56c8566b65858b5"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/translation/azure-ai-translation-text/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <name>Microsoft Azure client library for Text Translation</name>\n  <description>This package contains Microsoft Azure Text Translation client library.</description>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-ai-translation-text-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "326af49998027565aac022cd93cd6c04d07fd5af5d0ddd7ee1d0f2ac1f503d55",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/customization/pom.xml"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/pom.xml",
+      "text": "<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-ai-translation-text</artifactId>\n  <version>2.1.0-beta.1</version> <!-- {x-version-update;com.azure:azure-ai-translation-text;current} -->\n\n  <name>Microsoft Azure client library for Text Translation</name>\n  <description>This package contains Microsoft Azure Text Translation client library.</description>\n\n  <distributionManagement>\n    <site>\n      <id>azure-java-build-docs</id>\n      <url>${site.url}/site/${project.artifactId}</url>\n    </site>\n  </distributionManagement>\n\n  <scm>\n    <url>scm:git:https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <tag>HEAD</tag>\n  </scm>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <properties>\n    <javaModulesSurefireArgLine>\n      --add-exports com.azure.core/com.azure.core.implementation.jackson=ALL-UNNAMED\n    </javaModulesSurefireArgLine>\n\n    <spotbugs.skip>false</spotbugs.skip>\n  </properties>\n\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n\n    <!-- Test dependencies -->\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "1bfe87ae8ffced46b4d8a80cd51652a8b057a1f2b5ef400b39f3f115b7f11bca",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/pom.xml"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/README.md",
+      "text": "# Azure Text Translation client library for Java\n\nAzure text translation is a cloud-based REST API provided by the Azure Translator service. It utilizes neural machine translation technology to deliver precise, contextually relevant, and semantically accurate real-time text translations across all supported languages.\n\nUse the Text Translation client library for Java to:\n\n- Retrieve the list of languages supported for translation and transliteration operations, as well as LLM models available for translations.\n\n- Perform deterministic text translation from a specified source language to a target language, with configurable parameters to ensure precision and maintain contextual integrity.\n\n- Execute transliteration by converting text from the original script to an alternative script representation.\n\n- Use LLM models to produce translation output variants that are tone-specific and gender-aware.\n\n## Documentation\n\nVarious documentation is available to help you get started\n\n- [API reference documentation][docs]\n- [Product documentation][product_documentation]\n\n## Getting started\n\n### Prerequisites\n\n- [Java Development Kit (JDK)][jdk] with version 8 or above\n- [Azure Subscription][azure_subscription]\n- An existing Translator service or Cognitive Services resource.\n\n### Adding the package to your product\n\n[//]: # ({x-version-update-start;com.azure:azure-ai-translation-text;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-ai-translation-text</artifactId>\n    <version>2.0.0-beta.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### Authentication\n\nInteraction with the service using the client library begins with creating an instance of the [TextTranslationClient][translator_client_class] class. You will need an **API key** or ``TokenCredential`` to instantiate a client object. For more information regarding authenticating with cognitive services, see [Authenticate requests to Translator Service][translator_auth].\n\n#### Get an API key\n\nYou can get the `endpoint`, `API key` and `Region` from the Cognitive Services resource or Translator service resource information in the [Azure Portal][azure_portal].\n\nAlternatively, use the [Azure CLI][azure_cli] snippet below to get the API key from the Translator service resource.\n\n```PowerShell\naz cognitiveservices account keys list --resource-group <your-resource-group-name> --name <your-resource-name>\n```\n\n#### Create a `TextTranslationClient` using an API key and Region credential\n\nOnce you have the value for the API key and Region, create an `AzureKeyCredential`. This will allow you to\nupdate the API key without creating a new client.\n\nWith the value of the endpoint, `AzureKeyCredential` and a `Region`, you can create the [TextTranslationClient][translator_client_class]:\n\n```java createTextTranslationRestClient\nString apiKey = System.getenv(\"TEXT_TRANSLATOR_API_KEY\");\nString region = System.getenv(\"TEXT_TRANSLATOR_API_REGION\");\nAzureKeyCredential credential = new AzureKeyCredential(apiKey);\n\nTextTranslationClient client = new TextTranslationClientBuilder()\n        .credential(credential)\n        .region(region)\n        .endpoint(\"https://api.cognitive.microsofttranslator.com\")\n        .buildClient();\n```\n\n## Key concepts\n\n### `TextTranslationClient` and `TextTranslationAsyncClient`\n\nA `TextTranslationClient` is the primary interface for developers using the Text Translator client library. It provides both synchronous operations to access a specific use of text translator, such as get supported languages detection or text translation.\n\nFor asynchronous operations use `TextTranslationAsyncClient`.\n\n### Input\n\nA **TranslateInputItem** is a single unit of input to be processed by the translation models in the Translator service. Each `TranslateInputItem` defines both the input string to translate and the output specifications for the translation.\nFor text element length limits, maximum requests size, and supported text encoding see [here][translator_limits].\n\n## Examples\n\nThe following section provides several code snippets using the `client` [created above](#create-a-texttranslationclient-using-an-api-key-and-region-credential), and covers the main features present in this client library. Although most of the snippets below make use of asynchronous service calls, keep in mind that the `Azure.AI.Translation.Text` package supports both synchronous and asynchronous APIs.\n\n### Get Supported Languages\n\nGets the set of languages currently supported by other operations of the Translator.\n\n```java getTextTranslationLanguages\nGetSupportedLanguagesResult languages = client.getSupportedLanguages();\n\nSystem.out.println(\"Number of supported languages for translate operation: \" + languages.getTranslation().size() + \".\");\nSystem.out.println(\"Number of supported languages for transliterate operation: \" + languages.getTransliteration().size() + \".\");\nSystem.out.println(\"Number of supported models for translate operation: \" + languages.getModels().size() + \".\");\n\nSystem.out.println(\"Translation Languages:\");\nfor (Map.Entry<String, TranslationLanguage> translationLanguage : languages.getTranslation().entrySet()) {\n    System.out.println(translationLanguage.getKey() + \" -- name: \" + translationLanguage.getValue().getName() + \" (\" + translationLanguage.getValue().getNativeName() + \")\");\n}\n\nSystem.out.println(\"Transliteration Languages:\");\nfor (Map.Entry<String, TransliterationLanguage> transliterationLanguage : languages.getTransliteration().entrySet()) {\n    System.out.println(transliterationLanguage.getKey() + \" -- name: \" + transliterationLanguage.getValue().getName() + \", supported script count: \" + transliterationLanguage.getValue().getScripts().size());\n}\n\nSystem.out.println(\"Available models:\");\nfor (String model : languages.getModels()) {\n    System.out.println(model);\n}\n```\n\nPlease refer to the service documentation for a conceptual discussion of [languages][languages_doc].\n\n### Translate\n\nRenders single source-language text to multiple target-language texts with a single request.\n\n```java getTextTranslationMultiple\nTranslateInputItem input = new TranslateInputItem(\n    \"This is a test.\", \n    Arrays.asList(new TranslationTarget(\"es\"), new TranslationTarget(\"fr\")));\ninput.setLanguage(\"en\");\n\nTranslatedTextItem translation = client.translate(Arrays.asList(input)).get(0);\n\nfor (TranslationText textTranslation : translation.getTranslations()) {\n    System.out.println(\"Text was translated to: '\" + textTranslation.getLanguage() + \"' and the result is: '\" + textTranslation.getText() + \"'.\");\n}\n```\n\nPlease refer to the service documentation for a conceptual discussion of [translate][translate_doc].\n\n### Transliterate\n\nConverts characters or letters of a source language to the corresponding characters or letters of a target language.\n\n```java getTextTranslationTransliterate\nString language = \"zh-Hans\";\nString fromScript = \"Hans\";\nString toScript = \"Latn\";\nString content = \"这是个测试。\";\n\nTransliteratedText transliteration = client.transliterate(language, fromScript, toScript, content);\n\nSystem.out.println(\"Input text was transliterated to '\" + transliteration.getScript() + \"' script. Transliterated text: '\" + transliteration.getText() + \"'.\");\n```\n\nPlease refer to the service documentation for a conceptual discussion of [transliterate][transliterate_doc].\n\n\n## Troubleshooting\n\nWhen you interact with the Translator Service using the TextTranslator client library, errors returned by the Translator service correspond to the same HTTP status codes returned for REST API requests.\n\nFor example, if you submit a translation request without a target translate language, a `400` error is returned, indicating \"Bad Request\".\n\n## Next steps\n\nSamples showing how to use this client library are available in this GitHub repository.\nSamples are provided for each main functional area, and for each area, samples are provided in both sync and async mode.\n\n* [Translation][sample_translate]\n* [Translation with Language Detection][sample_translatedetection]\n* [Handling Profanities in Translation][sample_translateprofanity]\n* [Translation to multiple languages][sample_translatetargets]\n* [Translation of multiple sources][sample_translatesources]\n* [Translation and Transliteration][sample_translatetransliteration]\n* [Translation using LLM][sample_translatelargelanguagemodel]\n* [Using Custom Translation Model][sample_translatecustom]\n* [Translation with NoTranslate tag][sample_translatenotranslate]\n* [Handling translation of HTML text][sample_translatetexttypes]\n* [Transliteration][sample_transliterate]\n* [Get Languages][sample_getlanguages]\n* [Get Localized Languages][sample_getlanguagesaccept]\n* [Get Scoped Languages][sample_getlanguagesscope]\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide](https://github.com/Azure/azure-sdk-for-java/blob/main/CONTRIBUTING.md).\n\n1. Fork it\n1. Create your feature branch (`git checkout -b my-new-feature`)\n1. Commit your changes (`git commit -am 'Add some feature'`)\n1. Push to the branch (`git push origin my-new-feature`)\n1. Create new Pull Request\n\n<!-- LINKS -->\n[product_documentation]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/overview\n[docs]: https://azure.github.io/azure-sdk-for-java/\n[jdk]: https://learn.microsoft.com/java/azure/jdk/\n[azure_subscription]: https://azure.microsoft.com/free/\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity\n\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_portal]: https://portal.azure.com\n\n[translator_auth]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication\n[translator_limits]: https://learn.microsoft.com/azure/cognitive-services/translator/request-limits\n\n[languages_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/get-languages\n[translate_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/translate-api\n[transliterate_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/transliterate-api\n\n[sample_getlanguages]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/GetLanguages.java\n[sample_getlanguagesaccept]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/GetLanguagesAcceptLanguage.java\n[sample_getlanguagesscope]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/GetLanguagesScope.java\n[sample_translate]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/Translate.java\n[sample_translatelargelanguagemodel]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateLlm.java\n[sample_translatecustom]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateCustom.java\n[sample_translatedetection]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateDetection.java\n[sample_translatesources]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateMultipleSources.java\n[sample_translatetargets]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateMultipleTargets.java\n[sample_translatenotranslate]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateNoTranslate.java\n[sample_translateprofanity]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateProfanity.java\n[sample_translatetexttypes]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateTextType.java\n[sample_translatetransliteration]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/TranslateWithTransliteration.java\n[sample_transliterate]: https://github.com/azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/samples/java/com/azure/ai/translation/text/Transliterate.java\n\n[translator_client_class]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java\n",
+      "contentHash": "26d4a3dd333260c3e8460b7a3b2a0ffa3ed5065defd7cbc4a5f9c248a02f3bea",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/README.md"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/tsp-location.yaml",
+      "text": "directory: specification/translation/data-plane/TextTranslation\ncommit: a505764f4d50bc126aea9f85696282707211028b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "3bd6684cb8ef264ea7673f655e20450c6bc1eef484c65999aa4c0819dddca237",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/translation/azure-ai-translation-text/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "73cc12f3c9bcd887e2f23d7344b79e973336ec7f96dd7247aa4c4baf779e1049",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "41a09bd1c6fc896feacceb540da2d9e7b63f1f8ff444bd22eb6dc2116052121f",
+        "category": "Auth",
+        "subtype": "Add missing key-credential and token-credential builder traits",
+        "explanation": "The customization script imports KeyCredentialTrait and TokenCredentialTrait and conditionally adds their TextTranslationClientBuilder specializations when the implemented-type names are absent. This measures interface exposure, not a handwritten implementation of the captured builder's authentication pipeline.",
+        "pattern": "builder-credential-traits",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "TextTranslationCustomization explicitly extends Customization and performs the conditional addImplementedType AST edits on the named builder.",
+        "symbols": [
+          "TextTranslationClientBuilder"
+        ],
+        "evidence": [
+          {
+            "id": "dce29f03d8ff713eec28151b210f5505b21623814d647f95b654ba6bd8c8694b",
+            "startLine": 10,
+            "endLine": 37
+          }
+        ]
+      },
+      {
+        "key": "b9d9af795c1ab88240c5731af466a98a8e18feda7b7906d761894bd3efea3142",
+        "category": "Other",
+        "subtype": "Curate the generated service-version enum by removing V3_0",
+        "explanation": "The script selects TextTranslationServiceVersion, finds an enum entry named V3_0 and removes it if present. No enum output is supplied to verify the final supported-value set or whether the edit matched.",
+        "pattern": "api-version-validation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete AST removal is requested by the handwritten Customization subclass, rather than inferred from a generated enum or version metadata.",
+        "symbols": [
+          "TextTranslationServiceVersion"
+        ],
+        "evidence": [
+          {
+            "id": "dce29f03d8ff713eec28151b210f5505b21623814d647f95b654ba6bd8c8694b",
+            "startLine": 40,
+            "endLine": 50
+          }
+        ]
+      },
+      {
+        "key": "d3011d7937b30056b515be78f22071bc1c550865330b54aa122ea029c7354a4b",
+        "category": "Other",
+        "subtype": "Expose translation and transliteration protocol overloads publicly",
+        "explanation": "The script requests public visibility for every translateWithResponse and transliterateWithResponse method in both TextTranslationClient and TextTranslationAsyncClient. This coordinated API-visibility edit does not establish the bodies or successful final visibility of those uncaptured protocol overloads.",
+        "pattern": "public-protocol-methods",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The supplied customization script explicitly looks up both target clients and invokes setPublic(true) on the two named method groups.",
+        "symbols": [
+          "TextTranslationClient.translateWithResponse",
+          "TextTranslationClient.transliterateWithResponse",
+          "TextTranslationAsyncClient.translateWithResponse",
+          "TextTranslationAsyncClient.transliterateWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "dce29f03d8ff713eec28151b210f5505b21623814d647f95b654ba6bd8c8694b",
+            "startLine": 52,
+            "endLine": 62
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "41a09bd1c6fc896feacceb540da2d9e7b63f1f8ff444bd22eb6dc2116052121f",
+        "status": "inconclusive",
+        "reason": "The handwritten Customization subclass explicitly requests conditional additions of two credential-trait interfaces at lines 15-37, and the proposed pattern describes the reusable edit. However, the builder class declaration and implemented-interface list are not supplied; either trait could already be present, leaving no effective change. The builder excerpts show methods but not the cited class declaration, so the requested AST edit cannot be confirmed as an actual customization of the output. It also does not establish a handwritten authentication pipeline."
+      },
+      {
+        "key": "b9d9af795c1ab88240c5731af466a98a8e18feda7b7906d761894bd3efea3142",
+        "status": "inconclusive",
+        "reason": "Lines 41-50 prove a handwritten conditional request to remove V3_0, but no supplied TextTranslationServiceVersion declaration or entries establish that V3_0 existed or that removal occurred. The proposed symbol is a target name, not a cited enum declaration. The pattern covers version curation, but an effective customization cannot be confirmed from these excerpts."
+      },
+      {
+        "key": "d3011d7937b30056b515be78f22071bc1c550865330b54aa122ea029c7354a4b",
+        "status": "inconclusive",
+        "reason": "Lines 53-62 prove that the handwritten script looks up four named method groups and requests public visibility, but none of their declarations, prior modifiers, or resulting signatures are supplied. The names could match no methods or already-public methods; the captured convenience overloads are different symbols. The proposed finding carefully limits itself to the requested edit, but the actual affected methods and changed public API remain unverified."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "e99a3d41a47a4af181847dcd3672b8a1b6f5e1f83032f108c5dd1478f2e1d17c",
+        "category": "Auth",
+        "subtype": "Configurable bearer-token audience",
+        "explanation": "The builder exposes an audience setter, and its pipeline uses the configured audience or a public-cloud default when constructing a bearer-token policy. This is a candidate only; the supplied excerpts do not establish that these builder members were handwritten.",
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The audience setter and its corresponding pipeline branch have no @Generated annotation in the captured excerpts, but neighboring generated-member annotations and provenance for the builder are not supplied; handwritten status is unresolved.",
+        "symbols": [
+          "TextTranslationClientBuilder.audience"
+        ],
+        "evidence": [
+          {
+            "id": "106d67e17a942dcbb75b55a02223c8d4304af9fa70a3ddfab7d5b321f60bc0c1",
+            "startLine": 302,
+            "endLine": 313
+          },
+          {
+            "id": "3d58c5374b864bb12d5aae272155bff1b96335163b47e8b79683a874df1aeaf1",
+            "startLine": 389,
+            "endLine": 394
+          }
+        ]
+      },
+      {
+        "key": "c23a571da3242fcc26d82edbca7bc90a96c4e56a447ebbc5f4de6372a0668edf",
+        "category": "Auth",
+        "subtype": "Credential-dependent resource and region auth headers",
+        "explanation": "The builder assembles different auth policies and supplemental resource-ID or region headers depending on whether a token or key credential is set. The evidence shows the behavior, but not that the pipeline method was handwritten.",
+        "pattern": "custom-auth-header-policy",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The unannotated createHttpPipeline method contains explicit credential-dependent header assembly; absent neighboring @Generated members or generation provenance, its authoring status cannot be determined.",
+        "symbols": [
+          "TextTranslationClientBuilder.createHttpPipeline"
+        ],
+        "evidence": [
+          {
+            "id": "3d58c5374b864bb12d5aae272155bff1b96335163b47e8b79683a874df1aeaf1",
+            "startLine": 365,
+            "endLine": 408
+          }
+        ]
+      },
+      {
+        "key": "2cac48847883c44287a50b829b585ee8574892597c2a114779ac47249b48b8e8",
+        "category": "Other",
+        "subtype": "Normalize platform endpoints to a service route",
+        "explanation": "When the supplied endpoint is a platform host, the builder appends /translator/text before constructing its inner client; other endpoints are used as given. The excerpt alone cannot establish whether this logic is handwritten.",
+        "pattern": "platform-endpoint-route-normalization",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The buildInnerClient method contains explicit endpoint branching without an @Generated annotation in the excerpt, but its provenance and annotated neighboring members are unavailable; this is an uncounted candidate.",
+        "symbols": [
+          "TextTranslationClientBuilder.buildInnerClient"
+        ],
+        "evidence": [
+          {
+            "id": "cdf17b9bf56fc8f74ce9e6e8a25ce8473f121be78774a09fbf5811fce1c192da",
+            "startLine": 325,
+            "endLine": 363
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Coverage is partial. The request contains 23 evidence items across five distinct paths, while eligibleFiles is 37; several capturedFiles entries are fragments of the same Java file, not 23 independently covered files.",
+      "The 22 concrete client/builder/audience excerpts have unknown provenance and no adjacent @Generated comparison. The complete supplied customization script does not add or rewrite the captured convenience overloads, text/scope conversion helpers, endpoint transformation, region/resource/audience setters, pipeline construction or expandable audience class. Those behaviors are not independently asserted handwritten.",
+      "The two private supported-languages helpers contain Generated convenience method comments. Neither that text nor a missing annotation in a narrow fragment proves the surrounding public overloads handwritten; a generated baseline or explicit edit is unavailable.",
+      "The visibility script refers to translateWithResponse and transliterateWithResponse, whereas the captured translate/transliterate convenience methods are different symbols. Their bodies, including single-item extraction and async null handling, do not demonstrate an additional script customization.",
+      "No customization execution, resulting enum/builder declaration, protocol-method declaration, compile result, authentication-policy implementation or runtime service behavior was supplied. Conditional edits are measured as scripted intent, not proven successful output.",
+      "The target retains moduleMajor 1, but the captured package pom is 2.1.0-beta.1, README is 2.0.0-beta.1 and latestRelease metadata is 2.0.4. These observations do not establish that the pinned source equals a published artifact or authorize changing its identity.",
+      "Coverage is partial: 23 captured excerpts from 37 eligible files among 71 discovered files; neither omitted files nor unshown portions of captured files support an absence claim.",
+      "Only the customization script is classified as a handwritten marker. All client, builder, and audience excerpts have unknown provenance; no neighboring @Generated comparisons or generated-output diff establish which inline behaviors were handwritten.",
+      "The builder class declaration and implemented-interface list, service-version enum declaration/entries, and translateWithResponse/transliterateWithResponse declarations and prior modifiers are not supplied. Script targets and conditional AST edits must not be mistaken for verified final API changes.",
+      "The private getSupportedLanguages convenience method is explicitly labeled generated in both sync and async excerpts; other captured convenience methods and the audience model lack affirmative handwritten provenance, so they are not counted as customizations.",
+      "The supplied README and POM versions differ and do not independently verify the code-generation output or the conditional edits. Human overrides remain authoritative; an accepted decision is AI-reviewed, not verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/translation/azure-ai-translation-text/customization/src/main/java/TextTranslationCustomization.java",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "Java customization script",
+      "contentHash": "4b83a97b3ffd5fb2ec2c4b8ab82f362ad8aa9b7e6cc14b431e947ff0cf0408d5"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationAsyncClient.java",
+      "startLine": 205,
+      "endLine": 660,
+      "provenance": "Java members without @Generated: getSupportedLanguages, transliterate, translate, convertTextsToInputTextItems, convertToScopesString",
+      "contentHash": "a1338f131a30cb8c45eff7d25348e7b5372780a6aa5a5a19e9137a7f85fd60a5"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClient.java",
+      "startLine": 200,
+      "endLine": 647,
+      "provenance": "Java members without @Generated: getSupportedLanguages, transliterate, translate, convertTextsToInputTextItems, convertToScopesString",
+      "contentHash": "5b48d3280d40d612c0e23d703d347f3c10433a5394af20719483cd0a3228ef5d"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/TextTranslationClientBuilder.java",
+      "startLine": 283,
+      "endLine": 365,
+      "provenance": "Java members without @Generated: region, resourceId, audience, buildInnerClient, createHttpPipeline",
+      "contentHash": "3e0bad7b79cb7f5eb5156b9d70a1352e9f820ce9aafe4749530127bb3d67c877"
+    },
+    {
+      "path": "sdk/translation/azure-ai-translation-text/src/main/java/com/azure/ai/translation/text/models/TextTranslationAudience.java",
+      "startLine": 1,
+      "endLine": 49,
+      "provenance": "Java handwritten source",
+      "contentHash": "4cfc796ed37c0b87a16c3f347cab01ca91a7f1d0e18e2653c602a088cd95707b"
+    }
+  ]
+}

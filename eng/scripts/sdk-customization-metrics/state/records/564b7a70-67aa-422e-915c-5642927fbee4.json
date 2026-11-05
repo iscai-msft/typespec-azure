@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "id": "564b7a70-67aa-422e-915c-5642927fbee4",
+  "observedAt": "2026-10-26T15:12:18.457Z",
+  "identity": "javascript:@azure/arm-devopsinfrastructure:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/arm-devopsinfrastructure",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/devopsinfrastructure/arm-devopsinfrastructure"
+  },
+  "commit": "ba775712561672cf55288d6f16084939a5f46c5f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "89a4be4cdafdc9653a2d14df44f5d66d44f8a41b"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 89,
+    "eligibleFiles": 39,
+    "capturedFiles": 19,
+    "skipped": [
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/logger.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/models/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/restorePollerHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/static-helpers/pagingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/static-helpers/pollingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/devOpsInfrastructureContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownVersions } from \"../models/models.js\";\nimport { Client, ClientOptions, getClient } from \"@azure-rest/core-client\";\nimport { TokenCredential } from \"@azure/core-auth\";\n\nexport interface DevOpsInfrastructureContext extends Client {}\n\n/** Optional parameters for the client. */\nexport interface DevOpsInfrastructureClientOptionalParams extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n}\n\nexport function createDevOpsInfrastructure(\n  credential: TokenCredential,\n  options: DevOpsInfrastructureClientOptionalParams = {},\n): DevOpsInfrastructureContext {\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? `https://management.azure.com`;\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-arm-devopsinfrastructure/1.0.1`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [`${endpointUrl}/.default`],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  const apiVersion = options.apiVersion ?? \"2024-10-19\";\n  clientContext.pipeline.addPolicy({\n    name: \"ClientApiVersionPolicy\",\n    sendRequest: (req, next) => {\n      // Use the apiVersion defined in request url directly\n      // Append one if there is no apiVersion and we have one at client options\n      const url = new URL(req.url);\n      if (!url.searchParams.get(\"api-version\")) {\n        req.url = `${req.url}${\n          Array.from(url.searchParams.keys()).length > 0 ? \"&\" : \"?\"\n        }api-version=${apiVersion}`;\n      }\n\n      return next(req);\n    },\n  });\n  return clientContext;\n}\n",
+      "contentHash": "25c2e525ba10940087681f80eb84f32d493427347ef1584052919b7cd11ae41f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/devOpsInfrastructureContext.ts",
+      "startLine": 1,
+      "endLine": 55,
+      "kind": "unknown",
+      "id": "0ffed1714342dfa15172d964a60f746ce7214e55382580ec3871c26d62e6c683"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/imageVersions/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  DevOpsInfrastructureContext as Client,\n  ImageVersionsListByImageOptionalParams,\n} from \"../index.js\";\nimport {\n  _ImageVersionListResult,\n  _imageVersionListResultDeserializer,\n  ImageVersion,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _imageVersionsListByImageSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  imageName: string,\n  options: ImageVersionsListByImageOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/images/{imageName}/versions\",\n      subscriptionId,\n      resourceGroupName,\n      imageName,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _imageVersionsListByImageDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_ImageVersionListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _imageVersionListResultDeserializer(result.body);\n}\n\n/** List ImageVersion resources by Image */\nexport function imageVersionsListByImage(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  imageName: string,\n  options: ImageVersionsListByImageOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<ImageVersion> {\n  return buildPagedAsyncIterator(\n    context,\n    () =>\n      _imageVersionsListByImageSend(context, subscriptionId, resourceGroupName, imageName, options),\n    _imageVersionsListByImageDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "547b1299c02aa023c1621db9e89d11fd3df8e513df7a349013b24a23934f51e0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/imageVersions/index.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "f16f97b5395438677c57543001f9886c24bb231ead7b2782e0d40355ba72c4c3"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  createDevOpsInfrastructure,\n  type DevOpsInfrastructureContext,\n  type DevOpsInfrastructureClientOptionalParams,\n} from \"./devOpsInfrastructureContext.js\";\nexport {\n  type OperationsListOptionalParams,\n  type PoolsGetOptionalParams,\n  type PoolsCreateOrUpdateOptionalParams,\n  type PoolsUpdateOptionalParams,\n  type PoolsDeleteOptionalParams,\n  type PoolsListByResourceGroupOptionalParams,\n  type PoolsListBySubscriptionOptionalParams,\n  type ResourceDetailsListByPoolOptionalParams,\n  type SkuListByLocationOptionalParams,\n  type SubscriptionUsagesUsagesOptionalParams,\n  type ImageVersionsListByImageOptionalParams,\n} from \"./options.js\";\nexport { imageVersionsListByImage } from \"./imageVersions/index.js\";\nexport { operationsList } from \"./operations/index.js\";\nexport {\n  poolsGet,\n  poolsCreateOrUpdate,\n  poolsUpdate,\n  poolsDelete,\n  poolsListByResourceGroup,\n  poolsListBySubscription,\n} from \"./pools/index.js\";\nexport { resourceDetailsListByPool } from \"./resourceDetails/index.js\";\nexport { skuListByLocation } from \"./sku/index.js\";\nexport { subscriptionUsagesUsages } from \"./subscriptionUsages/index.js\";\n",
+      "contentHash": "ffe56e90896ff014f08042b43a4a5f977c8391bf225f24b27ec1a733be6f56e2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 34,
+      "kind": "unknown",
+      "id": "d99eed452ac0af88c50951ce7521e4482e0de922dfe22a82a8afd70ed6d242ba"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/operations/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext as Client, OperationsListOptionalParams } from \"../index.js\";\nimport {\n  _OperationListResult,\n  _operationListResultDeserializer,\n  Operation,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _operationsListSend(\n  context: Client,\n  options: OperationsListOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\"/providers/Microsoft.DevOpsInfrastructure/operations\")\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _operationsListDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_OperationListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _operationListResultDeserializer(result.body);\n}\n\n/** List the operations for the provider */\nexport function operationsList(\n  context: Client,\n  options: OperationsListOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Operation> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _operationsListSend(context, options),\n    _operationsListDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "e5bcb9149333f5d9d61e01c43fb47967b9dde985d27d658e3e806216c0400558",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/operations/index.ts",
+      "startLine": 1,
+      "endLine": 53,
+      "kind": "unknown",
+      "id": "122922357316b877f4e1aeaea203d35d250e6192c25ba7aab95ee717c96376bc"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface OperationsListOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface PoolsGetOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface PoolsCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface PoolsUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface PoolsDeleteOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface PoolsListByResourceGroupOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface PoolsListBySubscriptionOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface ResourceDetailsListByPoolOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SkuListByLocationOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SubscriptionUsagesUsagesOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface ImageVersionsListByImageOptionalParams extends OperationOptions {}\n",
+      "contentHash": "88cd94ac191fcb7baa3710516f7ee372522dc5e363b01a1f745ae288b7e34d99",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 46,
+      "kind": "unknown",
+      "id": "d946a64d91bf36f56d4c2d84fe05bab2f16a6485245e8c54b60b0c5029e83dd7"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/pools/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  DevOpsInfrastructureContext as Client,\n  PoolsCreateOrUpdateOptionalParams,\n  PoolsDeleteOptionalParams,\n  PoolsGetOptionalParams,\n  PoolsListByResourceGroupOptionalParams,\n  PoolsListBySubscriptionOptionalParams,\n  PoolsUpdateOptionalParams,\n} from \"../index.js\";\nimport {\n  Pool,\n  poolSerializer,\n  poolDeserializer,\n  PoolUpdate,\n  poolUpdateSerializer,\n  _PoolListResult,\n  _poolListResultDeserializer,\n} from \"../../models/models.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _poolsGetSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: PoolsGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools/{poolName}\",\n      subscriptionId,\n      resourceGroupName,\n      poolName,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _poolsGetDeserialize(result: PathUncheckedResponse): Promise<Pool> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return poolDeserializer(result.body);\n}\n\n/** Get a Pool */\nexport async function poolsGet(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: PoolsGetOptionalParams = { requestOptions: {} },\n): Promise<Pool> {\n  const result = await _poolsGetSend(context, subscriptionId, resourceGroupName, poolName, options);\n  return _poolsGetDeserialize(result);\n}\n\nexport function _poolsCreateOrUpdateSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  resource: Pool,\n  options: PoolsCreateOrUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools/{poolName}\",\n      subscriptionId,\n      resourceGroupName,\n      poolName,\n    )\n    .put({\n      ...operationOptionsToRequestParameters(options),\n      body: poolSerializer(resource),\n    });\n}\n\nexport async function _poolsCreateOrUpdateDeserialize(\n  result: PathUncheckedResponse,\n): Promise<Pool> {\n  const expectedStatuses = [\"200\", \"201\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return poolDeserializer(result.body);\n}\n\n/** Create a Pool */\nexport function poolsCreateOrUpdate(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  resource: Pool,\n  options: PoolsCreateOrUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<Pool>, Pool> {\n  return getLongRunningPoller(context, _poolsCreateOrUpdateDeserialize, [\"200\", \"201\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _poolsCreateOrUpdateSend(\n        context,\n        subscriptionId,\n        resourceGroupName,\n        poolName,\n        resource,\n        options,\n      ),\n    resourceLocationConfig: \"azure-async-operation\",\n  }) as PollerLike<OperationState<Pool>, Pool>;\n}\n\nexport function _poolsUpdateSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  properties: PoolUpdate,\n  options: PoolsUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools/{poolName}\",\n      subscriptionId,\n      resourceGroupName,\n      poolName,\n    )\n    .patch({\n      ...operationOptionsToRequestParameters(options),\n      body: poolUpdateSerializer(properties),\n    });\n}\n\nexport async function _poolsUpdateDeserialize(result: PathUncheckedResponse): Promise<Pool> {\n  const expectedStatuses = [\"200\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return poolDeserializer(result.body);\n}\n\n/** Update a Pool */\nexport function poolsUpdate(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  properties: PoolUpdate,\n  options: PoolsUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<Pool>, Pool> {\n  return getLongRunningPoller(context, _poolsUpdateDeserialize, [\"200\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _poolsUpdateSend(context, subscriptionId, resourceGroupName, poolName, properties, options),\n    resourceLocationConfig: \"location\",\n  }) as PollerLike<OperationState<Pool>, Pool>;\n}\n\nexport function _poolsDeleteSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: PoolsDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools/{poolName}\",\n      subscriptionId,\n      resourceGroupName,\n      poolName,\n    )\n    .delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _poolsDeleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"202\", \"204\", \"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return;\n}\n\n/** Delete a Pool */\nexport function poolsDelete(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: PoolsDeleteOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<void>, void> {\n  return getLongRunningPoller(context, _poolsDeleteDeserialize, [\"202\", \"204\", \"200\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _poolsDeleteSend(context, subscriptionId, resourceGroupName, poolName, options),\n    resourceLocationConfig: \"location\",\n  }) as PollerLike<OperationState<void>, void>;\n}\n\nexport function _poolsListByResourceGroupSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  options: PoolsListByResourceGroupOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools\",\n      subscriptionId,\n      resourceGroupName,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _poolsListByResourceGroupDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_PoolListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _poolListResultDeserializer(result.body);\n}\n\n/** List Pool resources by resource group */\nexport function poolsListByResourceGroup(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  options: PoolsListByResourceGroupOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Pool> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _poolsListByResourceGroupSend(context, subscriptionId, resourceGroupName, options),\n    _poolsListByResourceGroupDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n\nexport function _poolsListBySubscriptionSend(\n  context: Client,\n  subscriptionId: string,\n  options: PoolsListBySubscriptionOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/providers/Microsoft.DevOpsInfrastructure/pools\",\n      subscriptionId,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _poolsListBySubscriptionDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_PoolListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _poolListResultDeserializer(result.body);\n}\n\n/** List Pool resources by subscription ID */\nexport function poolsListBySubscription(\n  context: Client,\n  subscriptionId: string,\n  options: PoolsListBySubscriptionOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Pool> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _poolsListBySubscriptionSend(context, subscriptionId, options),\n    _poolsListBySubscriptionDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "03395d9e3d0ca155ad2a1996100a29705d87e8cc47522510afd5d6b01d42d890",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/pools/index.ts",
+      "startLine": 1,
+      "endLine": 300,
+      "kind": "unknown",
+      "id": "118047652fa1f51a41327e19b68982384fdecd3c02270ca817435fbd1e43158d"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/resourceDetails/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  DevOpsInfrastructureContext as Client,\n  ResourceDetailsListByPoolOptionalParams,\n} from \"../index.js\";\nimport {\n  _ResourceDetailsObjectListResult,\n  _resourceDetailsObjectListResultDeserializer,\n  ResourceDetailsObject,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _resourceDetailsListByPoolSend(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: ResourceDetailsListByPoolOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DevOpsInfrastructure/pools/{poolName}/resources\",\n      subscriptionId,\n      resourceGroupName,\n      poolName,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _resourceDetailsListByPoolDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_ResourceDetailsObjectListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _resourceDetailsObjectListResultDeserializer(result.body);\n}\n\n/** List ResourceDetailsObject resources by Pool */\nexport function resourceDetailsListByPool(\n  context: Client,\n  subscriptionId: string,\n  resourceGroupName: string,\n  poolName: string,\n  options: ResourceDetailsListByPoolOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<ResourceDetailsObject> {\n  return buildPagedAsyncIterator(\n    context,\n    () =>\n      _resourceDetailsListByPoolSend(context, subscriptionId, resourceGroupName, poolName, options),\n    _resourceDetailsListByPoolDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "f0cc20090808e8e9be0ffaf9861c05783dcac699be2481d05ee5d4de41173a0f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/resourceDetails/index.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "36f19ca2b1fce976b29f982448e180d7f0d7b81090dc87a27249a0ac74ec9d52"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/sku/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  DevOpsInfrastructureContext as Client,\n  SkuListByLocationOptionalParams,\n} from \"../index.js\";\nimport {\n  _ResourceSkuListResult,\n  _resourceSkuListResultDeserializer,\n  ResourceSku,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _skuListByLocationSend(\n  context: Client,\n  subscriptionId: string,\n  locationName: string,\n  options: SkuListByLocationOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/providers/Microsoft.DevOpsInfrastructure/locations/{locationName}/skus\",\n      subscriptionId,\n      locationName,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _skuListByLocationDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_ResourceSkuListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _resourceSkuListResultDeserializer(result.body);\n}\n\n/** List ResourceSku resources by subscription ID */\nexport function skuListByLocation(\n  context: Client,\n  subscriptionId: string,\n  locationName: string,\n  options: SkuListByLocationOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<ResourceSku> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _skuListByLocationSend(context, subscriptionId, locationName, options),\n    _skuListByLocationDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "8ee464a17ffbbab434f816a3d863fdefa767b0a671f2d6a65f49b965a8903e0c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/sku/index.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "unknown",
+      "id": "144bac55601f1ce54faf467b89579ed5a8b42ce690f3db733d1009ae3ce21e10"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/subscriptionUsages/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  DevOpsInfrastructureContext as Client,\n  SubscriptionUsagesUsagesOptionalParams,\n} from \"../index.js\";\nimport { _PagedQuota, _pagedQuotaDeserializer, Quota } from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\n\nexport function _subscriptionUsagesUsagesSend(\n  context: Client,\n  subscriptionId: string,\n  location: string,\n  options: SubscriptionUsagesUsagesOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  return context\n    .path(\n      \"/subscriptions/{subscriptionId}/providers/Microsoft.DevOpsInfrastructure/locations/{location}/usages\",\n      subscriptionId,\n      location,\n    )\n    .get({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _subscriptionUsagesUsagesDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_PagedQuota> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return _pagedQuotaDeserializer(result.body);\n}\n\n/** List Quota resources by subscription ID */\nexport function subscriptionUsagesUsages(\n  context: Client,\n  subscriptionId: string,\n  location: string,\n  options: SubscriptionUsagesUsagesOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Quota> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _subscriptionUsagesUsagesSend(context, subscriptionId, location, options),\n    _subscriptionUsagesUsagesDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "e080c2c1ef814b2a44eae58efd7475bdca6615987ed1e30be26345c6c08fbed1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/subscriptionUsages/index.ts",
+      "startLine": 1,
+      "endLine": 60,
+      "kind": "unknown",
+      "id": "9bcc92cc6342014975cb298c5c3ebce37963ee200306a6de6c09d539c0e7f2b3"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/imageVersions/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport { imageVersionsListByImage } from \"../../api/imageVersions/index.js\";\nimport { ImageVersionsListByImageOptionalParams } from \"../../api/options.js\";\nimport { ImageVersion } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\n\n/** Interface representing a ImageVersions operations. */\nexport interface ImageVersionsOperations {\n  /** List ImageVersion resources by Image */\n  listByImage: (\n    resourceGroupName: string,\n    imageName: string,\n    options?: ImageVersionsListByImageOptionalParams,\n  ) => PagedAsyncIterableIterator<ImageVersion>;\n}\n\nexport function getImageVersions(context: DevOpsInfrastructureContext, subscriptionId: string) {\n  return {\n    listByImage: (\n      resourceGroupName: string,\n      imageName: string,\n      options?: ImageVersionsListByImageOptionalParams,\n    ) => imageVersionsListByImage(context, subscriptionId, resourceGroupName, imageName, options),\n  };\n}\n\nexport function getImageVersionsOperations(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n): ImageVersionsOperations {\n  return {\n    ...getImageVersions(context, subscriptionId),\n  };\n}\n",
+      "contentHash": "39aef664cac7e883c3aeed2c568d86b3d25dff1ae7a8fb90b86239fdffda9107",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/imageVersions/index.ts",
+      "startLine": 1,
+      "endLine": 37,
+      "kind": "unknown",
+      "id": "e334a43cbd6293d347be6a02e4fb59cfaffb0617ffc30f28c163991af384a35a"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { type ImageVersionsOperations } from \"./imageVersions/index.js\";\nexport { type OperationsOperations } from \"./operations/index.js\";\nexport { type PoolsOperations } from \"./pools/index.js\";\nexport { type ResourceDetailsOperations } from \"./resourceDetails/index.js\";\nexport { type SkuOperations } from \"./sku/index.js\";\nexport { type SubscriptionUsagesOperations } from \"./subscriptionUsages/index.js\";\n",
+      "contentHash": "59a2989f8ba8dc4abbac6a26461cecb03cc1f65ca77e545d00aafec7074cb9dd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 9,
+      "kind": "unknown",
+      "id": "029dd80fe44a29aae58934c2eec366c2d0d3dbb6ad4f494d21392e849d9c64bf"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/operations/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport { operationsList } from \"../../api/operations/index.js\";\nimport { OperationsListOptionalParams } from \"../../api/options.js\";\nimport { Operation } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\n\n/** Interface representing a Operations operations. */\nexport interface OperationsOperations {\n  /** List the operations for the provider */\n  list: (options?: OperationsListOptionalParams) => PagedAsyncIterableIterator<Operation>;\n}\n\nexport function getOperations(context: DevOpsInfrastructureContext) {\n  return {\n    list: (options?: OperationsListOptionalParams) => operationsList(context, options),\n  };\n}\n\nexport function getOperationsOperations(\n  context: DevOpsInfrastructureContext,\n): OperationsOperations {\n  return {\n    ...getOperations(context),\n  };\n}\n",
+      "contentHash": "654be38ef0c519b47d0a38b881120e895f5f7b1a8d254ea5926f164777ff5310",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/operations/index.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "kind": "unknown",
+      "id": "ec9335e8fb32a740f3f88c02f121f9f8e13ecf30c0724d0f0447ef998bf55e6e"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/pools/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport {\n  PoolsGetOptionalParams,\n  PoolsCreateOrUpdateOptionalParams,\n  PoolsUpdateOptionalParams,\n  PoolsDeleteOptionalParams,\n  PoolsListByResourceGroupOptionalParams,\n  PoolsListBySubscriptionOptionalParams,\n} from \"../../api/options.js\";\nimport {\n  poolsGet,\n  poolsCreateOrUpdate,\n  poolsUpdate,\n  poolsDelete,\n  poolsListByResourceGroup,\n  poolsListBySubscription,\n} from \"../../api/pools/index.js\";\nimport { Pool, PoolUpdate } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\n/** Interface representing a Pools operations. */\nexport interface PoolsOperations {\n  /** Get a Pool */\n  get: (\n    resourceGroupName: string,\n    poolName: string,\n    options?: PoolsGetOptionalParams,\n  ) => Promise<Pool>;\n  /** Create a Pool */\n  createOrUpdate: (\n    resourceGroupName: string,\n    poolName: string,\n    resource: Pool,\n    options?: PoolsCreateOrUpdateOptionalParams,\n  ) => PollerLike<OperationState<Pool>, Pool>;\n  /** Update a Pool */\n  update: (\n    resourceGroupName: string,\n    poolName: string,\n    properties: PoolUpdate,\n    options?: PoolsUpdateOptionalParams,\n  ) => PollerLike<OperationState<Pool>, Pool>;\n  /** Delete a Pool */\n  delete: (\n    resourceGroupName: string,\n    poolName: string,\n    options?: PoolsDeleteOptionalParams,\n  ) => PollerLike<OperationState<void>, void>;\n  /** List Pool resources by resource group */\n  listByResourceGroup: (\n    resourceGroupName: string,\n    options?: PoolsListByResourceGroupOptionalParams,\n  ) => PagedAsyncIterableIterator<Pool>;\n  /** List Pool resources by subscription ID */\n  listBySubscription: (\n    options?: PoolsListBySubscriptionOptionalParams,\n  ) => PagedAsyncIterableIterator<Pool>;\n}\n\nexport function getPools(context: DevOpsInfrastructureContext, subscriptionId: string) {\n  return {\n    get: (resourceGroupName: string, poolName: string, options?: PoolsGetOptionalParams) =>\n      poolsGet(context, subscriptionId, resourceGroupName, poolName, options),\n    createOrUpdate: (\n      resourceGroupName: string,\n      poolName: string,\n      resource: Pool,\n      options?: PoolsCreateOrUpdateOptionalParams,\n    ) =>\n      poolsCreateOrUpdate(context, subscriptionId, resourceGroupName, poolName, resource, options),\n    update: (\n      resourceGroupName: string,\n      poolName: string,\n      properties: PoolUpdate,\n      options?: PoolsUpdateOptionalParams,\n    ) => poolsUpdate(context, subscriptionId, resourceGroupName, poolName, properties, options),\n    delete: (resourceGroupName: string, poolName: string, options?: PoolsDeleteOptionalParams) =>\n      poolsDelete(context, subscriptionId, resourceGroupName, poolName, options),\n    listByResourceGroup: (\n      resourceGroupName: string,\n      options?: PoolsListByResourceGroupOptionalParams,\n    ) => poolsListByResourceGroup(context, subscriptionId, resourceGroupName, options),\n    listBySubscription: (options?: PoolsListBySubscriptionOptionalParams) =>\n      poolsListBySubscription(context, subscriptionId, options),\n  };\n}\n\nexport function getPoolsOperations(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n): PoolsOperations {\n  return {\n    ...getPools(context, subscriptionId),\n  };\n}\n",
+      "contentHash": "aeb0efdc0a57a6896bb901a2e51df94dee4f71a0c66ccfe1cca9052f9e3d6859",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/pools/index.ts",
+      "startLine": 1,
+      "endLine": 99,
+      "kind": "unknown",
+      "id": "cde9fe0aa258da33c698771fdb172a050ec0d3d8e4618946176faf74ff5f310c"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/resourceDetails/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport { ResourceDetailsListByPoolOptionalParams } from \"../../api/options.js\";\nimport { resourceDetailsListByPool } from \"../../api/resourceDetails/index.js\";\nimport { ResourceDetailsObject } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\n\n/** Interface representing a ResourceDetails operations. */\nexport interface ResourceDetailsOperations {\n  /** List ResourceDetailsObject resources by Pool */\n  listByPool: (\n    resourceGroupName: string,\n    poolName: string,\n    options?: ResourceDetailsListByPoolOptionalParams,\n  ) => PagedAsyncIterableIterator<ResourceDetailsObject>;\n}\n\nexport function getResourceDetails(context: DevOpsInfrastructureContext, subscriptionId: string) {\n  return {\n    listByPool: (\n      resourceGroupName: string,\n      poolName: string,\n      options?: ResourceDetailsListByPoolOptionalParams,\n    ) => resourceDetailsListByPool(context, subscriptionId, resourceGroupName, poolName, options),\n  };\n}\n\nexport function getResourceDetailsOperations(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n): ResourceDetailsOperations {\n  return {\n    ...getResourceDetails(context, subscriptionId),\n  };\n}\n",
+      "contentHash": "713b370a23a44f8194aa3404361474300389f4feba33d322bb13b1d18bcdc82d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/resourceDetails/index.ts",
+      "startLine": 1,
+      "endLine": 37,
+      "kind": "unknown",
+      "id": "f8a549633ab54326440e969bfcc15b13dca182a316adfa7d1eebcabc75940d90"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/sku/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport { SkuListByLocationOptionalParams } from \"../../api/options.js\";\nimport { skuListByLocation } from \"../../api/sku/index.js\";\nimport { ResourceSku } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\n\n/** Interface representing a Sku operations. */\nexport interface SkuOperations {\n  /** List ResourceSku resources by subscription ID */\n  listByLocation: (\n    locationName: string,\n    options?: SkuListByLocationOptionalParams,\n  ) => PagedAsyncIterableIterator<ResourceSku>;\n}\n\nexport function getSku(context: DevOpsInfrastructureContext, subscriptionId: string) {\n  return {\n    listByLocation: (locationName: string, options?: SkuListByLocationOptionalParams) =>\n      skuListByLocation(context, subscriptionId, locationName, options),\n  };\n}\n\nexport function getSkuOperations(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n): SkuOperations {\n  return {\n    ...getSku(context, subscriptionId),\n  };\n}\n",
+      "contentHash": "d694632e953eefaf04acba9a75551fc2db91cfbe4477b2f37c8e24a3c0c89c74",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/sku/index.ts",
+      "startLine": 1,
+      "endLine": 33,
+      "kind": "unknown",
+      "id": "bce68daa078a86568e59c094304061a920896646f1490dbe215c874d17f3174a"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/subscriptionUsages/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { DevOpsInfrastructureContext } from \"../../api/devOpsInfrastructureContext.js\";\nimport { SubscriptionUsagesUsagesOptionalParams } from \"../../api/options.js\";\nimport { subscriptionUsagesUsages } from \"../../api/subscriptionUsages/index.js\";\nimport { Quota } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\n\n/** Interface representing a SubscriptionUsages operations. */\nexport interface SubscriptionUsagesOperations {\n  /** List Quota resources by subscription ID */\n  usages: (\n    location: string,\n    options?: SubscriptionUsagesUsagesOptionalParams,\n  ) => PagedAsyncIterableIterator<Quota>;\n}\n\nexport function getSubscriptionUsages(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n) {\n  return {\n    usages: (location: string, options?: SubscriptionUsagesUsagesOptionalParams) =>\n      subscriptionUsagesUsages(context, subscriptionId, location, options),\n  };\n}\n\nexport function getSubscriptionUsagesOperations(\n  context: DevOpsInfrastructureContext,\n  subscriptionId: string,\n): SubscriptionUsagesOperations {\n  return {\n    ...getSubscriptionUsages(context, subscriptionId),\n  };\n}\n",
+      "contentHash": "b7590f55f3a1f3b538768273cac385ac3e18bd3b67881776aaad86464a94cad9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/subscriptionUsages/index.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "ba71f2e45b5646e42b3354fa2c4545bb459d7dc486fcc990123c0f6cf2c24017"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/devOpsInfrastructureClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { getOperationsOperations, OperationsOperations } from \"./classic/operations/index.js\";\nimport { getPoolsOperations, PoolsOperations } from \"./classic/pools/index.js\";\nimport {\n  getResourceDetailsOperations,\n  ResourceDetailsOperations,\n} from \"./classic/resourceDetails/index.js\";\nimport { getSkuOperations, SkuOperations } from \"./classic/sku/index.js\";\nimport {\n  getSubscriptionUsagesOperations,\n  SubscriptionUsagesOperations,\n} from \"./classic/subscriptionUsages/index.js\";\nimport {\n  getImageVersionsOperations,\n  ImageVersionsOperations,\n} from \"./classic/imageVersions/index.js\";\nimport {\n  createDevOpsInfrastructure,\n  DevOpsInfrastructureContext,\n  DevOpsInfrastructureClientOptionalParams,\n} from \"./api/index.js\";\nimport { Pipeline } from \"@azure/core-rest-pipeline\";\nimport { TokenCredential } from \"@azure/core-auth\";\n\nexport { type DevOpsInfrastructureClientOptionalParams } from \"./api/devOpsInfrastructureContext.js\";\n\nexport class DevOpsInfrastructureClient {\n  private _client: DevOpsInfrastructureContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  constructor(\n    credential: TokenCredential,\n    subscriptionId: string,\n    options: DevOpsInfrastructureClientOptionalParams = {},\n  ) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createDevOpsInfrastructure(credential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n    this.operations = getOperationsOperations(this._client);\n    this.pools = getPoolsOperations(this._client, subscriptionId);\n    this.resourceDetails = getResourceDetailsOperations(this._client, subscriptionId);\n    this.sku = getSkuOperations(this._client, subscriptionId);\n    this.subscriptionUsages = getSubscriptionUsagesOperations(this._client, subscriptionId);\n    this.imageVersions = getImageVersionsOperations(this._client, subscriptionId);\n  }\n\n  /** The operation groups for Operations */\n  public readonly operations: OperationsOperations;\n  /** The operation groups for Pools */\n  public readonly pools: PoolsOperations;\n  /** The operation groups for ResourceDetails */\n  public readonly resourceDetails: ResourceDetailsOperations;\n  /** The operation groups for Sku */\n  public readonly sku: SkuOperations;\n  /** The operation groups for SubscriptionUsages */\n  public readonly subscriptionUsages: SubscriptionUsagesOperations;\n  /** The operation groups for ImageVersions */\n  public readonly imageVersions: ImageVersionsOperations;\n}\n",
+      "contentHash": "b74b8e3a6f6e2f53faf994d66a65072421d4e2582402204645f6edb3ca3d46e6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/devOpsInfrastructureClient.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "00be5a0b6a427a99b1b8d7e800e4e67e82b5d6af90fc73d8e6946b14110e0a31"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/helpers/serializerHelpers.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport function serializeRecord<T extends string | number | boolean | Date | null, R>(\n  item: Record<string, T>,\n): Record<string, R>;\nexport function serializeRecord<T, R>(\n  item: Record<string, T>,\n  serializer: (item: T) => R,\n): Record<string, R>;\nexport function serializeRecord<T, R>(\n  item: Record<string, T>,\n  serializer?: (item: T) => R,\n): Record<string, R> {\n  return Object.keys(item).reduce(\n    (acc, key) => {\n      if (isSupportedRecordType(item[key])) {\n        acc[key] = item[key] as any;\n      } else if (serializer) {\n        const value = item[key];\n        if (value !== undefined) {\n          acc[key] = serializer(value);\n        }\n      } else {\n        console.warn(`Don't know how to serialize ${item[key]}`);\n        acc[key] = item[key] as any;\n      }\n      return acc;\n    },\n    {} as Record<string, R>,\n  );\n}\n\nfunction isSupportedRecordType(t: any) {\n  return [\"number\", \"string\", \"boolean\", \"null\"].includes(typeof t) || t instanceof Date;\n}\n",
+      "contentHash": "0eb0350080b505a6b9e10bb6fc8d1959ab9d327208ae69a7be4479f97b3aa42f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/helpers/serializerHelpers.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "bbce21eb13c0610a76279a7508ff2405759564b8f8f0d0034e7d0bb94e325e26"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  PageSettings,\n  ContinuablePage,\n  PagedAsyncIterableIterator,\n} from \"./static-helpers/pagingHelpers.js\";\n\nexport { DevOpsInfrastructureClient } from \"./devOpsInfrastructureClient.js\";\nexport { restorePoller, type RestorePollerOptions } from \"./restorePollerHelpers.js\";\nexport {\n  type ImageVersion,\n  type ImageVersionProperties,\n  type ProxyResource,\n  type Resource,\n  type SystemData,\n  KnownCreatedByType,\n  type CreatedByType,\n  type Quota,\n  type QuotaName,\n  type ResourceSku,\n  type ResourceSkuProperties,\n  type ResourceSkuLocationInfo,\n  type ResourceSkuZoneDetails,\n  type ResourceSkuCapabilities,\n  type ResourceSkuRestrictions,\n  KnownResourceSkuRestrictionsType,\n  type ResourceSkuRestrictionsType,\n  type ResourceSkuRestrictionInfo,\n  KnownResourceSkuRestrictionsReasonCode,\n  type ResourceSkuRestrictionsReasonCode,\n  type ResourceDetailsObject,\n  type ResourceDetailsObjectProperties,\n  KnownResourceStatus,\n  type ResourceStatus,\n  type Pool,\n  type PoolProperties,\n  KnownProvisioningState,\n  type ProvisioningState,\n  type OrganizationProfile,\n  type OrganizationProfileUnion,\n  type GitHubOrganizationProfile,\n  type GitHubOrganization,\n  type AzureDevOpsOrganizationProfile,\n  type Organization,\n  type AzureDevOpsPermissionProfile,\n  KnownAzureDevOpsPermissionType,\n  type AzureDevOpsPermissionType,\n  type AgentProfile,\n  type AgentProfileUnion,\n  type ResourcePredictions,\n  type ResourcePredictionsProfile,\n  type ResourcePredictionsProfileUnion,\n  KnownResourcePredictionsProfileType,\n  type ResourcePredictionsProfileType,\n  type ManualResourcePredictionsProfile,\n  type AutomaticResourcePredictionsProfile,\n  KnownPredictionPreference,\n  type PredictionPreference,\n  type StatelessAgentProfile,\n  type Stateful,\n  type FabricProfile,\n  type FabricProfileUnion,\n  type VmssFabricProfile,\n  type DevOpsAzureSku,\n  type PoolImage,\n  type OsProfile,\n  type SecretsManagementSettings,\n  KnownLogonType,\n  type LogonType,\n  type StorageProfile,\n  KnownOsDiskStorageAccountType,\n  type OsDiskStorageAccountType,\n  type DataDisk,\n  KnownCachingType,\n  type CachingType,\n  KnownStorageAccountType,\n  type StorageAccountType,\n  type NetworkProfile,\n  type ManagedServiceIdentity,\n  KnownManagedServiceIdentityType,\n  type ManagedServiceIdentityType,\n  type UserAssignedIdentity,\n  type TrackedResource,\n  type PoolUpdate,\n  type PoolUpdateProperties,\n  type Operation,\n  type OperationDisplay,\n  KnownOrigin,\n  type Origin,\n  KnownActionType,\n  type ActionType,\n  KnownVersions,\n} from \"./models/index.js\";\nexport {\n  type DevOpsInfrastructureClientOptionalParams,\n  type OperationsListOptionalParams,\n  type PoolsGetOptionalParams,\n  type PoolsCreateOrUpdateOptionalParams,\n  type PoolsUpdateOptionalParams,\n  type PoolsDeleteOptionalParams,\n  type PoolsListByResourceGroupOptionalParams,\n  type PoolsListBySubscriptionOptionalParams,\n  type ResourceDetailsListByPoolOptionalParams,\n  type SkuListByLocationOptionalParams,\n  type SubscriptionUsagesUsagesOptionalParams,\n  type ImageVersionsListByImageOptionalParams,\n} from \"./api/index.js\";\nexport {\n  type ImageVersionsOperations,\n  type OperationsOperations,\n  type PoolsOperations,\n  type ResourceDetailsOperations,\n  type SkuOperations,\n  type SubscriptionUsagesOperations,\n} from \"./classic/index.js\";\nexport { type PageSettings, type ContinuablePage, type PagedAsyncIterableIterator };\n",
+      "contentHash": "740a73ccb66f4ccde2d3fb1c07dd495a1867b1e605a09e290658395a169714f8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/src/index.ts",
+      "startLine": 1,
+      "endLine": 118,
+      "kind": "unknown",
+      "id": "8c762f5fe06189c7a3b8aaf4fdaa853c77c13f05047560dc51b055392b6b2735"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/package.json",
+      "text": "{\n  \"name\": \"@azure/arm-devopsinfrastructure\",\n  \"version\": \"1.0.1\",\n  \"description\": \"A generated SDK for DevOpsInfrastructureClient.\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\",\n    \"review/\",\n    \"CHANGELOG.md\"\n  ],\n  \"sdk-type\": \"mgmt\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/devopsinfrastructure/arm-devopsinfrastructure\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/devopsinfrastructure/arm-devopsinfrastructure/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/devOpsInfrastructureContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^3.1.0\",\n    \"@azure/core-rest-pipeline\": \"^1.18.2\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json && dev-tool samples publish -f\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"echo skipped\",\n    \"lint:fix\": \"echo skipped\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"test:browser\": \"echo skipped\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"@azure/arm-devopsinfrastructure\",\n    \"productSlugs\": [\n      \"azure\"\n    ],\n    \"disableDocsMs\": true,\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/@azure/arm-devopsinfrastructure?view=azure-node-preview\"\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "0df76c4cf99d282d8262b300be04b2176d53d792ba335f7a1d5506db11e9972e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/package.json"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/README.md",
+      "text": "# Azure DevOpsInfrastructure client library for JavaScript\n\nThis package contains an isomorphic SDK (runs both in Node.js and in browsers) for Azure DevOpsInfrastructure client.\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/devopsinfrastructure/arm-devopsinfrastructure)\n- [Package (NPM)](https://www.npmjs.com/package/@azure/arm-devopsinfrastructure)\n- [API reference documentation](https://learn.microsoft.com/javascript/api/@azure/arm-devopsinfrastructure?view=azure-node-preview)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/devopsinfrastructure/arm-devopsinfrastructure/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n\n### Install the `@azure/arm-devopsinfrastructure` package\n\nInstall the Azure DevOpsInfrastructure client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/arm-devopsinfrastructure\n```\n\n### Create and authenticate a `DevOpsInfrastructureClient`\n\nTo create a client object to access the Azure DevOpsInfrastructure API, you will need the `endpoint` of your Azure DevOpsInfrastructure resource and a `credential`. The Azure DevOpsInfrastructure client can use Azure Active Directory credentials to authenticate.\nYou can find the endpoint for your Azure DevOpsInfrastructure resource in the [Azure Portal][azure_portal].\n\nYou can authenticate with Azure Active Directory using a credential from the [@azure/identity][azure_identity] library or [an existing AAD Token](https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token).\n\nTo use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the `@azure/identity` package:\n\n```bash\nnpm install @azure/identity\n```\n\nYou will also need to **register a new AAD application and grant access to Azure DevOpsInfrastructure** by assigning the suitable role to your service principal (note: roles such as `\"Owner\"` will not grant the necessary permissions).\n\nFor more information about how to create an Azure AD Application check out [this guide](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).\n\nUsing Node.js and Node-like environments, you can use the `DefaultAzureCredential` class to authenticate the client.\n\n```ts snippet:ReadmeSampleCreateClient_Node\nimport { DevOpsInfrastructureClient } from \"@azure/arm-devopsinfrastructure\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new DevOpsInfrastructureClient(new DefaultAzureCredential(), subscriptionId);\n```\n\nFor browser environments, use the `InteractiveBrowserCredential` from the `@azure/identity` package to authenticate.\n\n```ts snippet:ReadmeSampleCreateClient_Browser\nimport { InteractiveBrowserCredential } from \"@azure/identity\";\nimport { DevOpsInfrastructureClient } from \"@azure/arm-devopsinfrastructure\";\n\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst credential = new InteractiveBrowserCredential({\n  tenantId: \"<YOUR_TENANT_ID>\",\n  clientId: \"<YOUR_CLIENT_ID>\",\n});\nconst client = new DevOpsInfrastructureClient(credential, subscriptionId);\n```\n\n### JavaScript Bundle\n\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### DevOpsInfrastructureClient\n\n`DevOpsInfrastructureClient` is the primary interface for developers using the Azure DevOpsInfrastructure client library. Explore the methods on this client object to understand the different features of the Azure DevOpsInfrastructure service that you can access.\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the [samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/devopsinfrastructure/arm-devopsinfrastructure/samples) directory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for JavaScript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n",
+      "contentHash": "f94cf5d56299fbf80fb22d22640d631344041bdd0ad85f8e5efe93b6d0704466",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/README.md"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/tsp-location.yaml",
+      "text": "directory: specification/devopsinfrastructure/Microsoft.DevOpsInfrastructure.Management\ncommit: fa6c6015b1633a701edb629c1a759433aa1fdaf2\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "3b521272fecabeaa24fe1783cfe29331f550eb5f677a611eebc066699d91ce94",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/devopsinfrastructure/arm-devopsinfrastructure/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/devOpsInfrastructureContext.ts",
+      "startLine": 1,
+      "endLine": 55,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "25c2e525ba10940087681f80eb84f32d493427347ef1584052919b7cd11ae41f"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/imageVersions/index.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "547b1299c02aa023c1621db9e89d11fd3df8e513df7a349013b24a23934f51e0"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 34,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ffe56e90896ff014f08042b43a4a5f977c8391bf225f24b27ec1a733be6f56e2"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/operations/index.ts",
+      "startLine": 1,
+      "endLine": 53,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e5bcb9149333f5d9d61e01c43fb47967b9dde985d27d658e3e806216c0400558"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "88cd94ac191fcb7baa3710516f7ee372522dc5e363b01a1f745ae288b7e34d99"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/pools/index.ts",
+      "startLine": 1,
+      "endLine": 300,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "03395d9e3d0ca155ad2a1996100a29705d87e8cc47522510afd5d6b01d42d890"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/resourceDetails/index.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f0cc20090808e8e9be0ffaf9861c05783dcac699be2481d05ee5d4de41173a0f"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/sku/index.ts",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8ee464a17ffbbab434f816a3d863fdefa767b0a671f2d6a65f49b965a8903e0c"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/api/subscriptionUsages/index.ts",
+      "startLine": 1,
+      "endLine": 60,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e080c2c1ef814b2a44eae58efd7475bdca6615987ed1e30be26345c6c08fbed1"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/imageVersions/index.ts",
+      "startLine": 1,
+      "endLine": 37,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "39aef664cac7e883c3aeed2c568d86b3d25dff1ae7a8fb90b86239fdffda9107"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 9,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "59a2989f8ba8dc4abbac6a26461cecb03cc1f65ca77e545d00aafec7074cb9dd"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/operations/index.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "654be38ef0c519b47d0a38b881120e895f5f7b1a8d254ea5926f164777ff5310"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/pools/index.ts",
+      "startLine": 1,
+      "endLine": 99,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "aeb0efdc0a57a6896bb901a2e51df94dee4f71a0c66ccfe1cca9052f9e3d6859"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/resourceDetails/index.ts",
+      "startLine": 1,
+      "endLine": 37,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "713b370a23a44f8194aa3404361474300389f4feba33d322bb13b1d18bcdc82d"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/sku/index.ts",
+      "startLine": 1,
+      "endLine": 33,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d694632e953eefaf04acba9a75551fc2db91cfbe4477b2f37c8e24a3c0c89c74"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/classic/subscriptionUsages/index.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b7590f55f3a1f3b538768273cac385ac3e18bd3b67881776aaad86464a94cad9"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/devOpsInfrastructureClient.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b74b8e3a6f6e2f53faf994d66a65072421d4e2582402204645f6edb3ca3d46e6"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/helpers/serializerHelpers.ts",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0eb0350080b505a6b9e10bb6fc8d1959ab9d327208ae69a7be4479f97b3aa42f"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/index.ts",
+      "startLine": 1,
+      "endLine": 118,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "740a73ccb66f4ccde2d3fb1c07dd495a1867b1e605a09e290658395a169714f8"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d340eb8e14c8bb5840dd848e560dfe9b6940256d2ef6d0679e8dbc7ced90d945"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 87,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "7d3e6db1ff9d0229a62bd428db834754168925e532056bb86762642882a95aab"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 1880,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "23a1d9e5c0e0b7c3dac7e174c57befe9452fce405cadbc6a1e66491818786c19"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/restorePollerHelpers.ts",
+      "startLine": 1,
+      "endLine": 164,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "710ca1d657741c70b45be5625d388c1221c4b54a8d1ab418bf8e82fd54b6402f"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/static-helpers/pagingHelpers.ts",
+      "startLine": 1,
+      "endLine": 241,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "93ed8fb4680898dc8523926e5566e5c486134d37057787468f40e23622596a56"
+    },
+    {
+      "path": "sdk/devopsinfrastructure/arm-devopsinfrastructure/src/static-helpers/pollingHelpers.ts",
+      "startLine": 1,
+      "endLine": 126,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1d3f51b48d434ba3e332182b1224edaa6687dd7dd4af174c0c1363aeab6277d1"
+    }
+  ]
+}

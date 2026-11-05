@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "id": "096685e5-d3ed-491e-9848-f96f0e0ef80c",
+  "observedAt": "2026-10-23T22:49:03.294Z",
+  "identity": "python:azure-confidentialledger:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-confidentialledger",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/confidentialledger/azure-confidentialledger"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "810f5686cf62f612c2a8e37c705ee18d61823581"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 78,
+    "eligibleFiles": 32,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/_operations/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nimport time\nfrom typing import Any, Callable, IO, List, Optional, Union, cast\n\nfrom azure.core.exceptions import ResourceNotFoundError\nfrom azure.core.polling import PollingMethod, LROPoller, NoPolling\n\nfrom azure.confidentialledger._operations._operations import (\n    _ConfidentialLedgerClientOperationsMixin as GeneratedOperationsMixin,\n)\nfrom azure.confidentialledger._operations._operations import ClsType, JSON\nimport azure.confidentialledger.models as _models\n\n__all__: List[str] = [\n    \"_ConfidentialLedgerClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n\n\nclass BaseStatePollingMethod:\n    \"\"\"Base polling method for methods returning responses containing a 'state' field; the polling\n    completes when 'state' becomes a desired value.\n    \"\"\"\n\n    def __init__(\n        self,\n        operation: Callable[[], Any],\n        desired_state: str,\n        polling_interval_s: float,\n        retry_not_found: bool,\n    ):\n        self._operation = operation\n        self._desired_state = desired_state\n        self._polling_interval_s = polling_interval_s\n\n        self._deserialization_callback = None\n        self._status = \"constructed\"\n        self._latest_response: JSON = {}\n\n        self._retry_not_found = retry_not_found\n        self._not_found_count = 0\n\n    def initialize(self, client, initial_response, deserialization_callback):  # pylint: disable=unused-argument\n        self._evaluate_response(initial_response)\n        self._deserialization_callback = deserialization_callback\n\n    def _evaluate_response(self, response: JSON) -> None:\n        self._status = \"finished\" if response.get(\"state\", None) == self._desired_state else \"polling\"\n        self._latest_response = response\n\n    def _give_up_not_found_error(self, exception: ResourceNotFoundError) -> bool:\n        if exception.error is not None and exception.error.code == \"InvalidTransactionId\":\n            return True\n        return False\n\n    def status(self) -> str:\n        return self._status\n\n    def finished(self) -> bool:\n        return self.status() in {\"finished\", \"failed\"}\n\n    def resource(self):\n        if self._deserialization_callback:\n            return self._deserialization_callback(self._latest_response)\n        return self._latest_response\n\n\nclass StatePollingMethod(BaseStatePollingMethod, PollingMethod):\n    \"\"\"Polling method for methods returning responses containing a 'state' field; the polling\n    completes when 'state' becomes a desired value.\n    \"\"\"\n\n    def __init__(\n        self,\n        operation: Callable[[], JSON],\n        desired_state: str,\n        polling_interval_s: float,\n        retry_not_found: bool,\n    ):\n        super().__init__(operation, desired_state, polling_interval_s, retry_not_found)\n\n    def run(self) -> None:\n        try:\n            while not self.finished():\n                try:\n                    response = self._operation()\n                    self._evaluate_response(response)\n                except ResourceNotFoundError as not_found_exception:\n                    # We'll allow some instances of resource not found to account for replication\n                    # delay if session stickiness is lost.\n\n                    self._not_found_count += 1\n\n                    not_retryable = not self._retry_not_found or self._give_up_not_found_error(not_found_exception)\n\n                    if not_retryable or self._not_found_count >= 3:\n                        raise\n                if not self.finished():\n                    time.sleep(self._polling_interval_s)\n        except Exception:\n            self._status = \"failed\"\n            raise\n\n\nclass _ConfidentialLedgerClientOperationsMixin(GeneratedOperationsMixin):\n    def begin_get_ledger_entry(\n        self, transaction_id: str, *, collection_id: Optional[str] = None, **kwargs: Any\n    ) -> LROPoller[_models.LedgerQueryResult]:\n        \"\"\"Returns a poller to fetch the ledger entry at the specified transaction id.\n\n         A collection id may optionally be specified to indicate the collection from which to fetch\n         the value.\n\n        To return older ledger entries, the relevant sections of the ledger must be\n         read from disk and validated. To prevent blocking within the enclave, the\n         response will indicate whether the entry is ready and part of the response, or\n         if the loading is still ongoing.\n\n         :param transaction_id: Identifies a write transaction. Required.\n         :type transaction_id: str\n         :keyword collection_id: The collection id. Default value is None.\n         :paramtype collection_id: str\n         :return: An instance of LROPoller that returns a LedgerQueryResult object for the ledger entry.\n         :rtype: ~azure.core.polling.LROPoller[~azure.confidentialledger.models.LedgerQueryResult]\n         :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, PollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        def operation() -> JSON:\n            return super(_ConfidentialLedgerClientOperationsMixin, self).get_ledger_entry(\n                transaction_id, collection_id=collection_id, **kwargs\n            )\n\n        initial_response = operation()\n\n        if polling is True:\n            polling_method = cast(PollingMethod, StatePollingMethod(operation, \"Ready\", lro_delay, False))\n        elif polling is False:\n            polling_method = cast(PollingMethod, NoPolling())\n        else:\n            polling_method = polling\n        return LROPoller(self._client, initial_response, lambda x: x, polling_method)\n\n    def begin_get_receipt(self, transaction_id: str, **kwargs: Any) -> LROPoller[_models.TransactionReceipt]:\n        \"\"\"Returns a poller for getting a receipt certifying ledger contents at a particular\n        transaction id.\n\n        :param transaction_id: Identifies a write transaction. Required.\n        :type transaction_id: str\n        :return: An instance of LROPoller that returns a TransactionReceipt object for the receipt.\n        :rtype: ~azure.core.polling.LROPoller[~azure.confidentialledger.models.TransactionReceipt]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, PollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        def operation() -> JSON:\n            return super(_ConfidentialLedgerClientOperationsMixin, self).get_receipt(\n                transaction_id=transaction_id, **kwargs\n            )\n\n        initial_response = operation()\n\n        if polling is True:\n            polling_method = cast(PollingMethod, StatePollingMethod(operation, \"Ready\", lro_delay, False))\n        elif polling is False:\n            polling_method = cast(PollingMethod, NoPolling())\n        else:\n            polling_method = polling\n        return LROPoller(self._client, initial_response, lambda x: x, polling_method)\n\n    def begin_create_ledger_entry(\n        self,\n        entry: Union[_models.LedgerEntry, JSON, IO[bytes]],\n        *,\n        collection_id: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[_models.TransactionStatus]:\n        \"\"\"Writes a ledger entry and returns a poller to wait for it to be durably committed. The\n        poller returns the result for the initial call to create the ledger entry.\n\n        A collection id may optionally be specified.\n\n        :param entry: Ledger entry. Is one of the following types: LedgerEntry, JSON, IO[bytes]\n         Required.\n        :type entry: ~azure.confidentialledger.models.LedgerEntry or JSON or IO[bytes]\n        :keyword collection_id: The collection id. Default value is None.\n        :paramtype collection_id: str\n        :return: TransactionStatus. The TransactionStatus is compatible with MutableMapping\n        :rtype: ~azure.core.polling.LROPoller[~azure.confidentialledger.models.TransactionStatus]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        # Pop arguments that are unexpected in the pipeline.\n\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, PollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        # Pop the custom deserializer, if any, so we know the format of the response and can\n        # retrieve the transactionId. Serialize the response later.\n\n        cls = kwargs.pop(\"cls\", None)  # type: ClsType[JSON]\n        kwargs[\"cls\"] = lambda pipeline_response, json_response, headers: (\n            pipeline_response,\n            {\n                **json_response,\n                \"transactionId\": headers.get(\"x-ms-ccf-transaction-id\") if headers else None,\n            },\n            headers,\n        )\n\n        post_pipeline_response, post_result, post_headers = self.create_ledger_entry(\n            entry, collection_id=collection_id, **kwargs\n        )\n\n        # Delete the cls because it should only apply to the create_ledger_entry response, not the\n        # wait_for_commit call.\n\n        del kwargs[\"cls\"]\n\n        transaction_id = post_result[\"transactionId\"]  # type: ignore\n\n        kwargs[\"polling\"] = polling\n        kwargs[\"polling_interval\"] = lro_delay\n\n        if cls:\n            kwargs[\"_create_ledger_entry_response\"] = cls(\n                post_pipeline_response, cast(JSON, post_result), post_headers  # type: ignore\n            )\n        else:\n            kwargs[\"_create_ledger_entry_response\"] = post_result\n        return self.begin_wait_for_commit(transaction_id, **kwargs)\n\n    def begin_wait_for_commit(\n        self,\n        transaction_id,  # type: str\n        **kwargs,  # type: Any\n    ) -> LROPoller[_models.TransactionStatus]:\n        \"\"\"Creates a poller that queries the state of the specified transaction until it is\n        Committed, a state that indicates the transaction is durably stored in the Confidential\n        Ledger.\n\n        :param transaction_id: Identifies a write transaction. Required.\n        :type transaction_id: str\n        :return: An instance of LROPoller returning a TransactionStatus object describing the transaction status.\n        :rtype: ~azure.core.polling.LROPoller[~azure.confidentialledger.models.TransactionStatus]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, PollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        # If this poller was called from begin_create_ledger_entry, we should return the\n        # create_ledger_entry response, not the transaction status.\n\n        post_result = kwargs.pop(\"_create_ledger_entry_response\", None)\n\n        def deserialization_callback(x):\n            return x if post_result is None else post_result\n\n        def operation() -> JSON:\n            return super(_ConfidentialLedgerClientOperationsMixin, self).get_transaction_status(\n                transaction_id=transaction_id, **kwargs\n            )\n\n        try:\n            initial_response = operation()\n        except ResourceNotFoundError:\n            if polling is False or polling is None:\n                raise\n            # This method allows for temporary resource not found errors, which may occur if session\n            # stickiness is lost and there is replication lag.\n\n            initial_response = {}\n        if polling is True:\n            polling_method = cast(PollingMethod, StatePollingMethod(operation, \"Committed\", lro_delay, True))\n        elif polling is False:\n            polling_method = cast(PollingMethod, NoPolling())\n        else:\n            polling_method = polling\n        return LROPoller(self._client, initial_response, deserialization_callback, polling_method)\n\n    def create_ledger_entry(\n        self,\n        entry: Union[_models.LedgerEntry, JSON, IO[bytes]],\n        *,\n        collection_id: Optional[str] = None,\n        **kwargs: Any,\n    ) -> _models.LedgerWriteResult:\n        \"\"\"Writes a ledger entry.\n\n        The result is the expected JSON response with an additional field\n        'transactionId' which represents the transaction identifier for this write operation.\n\n        A collection id may optionally be specified.\n\n        :param entry: Ledger entry. Is one of the following types: LedgerEntry, JSON, IO[bytes]\n         Required.\n        :type entry: ~azure.confidentialledger.models.LedgerEntry or JSON or IO[bytes]\n        :keyword collection_id: The collection id. Default value is None.\n        :paramtype collection_id: str\n        :return: LedgerWriteResult. The LedgerWriteResult is compatible with MutableMapping\n        :rtype: ~azure.confidentialledger.models.LedgerWriteResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. code-block:: python\n\n                # JSON input template you can fill out and use as your body input.\n                entry = {\n                    \"collectionId\": {\n                        \"collectionId\": \"str\"  # Required.\n                    },\n                    \"contents\": \"str\",  # Required. Contents of the ledger entry.\n                    \"transactionId\": \"str\"  # Optional. A unique identifier for the state of the\n                      ledger. If returned as part of a LedgerEntry, it indicates the state from which\n                      the entry was read.\n                }\n        \"\"\"\n\n        kwargs[\"cls\"] = kwargs.get(\n            \"cls\",\n            lambda _, json_response, headers: {\n                **json_response,\n                \"transactionId\": headers.get(\"x-ms-ccf-transaction-id\") if headers else None,\n            },\n        )\n        return super().create_ledger_entry(entry, collection_id=collection_id, **kwargs)\n",
+      "contentHash": "03fd66bed086f3d9469a724c46c216d9623c282702e2103a75755f17d7afa790",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 345,
+      "kind": "handwritten-marker",
+      "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5"
+    },
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/aio/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nimport asyncio  # pylint: disable=do-not-import-asyncio\nfrom typing import Any, Callable, IO, Coroutine, List, Optional, Union, cast\n\nfrom azure.core.exceptions import ResourceNotFoundError\nfrom azure.core.polling import AsyncLROPoller, AsyncNoPolling, AsyncPollingMethod\n\nfrom azure.confidentialledger.aio._operations._operations import (\n    _ConfidentialLedgerClientOperationsMixin as GeneratedOperationsMixin,\n)\nfrom azure.confidentialledger.aio._operations._operations import ClsType, JSON\nfrom azure.confidentialledger._operations._patch import BaseStatePollingMethod\nimport azure.confidentialledger.models as _models\n\n__all__: List[str] = [\n    \"_ConfidentialLedgerClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n\n\nclass AsyncStatePollingMethod(BaseStatePollingMethod, AsyncPollingMethod):\n    \"\"\"Polling method for methods returning responses containing a 'state' field; the polling\n    completes when 'state' becomes a desired value.\n    \"\"\"\n\n    def __init__(\n        self,\n        operation: Callable[[], Coroutine[Any, Any, JSON]],\n        desired_state: str,\n        polling_interval_s: float,\n        retry_not_found: bool,\n    ):\n        super().__init__(operation, desired_state, polling_interval_s, retry_not_found)\n\n    async def run(self) -> None:\n        try:\n            while not self.finished():\n                try:\n                    response = await self._operation()\n                    self._evaluate_response(response)\n                except ResourceNotFoundError as not_found_exception:\n                    # We'll allow some instances of resource not found to account for replication\n                    # delay if session stickiness is lost.\n\n                    self._not_found_count += 1\n\n                    not_retryable = not self._retry_not_found or self._give_up_not_found_error(not_found_exception)\n\n                    if not_retryable or self._not_found_count >= 3:\n                        raise\n                if not self.finished():\n                    await asyncio.sleep(self._polling_interval_s)\n        except Exception:\n            self._status = \"failed\"\n            raise\n\n\nclass _ConfidentialLedgerClientOperationsMixin(GeneratedOperationsMixin):\n    async def begin_get_ledger_entry(\n        self, transaction_id: str, *, collection_id: Optional[str] = None, **kwargs: Any\n    ) -> AsyncLROPoller[_models.LedgerQueryResult]:\n        \"\"\"Returns a poller to fetch the ledger entry at the specified transaction id.\n\n        A collection id may optionally be specified to indicate the collection from which to fetch\n        the value.\n\n        To return older ledger entries, the relevant sections of the ledger must be\n        read from disk and validated. To prevent blocking within the enclave, the\n        response will indicate whether the entry is ready and part of the response, or\n        if the loading is still ongoing.\n\n        :param transaction_id: Identifies a write transaction. Required.\n        :type transaction_id: str\n        :keyword collection_id: The collection id. Default value is None.\n        :paramtype collection_id: str\n        :return: An instance of AsyncLROPoller that returns a LedgerQueryResult for the ledger entry.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.confidentialledger.models.LedgerQueryResult]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, AsyncPollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        async def operation() -> JSON:\n            return await super(_ConfidentialLedgerClientOperationsMixin, self).get_ledger_entry(\n                transaction_id, collection_id=collection_id, **kwargs\n            )\n\n        initial_response = await operation()\n\n        if polling is True:\n            polling_method = cast(AsyncPollingMethod, AsyncStatePollingMethod(operation, \"Ready\", lro_delay, False))\n        elif polling is False:\n            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())\n        else:\n            polling_method = polling\n        return AsyncLROPoller(self._client, initial_response, lambda x: x, polling_method)\n\n    async def begin_get_receipt(self, transaction_id: str, **kwargs: Any) -> AsyncLROPoller[_models.TransactionReceipt]:\n        \"\"\"Returns a poller for getting a receipt certifying ledger contents at a particular\n        transaction id.\n\n        :param transaction_id: Identifies a write transaction. Required.\n        :type transaction_id: str\n        :return: An instance of AsyncLROPoller that returns a TransactionReceipt for the receipt.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.confidentialledger.models.TransactionReceipt]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, AsyncPollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        async def operation() -> JSON:\n            return await super(_ConfidentialLedgerClientOperationsMixin, self).get_receipt(\n                transaction_id=transaction_id, **kwargs\n            )\n\n        initial_response = await operation()\n\n        if polling is True:\n            polling_method = cast(AsyncPollingMethod, AsyncStatePollingMethod(operation, \"Ready\", lro_delay, False))\n        elif polling is False:\n            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())\n        else:\n            polling_method = polling\n        return AsyncLROPoller(self._client, initial_response, lambda x: x, polling_method)\n\n    async def begin_create_ledger_entry(\n        self, entry: Union[_models.LedgerEntry, JSON, IO[bytes]], *, collection_id: Optional[str] = None, **kwargs: Any\n    ) -> AsyncLROPoller[_models.TransactionStatus]:\n        \"\"\"Writes a ledger entry and returns a poller to wait for it to be durably committed. The\n        poller returns the result for the initial call to create the ledger entry.\n\n        A collection id may optionally be specified.\n\n        :param entry: Ledger entry. Required.\n        :type entry: ~azure.confidentialledger.models.LedgerEntry or JSON or IO[bytes]\n        :keyword collection_id: The collection id. Default value is None.\n        :paramtype collection_id: str\n        :return: AsyncLROPoller[TransactionStatus]. The TransactionStatus is compatible with MutableMapping\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.confidentialledger.models.TransactionStatus]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        # Pop arguments that are unexpected in the pipeline.\n\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, AsyncPollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        # Pop the custom deserializer, if any, so we know the format of the response and can\n        # retrieve the transactionId. Serialize the response later.\n\n        cls = kwargs.pop(\"cls\", None)  # type: ClsType[JSON]\n        kwargs[\"cls\"] = lambda pipeline_response, json_response, headers: (\n            pipeline_response,\n            {\n                **json_response,\n                \"transactionId\": headers.get(\"x-ms-ccf-transaction-id\") if headers else None,\n            },\n            headers,\n        )\n\n        post_pipeline_response, post_result, post_headers = await self.create_ledger_entry(\n            entry, collection_id=collection_id, **kwargs\n        )\n\n        # Delete the cls because it should only apply to the create_ledger_entry response, not the\n        # wait_for_commit call.\n\n        del kwargs[\"cls\"]\n\n        transaction_id = post_result[\"transactionId\"]  # type: ignore\n\n        kwargs[\"polling\"] = polling\n        kwargs[\"polling_interval\"] = lro_delay\n\n        if cls:\n            kwargs[\"_create_ledger_entry_response\"] = cls(\n                post_pipeline_response, cast(JSON, post_result), post_headers  # type: ignore\n            )\n        else:\n            kwargs[\"_create_ledger_entry_response\"] = post_result\n        return await self.begin_wait_for_commit(transaction_id, **kwargs)\n\n    async def begin_wait_for_commit(\n        self, transaction_id: str, **kwargs: Any\n    ) -> AsyncLROPoller[_models.TransactionStatus]:\n        \"\"\"Creates a poller that queries the state of the specified transaction until it is\n        Committed, a state that indicates the transaction is durably stored in the Confidential\n        Ledger.\n\n        :param transaction_id: Identifies a write transaction. Required.\n        :type transaction_id: str\n        :return: An instance of AsyncLROPoller returning a TransactionStatus object describing the transaction status.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.confidentialledger.models.TransactionStatus]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling = kwargs.pop(\"polling\", True)  # type: Union[bool, AsyncPollingMethod]\n        lro_delay = kwargs.pop(\"polling_interval\", 0.5)\n\n        # If this poller was called from begin_create_ledger_entry, we should return the\n        # create_ledger_entry response, not the transaction status.\n\n        post_result = kwargs.pop(\"_create_ledger_entry_response\", None)\n\n        def deserialization_callback(x):\n            return x if post_result is None else post_result\n\n        async def operation() -> JSON:\n            return await super(_ConfidentialLedgerClientOperationsMixin, self).get_transaction_status(\n                transaction_id=transaction_id, **kwargs\n            )\n\n        try:\n            initial_response = await operation()\n        except ResourceNotFoundError:\n            if polling is False or polling is None:\n                raise\n            # This method allows for temporary resource not found errors, which may occur if session\n            # stickiness is lost and there is replication lag.\n\n            initial_response = {}\n        if polling is True:\n            polling_method = cast(\n                AsyncPollingMethod,\n                AsyncStatePollingMethod(operation, \"Committed\", lro_delay, True),\n            )\n        elif polling is False:\n            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())\n        else:\n            polling_method = polling\n        return AsyncLROPoller(self._client, initial_response, deserialization_callback, polling_method)\n\n    async def create_ledger_entry(\n        self, entry: Union[_models.LedgerEntry, JSON, IO[bytes]], *, collection_id: Optional[str] = None, **kwargs: Any\n    ) -> _models.LedgerWriteResult:\n        \"\"\"Writes a ledger entry.\n\n        A collection id may optionally be specified.\n\n        :param entry: Ledger entry. Is one of the following types: LedgerEntry, JSON, IO[bytes]\n         Required.\n        :type entry: ~azure.confidentialledger.models.LedgerEntry or JSON or IO[bytes]\n        :keyword collection_id: The collection id. Default value is None.\n        :paramtype collection_id: str\n        :return: LedgerWriteResult. The LedgerWriteResult is compatible with MutableMapping\n        :rtype: ~azure.confidentialledger.models.LedgerWriteResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. code-block:: python\n\n                # JSON input template you can fill out and use as your body input.\n                entry = {\n                    \"collectionId\": {\n                        \"collectionId\": \"str\"  # Required.\n                    },\n                    \"contents\": \"str\",  # Required. Contents of the ledger entry.\n                    \"transactionId\": \"str\"  # Optional. A unique identifier for the state of the\n                      ledger. If returned as part of a LedgerEntry, it indicates the state from which\n                      the entry was read.\n                }\n        \"\"\"\n\n        kwargs[\"cls\"] = kwargs.get(\n            \"cls\",\n            lambda _, json_response, headers: {\n                **json_response,\n                \"transactionId\": headers.get(\"x-ms-ccf-transaction-id\") if headers else None,\n            },\n        )\n        return await super().create_ledger_entry(entry, collection_id=collection_id, **kwargs)\n",
+      "contentHash": "b7972bfe0ddd94fa99a6d6d5f9d797b2bbce5a592ea3620ba5068f0953c73027",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 288,
+      "kind": "handwritten-marker",
+      "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/pyproject.toml",
+      "text": "[build-system]\nrequires = [\n    \"setuptools>=77.0.3\",\n    \"wheel\",\n]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-confidentialledger\"\nauthors = [\n    { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Confidential Ledger Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"Programming Language :: Python :: 3.14\",\n]\nrequires-python = \">=3.10\"\nkeywords = [\n    \"azure\",\n    \"azure sdk\",\n]\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n    \"cryptography>=2.1.4\",\n    \"azure-confidentialledger-certificate>=1.0.0b1\",\n]\ndynamic = [\n    \"version\",\n    \"readme\",\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic.version]\nattr = \"azure.confidentialledger._version.VERSION\"\n\n[tool.setuptools.dynamic.readme]\nfile = [\n    \"README.md\",\n    \"CHANGELOG.md\",\n]\ncontent-type = \"text/markdown\"\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\n    \"py.typed\",\n]\n\n[tool.azure-sdk-build]\npyright = false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n\n[packaging]\npackage_name = \"azure-confidentialledger\"\npackage_pprint_name = \"Azure Confidential Ledger\"\npackage_doc_id = \"\"\nis_stable = false\nis_arm = false\nneed_msrestazure = false\nauto_update = false\n",
+      "contentHash": "473c3de0ffb93b870455d5b25b0627d3d514e600c7b70db36e206e8039585fb3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/confidentialledger/azure-confidentialledger/pyproject.toml"
+    },
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/tsp-location.yaml",
+      "text": "directory: specification/confidentialledger/data-plane/ConfidentialLedger\ncommit: 8a3262d0e5c399e19b4e489368643a0e5b7f16e3\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "a2aae71d6a8c2933ea01754be93044d40ed9b0d32fda7445703aee56d1807487",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/confidentialledger/azure-confidentialledger/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "45a600e76f4895a9119e53fb49e87b307b56c143840276bada49eb9b04068138",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "3dcd767eab1c45b7e1fd134d959990acd5d0089e1e8aa6877ddc156834568d92",
+        "category": "LRO / polling",
+        "subtype": "Desired-state polling lifecycle and result projection",
+        "explanation": "The polling base evaluates initial and subsequent response mappings against a configured desired state, retains the latest response, recognizes finished/failed terminal statuses, and applies an optional deserialization callback when returning its resource.",
+        "pattern": "response-state-polling-method",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The implemented helper is defined in _patch.py and used by both supplied custom polling classes; it is not an imported generated poller.",
+        "symbols": [
+          "BaseStatePollingMethod.__init__",
+          "BaseStatePollingMethod.initialize",
+          "BaseStatePollingMethod._evaluate_response",
+          "BaseStatePollingMethod.status",
+          "BaseStatePollingMethod.finished",
+          "BaseStatePollingMethod.resource"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 37,
+            "endLine": 82
+          }
+        ]
+      },
+      {
+        "key": "d85d61a699078aed555c4c7908cc65b4941ddad6dedc670618036767add7129f",
+        "category": "LRO / polling",
+        "subtype": "Sync/async state polling with bounded not-found tolerance",
+        "explanation": "The sync/async run loops invoke the supplied operation until finished, sleep only while unfinished, and count ResourceNotFoundError occurrences cumulatively. They rethrow when retries are disabled, the nested error code is InvalidTransactionId, or the count reaches three; escaping exceptions mark status failed.",
+        "pattern": "state-polling-not-found-retry",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Concrete run loops and the error-code predicate are implemented in the patch files and wired into the patched operation mixins.",
+        "symbols": [
+          "BaseStatePollingMethod._give_up_not_found_error",
+          "StatePollingMethod.run",
+          "AsyncStatePollingMethod.run"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 68,
+            "endLine": 71
+          },
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 85,
+            "endLine": 119
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 39,
+            "endLine": 73
+          }
+        ]
+      },
+      {
+        "key": "2f678c44a6461a7c1ee15bbdd305b75086ec6b5cf93675d9379095fe13a138df",
+        "category": "LRO / polling",
+        "subtype": "Ready-state poller around ledger-entry reads",
+        "explanation": "The patched sync/async begin_get_ledger_entry methods perform an initial generated read, default polling_interval to 0.5, select a Ready-state polling method without not-found retries for polling=True, select NoPolling for False, or use the supplied polling object, with identity result projection.",
+        "pattern": "ready-state-read-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "These concrete methods belong to exported patch mixins subclassing the generated operations and explicitly construct their own state-based polling adapters.",
+        "symbols": [
+          "_ConfidentialLedgerClientOperationsMixin.begin_get_ledger_entry"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 122,
+            "endLine": 125
+          },
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 144,
+            "endLine": 160
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 76,
+            "endLine": 79
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 98,
+            "endLine": 114
+          }
+        ]
+      },
+      {
+        "key": "9e9832db2d45e2a99e807e051efe7c7e3e338d96b6f771a4278fe4d0c6ee0ad6",
+        "category": "LRO / polling",
+        "subtype": "Ready-state poller around receipt reads",
+        "explanation": "The sync/async begin_get_receipt methods wrap the generated receipt read in a Ready-state poller, default interval to 0.5, disable the custom not-found retry flag, support no/custom polling selection, and return the latest read result unchanged.",
+        "pattern": "ready-state-read-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch subclasses contain explicit receipt-read closures and custom poller selection above generated get_receipt.",
+        "symbols": [
+          "_ConfidentialLedgerClientOperationsMixin.begin_get_receipt"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 162,
+            "endLine": 188
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 116,
+            "endLine": 142
+          }
+        ]
+      },
+      {
+        "key": "69e42c1fb29502708e4b49214a4bfaa8deb137974c875b6ab91f0cfe1a4f057c",
+        "category": "LRO / polling",
+        "subtype": "Write-then-commit orchestration retaining the write result",
+        "explanation": "The patched begin_create_ledger_entry methods temporarily replace cls to capture the write pipeline response/body/headers and inject the transaction header into the body, remove that capture callback before polling, restore polling settings, optionally apply the caller's cls, and pass the retained write result to begin_wait_for_commit for the extracted transaction ID.",
+        "pattern": "lro-initial-response-preservation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch mixins implement explicit orchestration across a write and a separate commit-status operation rather than using an unchanged generated LRO.",
+        "symbols": [
+          "_ConfidentialLedgerClientOperationsMixin.begin_create_ledger_entry"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 190,
+            "endLine": 196
+          },
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 214,
+            "endLine": 250
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 144,
+            "endLine": 146
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 163,
+            "endLine": 199
+          }
+        ]
+      },
+      {
+        "key": "d3fe2901ce90d6a92624fa266f664f94990a4807ebbcd88db6f77fcdb65d91a5",
+        "category": "LRO / polling",
+        "subtype": "Committed-state polling with initial not-found tolerance",
+        "explanation": "The sync/async commit methods read transaction status, tolerate an initial ResourceNotFoundError as an empty response except when polling is False or None, and choose Committed-state polling with not-found retries enabled for True. Their callback returns the status unless a non-None retained create result was supplied.",
+        "pattern": "state-based-commit-polling",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch mixins implement an initial-read exception branch, custom state-poller selection and result projection above generated get_transaction_status.",
+        "symbols": [
+          "_ConfidentialLedgerClientOperationsMixin.begin_wait_for_commit"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 252,
+            "endLine": 256
+          },
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 267,
+            "endLine": 298
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 201,
+            "endLine": 203
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 214,
+            "endLine": 248
+          }
+        ]
+      },
+      {
+        "key": "a43c816fedda89cb41184d06e0c1d13f675ee058cde00e2c05bab7c84219043c",
+        "category": "Serialization",
+        "subtype": "Transaction-ID response header projected into write results",
+        "explanation": "The create_ledger_entry overrides install a default cls callback only when the cls key is absent. That callback copies the JSON response and sets transactionId from x-ms-ccf-transaction-id, or None when headers are falsy, before delegating to the generated operation.",
+        "pattern": "response-header-body-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch subclasses replace the response callback in their implemented overrides, changing the generated operation's default result shape.",
+        "symbols": [
+          "_ConfidentialLedgerClientOperationsMixin.create_ledger_entry"
+        ],
+        "evidence": [
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 300,
+            "endLine": 306
+          },
+          {
+            "id": "c64ff56110e60e2b027cb3b88748c896226209d3d0e78d27a5027cf000c229d5",
+            "startLine": 338,
+            "endLine": 345
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 250,
+            "endLine": 252
+          },
+          {
+            "id": "075140a665b50ae72455f6be2f28bd7af6176fa975b2391bceeae5a66a51319b",
+            "startLine": 281,
+            "endLine": 288
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "3dcd767eab1c45b7e1fd134d959990acd5d0089e1e8aa6877ddc156834568d92",
+        "status": "accepted",
+        "reason": "The sync _patch.py defines BaseStatePollingMethod with a desired-state comparison, initialization from the initial response, terminal status reporting, and callback-based projection of the stored response at the cited lines. The async polling class imports this handwritten base. The category and reusable response-state polling pattern describe that behavior."
+      },
+      {
+        "key": "d85d61a699078aed555c4c7908cc65b4941ddad6dedc670618036767add7129f",
+        "status": "accepted",
+        "reason": "The sync and async _patch.py run methods perform the cited polling loops and count not-found exceptions without resetting the count after success. Both consult the base predicate for InvalidTransactionId, rethrow when retry is disabled or the count reaches three, and mark other escaping exceptions failed. This is handwritten polling-specific retry behavior, not an imported generated poller."
+      },
+      {
+        "key": "2f678c44a6461a7c1ee15bbdd305b75086ec6b5cf93675d9379095fe13a138df",
+        "status": "accepted",
+        "reason": "Both cited patch methods call the generated entry-read operation, obtain an initial response, and construct a Ready-state poller or the requested no/custom polling alternative with a 0.5-second default interval and identity projection. The exported patch mixins supply the behavior; the pattern describes a reusable ready-state read wrapper."
+      },
+      {
+        "key": "9e9832db2d45e2a99e807e051efe7c7e3e338d96b6f771a4278fe4d0c6ee0ad6",
+        "status": "accepted",
+        "reason": "The cited sync and async receipt methods wrap generated get_receipt calls with an initial read and handwritten Ready-state polling, default 0.5-second interval, disabled not-found retries, no/custom polling selection, and unchanged resource projection. This is a distinct operation from the entry-read wrapper and shares its reusable pattern."
+      },
+      {
+        "key": "69e42c1fb29502708e4b49214a4bfaa8deb137974c875b6ab91f0cfe1a4f057c",
+        "status": "accepted",
+        "reason": "The cited begin_create_ledger_entry overrides in both patch files replace cls temporarily to retain the initial write response and transaction header, remove that callback before status polling, pass the write result (or a truthy caller cls result), and invoke begin_wait_for_commit using the extracted transaction ID. That is handwritten write-then-poll orchestration preserving the initial result; generator addressability is a plausible future capability, not evidence that it is currently generated."
+      },
+      {
+        "key": "d3fe2901ce90d6a92624fa266f664f94990a4807ebbcd88db6f77fcdb65d91a5",
+        "status": "accepted",
+        "reason": "The cited patched commit methods handle an initial ResourceNotFoundError differently according to the polling argument, select a Committed-state poller with not-found tolerance for polling=True, and project either the status or a supplied non-None create result. The sync and async methods implement the same distinct handwritten commit-wait behavior."
+      },
+      {
+        "key": "a43c816fedda89cb41184d06e0c1d13f675ee058cde00e2c05bab7c84219043c",
+        "status": "accepted",
+        "reason": "Both create_ledger_entry overrides in the exported patch mixins install a default cls callback via kwargs.get, leaving a supplied cls value in place; the callback copies the response mapping and adds transactionId from the x-ms-ccf-transaction-id header or None when headers are falsy. The cited response transformation supports the serialization category and service-independent header-to-body projection pattern."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only two of 32 eligible files were captured from 78 discovered files. Both supplied operation patches were read in full; generated operations, models, root clients and imported polling implementations are absent.",
+      "Sync/async counterparts are grouped by behavior. The state-machine base, run-loop retry policy and operation adapters are separately implemented behaviors; their import/use is visible even though helper classes are not listed in __all__.",
+      "The not-found counter is not reset after successful polls in the supplied loops. Initial not-found handling in begin_wait_for_commit is distinct from failures inside the later run loop; there is no general HTTP retry or timeout guarantee established here.",
+      "The inventory identity is module-v1 while latestRelease says 2.0.0b4, inventory stable is true, and packaging marks beta/is_stable false. These metadata inconsistencies were retained rather than used to infer shipped-version or activity facts.",
+      "Docstring-only patch_sdk functions and dependencies were not counted. No SDK execution, generated comparison, cross-service recurrence, emitter-capability measurement or root cause was established; addressability is a prospective generic-shape assessment.",
+      "The supplied evidence covers only two _operations/_patch.py files out of 32 eligible files (78 discovered); these decisions make no claim about other package files or additional customizations.",
+      "Generated operation implementations, package wiring, and runtime behavior were not supplied, so the review judges the explicit patch implementations and their imports/exports rather than verifying generated baselines or executing the SDK."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 345,
+      "provenance": "Python patch",
+      "contentHash": "03fd66bed086f3d9469a724c46c216d9623c282702e2103a75755f17d7afa790"
+    },
+    {
+      "path": "sdk/confidentialledger/azure-confidentialledger/azure/confidentialledger/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 288,
+      "provenance": "Python patch",
+      "contentHash": "b7972bfe0ddd94fa99a6d6d5f9d797b2bbce5a592ea3620ba5068f0953c73027"
+    }
+  ]
+}

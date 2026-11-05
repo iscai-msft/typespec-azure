@@ -1,0 +1,493 @@
+{
+  "schemaVersion": 1,
+  "id": "b86607e9-233c-45fe-9b57-4e7d4f0ab7eb",
+  "observedAt": "2026-10-27T06:45:28.758Z",
+  "identity": "dotnet:azure.resourcemanager.resourcegraph:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.ResourceGraph",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "2ab6aff22e103d24da9378aa0852f3b12c076075"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 145,
+    "eligibleFiles": 126,
+    "capturedFiles": 5,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/MockableResourceGraphTenantResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Collections.Generic;\nusing System.ComponentModel;\nusing System.Text.Json;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Azure.ResourceManager.ResourceGraph.Models;\n\nnamespace Azure.ResourceManager.ResourceGraph.Mocking\n{\n    /// <summary> A class to add extension methods to TenantResource. </summary>\n    public partial class MockableResourceGraphTenantResource : ArmResource\n    {\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term> Request Path. </term>\n        /// <description> /providers/Microsoft.ResourceGraph/resourcesHistory. </description>\n        /// </item>\n        /// <item>\n        /// <term> Operation Id. </term>\n        /// <description> ResourceHistory_ResourcesHistory. </description>\n        /// </item>\n        /// <item>\n        /// <term> Default Api Version. </term>\n        /// <description> 2021-06-01-preview. </description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"content\"> The request body. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"content\"/> is null. </exception>\n        public virtual async Task<Response<IDictionary<string, BinaryData>>> GetResourcesHistoryAsync(ResourcesHistoryRequest content, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(content, nameof(content));\n\n            using DiagnosticScope scope = ResourceHistoryOperationsClientDiagnostics.CreateScope(\"MockableResourceGraphTenantResource.GetResourcesHistory\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = ResourceHistoryOperationsRestClient.CreateGetResourcesHistoryRequest(ResourcesHistoryRequest.ToRequestContent(content), context);\n                Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                // TODO: Fix the AOT incompatibility build error with custom code now. Tracked issue: https://github.com/Azure/azure-sdk-for-net/issues/59433\n                Response<IDictionary<string, BinaryData>> response = Response.FromValue(DeserializeResourcesHistory(result.Content), result);\n                if (response.Value == null)\n                {\n                    throw new RequestFailedException(response.GetRawResponse());\n                }\n                return response;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term> Request Path. </term>\n        /// <description> /providers/Microsoft.ResourceGraph/resourcesHistory. </description>\n        /// </item>\n        /// <item>\n        /// <term> Operation Id. </term>\n        /// <description> ResourceHistory_ResourcesHistory. </description>\n        /// </item>\n        /// <item>\n        /// <term> Default Api Version. </term>\n        /// <description> 2021-06-01-preview. </description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"content\"> The request body. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"content\"/> is null. </exception>\n        public virtual Response<IDictionary<string, BinaryData>> GetResourcesHistory(ResourcesHistoryRequest content, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(content, nameof(content));\n\n            using DiagnosticScope scope = ResourceHistoryOperationsClientDiagnostics.CreateScope(\"MockableResourceGraphTenantResource.GetResourcesHistory\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = ResourceHistoryOperationsRestClient.CreateGetResourcesHistoryRequest(ResourcesHistoryRequest.ToRequestContent(content), context);\n                Response result = Pipeline.ProcessMessage(message, context);\n                // TODO: Fix the AOT incompatibility build error with custom code now. Tracked issue: https://github.com/Azure/azure-sdk-for-net/issues/59433\n                Response<IDictionary<string, BinaryData>> response = Response.FromValue(DeserializeResourcesHistory(result.Content), result);\n                if (response.Value == null)\n                {\n                    throw new RequestFailedException(response.GetRawResponse());\n                }\n                return response;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        private static IDictionary<string, BinaryData> DeserializeResourcesHistory(BinaryData content)\n        {\n            using JsonDocument document = JsonDocument.Parse(content, ModelSerializationExtensions.JsonDocumentOptions);\n            if (document.RootElement.ValueKind == JsonValueKind.Null)\n            {\n                return null;\n            }\n\n            Dictionary<string, BinaryData> result = new Dictionary<string, BinaryData>();\n            foreach (JsonProperty property in document.RootElement.EnumerateObject())\n            {\n                result.Add(property.Name, BinaryData.FromString(property.Value.GetRawText()));\n            }\n\n            return result;\n        }\n\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.ResourceGraph/resourcesHistory</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>ResourcesHistory</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"content\"> Request specifying the query and its options. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        [Obsolete(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\", true)]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Task<Response<BinaryData>> GetResourceHistoryAsync(ResourcesHistoryContent content, CancellationToken cancellationToken = default)\n        {\n            throw new NotSupportedException(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\");\n        }\n\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.ResourceGraph/resourcesHistory</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>ResourcesHistory</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"content\"> Request specifying the query and its options. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"content\"/> is null. </exception>\n        [Obsolete(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\", true)]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Response<BinaryData> GetResourceHistory(ResourcesHistoryContent content, CancellationToken cancellationToken = default)\n        {\n            throw new NotSupportedException(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\");\n        }\n    }\n}\n",
+      "contentHash": "ed5ef532e6abcc68384a8bc92cff99b1d567bd13eeea43f925b5ea9e97ad223d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/MockableResourceGraphTenantResource.cs",
+      "startLine": 1,
+      "endLine": 181,
+      "kind": "handwritten-marker",
+      "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/ResourceGraphExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.ResourceManager.ResourceGraph.Mocking;\nusing Azure.ResourceManager.ResourceGraph.Models;\nusing Azure.ResourceManager.Resources;\n\nnamespace Azure.ResourceManager.ResourceGraph\n{\n    /// <summary> A class to add extension methods to Azure.ResourceManager.ResourceGraph. </summary>\n    public static partial class ResourceGraphExtensions\n    {\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.ResourceGraph/resourcesHistory</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>ResourcesHistory</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"tenantResource\"> The <see cref=\"TenantResource\" /> instance the method will execute against. </param>\n        /// <param name=\"content\"> Request specifying the query and its options. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        [Obsolete(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\", true)]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static Task<Response<BinaryData>> GetResourceHistoryAsync(this TenantResource tenantResource, ResourcesHistoryContent content, CancellationToken cancellationToken = default)\n        {\n            throw new NotSupportedException(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\");\n        }\n\n        /// <summary>\n        /// List all snapshots of a resource for a given time interval.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.ResourceGraph/resourcesHistory</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>ResourcesHistory</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"tenantResource\"> The <see cref=\"TenantResource\" /> instance the method will execute against. </param>\n        /// <param name=\"content\"> Request specifying the query and its options. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tenantResource\"/> or <paramref name=\"content\"/> is null. </exception>\n        [Obsolete(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\", true)]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static Response<BinaryData> GetResourceHistory(this TenantResource tenantResource, ResourcesHistoryContent content, CancellationToken cancellationToken = default)\n        {\n            throw new NotSupportedException(\"This method isn't available in the stable SDK version. To use it, please install https://www.nuget.org/packages/Azure.ResourceManager.ResourceGraph/1.1.0-beta.4.\");\n        }\n    }\n}\n",
+      "contentHash": "0f18116342d719283070e937f57d372cfd21cdfaa05434b6363852cd63e9a353",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/ResourceGraphExtensions.cs",
+      "startLine": 1,
+      "endLine": 66,
+      "kind": "handwritten-marker",
+      "id": "baea5583148f51c5f2c62367da5c45a5a37592dd7d4c43e2ee95f9fa382ef485"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/Facet.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nnamespace Azure.ResourceManager.ResourceGraph.Models\n{\n    // GA SDK (1.1.0) exposed a protected ctor Facet(string expression).\n    // The new TypeSpec-based generator only produces a two-parameter ctor Facet(string, string).\n    // This single-parameter overload is retained so that existing derived classes compiled against\n    // the GA package continue to work without recompilation.\n    public abstract partial class Facet\n    {\n        /// <summary> Initializes a new instance of <see cref=\"Facet\"/>. </summary>\n        /// <param name=\"expression\"> Facet expression, same as in the corresponding facet request. </param>\n        protected Facet(string expression) : this(expression, null)\n        {\n        }\n    }\n}\n",
+      "contentHash": "bb840afca9d46efa7e3ae88db1b7f330caf51a5bbbaaee5048c245b6c0d66c5e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/Facet.cs",
+      "startLine": 1,
+      "endLine": 20,
+      "kind": "handwritten-marker",
+      "id": "8cb80712e994e83b406c6cc85bba9773c47a6aa1589e40d63e4e371a880122ee"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.Collections.Generic;\n\nnamespace Azure.ResourceManager.ResourceGraph.Models\n{\n    /// <summary> Describes a history request to be executed. </summary>\n    public partial class ResourcesHistoryContent\n    {\n        /// <summary>\n        /// Keeps track of any properties unknown to the library.\n        /// <para>\n        /// To assign an object to the value of this property use <see cref=\"BinaryData.FromObjectAsJson{T}(T, System.Text.Json.JsonSerializerOptions?)\"/>.\n        /// </para>\n        /// <para>\n        /// To assign an already formatted json string to this property use <see cref=\"BinaryData.FromString(string)\"/>.\n        /// </para>\n        /// <para>\n        /// Examples:\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>BinaryData.FromObjectAsJson(\"foo\")</term>\n        /// <description>Creates a payload of \"foo\".</description>\n        /// </item>\n        /// <item>\n        /// <term>BinaryData.FromString(\"\\\"foo\\\"\")</term>\n        /// <description>Creates a payload of \"foo\".</description>\n        /// </item>\n        /// <item>\n        /// <term>BinaryData.FromObjectAsJson(new { key = \"value\" })</term>\n        /// <description>Creates a payload of { \"key\": \"value\" }.</description>\n        /// </item>\n        /// <item>\n        /// <term>BinaryData.FromString(\"{\\\"key\\\": \\\"value\\\"}\")</term>\n        /// <description>Creates a payload of { \"key\": \"value\" }.</description>\n        /// </item>\n        /// </list>\n        /// </para>\n        /// </summary>\n        private IDictionary<string, BinaryData> _serializedAdditionalRawData;\n\n        /// <summary> Initializes a new instance of <see cref=\"ResourcesHistoryContent\"/>. </summary>\n        public ResourcesHistoryContent()\n        {\n            Subscriptions = new ChangeTrackingList<string>();\n            ManagementGroups = new ChangeTrackingList<string>();\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"ResourcesHistoryContent\"/>. </summary>\n        /// <param name=\"subscriptions\"> Azure subscriptions against which to execute the query. </param>\n        /// <param name=\"query\"> The resources query. </param>\n        /// <param name=\"options\"> The history request evaluation options. </param>\n        /// <param name=\"managementGroups\"> Azure management groups against which to execute the query. Example: [ 'mg1', 'mg2' ]. </param>\n        /// <param name=\"serializedAdditionalRawData\"> Keeps track of any properties unknown to the library. </param>\n        internal ResourcesHistoryContent(IList<string> subscriptions, string query, ResourcesHistoryRequestOptions options, IList<string> managementGroups, IDictionary<string, BinaryData> serializedAdditionalRawData)\n        {\n            Subscriptions = subscriptions;\n            Query = query;\n            Options = options;\n            ManagementGroups = managementGroups;\n            _serializedAdditionalRawData = serializedAdditionalRawData;\n        }\n\n        /// <summary> Azure subscriptions against which to execute the query. </summary>\n        public IList<string> Subscriptions { get; }\n        /// <summary> The resources query. </summary>\n        public string Query { get; set; }\n        /// <summary> The history request evaluation options. </summary>\n        public ResourcesHistoryRequestOptions Options { get; set; }\n        /// <summary> Azure management groups against which to execute the query. Example: [ 'mg1', 'mg2' ]. </summary>\n        public IList<string> ManagementGroups { get; }\n    }\n}\n",
+      "contentHash": "d96d72588ae07d78c79a5b418062419e6ddb3438c777378ee5e1dc3079701153",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.cs",
+      "startLine": 1,
+      "endLine": 77,
+      "kind": "handwritten-marker",
+      "id": "2b89a9bb4842e3001027814b11ec4fe5b504444cdefaa94d8434640689a91e72"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.Serialization.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ClientModel.Primitives;\nusing System.Collections.Generic;\nusing System.Text.Json;\nusing Azure.Core;\n\nnamespace Azure.ResourceManager.ResourceGraph.Models\n{\n    public partial class ResourcesHistoryContent : IUtf8JsonSerializable, IJsonModel<ResourcesHistoryContent>\n    {\n        void IUtf8JsonSerializable.Write(Utf8JsonWriter writer) => ((IJsonModel<ResourcesHistoryContent>)this).Write(writer, ModelSerializationExtensions.WireOptions);\n\n        void IJsonModel<ResourcesHistoryContent>.Write(Utf8JsonWriter writer, ModelReaderWriterOptions options)\n        {\n            writer.WriteStartObject();\n            JsonModelWriteCore(writer, options);\n            writer.WriteEndObject();\n        }\n\n        /// <param name=\"writer\"> The JSON writer. </param>\n        /// <param name=\"options\"> The client options for reading and writing models. </param>\n        protected virtual void JsonModelWriteCore(Utf8JsonWriter writer, ModelReaderWriterOptions options)\n        {\n            var format = options.Format == \"W\" ? ((IPersistableModel<ResourcesHistoryContent>)this).GetFormatFromOptions(options) : options.Format;\n            if (format != \"J\")\n            {\n                throw new FormatException($\"The model {nameof(ResourcesHistoryContent)} does not support writing '{format}' format.\");\n            }\n\n            if (Optional.IsCollectionDefined(Subscriptions))\n            {\n                writer.WritePropertyName(\"subscriptions\"u8);\n                writer.WriteStartArray();\n                foreach (var item in Subscriptions)\n                {\n                    writer.WriteStringValue(item);\n                }\n                writer.WriteEndArray();\n            }\n            if (Optional.IsDefined(Query))\n            {\n                writer.WritePropertyName(\"query\"u8);\n                writer.WriteStringValue(Query);\n            }\n            if (Optional.IsDefined(Options))\n            {\n                writer.WritePropertyName(\"options\"u8);\n                writer.WriteObjectValue(Options, options);\n            }\n            if (Optional.IsCollectionDefined(ManagementGroups))\n            {\n                writer.WritePropertyName(\"managementGroups\"u8);\n                writer.WriteStartArray();\n                foreach (var item in ManagementGroups)\n                {\n                    writer.WriteStringValue(item);\n                }\n                writer.WriteEndArray();\n            }\n            if (options.Format != \"W\" && _serializedAdditionalRawData != null)\n            {\n                foreach (var item in _serializedAdditionalRawData)\n                {\n                    writer.WritePropertyName(item.Key);\n#if NET6_0_OR_GREATER\n                    writer.WriteRawValue(item.Value);\n#else\n                    using (JsonDocument document = JsonDocument.Parse(item.Value, ModelSerializationExtensions.JsonDocumentOptions))\n                    {\n                        JsonSerializer.Serialize(writer, document.RootElement);\n                    }\n#endif\n                }\n            }\n        }\n\n        ResourcesHistoryContent IJsonModel<ResourcesHistoryContent>.Create(ref Utf8JsonReader reader, ModelReaderWriterOptions options)\n        {\n            var format = options.Format == \"W\" ? ((IPersistableModel<ResourcesHistoryContent>)this).GetFormatFromOptions(options) : options.Format;\n            if (format != \"J\")\n            {\n                throw new FormatException($\"The model {nameof(ResourcesHistoryContent)} does not support reading '{format}' format.\");\n            }\n\n            using JsonDocument document = JsonDocument.ParseValue(ref reader);\n            return DeserializeResourcesHistoryContent(document.RootElement, options);\n        }\n\n        internal static ResourcesHistoryContent DeserializeResourcesHistoryContent(JsonElement element, ModelReaderWriterOptions options = null)\n        {\n            options ??= ModelSerializationExtensions.WireOptions;\n\n            if (element.ValueKind == JsonValueKind.Null)\n            {\n                return null;\n            }\n            IList<string> subscriptions = default;\n            string query = default;\n            ResourcesHistoryRequestOptions options0 = default;\n            IList<string> managementGroups = default;\n            IDictionary<string, BinaryData> serializedAdditionalRawData = default;\n            Dictionary<string, BinaryData> rawDataDictionary = new Dictionary<string, BinaryData>();\n            foreach (var property in element.EnumerateObject())\n            {\n                if (property.NameEquals(\"subscriptions\"u8))\n                {\n                    if (property.Value.ValueKind == JsonValueKind.Null)\n                    {\n                        continue;\n                    }\n                    List<string> array = new List<string>();\n                    foreach (var item in property.Value.EnumerateArray())\n                    {\n                        array.Add(item.GetString());\n                    }\n                    subscriptions = array;\n                    continue;\n                }\n                if (property.NameEquals(\"query\"u8))\n                {\n                    query = property.Value.GetString();\n                    continue;\n                }\n                if (property.NameEquals(\"options\"u8))\n                {\n                    if (property.Value.ValueKind == JsonValueKind.Null)\n                    {\n                        continue;\n                    }\n                    options0 = ResourcesHistoryRequestOptions.DeserializeResourcesHistoryRequestOptions(property.Value, options);\n                    continue;\n                }\n                if (property.NameEquals(\"managementGroups\"u8))\n                {\n                    if (property.Value.ValueKind == JsonValueKind.Null)\n                    {\n                        continue;\n                    }\n                    List<string> array = new List<string>();\n                    foreach (var item in property.Value.EnumerateArray())\n                    {\n                        array.Add(item.GetString());\n                    }\n                    managementGroups = array;\n                    continue;\n                }\n                if (options.Format != \"W\")\n                {\n                    rawDataDictionary.Add(property.Name, BinaryData.FromString(property.Value.GetRawText()));\n                }\n            }\n            serializedAdditionalRawData = rawDataDictionary;\n            return new ResourcesHistoryContent(subscriptions ?? new ChangeTrackingList<string>(), query, options0, managementGroups ?? new ChangeTrackingList<string>(), serializedAdditionalRawData);\n        }\n\n        BinaryData IPersistableModel<ResourcesHistoryContent>.Write(ModelReaderWriterOptions options)\n        {\n            var format = options.Format == \"W\" ? ((IPersistableModel<ResourcesHistoryContent>)this).GetFormatFromOptions(options) : options.Format;\n\n            switch (format)\n            {\n                case \"J\":\n                    return ModelReaderWriter.Write(this, options, AzureResourceManagerResourceGraphContext.Default);\n                default:\n                    throw new FormatException($\"The model {nameof(ResourcesHistoryContent)} does not support writing '{options.Format}' format.\");\n            }\n        }\n\n        ResourcesHistoryContent IPersistableModel<ResourcesHistoryContent>.Create(BinaryData data, ModelReaderWriterOptions options)\n        {\n            var format = options.Format == \"W\" ? ((IPersistableModel<ResourcesHistoryContent>)this).GetFormatFromOptions(options) : options.Format;\n\n            switch (format)\n            {\n                case \"J\":\n                    {\n                        using JsonDocument document = JsonDocument.Parse(data, ModelSerializationExtensions.JsonDocumentOptions);\n                        return DeserializeResourcesHistoryContent(document.RootElement, options);\n                    }\n                default:\n                    throw new FormatException($\"The model {nameof(ResourcesHistoryContent)} does not support reading '{options.Format}' format.\");\n            }\n        }\n\n        string IPersistableModel<ResourcesHistoryContent>.GetFormatFromOptions(ModelReaderWriterOptions options) => \"J\";\n    }\n}\n",
+      "contentHash": "4d786e5fd86cf02d71b8b4d6685a5b3168a33d0b89fc25c72db4750860a97c2a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.Serialization.cs",
+      "startLine": 1,
+      "endLine": 192,
+      "kind": "handwritten-marker",
+      "id": "3defb6aecb0d6cf41b80eac736090c3f6ef9dde141d1241b6513ed7f91a91046"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/README.md",
+      "text": "# Microsoft Azure Resource Graph management client library for .NET\n\nThe Microsoft Azure Resource Graph is an Azure service designed to extend Azure Resource Management by providing efficient and performant resource exploration with the ability to query at scale across a given set of subscriptions so that you can effectively govern your environment.\n\nThis library supports managing Microsoft Azure Resource Graph resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Resource Graph management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.ResourceGraph\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "94a3cee3f310428ab814ea31e706841c3cf53a17ac2bee2924822b5495b83b4c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/README.md"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Azure.ResourceManager.ResourceGraph.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.2.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.1.1</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.ResourceGraph</PackageId>\n    <Description>Microsoft Azure Resource Manager client SDK for Azure resource provider Microsoft.ResourceGraph.</Description>\n    <PackageTags>azure;management;arm;resource manager;resourcegraph</PackageTags>\n    <DisableEnhancedAnalysis>true</DisableEnhancedAnalysis>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "4fabc2612021e5f9d8b9f3fa6032cc33725a916977945a0a1604630c5bc5a804",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Azure.ResourceManager.ResourceGraph.csproj"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/tsp-location.yaml",
+      "text": "directory: specification/resourcegraph/resource-manager/Microsoft.ResourceGraph/ResourceGraph\ncommit: 22c3849b91613266fd8a1158cb5d11f5813ed06f\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n",
+      "contentHash": "fd3c26084cefe747cd8acb7e957c41b3712bb149d83215d1f2e8b23474507e85",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "2f764a0ea76ca0c6306af4c3ab77fa3ec525ff95c011d389f32d125d75ac525e",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "bb982fe318fa9e5d37982ddf5497e54aa5e1b599983a7dbbb16d9cc09a72a3c6",
+        "category": "Convenience methods",
+        "subtype": "Typed history operations over raw request/pipeline execution",
+        "explanation": "GetResourcesHistory/GetResourcesHistoryAsync null-check the ResourcesHistoryRequest, start a diagnostic scope, create a RequestContext with the token and obtain a raw request using ResourcesHistoryRequest.ToRequestContent. They process it through the pipeline, wrap the deserialized dictionary with the raw response and reject a null dictionary using RequestFailedException. Failures mark the scope then rethrow; async execution uses ConfigureAwait(false). This is the plural ResourcesHistory API, not the disabled singular ResourceHistory API.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both complete typed operation bodies are explicitly implemented in src/Custom/Extensions outside Generated rather than inferred from a generated method signature.",
+        "symbols": [
+          "MockableResourceGraphTenantResource.GetResourcesHistory(ResourcesHistoryRequest, CancellationToken)",
+          "MockableResourceGraphTenantResource.GetResourcesHistoryAsync(ResourcesHistoryRequest, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+            "startLine": 41,
+            "endLine": 68
+          },
+          {
+            "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+            "startLine": 90,
+            "endLine": 117
+          }
+        ]
+      },
+      {
+        "key": "3fb3947731c32bf7a6df2d3c858cec10dfbefd467e56ef5baf1aba461350aa95",
+        "category": "Serialization",
+        "subtype": "Raw response object values preserved as BinaryData",
+        "explanation": "DeserializeResourcesHistory parses the BinaryData response with the configured JsonDocumentOptions, returns null for a top-level JSON null and otherwise enumerates the top-level object into Dictionary<string,BinaryData>. Each value uses BinaryData.FromString(property.Value.GetRawText()), preserving its raw JSON representation instead of materializing a fixed result model. This helper itself does not translate parse errors.",
+        "pattern": "response-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete private response decoder is explicitly implemented in src/Custom/Extensions outside Generated.",
+        "symbols": ["MockableResourceGraphTenantResource.DeserializeResourcesHistory(BinaryData)"],
+        "evidence": [
+          {
+            "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+            "startLine": 119,
+            "endLine": 134
+          }
+        ]
+      },
+      {
+        "key": "f821aa9a397dac7eec929ec37081a077ab7875b3c1150488d8bc40ae7ed1149d",
+        "category": "Convenience methods",
+        "subtype": "Compiler-error-obsolete mockable history methods throw directly",
+        "explanation": "The singular GetResourceHistory/GetResourceHistoryAsync pair accepts ResourcesHistoryContent and declares Response<BinaryData>/Task<Response<BinaryData>>, but both bodies directly throw NotSupportedException. Both are editor-hidden and Obsolete with error:true. The async-named method is not an async implementation and performs no request; its package recommendation is just an observed attribute/message.",
+        "pattern": "backward-compatibility-shim",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit deprecation attributes and throwing method bodies are supplied in src/Custom/Extensions outside Generated.",
+        "symbols": [
+          "MockableResourceGraphTenantResource.GetResourceHistory(ResourcesHistoryContent, CancellationToken)",
+          "MockableResourceGraphTenantResource.GetResourceHistoryAsync(ResourcesHistoryContent, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+            "startLine": 151,
+            "endLine": 156
+          },
+          {
+            "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+            "startLine": 174,
+            "endLine": 179
+          }
+        ]
+      },
+      {
+        "key": "7a1761ec6135a464ba924f42038d86578cd645e2e2c85590d3e65187445d490d",
+        "category": "Convenience methods",
+        "subtype": "Retained static history extension signatures reject calls",
+        "explanation": "The static TenantResource GetResourceHistory/GetResourceHistoryAsync extension pair is editor-hidden, Obsolete with error:true and directly throws NotSupportedException. Neither body forwards through a mockable resource or checks receiver/content for null, despite the synchronous method's XML exception description.",
+        "pattern": "backward-compatibility-shim",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both explicit static extension bodies and their attributes occur in src/Custom/Extensions outside Generated.",
+        "symbols": [
+          "ResourceGraphExtensions.GetResourceHistory(TenantResource, ResourcesHistoryContent, CancellationToken)",
+          "ResourceGraphExtensions.GetResourceHistoryAsync(TenantResource, ResourcesHistoryContent, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "baea5583148f51c5f2c62367da5c45a5a37592dd7d4c43e2ee95f9fa382ef485",
+            "startLine": 35,
+            "endLine": 40
+          },
+          {
+            "id": "baea5583148f51c5f2c62367da5c45a5a37592dd7d4c43e2ee95f9fa382ef485",
+            "startLine": 59,
+            "endLine": 64
+          }
+        ]
+      },
+      {
+        "key": "6b74a7d3daff455e15ee60f678eae92764ab4091691e9cbae73ff024f578ab45",
+        "category": "Model overrides",
+        "subtype": "Protected constructor supplies a null second argument",
+        "explanation": "The abstract Facet partial explicitly exposes protected Facet(string expression) with the active initializer this(expression, null). Its body is empty, but the initializer adapts the construction signature. The other constructor implementation and claimed historical binary-compatibility baseline are not supplied.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete protected constructor initializer is in src/Custom/Models outside Generated.",
+        "symbols": ["Facet.Facet(string)"],
+        "evidence": [
+          {
+            "id": "8cb80712e994e83b406c6cc85bba9773c47a6aa1589e40d63e4e371a880122ee",
+            "startLine": 16,
+            "endLine": 18
+          }
+        ]
+      },
+      {
+        "key": "4c33c864769504765ef36334f64e4a92a6342108e485d466394dd98f658581fe",
+        "category": "Model overrides",
+        "subtype": "History content constructor initializes change-tracking lists",
+        "explanation": "The public ResourcesHistoryContent() constructor initializes both Subscriptions and ManagementGroups with separate ChangeTrackingList<string> instances. It does not initialize Query or Options or validate their content.",
+        "pattern": "model-default-value",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The nonempty collection-initializing constructor is implemented in src/Custom/Models outside Generated.",
+        "symbols": ["ResourcesHistoryContent.ResourcesHistoryContent()"],
+        "evidence": [
+          {
+            "id": "2b89a9bb4842e3001027814b11ec4fe5b504444cdefaa94d8434640689a91e72",
+            "startLine": 47,
+            "endLine": 51
+          }
+        ]
+      },
+      {
+        "key": "9adcaafbd8e89abcb6dc7a60d41c52418aafdd2c667e701d70fb6009d309b16e",
+        "category": "Model overrides",
+        "subtype": "Internal constructor stores supplied model and raw-data state",
+        "explanation": "The five-argument internal ResourcesHistoryContent constructor assigns subscriptions, query, options, managementGroups and serializedAdditionalRawData directly to the model's state without copying or explicit validation. The same capture declares public get-only IList<string> collection properties and get/set Query/Options; get-only collection access does not make the lists immutable.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit internal state-restoring constructor and public state declarations are supplied in src/Custom/Models outside Generated.",
+        "symbols": [
+          "ResourcesHistoryContent.ResourcesHistoryContent(IList<string>, string, ResourcesHistoryRequestOptions, IList<string>, IDictionary<string, BinaryData>)"
+        ],
+        "evidence": [
+          {
+            "id": "2b89a9bb4842e3001027814b11ec4fe5b504444cdefaa94d8434640689a91e72",
+            "startLine": 59,
+            "endLine": 75
+          }
+        ]
+      },
+      {
+        "key": "0e3219deeb8fd37d9bd5bc96fa9f3a08de322138d468a7da02c8f2819d526b86",
+        "category": "Serialization",
+        "subtype": "Conditional model JSON writer with non-wire raw-data preservation",
+        "explanation": "IUtf8JsonSerializable.Write delegates using WireOptions; IJsonModel.Write emits an object envelope around JsonModelWriteCore. The core normalizes W via GetFormatFromOptions, rejects non-J formats, conditionally writes subscription/management-group string arrays and defined query/options, and emits _serializedAdditionalRawData only outside W mode. Extra values use WriteRawValue on NET6_0_OR_GREATER or JsonDocument/JsonSerializer otherwise.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete explicit interface writers and property-by-property core are implemented in src/Custom/Models outside Generated.",
+        "symbols": [
+          "ResourcesHistoryContent.IUtf8JsonSerializable.Write(Utf8JsonWriter)",
+          "ResourcesHistoryContent.IJsonModel<ResourcesHistoryContent>.Write(Utf8JsonWriter, ModelReaderWriterOptions)",
+          "ResourcesHistoryContent.JsonModelWriteCore(Utf8JsonWriter, ModelReaderWriterOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "3defb6aecb0d6cf41b80eac736090c3f6ef9dde141d1241b6513ed7f91a91046",
+            "startLine": 14,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "ee9e1c3a7d8e6042b39f36868f7318ed04415e817ea961edf10f3cf570207c8a",
+        "category": "Serialization",
+        "subtype": "Mode-aware JSON reader captures unknown fields only outside wire mode",
+        "explanation": "IJsonModel.Create normalizes format, rejects non-J input and parses the reader into the handwritten deserializer. That helper defaults options to WireOptions, returns null for JSON null, reads known query/options and string-list fields, skips null list/options values, and captures unknown properties as raw BinaryData only when options.Format is not W. Missing/null lists become ChangeTrackingList<string> instances before invoking the captured state constructor.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both the explicit interface reader and complete property-dispatch deserializer are in src/Custom/Models outside Generated.",
+        "symbols": [
+          "ResourcesHistoryContent.IJsonModel<ResourcesHistoryContent>.Create(ref Utf8JsonReader, ModelReaderWriterOptions)",
+          "ResourcesHistoryContent.DeserializeResourcesHistoryContent(JsonElement, ModelReaderWriterOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "3defb6aecb0d6cf41b80eac736090c3f6ef9dde141d1241b6513ed7f91a91046",
+            "startLine": 82,
+            "endLine": 159
+          }
+        ]
+      },
+      {
+        "key": "7198f329842c4ee2d8370fee9fe8b079bf289a1386708c8c767819c7faa841e5",
+        "category": "Serialization",
+        "subtype": "JSON-only BinaryData persistence adapter with explicit writer context",
+        "explanation": "The explicit IPersistableModel Write normalizes W, accepts J and delegates to ModelReaderWriter.Write(this, options, AzureResourceManagerResourceGraphContext.Default); other formats throw. Create similarly accepts J, parses BinaryData with JsonDocumentOptions and calls the captured deserializer. GetFormatFromOptions returns \"J\". The explicit context argument is observed, not proof of AOT support or successful runtime serialization.",
+        "pattern": "model-reader-writer-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete BinaryData read/write/format-selector implementations are supplied in src/Custom/Models outside Generated.",
+        "symbols": [
+          "ResourcesHistoryContent.IPersistableModel<ResourcesHistoryContent>.Write(ModelReaderWriterOptions)",
+          "ResourcesHistoryContent.IPersistableModel<ResourcesHistoryContent>.Create(BinaryData, ModelReaderWriterOptions)",
+          "ResourcesHistoryContent.IPersistableModel<ResourcesHistoryContent>.GetFormatFromOptions(ModelReaderWriterOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "3defb6aecb0d6cf41b80eac736090c3f6ef9dde141d1241b6513ed7f91a91046",
+            "startLine": 161,
+            "endLine": 190
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "bb982fe318fa9e5d37982ddf5497e54aa5e1b599983a7dbbb16d9cc09a72a3c6",
+        "status": "accepted",
+        "reason": "Both complete methods at lines 41-68 and 90-117 are handwritten typed public operations in Custom that create a request via the RestClient request builder, execute it through the pipeline, and return a decoded typed response. The category and reusable typed-wrapper pattern are plausible for this operation wrapper; generator addressability is a possibility, not a claim that the captured request builder was itself generated."
+      },
+      {
+        "key": "3fb3947731c32bf7a6df2d3c858cec10dfbefd467e56ef5baf1aba461350aa95",
+        "status": "accepted",
+        "reason": "Lines 119-134 explicitly decode a top-level JSON object into a dictionary of raw JSON BinaryData values, preserving each property's GetRawText; this is a separate response projection used by both typed operations. The helper does not catch JSON parsing failures. The catalog's raw-response-to-result projection describes this reusable shape, and a generator could plausibly emit the mapping."
+      },
+      {
+        "key": "f821aa9a397dac7eec929ec37081a077ab7875b3c1150488d8bc40ae7ed1149d",
+        "status": "revised",
+        "reason": "The captured singular mockable methods are disabled throw-only API stubs, not convenience helpers wrapping generated operations. Their Obsolete(error: true) attributes prohibit ordinary new compilation, so the existing backward-compatibility-shim catalog definition (which says it keeps retired APIs compiling) overstates the observed behavior. The version-specific reason for retaining these signatures is not independently established.",
+        "finding": {
+          "key": "f821aa9a397dac7eec929ec37081a077ab7875b3c1150488d8bc40ae7ed1149d",
+          "category": "Other",
+          "subtype": "Compiler-error obsolete mockable methods that throw",
+          "explanation": "The singular GetResourceHistoryAsync and GetResourceHistory methods retain signatures accepting ResourcesHistoryContent, are marked Obsolete with error: true and EditorBrowsable(Never), and directly throw NotSupportedException. The async-named method does not perform an asynchronous operation or send a request.",
+          "pattern": "disabled-obsolete-api-stub",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The attributes, signatures and explicit throwing method bodies occur in src/Custom/Extensions outside Generated.",
+          "symbols": [
+            "MockableResourceGraphTenantResource.GetResourceHistory(ResourcesHistoryContent, CancellationToken)",
+            "MockableResourceGraphTenantResource.GetResourceHistoryAsync(ResourcesHistoryContent, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+              "startLine": 151,
+              "endLine": 156
+            },
+            {
+              "id": "a5f6767952b6cb6dd091b38a66359a923e37d2c16afc9d210a8ce79bff6de16b",
+              "startLine": 174,
+              "endLine": 179
+            }
+          ]
+        }
+      },
+      {
+        "key": "7a1761ec6135a464ba924f42038d86578cd645e2e2c85590d3e65187445d490d",
+        "status": "revised",
+        "reason": "These static extension methods are also compiler-error-obsolete throw-only stubs, not convenience wrappers; they neither delegate to a mockable resource nor validate arguments. The catalog's backward-compatibility-shim definition asserts continued compilability, which error: true does not provide. Their historical purpose and generator support cannot be established from the limited capture.",
+        "finding": {
+          "key": "7a1761ec6135a464ba924f42038d86578cd645e2e2c85590d3e65187445d490d",
+          "category": "Other",
+          "subtype": "Disabled static extension API signatures that throw",
+          "explanation": "The static TenantResource GetResourceHistoryAsync and GetResourceHistory extensions are marked Obsolete with error: true and EditorBrowsable(Never), and both directly throw NotSupportedException without invoking a mockable resource or validating inputs.",
+          "pattern": "disabled-obsolete-api-stub",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The explicit attributes and throwing static extension bodies are present in src/Custom/Extensions outside Generated.",
+          "symbols": [
+            "ResourceGraphExtensions.GetResourceHistory(TenantResource, ResourcesHistoryContent, CancellationToken)",
+            "ResourceGraphExtensions.GetResourceHistoryAsync(TenantResource, ResourcesHistoryContent, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "baea5583148f51c5f2c62367da5c45a5a37592dd7d4c43e2ee95f9fa382ef485",
+              "startLine": 35,
+              "endLine": 40
+            },
+            {
+              "id": "baea5583148f51c5f2c62367da5c45a5a37592dd7d4c43e2ee95f9fa382ef485",
+              "startLine": 59,
+              "endLine": 64
+            }
+          ]
+        }
+      },
+      {
+        "key": "6b74a7d3daff455e15ee60f678eae92764ab4091691e9cbae73ff024f578ab45",
+        "status": "accepted",
+        "reason": "The protected single-string Facet constructor delegates to a two-argument constructor with null at lines 16-18, supplying an actual additional model constructor shape outside Generated. Its comments allege a compatibility history, but that baseline and the delegated constructor's implementation are not supplied; the proposal appropriately avoids asserting either as a proven fact."
+      },
+      {
+        "key": "4c33c864769504765ef36334f64e4a92a6342108e485d466394dd98f658581fe",
+        "status": "accepted",
+        "reason": "The explicit public no-argument model constructor initializes two separate change-tracking lists at lines 47-51. This is observable collection initialization distinct from the serializer and matches the catalog's model-default-value description; it plausibly could be emitted by a generator."
+      },
+      {
+        "key": "9adcaafbd8e89abcb6dc7a60d41c52418aafdd2c667e701d70fb6009d309b16e",
+        "status": "rejected",
+        "reason": "The internal five-argument constructor only assigns deserialized state and raw-data storage at lines 59-66; the captured deserializer invokes it at line 158. It is an implementation detail of the reader assessed in the proposal keyed ee9e1c3a, not an independent alternative public model-construction behavior. Its separate model-alternate-constructors classification would double-count the same serialization behavior; public properties are considered separately as an omission."
+      },
+      {
+        "key": "0e3219deeb8fd37d9bd5bc96fa9f3a08de322138d468a7da02c8f2819d526b86",
+        "status": "accepted",
+        "reason": "Lines 14-80 implement a concrete property-by-property JSON writer in Custom, conditionally serialize known members and serialize unknown raw values only outside W mode. This is a distinct outgoing serialization behavior consistent with custom-model-json-serialization; the NET6 branch and fallback are both directly visible, without assuming execution or AOT support."
+      },
+      {
+        "key": "ee9e1c3a7d8e6042b39f36868f7318ed04415e817ea961edf10f3cf570207c8a",
+        "status": "accepted",
+        "reason": "Lines 82-159 implement the independent incoming JSON path: dispatch known fields, leave skipped null collection/option values absent, capture unknown raw JSON outside W mode and substitute change-tracking lists for missing or null lists. It is property-by-property handwritten model deserialization, not merely a duplicate of the outgoing writer."
+      },
+      {
+        "key": "7198f329842c4ee2d8370fee9fe8b079bf289a1386708c8c767819c7faa841e5",
+        "status": "accepted",
+        "reason": "Lines 161-190 implement a separate BinaryData persistence interface and J-format routing over the JSON reader/writer, including a context-argument write and direct document parsing on create. The pattern names this reusable interface adapter, not a service, and the behavior could plausibly be generated. This finding concerns the additional persistence entry points rather than counting the property-wise codec again; no runtime or AOT guarantee follows."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "13ecf10e254c262ca4792fc85d86add5347e85f4f6e3a68c061bbdd602bd1a4b",
+        "category": "Model overrides",
+        "subtype": "Handwritten public history request model properties",
+        "explanation": "The handwritten ResourcesHistoryContent partial publicly exposes get-only IList<string> Subscriptions and ManagementGroups alongside settable Query and Options; the get-only list properties do not imply immutable collections. These public model members are an API shape separate from the constructor defaults and JSON codec.",
+        "pattern": "handwritten-public-model",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public property declarations and containing model are supplied in src/Custom/Models outside Generated; the declaration is concrete, although no generated counterpart is included.",
+        "symbols": [
+          "ResourcesHistoryContent.Subscriptions",
+          "ResourcesHistoryContent.Query",
+          "ResourcesHistoryContent.Options",
+          "ResourcesHistoryContent.ManagementGroups"
+        ],
+        "evidence": [
+          {
+            "id": "2b89a9bb4842e3001027814b11ec4fe5b504444cdefaa94d8434640689a91e72",
+            "startLine": 68,
+            "endLine": 75
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Partial coverage is five captures of 126 eligible files among 145 discovered, with complete empty skipped/errors inventories. All five entire captured texts, including complete method documentation and the full 192-line serialization partial, all three complete generation contexts, and full target/library/coverage were personally read. This is not exhaustive discovery.",
+      "SDK facts come only from this request. Generated counterparts, the ResourcesHistoryRequest serializer, request factory, pipeline internals, diagnostics, options-model decoder and AzureResourceManagerResourceGraphContext implementation are not supplied. Comments about AOT failures and Facet compatibility history are unverified, and no linked issue/package URL was followed.",
+      "The request-processing plural GetResourcesHistory wrappers take ResourcesHistoryRequest; the directly throwing singular GetResourceHistory stubs take ResourcesHistoryContent. The supplied content codec is not evidence that the plural operations use that different model. No successful request, paging, polling or runtime serialization was tested.",
+      "Raw response JSON null maps to a null dictionary that the public wrappers reject. Dictionary values preserve GetRawText, including each value's JSON form. The history-content reader/writer has separate W-mode unknown-field exclusion and non-W raw-data handling; it does not promise service-side acceptance or arbitrary model schema validation.",
+      "EditorBrowsable is not internal accessibility; Obsolete(...,true) marks compiler-error-obsolete signatures whose bodies still directly throw. Empty Facet constructor body has an active chaining initializer, while get-only IList properties remain mutable collection interfaces. No additional finding is inferred from ordinary imports or a generated operation/model name.",
+      "Generator-addressable judgments identify plausible typed raw-response wrappers, result dictionaries, disabled API shapes, constructor defaults and model codec/adapters, not verified support by the current generator. Existing SDK diagnostics/pipeline use is described in the operation finding, not asserted as a novel tracing policy. Findings await independent AI review and are not human-verified.",
+      "Coverage is partial: only five captured source texts from 126 eligible files (145 discovered) under the configured package root, with no reported skipped files or extraction errors. No package-wide customization or absence conclusion is possible.",
+      "No generated counterpart, TypeSpec definitions, tests or runtime behavior are supplied. The source comments about older Facet constructors and the recommendation in disabled API attributes are observations, not independently verified historical facts; whether individual implementations are actually generated elsewhere or supported by today's generator cannot be proven from this capture.",
+      "The captured README, project metadata and tsp-location identify the package and generation context but do not establish the version history, runtime correctness, API compatibility or generator implementation for these custom source files."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/MockableResourceGraphTenantResource.cs",
+      "startLine": 1,
+      "endLine": 181,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "ed5ef532e6abcc68384a8bc92cff99b1d567bd13eeea43f925b5ea9e97ad223d"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Extensions/ResourceGraphExtensions.cs",
+      "startLine": 1,
+      "endLine": 66,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0f18116342d719283070e937f57d372cfd21cdfaa05434b6363852cd63e9a353"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/Facet.cs",
+      "startLine": 1,
+      "endLine": 20,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "bb840afca9d46efa7e3ae88db1b7f330caf51a5bbbaaee5048c245b6c0d66c5e"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.Serialization.cs",
+      "startLine": 1,
+      "endLine": 192,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "4d786e5fd86cf02d71b8b4d6685a5b3168a33d0b89fc25c72db4750860a97c2a"
+    },
+    {
+      "path": "sdk/resourcegraph/Azure.ResourceManager.ResourceGraph/src/Custom/Models/ResourcesHistoryContent.cs",
+      "startLine": 1,
+      "endLine": 77,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d96d72588ae07d78c79a5b418062419e6ddb3438c777378ee5e1dc3079701153"
+    }
+  ]
+}

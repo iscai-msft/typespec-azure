@@ -1,0 +1,825 @@
+{
+  "schemaVersion": 1,
+  "id": "ae7e37ea-c595-4096-9f72-7c5a2e8294fe",
+  "observedAt": "2026-10-23T19:02:59.604Z",
+  "identity": "dotnet:azure.data.schemaregistry:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Data.SchemaRegistry",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/schemaregistry/Azure.Data.SchemaRegistry"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "e76b3205e396eef49eadf50705c991f7064367fe"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 83,
+    "eligibleFiles": 56,
+    "capturedFiles": 9,
+    "skipped": [
+      {
+        "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializationEventSource.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializer.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializerOptions.cs",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Custom/Models/AzureDataSchemaRegistryContext.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.ClientModel.Primitives;\nusing Azure.Data.SchemaRegistry.Models;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    // TODO: Remove this buildable model once https://github.com/Azure/azure-sdk-for-net/issues/63576 is fixed.\n    [ModelReaderWriterBuildable(typeof(SchemaGroups))]\n    public partial class AzureDataSchemaRegistryContext\n    {\n    }\n}\n",
+      "contentHash": "78a8c88cfed7790b9717dc18cca1af1b8fd386ce4d8f4301c6310bb4b29ba5da",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Custom/Models/AzureDataSchemaRegistryContext.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "15b92021ae8f2a036c170b104ad593efb67381476b65026d117d15bfbe4d63de"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/LruCache.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections;\nusing System.Collections.Generic;\n\n#nullable enable\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// A simple LRU cache implementation using a doubly linked list and dictionary.\n    /// </summary>\n    /// <typeparam name=\"TKey\">The type of key.</typeparam>\n    /// <typeparam name=\"TValue\">The type of value.</typeparam>\n    internal class LruCache<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>\n        where TKey : notnull\n    {\n        private readonly int _capacity;\n        private readonly LinkedList<KeyValuePair<TKey, TValue?>> _linkedList;\n        private readonly Dictionary<TKey, (LinkedListNode<KeyValuePair<TKey, TValue?>> Node, int Length)> _map;\n        private readonly object _syncLock;\n\n        /// <summary>\n        /// Gets the number of key/value pairs contained in the <see cref=\"LruCache{TKey, TValue}\"/>.\n        /// </summary>\n        public int Count => _linkedList.Count;\n\n        /// <summary>\n        /// Gets the total length of all values currently stored in the <see cref=\"LruCache{TKey, TValue}\"/>.\n        /// </summary>\n        public int TotalLength { get; private set; }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"LruCache{TKey, TValue}\"/> class.\n        /// </summary>\n        /// <param name=\"capacity\"></param>\n        public LruCache(int capacity)\n        {\n            _capacity = capacity;\n            _linkedList = new LinkedList<KeyValuePair<TKey, TValue?>>();\n            _map = new Dictionary<TKey, (LinkedListNode<KeyValuePair<TKey, TValue?>>, int)>();\n            _syncLock = new object();\n        }\n\n        /// <summary>\n        /// Gets the value associated with the specified key.\n        /// </summary>\n        /// <param name=\"key\">The key of the value to get.</param>\n        /// <param name=\"value\">When this method returns, contains the value associated with\n        /// the specified key, if the key is found; otherwise, the default value for the type of\n        /// the type of the <paramref name=\"value\"/> parameter.</param>\n        /// <returns><c>true</c> if the <see cref=\"LruCache{TKey, TValue}\"/> contains an element\n        /// with the specified key; otherwise, <c>false</c>.</returns>\n        public bool TryGet(TKey key, out TValue? value)\n        {\n            lock (_syncLock)\n            {\n                if (_map.TryGetValue(key, out var mapValue))\n                {\n                    var node = mapValue.Node;\n                    value = node.Value.Value;\n                    _linkedList.Remove(node);\n                    _linkedList.AddFirst(node);\n                    return true;\n                }\n\n                value = default(TValue);\n                return false;\n            }\n        }\n\n        /// <summary>\n        /// Adds a key/value pair to the <see cref=\"LruCache{TKey, TValue}\"/> if the key doesn't already exist, or updates a key/value\n        /// pair in the <see cref=\"LruCache{TKey, TValue}\"/> if the key does already exist.\n        /// </summary>\n        /// <param name=\"key\"></param>\n        /// <param name=\"val\"></param>\n        /// <param name=\"length\"></param>\n        public void AddOrUpdate(TKey key, TValue? val, int length)\n        {\n            lock (_syncLock)\n            {\n                if (_map.TryGetValue(key, out var existingValue))\n                {\n                    // remove node - we will re-add a new node for this key at the head of the list, as the value may be different\n                    _linkedList.Remove(existingValue.Node);\n                    TotalLength -= _map[key].Length;\n                }\n\n                // add new node\n                var node = new LinkedListNode<KeyValuePair<TKey, TValue?>>(new KeyValuePair<TKey, TValue?>(key, val));\n                _linkedList.AddFirst(node);\n                _map[key] = (node, length);\n                TotalLength += length;\n\n                if (_map.Count > _capacity)\n                {\n                    // remove least recently used node\n                    LinkedListNode<KeyValuePair<TKey, TValue?>> last = _linkedList.Last!;\n                    _linkedList.RemoveLast();\n                    var toRemove = _map[last.Value.Key];\n                    _map.Remove(last.Value.Key);\n                    TotalLength -= toRemove.Length;\n                }\n            }\n        }\n\n        /// <summary>\n        /// Returns an enumerator that iterates through the <see cref=\"LruCache{TKey, TValue}\"/>.\n        /// </summary>\n        /// <returns></returns>\n        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _linkedList.GetEnumerator();\n\n        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();\n    }\n}\n",
+      "contentHash": "9585637a61349eb454123b0414bfc3996b92d1c336d220766325df5f1c13ccf1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/LruCache.cs",
+      "startLine": 1,
+      "endLine": 117,
+      "kind": "unknown",
+      "id": "0266d911e10e7b9da7e191bee9ac426946aa6f8924a0fdaba9030d9e2482b6fe"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaFormat.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing System.Xml.Schema;\nusing Azure.Core;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary> The SerializationType. </summary>\n    public readonly partial struct SchemaFormat : IEquatable<SchemaFormat>\n    {\n        private readonly string _value;\n\n        private const string AvroValue = \"Avro\";\n        private const string JsonValue = \"JSON\";\n        private const string CustomValue = \"Custom\";\n        private const string ProtobufValue = \"Protobuf\";\n\n        // Temporary until autorest bug is fixed\n        private const string AvroContentType = \"application/json; serialization=Avro\";\n        private const string JsonContentType = \"application/json; serialization=Json\";\n        private const string CustomContentType = \"text/plain; charset=utf-8\";\n        private const string ProtobufContentType = \"text/vnd.ms.protobuf\";\n\n        private const string AvroContentTypeValue = \"Avro\";\n        private const string JsonContentTypeValue = \"Json\";\n        private const string CustomContentTypeValue = \"utf-8\";\n        private const string ProtobufContentTypeValue = \"vnd.ms.protobuf\";\n\n        /// <summary> Initializes a new instance of <see cref=\"SchemaFormat\"/>. </summary>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"value\"/> is null. </exception>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format.\n        /// </remarks>\n        public SchemaFormat(string value)\n        {\n            _value = value ?? throw new ArgumentNullException(nameof(value));\n            ContentType = _value == CustomValue ? CustomContentType : $\"application/json; serialization={value}\";\n        }\n\n        private SchemaFormat(string value, string contentType)\n        {\n            _value = value;\n            ContentType = contentType;\n        }\n\n        /// <summary> Avro Serialization schema type. </summary>\n        public static SchemaFormat Avro { get; } = new SchemaFormat(AvroValue, AvroContentType);\n\n        /// <summary> JSON Serialization schema type. </summary>\n        public static SchemaFormat Json { get; } = new SchemaFormat(JsonValue, JsonContentType);\n\n        /// <summary> Custom Serialization schema type. </summary>\n        public static SchemaFormat Custom { get; } = new SchemaFormat(CustomValue, CustomContentType);\n\n        ///// <summary> Protobuf Serialization schema type. </summary>\n        //public static SchemaFormat Protobuf { get; } = new SchemaFormat(ProtobufValue);\n\n        /// <summary> Determines if two <see cref=\"SchemaFormat\"/> values are the same. </summary>\n        public static bool operator ==(SchemaFormat left, SchemaFormat right) => left.Equals(right);\n        /// <summary> Determines if two <see cref=\"SchemaFormat\"/> values are not the same. </summary>\n        public static bool operator !=(SchemaFormat left, SchemaFormat right) => !left.Equals(right);\n        /// <summary> Converts a string to a <see cref=\"SchemaFormat\"/>. </summary>\n        public static implicit operator SchemaFormat(string value) => new SchemaFormat(value);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override bool Equals(object obj) => obj is SchemaFormat other && Equals(other);\n        /// <inheritdoc />\n        public bool Equals(SchemaFormat other) => string.Equals(_value, other._value, StringComparison.InvariantCultureIgnoreCase);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override int GetHashCode() => _value?.GetHashCode() ?? 0;\n        /// <inheritdoc />\n        public override string ToString() => _value;\n\n        internal string ContentType { get; }\n\n        internal static SchemaFormat FromContentType(string contentTypeValue)\n        {\n            var contentTypeParameterValue = contentTypeValue.Split('=');\n            if (contentTypeParameterValue.Length > 1)\n            {\n                switch (contentTypeParameterValue[1])\n                {\n                    case AvroContentTypeValue:\n                        return Avro;\n                    case JsonContentTypeValue:\n                        return Json;\n                    case CustomContentTypeValue:\n                        return Custom;\n                    default:\n                        break;\n                }\n            }\n            return new SchemaFormat(contentTypeValue);\n        }\n    }\n}\n",
+      "contentHash": "2bd1cb5cd622e4facf2c242d9e04eec14c144e4230994f08d9a5557202e838c9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaFormat.cs",
+      "startLine": 1,
+      "endLine": 103,
+      "kind": "unknown",
+      "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaProperties.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// Properties for a SchemaRegistry schema.\n    /// </summary>\n    public class SchemaProperties\n    {\n        internal SchemaProperties(SchemaFormat format, string schemaId, string groupName, string name, int version)\n        {\n            Id = schemaId;\n            Format = format;\n            GroupName = groupName;\n            Name = name;\n            Version = version;\n        }\n\n        /// <summary>\n        /// The schema ID that uniquely identifies a schema in the registry namespace.\n        /// </summary>\n        public string Id { get; }\n\n        /// <summary>\n        /// Serialization type for the schema being stored.\n        /// </summary>\n        public SchemaFormat Format { get; }\n\n        /// <summary>\n        /// The group name for the schema.\n        /// </summary>\n        public string GroupName { get; }\n\n        /// <summary>\n        /// The name of the schema.\n        /// </summary>\n        public string Name { get; }\n\n        /// <summary>\n        /// The version of the schema.\n        /// </summary>\n        public int Version { get; }\n    }\n}\n",
+      "contentHash": "e57444ce540a1d73a06c18cd4972bdbab25cfcf80b64a0aa7fbeb973ce4bee5c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaProperties.cs",
+      "startLine": 1,
+      "endLine": 45,
+      "kind": "unknown",
+      "id": "905e04129a5722d6f7913bc3506424243be1c4b5c6265edf0ce069b539bfe20a"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClient.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// The Schema Registry client provides operations to interact with the Schema Registry service.\n    /// </summary>\n    public partial class SchemaRegistryClient\n    {\n        private const string CredentialScope = \"https://eventhubs.azure.net/.default\";\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"SchemaRegistryClient\"/>.\n        /// </summary>\n        public SchemaRegistryClient(string fullyQualifiedNamespace, TokenCredential credential) : this(fullyQualifiedNamespace, credential, new SchemaRegistryClientOptions())\n        {\n        }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"SchemaRegistryClient\"/>.\n        /// </summary>\n        public SchemaRegistryClient(string fullyQualifiedNamespace, TokenCredential credential, SchemaRegistryClientOptions options) : this(\n            new Uri($\"https://{fullyQualifiedNamespace}\"),\n            credential,\n            options)\n        {\n            FullyQualifiedNamespace = fullyQualifiedNamespace;\n        }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"SchemaRegistryClient\"/> class for mocking use in testing.\n        /// </summary>\n        /// <remarks>\n        /// This constructor exists only to support mocking. When used, class state is not fully initialized, and\n        /// will not function correctly; virtual members are meant to be mocked.\n        ///</remarks>\n        protected SchemaRegistryClient()\n        {\n        }\n\n        /// <summary>Initializes a new instance of <see cref=\"SchemaRegistryClient\"/>.</summary>\n        /// <param name=\"endpoint\">The Schema Registry service endpoint, for example 'https://my-namespace.servicebus.windows.net'</param>\n        /// <param name=\"credential\">A credential used to authenticate to an Azure service.</param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/> or <paramref name=\"credential\"/> is null. </exception>\n        internal SchemaRegistryClient(Uri endpoint, TokenCredential credential) : this(endpoint, credential, new SchemaRegistryClientOptions())\n        {\n        }\n\n        /// <summary> Initializes a new instance of SchemaRegistryClient. </summary>\n        /// <param name=\"endpoint\"> The Schema Registry service endpoint, for example 'https://my-namespace.servicebus.windows.net'. </param>\n        /// <param name=\"credential\"> A credential used to authenticate to an Azure Service. </param>\n        /// <param name=\"options\"> The options for configuring the client. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/> or <paramref name=\"credential\"/> is null. </exception>\n        internal SchemaRegistryClient(Uri endpoint, TokenCredential credential, SchemaRegistryClientOptions options)\n        {\n            Argument.AssertNotNull(credential, nameof(credential));\n            Argument.AssertNotNull(endpoint, nameof(endpoint));\n            options ??= new SchemaRegistryClientOptions();\n\n            ClientDiagnostics = new ClientDiagnostics(options, true);\n            Pipeline = HttpPipelineBuilder.Build(options, Array.Empty<HttpPipelinePolicy>(), new HttpPipelinePolicy[] { new BearerTokenAuthenticationPolicy(credential, AuthorizationScopes) }, new ResponseClassifier());\n            _endpoint = endpoint;\n            _apiVersion = options.Version;\n        }\n\n        /// <summary>\n        /// Gets the fully qualified namespace that the client is connecting to.\n        /// </summary>\n        public string FullyQualifiedNamespace { get; }\n\n        private const string RegisterSchemaScopeName = \"SchemaRegistryClient.RegisterSchema\";\n        private const string GetSchemaIdScopeName = \"SchemaRegistryClient.GetSchemaId\";\n        private const string GetSchemaScopeName = \"SchemaRegistryClient.GetSchema\";\n\n        /// <summary>\n        /// Registers a schema with the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"groupName\">The name of the SchemaRegistry group.</param>\n        /// <param name=\"schemaName\">The name of the schema.</param>\n        /// <param name=\"schemaDefinition\">The string representation of the schema's content.</param>\n        /// <param name=\"format\">The serialization format of the schema.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema.</returns>\n        public virtual async Task<Response<SchemaProperties>> RegisterSchemaAsync(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            CancellationToken cancellationToken = default) =>\n            await RegisterSchemaInternalAsync(groupName, schemaName, schemaDefinition, format, true, cancellationToken)\n                .ConfigureAwait(false);\n\n        /// <summary>\n        /// Registers a schema with the SchemaRegistry service.\n        /// If the schema did not previously exist in the Schema Registry instance, it is added to the instance and assigned a schema ID.\n        /// If the schema did previous exist in the Schema Registry instance, a new version of the schema is added to the instance and assigned a new schema ID.\n        /// </summary>\n        /// <param name=\"groupName\">The name of the SchemaRegistry group.</param>\n        /// <param name=\"schemaName\">The name of the schema.</param>\n        /// <param name=\"schemaDefinition\">The string representation of the schema's content.</param>\n        /// <param name=\"format\">The serialization format of the schema.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned Schema.\n        /// </remarks>\n        public virtual Response<SchemaProperties> RegisterSchema(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            CancellationToken cancellationToken = default) =>\n                RegisterSchemaInternalAsync(groupName, schemaName, schemaDefinition, format, false, cancellationToken)\n                    .EnsureCompleted();\n\n        private async Task<Response<SchemaProperties>> RegisterSchemaInternalAsync(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            bool async,\n            CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(RegisterSchemaScopeName);\n            scope.Start();\n            try\n            {\n                Response response;\n                using RequestContent content = new BinaryData(schemaDefinition);\n                RequestContext context = FromCancellationToken(cancellationToken);\n                if (async)\n                {\n                    response = await RegisterSchemaAsync(groupName, schemaName, content, format.ContentType, context).ConfigureAwait(false);\n                }\n                else\n                {\n                    response = RegisterSchema(groupName, schemaName, content, format.ContentType, context);\n                }\n\n                var schemaIdHeader = response.Headers.TryGetValue(\"Schema-Id\", out string idHeader) ? idHeader : null;\n                var schemaGroupNameHeader = response.Headers.TryGetValue(\"Schema-Group-Name\", out string groupNameHeader) ? groupNameHeader : null;\n                var schemaNameHeader = response.Headers.TryGetValue(\"Schema-Name\", out string nameHeader) ? nameHeader : null;\n                var schemaVersionHeader = response.Headers.TryGetValue(\"Schema-Version\", out int? versionHeader) ? versionHeader : null;\n\n                var properties = new SchemaProperties(format, schemaIdHeader, schemaGroupNameHeader, schemaNameHeader, schemaVersionHeader!.Value);\n\n                return Response.FromValue(properties, response);\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Gets the schema ID associated with the schema from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"groupName\">The name of the SchemaRegistry group.</param>\n        /// <param name=\"schemaName\">The name of the schema.</param>\n        /// <param name=\"schemaDefinition\">The string representation of the schema's content.</param>\n        /// <param name=\"format\">The serialization format of the schema.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema ID provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned Schema.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual async Task<Response<SchemaProperties>> GetSchemaPropertiesAsync(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n                await GetSchemaPropertiesInternalAsync(groupName, schemaName, schemaDefinition, format, true, cancellationToken)\n                    .ConfigureAwait(false);\n\n        /// <summary>\n        /// Gets the schema ID associated with the schema from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"groupName\">The name of the SchemaRegistry group.</param>\n        /// <param name=\"schemaName\">The name of the schema.</param>\n        /// <param name=\"schemaDefinition\">The string representation of the schema's content.</param>\n        /// <param name=\"format\">The serialization format of the schema.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema ID provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned Schema.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual Response<SchemaProperties> GetSchemaProperties(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n                GetSchemaPropertiesInternalAsync(groupName, schemaName, schemaDefinition, format, false, cancellationToken).EnsureCompleted();\n\n        private async Task<Response<SchemaProperties>> GetSchemaPropertiesInternalAsync(\n            string groupName,\n            string schemaName,\n            string schemaDefinition,\n            SchemaFormat format,\n            bool async,\n            CancellationToken cancellationToken)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(GetSchemaIdScopeName);\n            scope.Start();\n            try\n            {\n                Response response;\n                using RequestContent content = new BinaryData(schemaDefinition);\n                RequestContext context = FromCancellationToken(cancellationToken);\n                if (async)\n                {\n                    response = await GetSchemaPropertiesByContentAsync(groupName, schemaName, content, format.ContentType, context).ConfigureAwait(false);\n                }\n                else\n                {\n                    response = GetSchemaPropertiesByContent(groupName, schemaName, content, format.ContentType, context);\n                }\n\n                var schemaIdHeader = response.Headers.TryGetValue(\"Schema-Id\", out string idHeader) ? idHeader : null;\n                var schemaGroupNameHeader = response.Headers.TryGetValue(\"Schema-Group-Name\", out string groupNameHeader) ? groupNameHeader : null;\n                var schemaNameHeader = response.Headers.TryGetValue(\"Schema-Name\", out string nameHeader) ? nameHeader : null;\n                var schemaVersionHeader = response.Headers.TryGetValue(\"Schema-Version\", out int? versionHeader) ? versionHeader : null;\n\n                var properties = new SchemaProperties(format, schemaIdHeader, schemaGroupNameHeader, schemaNameHeader, schemaVersionHeader!.Value);\n\n                return Response.FromValue(properties, response);\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Gets the schema content associated with the schema ID from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"schemaId\">The schema ID of the the schema from the SchemaRegistry.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema content provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned <see cref=\"SchemaRegistrySchema.Properties\"/>.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual async Task<Response<SchemaRegistrySchema>> GetSchemaAsync(string schemaId, CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n            await GetSchemaInternalAsync(schemaId, true, cancellationToken).ConfigureAwait(false);\n\n        /// <summary>\n        /// Gets the schema content associated with the group name, schema name, and version from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"groupName\"> Schema group under which schema is registered.  Group's serialization type should match the serialization type specified in the request</param>\n        /// <param name=\"schemaName\"> Name of schema. </param>\n        /// <param name=\"schemaVersion\"> Version number of specific schema. </param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema content provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned <see cref=\"SchemaRegistrySchema.Properties\"/>.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual async Task<Response<SchemaRegistrySchema>> GetSchemaAsync(string groupName, string schemaName, int schemaVersion, CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n            await GetSchemaInternalAsync(groupName, schemaName, schemaVersion, true, cancellationToken).ConfigureAwait(false);\n\n        /// <summary>\n        /// Gets the schema content associated with the schema ID from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"schemaId\">The schema ID of the the schema from the SchemaRegistry.</param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema content provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned <see cref=\"SchemaRegistrySchema.Properties\"/>.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual Response<SchemaRegistrySchema> GetSchema(string schemaId, CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n            GetSchemaInternalAsync(schemaId, false, cancellationToken).EnsureCompleted();\n\n        /// <summary>\n        /// Gets the schema content associated with the group name, schema name, and version from the SchemaRegistry service.\n        /// </summary>\n        /// <param name=\"groupName\"> Schema group under which schema is registered.  Group's serialization type should match the serialization type specified in the request.  </param>\n        /// <param name=\"schemaName\"> Name of schema. </param>\n        /// <param name=\"schemaVersion\"> Version number of specific schema. </param>\n        /// <param name=\"cancellationToken\">The cancellation token for the operation.</param>\n        /// <returns>The properties of the schema, including the schema content provided by the service.</returns>\n        /// <remarks>\n        /// If using a schema format that is unsupported by this client, upgrade to a\n        /// version that supports the schema format. Otherwise, the content MIME type\n        /// string will be returned as the value of the <see cref=\"SchemaProperties.Format\"/>\n        /// for the returned <see cref=\"SchemaRegistrySchema.Properties\"/>.\n        /// </remarks>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual Response<SchemaRegistrySchema> GetSchema(string groupName, string schemaName, int schemaVersion, CancellationToken cancellationToken = default) =>\n#pragma warning restore AZC0015 // Unexpected client method return type.\n            GetSchemaInternalAsync(groupName, schemaName, schemaVersion, false, cancellationToken).EnsureCompleted();\n\n        private async Task<Response<SchemaRegistrySchema>> GetSchemaInternalAsync(string groupName, string schemaName, int version, bool async, CancellationToken cancellationToken)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(GetSchemaScopeName);\n            scope.Start();\n            try\n            {\n                Response<BinaryData> response;\n                if (async)\n                {\n                    response = await GetSchemaByVersionAsync(groupName, schemaName, version, cancellationToken).ConfigureAwait(false);\n                }\n                else\n                {\n                    response = GetSchemaByVersion(groupName, schemaName, version, cancellationToken);\n                }\n\n                var schemaIdHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Id\", out string idHeader) ? idHeader : null;\n                var schemaGroupNameHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Group-Name\", out string groupNameHeader) ? groupNameHeader : null;\n                var schemaNameHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Name\", out string nameHeader) ? nameHeader : null;\n                var schemaVersionHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Version\", out int? versionHeader) ? versionHeader : null;\n                var schemaContentTypeHeader = response.GetRawResponse().Headers.TryGetValue(\"Content-Type\", out string contentTypeHeader) ? contentTypeHeader : null;\n\n                var properties = new SchemaProperties(SchemaFormat.FromContentType(schemaContentTypeHeader), schemaIdHeader, schemaGroupNameHeader, schemaNameHeader, schemaVersionHeader!.Value);\n                var schema = new SchemaRegistrySchema(properties, response.Value.ToString());\n\n                return Response.FromValue(schema, response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        private async Task<Response<SchemaRegistrySchema>> GetSchemaInternalAsync(string schemaId, bool async, CancellationToken cancellationToken)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(GetSchemaScopeName);\n            scope.Start();\n            try\n            {\n                Response<BinaryData> response;\n                if (async)\n                {\n                    response = await GetSchemaByIdAsync(schemaId, cancellationToken).ConfigureAwait(false);\n                }\n                else\n                {\n                    response = GetSchemaById(schemaId, cancellationToken);\n                }\n\n                var schemaIdHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Id\", out string idHeader) ? idHeader : null;\n                var schemaGroupNameHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Group-Name\", out string groupNameHeader) ? groupNameHeader : null;\n                var schemaNameHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Name\", out string nameHeader) ? nameHeader : null;\n                var schemaVersionHeader = response.GetRawResponse().Headers.TryGetValue(\"Schema-Version\", out int? versionHeader) ? versionHeader : null;\n                var schemaContentTypeHeader = response.GetRawResponse().Headers.TryGetValue(\"Content-Type\", out string contentTypeHeader) ? contentTypeHeader : null;\n\n                var properties = new SchemaProperties(SchemaFormat.FromContentType(schemaContentTypeHeader), schemaIdHeader, schemaGroupNameHeader, schemaNameHeader, schemaVersionHeader!.Value);\n                var schema = new SchemaRegistrySchema(properties, response.Value.ToString());\n\n                return Response.FromValue(schema, response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        private static RequestContext DefaultRequestContext = new RequestContext();\n        private static RequestContext FromCancellationToken(CancellationToken cancellationToken = default)\n        {\n            if (!cancellationToken.CanBeCanceled)\n            {\n                return DefaultRequestContext;\n            }\n\n            return new RequestContext() { CancellationToken = cancellationToken };\n        }\n    }\n}\n",
+      "contentHash": "6848c070f272a359a30270eb080822d81599e132b4064c48497920a7748dd66a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClient.cs",
+      "startLine": 1,
+      "endLine": 408,
+      "kind": "unknown",
+      "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClientOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure.Core;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// The options for <see cref=\"SchemaRegistryClient\"/>\n    /// </summary>\n    public partial class SchemaRegistryClientOptions : ClientOptions\n    {\n        internal string Version { get; }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"SchemaRegistryClientOptions\"/>.\n        /// </summary>\n        public SchemaRegistryClientOptions(ServiceVersion version = ServiceVersion.V2023_07_01)\n        {\n            Version = version switch\n            {\n                ServiceVersion.V2021_10 => \"2021-10\",\n                ServiceVersion.V2022_10 => \"2022-10\",\n                ServiceVersion.V2023_07_01 => \"2023-07-01\",\n                _ => throw new ArgumentException($\"The service version {version} is not supported by this library.\", nameof(version))\n            };\n        }\n    }\n}\n",
+      "contentHash": "97b580ce47a3e036f4a5651aae478ce88a20137ccf360b69e92e5c1da5169fcf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClientOptions.cs",
+      "startLine": 1,
+      "endLine": 30,
+      "kind": "unknown",
+      "id": "3727760c7d6e5c3b346b0971a08cbae52be1d323cf6cf07e850adf8d15034678"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryModelFactory.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.ComponentModel;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// This class contains methods to create Schema Registry models for mocking purposes.\n    /// </summary>\n    public static class SchemaRegistryModelFactory\n    {\n        /// <summary>\n        /// Constructs a SchemaProperties instance for mocking.\n        /// </summary>\n        /// <param name=\"format\">The format for the schema.</param>\n        /// <param name=\"schemaId\">The ID of the schema.</param>\n        /// <returns>A schemaProperties instance for mocking.</returns>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static SchemaProperties SchemaProperties(SchemaFormat format, string schemaId) => SchemaProperties(format, schemaId, null, null, 1);\n\n        /// <summary>\n        /// Constructs a SchemaProperties instance for mocking.\n        /// </summary>\n        /// <param name=\"format\">The format for the schema.</param>\n        /// <param name=\"schemaId\">The ID of the schema.</param>\n        /// <param name=\"groupName\">The group name for the schema.</param>\n        /// <param name=\"name\">The name of the schema.</param>\n        /// <returns>A schemaProperties instance for mocking.</returns>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static SchemaProperties SchemaProperties(SchemaFormat format, string schemaId, string groupName, string name) => new(format, schemaId, groupName, name, 1);\n\n        /// <summary>\n        /// Constructs a SchemaProperties instance for mocking.\n        /// </summary>\n        /// <param name=\"format\">The format for the schema.</param>\n        /// <param name=\"schemaId\">The ID of the schema.</param>\n        /// <param name=\"groupName\">The group name for the schema.</param>\n        /// <param name=\"name\">The name of the schema.</param>\n        /// <param name=\"version\">The version of the schema.</param>\n        /// <returns>A schemaProperties instance for mocking.</returns>\n        public static SchemaProperties SchemaProperties(SchemaFormat format, string schemaId, string groupName, string name, int version) => new(format, schemaId, groupName, name, version);\n\n        /// <summary>\n        /// Constructs a SchemaRegistrySchema instance for mocking.\n        /// </summary>\n        /// <param name=\"properties\">The properties for the schema.</param>\n        /// <param name=\"definition\">The defintion of the schema.</param>\n        /// <returns>A SchemaRegistrySchema instance for mocking.</returns>\n        public static SchemaRegistrySchema SchemaRegistrySchema(SchemaProperties properties, string definition) => new(properties, definition);\n    }\n}\n",
+      "contentHash": "bb0d9883092f074edeaff45bf7a8eec8d4709fbc4d1dea8093399f41e54c30c6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryModelFactory.cs",
+      "startLine": 1,
+      "endLine": 52,
+      "kind": "unknown",
+      "id": "c08866dd425512e6e37e8895a220e52b01376e4e652e12f5e7ec5931d0edd344"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistrySchema.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// Represents a Schema Registry schema.\n    /// </summary>\n    public class SchemaRegistrySchema\n    {\n        internal SchemaRegistrySchema(SchemaProperties properties, string definition)\n        {\n            Properties = properties;\n            Definition = definition;\n        }\n\n        /// <summary>\n        /// The properties of the SchemaRegistry schema.\n        /// </summary>\n        public SchemaProperties Properties { get; }\n\n        /// <summary>\n        /// The schema definition of the SchemaRegistry schema.\n        /// </summary>\n        public string Definition { get; }\n    }\n}\n",
+      "contentHash": "ec2080f54dbca1d88ee2d0336de25dd314228509c9fd43760179d94ad0939ef2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistrySchema.cs",
+      "startLine": 1,
+      "endLine": 27,
+      "kind": "unknown",
+      "id": "030ea61c3febffaf4c261cf6bc72fc99c28aa20d74411848e7d4117220581446"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaValidator.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\n\nnamespace Azure.Data.SchemaRegistry\n{\n    /// <summary>\n    /// This abstract class allows any available library to be used to generate schemas from .NET types and validate\n    /// objects against schemas.\n    /// </summary>\n    /// <remarks>\n    /// Defining both <see cref=\"GenerateSchema(Type)\"/> and <see cref=\"TryValidate(object, Type, string, out IEnumerable{Exception})\"/> is required. If you\n    /// do not wish to validate, then evaluate all schemas as valid.\n    /// </remarks>\n    public abstract class SchemaValidator\n    {\n        /// <summary>\n        /// Validates that <paramref name=\"data\"/> is valid according to <paramref name=\"schemaDefinition\"/>.\n        /// </summary>\n        /// <param name=\"data\">The data to validate.</param>\n        /// <param name=\"dataType\">The type of data to validate.</param>\n        /// <param name=\"schemaDefinition\">The schema definition to validate against.</param>\n        /// <param name=\"validationErrors\">When this method returns, contains the validation errors if <paramref name=\"data\"/> was invalid according to\n        /// the <paramref name=\"schemaDefinition\"/>.</param>\n        /// <returns></returns>\n        public abstract bool TryValidate(object data, Type dataType, string schemaDefinition, out IEnumerable<Exception> validationErrors);\n\n        /// <summary>\n        /// Generates a schema from <paramref name=\"dataType\"/> and returns it as a string.\n        /// </summary>\n        /// <param name=\"dataType\">The type of the data to use when generating the schema.</param>\n        /// <returns>The generated schema in string format.</returns>\n        public abstract string GenerateSchema(Type dataType);\n    }\n}\n",
+      "contentHash": "7fa52e8d27563f6031302dcb8c45c2125a1d07c7289e2852f7c5bb9aca4cf815",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaValidator.cs",
+      "startLine": 1,
+      "endLine": 37,
+      "kind": "unknown",
+      "id": "8f244f1fb573e09db5d16fcc6d45deede72cbc08f52ec7f224bf669e1b0309f5"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/README.md",
+      "text": "# Azure Schema Registry client library for .NET\n\nAzure Schema Registry is a schema repository service hosted by Azure Event Hubs, providing schema storage, versioning, and management. The registry is leveraged by serializers to reduce payload size while describing payload structure with schema identifiers rather than full schemas.\n\n## Getting started\n\n### Install the package\n\nInstall the Azure Schema Registry client library for .NET with [NuGet][nuget]:\n\n```dotnetcli\ndotnet add package Azure.Data.SchemaRegistry\n```\n\n### Prerequisites\n\n* An [Azure subscription][azure_sub]\n* An [Event Hubs namespace][event_hubs_namespace]\n* A [Schema Group][create_schema_group] of the correct serialization type\n\nIf you need to [create an Event Hubs namespace][create_event_hubs_namespace], you can use the Azure Portal or [Azure PowerShell][azure_powershell].\n\nYou can use Azure PowerShell to create the Event Hubs namespace with the following command:\n\n```PowerShell\nNew-AzEventHubNamespace -ResourceGroupName myResourceGroup -NamespaceName namespace_name -Location eastus\n```\n\n### Authenticate the client\n\nIn order to interact with the Azure Schema Registry service, you'll need to create an instance of the [Schema Registry Client][schema_registry_client] class. To create this client, you'll need Azure resource credentials and the Event Hubs namespace hostname.\n\n#### Get credentials\n\nTo acquire authenticated credentials and start interacting with Azure resources, please see the [getting started with Azure Identity guide][quickstart_guide].\n\n#### Get Event Hubs namespace hostname\n\nThe simplest way is to use the [Azure portal][azure_portal] and navigate to your Event Hubs namespace. From the Overview tab, you'll see `Host name`. Copy the value from this field.\n\n#### Create SchemaRegistryClient\n\nOnce you have the Azure resource credentials and the Event Hubs namespace hostname, you can create the [SchemaRegistryClient][schema_registry_client]. You'll also need the [Azure.Identity][azure_identity] package to create the credential.\n\n```C# Snippet:SchemaRegistryCreateSchemaRegistryClient\n// Create a new SchemaRegistry client using the default credential from Azure.Identity using environment variables previously set,\n// including AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, and AZURE_TENANT_ID.\n// For more information on Azure.Identity usage, see: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md\nstring fullyQualifiedNamespace = \"{hostname}.servicebus.windows.net\";\nvar client = new SchemaRegistryClient(fullyQualifiedNamespace: fullyQualifiedNamespace, credential: new DefaultAzureCredential());\n```\n\n## Key concepts\n\n### Schemas\n\nA schema has 6 components:\n- Group Name: The name of the group of schemas in the Schema Registry instance.\n- Schema Name: The name of the schema.\n- Schema ID: The ID assigned by the Schema Registry instance for the schema.\n- Schema Format: The format used for serialization of the schema. For example, Avro.\n- Schema Content: The string representation of the schema.\n- Schema Version: The version assigned to the schema in the Schema Registry instance.\n\nThese components play different roles. Some are used as input into the operations and some are outputs. Currently, [SchemaProperties][schema_properties] only exposes those properties that are potential outputs that are used in SchemaRegistry operations. Those exposed properties are `Content` and `Id`.\n\n### Thread safety\nWe guarantee that all client instance methods are thread-safe and independent of each other ([guideline](https://azure.github.io/azure-sdk/dotnet_introduction.html#dotnet-service-methods-thread-safety)). This ensures that the recommendation of reusing client instances is always safe, even across threads.\n\n### Additional concepts\n<!-- CLIENT COMMON BAR -->\n[Client options](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#configuring-service-clients-using-clientoptions) |\n[Accessing the response](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#accessing-http-response-details-using-responset) |\n[Long-running operations](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#consuming-long-running-operations-using-operationt) |\n[Handling failures](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#reporting-errors-requestfailedexception) |\n[Diagnostics](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/samples/Diagnostics.md) |\n[Mocking](https://learn.microsoft.com/dotnet/azure/sdk/unit-testing-mocking) |\n[Client lifetime](https://devblogs.microsoft.com/azure-sdk/lifetime-management-and-thread-safety-guarantees-of-azure-sdk-net-clients/)\n<!-- CLIENT COMMON BAR -->\n\n## Examples\n\nThe following shows examples of what is available through the `SchemaRegistryClient`. There are both sync and async methods available for these client operations.\n\n* [Register a schema](#register-a-schema)\n* [Retrieve a schema ID](#retrieve-a-schema-id)\n* [Retrieve a schema](#retrieve-a-schema)\n\n### Register a schema\n\nRegister a schema to be stored in the Azure Schema Registry.\n\n```C# Snippet:SchemaRegistryRegisterSchema\nstring groupName = \"<schema_group_name>\";\nstring name = \"employeeSample\";\nSchemaFormat format = SchemaFormat.Avro;\n// Example schema's definition\nstring definition = @\"\n{\n   \"\"type\"\" : \"\"record\"\",\n    \"\"namespace\"\" : \"\"TestSchema\"\",\n    \"\"name\"\" : \"\"Employee\"\",\n    \"\"fields\"\" : [\n    { \"\"name\"\" : \"\"Name\"\" , \"\"type\"\" : \"\"string\"\" },\n    { \"\"name\"\" : \"\"Age\"\", \"\"type\"\" : \"\"int\"\" }\n    ]\n}\";\n\nResponse<SchemaProperties> schemaProperties = client.RegisterSchema(groupName, name, definition, format);\n```\n\n### Retrieve a schema ID\n\nRetrieve a previously registered schema ID from the Azure Schema Registry.\n\n```C# Snippet:SchemaRegistryRetrieveSchemaId\nstring groupName = \"<schema_group_name>\";\nstring name = \"employeeSample\";\nSchemaFormat format = SchemaFormat.Avro;\n// Example schema's content\nstring content = @\"\n{\n   \"\"type\"\" : \"\"record\"\",\n    \"\"namespace\"\" : \"\"TestSchema\"\",\n    \"\"name\"\" : \"\"Employee\"\",\n    \"\"fields\"\" : [\n    { \"\"name\"\" : \"\"Name\"\" , \"\"type\"\" : \"\"string\"\" },\n    { \"\"name\"\" : \"\"Age\"\", \"\"type\"\" : \"\"int\"\" }\n    ]\n}\";\n\nSchemaProperties schemaProperties = client.GetSchemaProperties(groupName, name, content, format);\nstring schemaId = schemaProperties.Id;\n```\n\n### Retrieve a schema\n\nRetrieve a previously registered schema's content from the Azure Schema Registry with either a schema ID or the group name, schema name, and version.\n\n```C# Snippet:SchemaRegistryRetrieveSchema\nvar schemaId = \"<schema_id>\";\nSchemaRegistrySchema schema = client.GetSchema(schemaId);\nstring definition = schema.Definition;\n```\n\n```C# Snippet:SchemaRegistryRetrieveSchemaVersion\nstring groupName = \"<schema_group_name>\";\nstring name = \"<schema_id>\";\nint version = 1;\nSchemaRegistrySchema schema = client.GetSchema(groupName, name, version);\nstring definition = schema.Definition;\n```\n\n## Troubleshooting\n\nInformation on troubleshooting steps will be provided as potential issues are discovered.\n\n## Next steps\n\nSee [Azure Schema Registry][azure_schema_registry] for additional information.\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit [cla.microsoft.com][cla].\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information see the [Code of Conduct FAQ][code_of_conduct_faq] or contact [opencode@microsoft.com][email_opencode] with any additional questions or comments.\n\n<!-- LINKS -->\n[nuget]: https://www.nuget.org/\n[event_hubs_namespace]: https://learn.microsoft.com/azure/event-hubs/event-hubs-about\n[create_schema_group]: https://learn.microsoft.com/azure/event-hubs/create-schema-registry#create-a-schema-group\n[azure_powershell]: https://learn.microsoft.com/powershell/azure/\n[create_event_hubs_namespace]: https://learn.microsoft.com/azure/event-hubs/event-hubs-quickstart-powershell#create-an-event-hubs-namespace\n[quickstart_guide]: https://learn.microsoft.com/dotnet/api/overview/azure/identity-readme?view=azure-dotnet\n[schema_registry_client]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClient.cs\n[azure_portal]: https://ms.portal.azure.com/\n[schema_properties]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaProperties.cs\n[azure_identity]: https://www.nuget.org/packages/Azure.Identity\n[cla]: https://cla.microsoft.com\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[code_of_conduct_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[email_opencode]: mailto:opencode@microsoft.com\n[azure_sub]: https://azure.microsoft.com/free/dotnet/\n[azure_schema_registry]: https://aka.ms/schemaregistry\n",
+      "contentHash": "b983ff6af59baac51a2ddeeb0d326518dda40c5f22999e7327dc491a5ccedc5a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/README.md"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Azure.Data.SchemaRegistry.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>Azure Schema Registry SDK</Description>\n    <AssemblyTitle>Azure Schema Registry SDK</AssemblyTitle>\n    <Version>1.5.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.4.0</ApiCompatVersion>\n    <PackageTags>Azure;Schema Registry;SchemaRegistry;.NET;Data;$(PackageCommonTags)</PackageTags>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n    <AotCompatOptOut>true</AotCompatOptOut>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n  <!-- Shared source from Azure.Core -->\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureEventSource.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"SharedCore\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n\n</Project>\n",
+      "contentHash": "d29efaf617369c87c6c411bb6d5102f4539a8ce3eaed1cc53bbfd1372a659016",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Azure.Data.SchemaRegistry.csproj"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/tsp-location.yaml",
+      "text": "repo: Azure/azure-rest-api-specs\ndirectory: specification/schemaregistry/data-plane/SchemaRegistry\ncommit: c90b62daed903080ed53766cefd53b6df2621cc6\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-emitter-package.json\n",
+      "contentHash": "9bda0ea22e59513897a8c9337ad3247f9beb3c27c38da4dd70f708b8b63554fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/schemaregistry/Azure.Data.SchemaRegistry/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "c325c9c74abf4cb5ea37531f9c0bb2397463b1d40bd47055900d0aca60ab9db3",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "7233d215befead5f42507a613e91fab7d9d2937b70c9288882bd84487523af26",
+        "category": "Serialization",
+        "subtype": "Explicit reader/writer buildable model registration",
+        "pattern": "model-reader-writer-buildable-registration",
+        "generatorAddressable": "yes",
+        "explanation": "The custom partial context adds ModelReaderWriterBuildable(typeof(SchemaGroups)). Its otherwise empty body does not remove the explicit model-registration metadata.",
+        "handwrittenRationale": "A concrete serialization-generation attribute is supplied in src/Custom/Models on a partial context, outside Generated.",
+        "symbols": [
+          "AzureDataSchemaRegistryContext"
+        ],
+        "evidence": [
+          {
+            "id": "15b92021ae8f2a036c170b104ad593efb67381476b65026d117d15bfbe4d63de",
+            "startLine": 10,
+            "endLine": 13
+          }
+        ]
+      },
+      {
+        "key": "2682f31df70b16e36c7c161c43a758d9f32147bdf4d66c7ab47e3c9c343a3969",
+        "category": "Other",
+        "subtype": "Locked cache lookup promotes a hit",
+        "pattern": "lru-cache-hit-promotion",
+        "generatorAddressable": "unclear",
+        "explanation": "TryGet locks the cache, returns the stored value and moves a hit to the front of the linked list; a miss returns false and the default value.",
+        "handwrittenRationale": "The concrete cache helper is directly under src, outside Generated, which the supplied .NET guideline identifies as handwritten source.",
+        "symbols": [
+          "LruCache<TKey, TValue>.TryGet"
+        ],
+        "evidence": [
+          {
+            "id": "0266d911e10e7b9da7e191bee9ac426946aa6f8924a0fdaba9030d9e2482b6fe",
+            "startLine": 55,
+            "endLine": 71
+          }
+        ]
+      },
+      {
+        "key": "ad53fb0ddf3b60404bcce2ae6d8f5a8e7f20fbb4ab489bc9c189f38acf38fad9",
+        "category": "Other",
+        "subtype": "Entry-count-bounded upsert with caller-provided length accounting",
+        "pattern": "bounded-lru-cache-upsert",
+        "generatorAddressable": "unclear",
+        "explanation": "AddOrUpdate replaces an existing node, inserts the new node at the head, adjusts TotalLength using the supplied length and evicts the tail when entry count exceeds capacity. Length is accounting, not the eviction limit.",
+        "handwrittenRationale": "The implemented dictionary/linked-list mutation is in non-generated src/LruCache.cs under the supplied .NET handwritten-source definition.",
+        "symbols": [
+          "LruCache<TKey, TValue>.AddOrUpdate"
+        ],
+        "evidence": [
+          {
+            "id": "0266d911e10e7b9da7e191bee9ac426946aa6f8924a0fdaba9030d9e2482b6fe",
+            "startLine": 80,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "7c36d9f84897099d8aafac33ad4abbfc6c9aa6595a9048fa863e6bb0f7960b44",
+        "category": "Multiple content types",
+        "subtype": "Schema format carries a request MIME value",
+        "pattern": "format-to-content-type",
+        "generatorAddressable": "yes",
+        "explanation": "SchemaFormat adds ContentType metadata: predefined Avro and Json have explicit application/json serialization parameters and Custom uses text/plain; charset=utf-8. The public string constructor recognizes exact Custom, otherwise interpolating the supplied value into application/json; serialization=.",
+        "handwrittenRationale": "The partial struct outside Generated contains concrete extra MIME constants, constructor assignments and an internal ContentType property.",
+        "symbols": [
+          "SchemaFormat.SchemaFormat",
+          "SchemaFormat.ContentType",
+          "SchemaFormat.Avro",
+          "SchemaFormat.Json",
+          "SchemaFormat.Custom"
+        ],
+        "evidence": [
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 16,
+            "endLine": 57
+          },
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 81,
+            "endLine": 81
+          }
+        ]
+      },
+      {
+        "key": "08687496dc5a8174296272e1be6705b451075a8d5ef59eb22bf9d399b9a30e82",
+        "category": "Serialization",
+        "subtype": "MIME parameter to public schema-format value",
+        "pattern": "content-type-to-format",
+        "generatorAddressable": "yes",
+        "explanation": "FromContentType splits on '=', compares only the second component to exact Avro, Json and utf-8 values and returns their predefined formats. Otherwise it constructs a format whose display value is the original input string; it is not a general normalized MIME parser.",
+        "handwrittenRationale": "The concrete MIME conversion helper is in the non-generated src/SchemaFormat.cs partial struct.",
+        "symbols": [
+          "SchemaFormat.FromContentType"
+        ],
+        "evidence": [
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 27,
+            "endLine": 29
+          },
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 79,
+            "endLine": 100
+          }
+        ]
+      },
+      {
+        "key": "89ace13f0738d6325c4c62c8c9dd34aa30e552c4b078611fbfe50ccbca427d98",
+        "category": "Model overrides",
+        "subtype": "Get-only schema metadata model with internal construction",
+        "pattern": "handwritten-result-model",
+        "generatorAddressable": "yes",
+        "explanation": "SchemaProperties exposes get-only ID, format, group, name and version properties assigned by an internal constructor; the visible constructor performs direct assignment rather than validation.",
+        "handwrittenRationale": "This concrete public model is in src/SchemaProperties.cs, outside Generated, satisfying the supplied .NET handwritten-source rule.",
+        "symbols": [
+          "SchemaProperties"
+        ],
+        "evidence": [
+          {
+            "id": "905e04129a5722d6f7913bc3506424243be1c4b5c6265edf0ce069b539bfe20a",
+            "startLine": 9,
+            "endLine": 43
+          }
+        ]
+      },
+      {
+        "key": "e0e94ffd140099241e748d3796f10d2cdd747336896b73f9499699d7a5741fc4",
+        "category": "Model overrides",
+        "subtype": "Schema definition and metadata aggregate",
+        "pattern": "handwritten-result-model",
+        "generatorAddressable": "yes",
+        "explanation": "SchemaRegistrySchema combines SchemaProperties and a string Definition as get-only public properties, assigning them through an internal constructor without parsing or validation.",
+        "handwrittenRationale": "The concrete aggregate is implemented in non-generated src/SchemaRegistrySchema.cs under the supplied .NET definition.",
+        "symbols": [
+          "SchemaRegistrySchema"
+        ],
+        "evidence": [
+          {
+            "id": "030ea61c3febffaf4c261cf6bc72fc99c28aa20d74411848e7d4117220581446",
+            "startLine": 9,
+            "endLine": 25
+          }
+        ]
+      },
+      {
+        "key": "f2a724bc83532a1884d6d947c7f2077a09c0182dd8cf3ee1284543e60542156e",
+        "category": "Convenience methods",
+        "subtype": "Namespace string to HTTPS endpoint",
+        "pattern": "namespace-to-endpoint-constructor",
+        "generatorAddressable": "yes",
+        "explanation": "The public namespace-string constructors create an HTTPS URI, delegate to the endpoint constructor and retain the supplied namespace in FullyQualifiedNamespace.",
+        "handwrittenRationale": "The partial client bodies are directly under src rather than Generated, a handwritten extension location under the supplied .NET guideline.",
+        "symbols": [
+          "SchemaRegistryClient.SchemaRegistryClient(string, TokenCredential)",
+          "SchemaRegistryClient.SchemaRegistryClient(string, TokenCredential, SchemaRegistryClientOptions)",
+          "SchemaRegistryClient.FullyQualifiedNamespace"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 22,
+            "endLine": 35
+          },
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 76,
+            "endLine": 76
+          }
+        ]
+      },
+      {
+        "key": "3efd3567226b1192788a4751863fd0d3180447e6f0c05e84be329d2c6b65aa4f",
+        "category": "Auth",
+        "subtype": "Internal endpoint constructor assembles bearer pipeline",
+        "pattern": "token-auth-client-constructor",
+        "generatorAddressable": "yes",
+        "explanation": "The internal endpoint constructor validates endpoint/credential, defaults options and creates a BearerTokenAuthenticationPolicy using AuthorizationScopes before setting endpoint and API version.",
+        "handwrittenRationale": "The concrete partial-client constructor is in non-generated src/SchemaRegistryClient.cs according to the supplied .NET source-layout rule.",
+        "symbols": [
+          "SchemaRegistryClient.SchemaRegistryClient(Uri, TokenCredential, SchemaRegistryClientOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 61,
+            "endLine": 71
+          }
+        ]
+      },
+      {
+        "key": "2a4b9f98ea06780b46a9d7d92503922939b9de0dae02842c4289dd90e1514b5f",
+        "category": "Convenience methods",
+        "subtype": "Sync/async schema registration with header-derived properties",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "Registration overloads share an implementation that converts the definition string to BinaryData request content, supplies format.ContentType, chooses sync or async protocol registration and builds SchemaProperties from Schema-* response headers and the requested format. It returns those properties with the raw response and marks diagnostic failures before rethrowing.",
+        "handwrittenRationale": "The typed adapter, content construction and header projection are concrete bodies in the non-generated partial client.",
+        "symbols": [
+          "SchemaRegistryClient.RegisterSchema",
+          "SchemaRegistryClient.RegisterSchemaAsync",
+          "SchemaRegistryClient.RegisterSchemaInternalAsync"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 91,
+            "endLine": 98
+          },
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 117,
+            "endLine": 164
+          }
+        ]
+      },
+      {
+        "key": "0e7a872e3c37c4680f3515d94077cbcc8a6ccc5884167abc876ac7336abc131f",
+        "category": "Convenience methods",
+        "subtype": "Sync/async content lookup with header-derived properties",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "GetSchemaProperties adapters send the definition as BinaryData with format.ContentType through GetSchemaPropertiesByContent, read Schema-* headers into a typed properties result and preserve the raw response. Their common implementation starts a diagnostic scope and reports/rethrows exceptions.",
+        "handwrittenRationale": "The concrete typed lookup adapters and shared response projection live in src/SchemaRegistryClient.cs outside Generated.",
+        "symbols": [
+          "SchemaRegistryClient.GetSchemaProperties",
+          "SchemaRegistryClient.GetSchemaPropertiesAsync",
+          "SchemaRegistryClient.GetSchemaPropertiesInternalAsync"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 182,
+            "endLine": 190
+          },
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 208,
+            "endLine": 255
+          }
+        ]
+      },
+      {
+        "key": "6553de6dbf71f59173fb9ffbc7b0e0b5065739fd14f5151db5d49496ccf3f3ae",
+        "category": "Convenience methods",
+        "subtype": "ID/version retrieval to schema and metadata aggregate",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "Sync/async GetSchema overloads retrieve by ID or group/name/version, map Schema-* and Content-Type headers to SchemaProperties, convert BinaryData content to a string definition and return SchemaRegistrySchema with the raw response. Both internal paths add diagnostic failure reporting.",
+        "handwrittenRationale": "These concrete aggregation adapters extend the partial client in non-generated src/SchemaRegistryClient.cs.",
+        "symbols": [
+          "SchemaRegistryClient.GetSchema",
+          "SchemaRegistryClient.GetSchemaAsync",
+          "SchemaRegistryClient.GetSchemaInternalAsync"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 270,
+            "endLine": 272
+          },
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 289,
+            "endLine": 291
+          },
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 306,
+            "endLine": 395
+          }
+        ]
+      },
+      {
+        "key": "bcf4642fe4c6662806750649a1fac98c224e8867479048f89a7fb1b8cc2dbd79",
+        "category": "Other",
+        "subtype": "Noncancellable request-context reuse",
+        "pattern": "cancellation-token-request-context",
+        "generatorAddressable": "yes",
+        "explanation": "FromCancellationToken reuses a static RequestContext for tokens that cannot be cancelled and allocates a context carrying the token otherwise.",
+        "handwrittenRationale": "The shared adapter is an implemented helper in non-generated src/SchemaRegistryClient.cs.",
+        "symbols": [
+          "SchemaRegistryClient.FromCancellationToken",
+          "SchemaRegistryClient.DefaultRequestContext"
+        ],
+        "evidence": [
+          {
+            "id": "8ee68dbb6971d587913591af351217382673d8602a08d5e5a71ac71296575089",
+            "startLine": 397,
+            "endLine": 406
+          }
+        ]
+      },
+      {
+        "key": "c20db02d25f4a7718ff19f2edc104151e7c9281f944a5e3f76b0acd2fa4b11e4",
+        "category": "Other",
+        "subtype": "Service-version enumeration to wire version",
+        "pattern": "api-version-validation",
+        "generatorAddressable": "yes",
+        "explanation": "The options constructor defaults to V2023_07_01, maps three supported enum values to wire strings and throws ArgumentException for any other value.",
+        "handwrittenRationale": "The concrete partial options constructor is in src/SchemaRegistryClientOptions.cs outside Generated under the supplied .NET rule.",
+        "symbols": [
+          "SchemaRegistryClientOptions.SchemaRegistryClientOptions"
+        ],
+        "evidence": [
+          {
+            "id": "3727760c7d6e5c3b346b0971a08cbae52be1d323cf6cf07e850adf8d15034678",
+            "startLine": 12,
+            "endLine": 28
+          }
+        ]
+      },
+      {
+        "key": "a160f5420af8338616300aaa6463a881f534bcdf724f6661df9a795738de3cc7",
+        "category": "Convenience methods",
+        "subtype": "Public metadata factories with legacy version defaults",
+        "pattern": "model-factory-overloads",
+        "generatorAddressable": "yes",
+        "explanation": "Public SchemaProperties factory overloads expose internal model construction. The shorter overloads are hidden from editor browsing and use version 1, with null group/name in the two-argument form; the full overload forwards all five values.",
+        "handwrittenRationale": "The public factory implementation is shipped in non-generated src/SchemaRegistryModelFactory.cs, not in a test or API listing file.",
+        "symbols": [
+          "SchemaRegistryModelFactory.SchemaProperties"
+        ],
+        "evidence": [
+          {
+            "id": "c08866dd425512e6e37e8895a220e52b01376e4e652e12f5e7ec5931d0edd344",
+            "startLine": 19,
+            "endLine": 42
+          }
+        ]
+      },
+      {
+        "key": "285b5ade7b3a8da9b8971b85d4036f89e94b41d2f19f7adf781f777e192a37d2",
+        "category": "Convenience methods",
+        "subtype": "Public factory for internally constructed schema aggregate",
+        "pattern": "model-factory-overloads",
+        "generatorAddressable": "yes",
+        "explanation": "SchemaRegistryModelFactory.SchemaRegistrySchema exposes a public factory that forwards properties and definition to the aggregate's internal constructor.",
+        "handwrittenRationale": "This concrete shipped factory is in src/SchemaRegistryModelFactory.cs outside Generated under the supplied .NET source-layout rule.",
+        "symbols": [
+          "SchemaRegistryModelFactory.SchemaRegistrySchema"
+        ],
+        "evidence": [
+          {
+            "id": "c08866dd425512e6e37e8895a220e52b01376e4e652e12f5e7ec5931d0edd344",
+            "startLine": 50,
+            "endLine": 50
+          }
+        ]
+      },
+      {
+        "key": "6d9619a9ac7126dd5e2bd6bbdfb907bd1554f2933380e0ea281e332053db7f7b",
+        "category": "Other",
+        "subtype": "Public schema generation/validation extension contract",
+        "pattern": "schema-validator-extension-contract",
+        "generatorAddressable": "unclear",
+        "explanation": "The public abstract SchemaValidator API requires implementations of GenerateSchema(Type) and TryValidate(object, Type, string, out IEnumerable<Exception>). It supplies an extension contract, not an implementation of schema generation or validation.",
+        "handwrittenRationale": "This public extension type is shipped in non-generated src/SchemaValidator.cs and is not an empty partial class, generator stub, test or sample.",
+        "symbols": [
+          "SchemaValidator",
+          "SchemaValidator.TryValidate",
+          "SchemaValidator.GenerateSchema"
+        ],
+        "evidence": [
+          {
+            "id": "8f244f1fb573e09db5d16fcc6d45deede72cbc08f52ec7f224bf669e1b0309f5",
+            "startLine": 17,
+            "endLine": 35
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "7233d215befead5f42507a613e91fab7d9d2937b70c9288882bd84487523af26",
+        "status": "accepted",
+        "reason": "The non-generated Custom/Models partial context has an explicit ModelReaderWriterBuildable(typeof(SchemaGroups)) attribute at the cited lines. Its body is empty, but the attribute is substantive metadata; the nearby TODO supports a temporary-workaround interpretation without independently proving the underlying issue."
+      },
+      {
+        "key": "2682f31df70b16e36c7c161c43a758d9f32147bdf4d66c7ab47e3c9c343a3969",
+        "status": "accepted",
+        "reason": "The non-generated src/LruCache.cs implements the cited locked lookup, hit promotion and miss result; this is handwritten cache behavior, not evidence of a generated poller or pager. Its use elsewhere in the package is not established by this excerpt."
+      },
+      {
+        "key": "ad53fb0ddf3b60404bcce2ae6d8f5a8e7f20fbb4ab489bc9c189f38acf38fad9",
+        "status": "accepted",
+        "reason": "The cited non-generated AddOrUpdate body performs a distinct handwritten cache mutation and evicts only when entry count exceeds capacity. The caller-supplied length updates TotalLength; it is not the eviction threshold."
+      },
+      {
+        "key": "7c36d9f84897099d8aafac33ad4abbfc6c9aa6595a9048fa863e6bb0f7960b44",
+        "status": "accepted",
+        "reason": "The partial struct outside Generated assigns MIME values in its constructors and named formats and exposes ContentType at the cited lines. The explicit Custom and interpolated non-Custom cases are supported directly; the comment about an autorest bug is not proof of its cause."
+      },
+      {
+        "key": "08687496dc5a8174296272e1be6705b451075a8d5ef59eb22bf9d399b9a30e82",
+        "status": "accepted",
+        "reason": "The cited handwritten FromContentType method splits on '=', matches literal parameter values and otherwise constructs a format from the original string. The description correctly avoids claiming a general MIME parser."
+      },
+      {
+        "key": "89ace13f0738d6325c4c62c8c9dd34aa30e552c4b078611fbfe50ccbca427d98",
+        "status": "revised",
+        "reason": "The source supports a handwritten result container with internally assigned get-only members, but no generated counterpart is supplied to establish a model override or that generation of this exact type is addressable. Preserve the behavior while classifying it as Other and leaving generator addressability unclear.",
+        "finding": {
+          "key": "89ace13f0738d6325c4c62c8c9dd34aa30e552c4b078611fbfe50ccbca427d98",
+          "category": "Other",
+          "subtype": "Handwritten schema metadata result",
+          "explanation": "SchemaProperties has an internal constructor that directly assigns public get-only ID, format, group, name and version properties; the supplied evidence does not show an overridden generated type.",
+          "pattern": "handwritten-result-model",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The concrete public model is in src/SchemaProperties.cs outside Generated, and the supplied .NET guideline identifies such source as handwritten.",
+          "symbols": [
+            "SchemaProperties"
+          ],
+          "evidence": [
+            {
+              "id": "905e04129a5722d6f7913bc3506424243be1c4b5c6265edf0ce069b539bfe20a",
+              "startLine": 9,
+              "endLine": 43
+            }
+          ]
+        }
+      },
+      {
+        "key": "e0e94ffd140099241e748d3796f10d2cdd747336896b73f9499699d7a5741fc4",
+        "status": "revised",
+        "reason": "The result aggregate is visibly handwritten, but its own source does not demonstrate an override of a generated model or whether the aggregate could be generated from the unavailable specification. Use Other and unclear generator addressability.",
+        "finding": {
+          "key": "e0e94ffd140099241e748d3796f10d2cdd747336896b73f9499699d7a5741fc4",
+          "category": "Other",
+          "subtype": "Handwritten schema content result",
+          "explanation": "SchemaRegistrySchema assigns get-only Properties and string Definition through an internal constructor; the excerpt does not show an overridden generated type.",
+          "pattern": "handwritten-result-model",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The public aggregate is implemented in src/SchemaRegistrySchema.cs outside Generated, a handwritten-source location under the supplied .NET guideline.",
+          "symbols": [
+            "SchemaRegistrySchema"
+          ],
+          "evidence": [
+            {
+              "id": "030ea61c3febffaf4c261cf6bc72fc99c28aa20d74411848e7d4117220581446",
+              "startLine": 9,
+              "endLine": 25
+            }
+          ]
+        }
+      },
+      {
+        "key": "f2a724bc83532a1884d6d947c7f2077a09c0182dd8cf3ee1284543e60542156e",
+        "status": "accepted",
+        "reason": "The cited non-generated public constructors build an HTTPS URI from a namespace string and the three-argument overload stores that string in FullyQualifiedNamespace. This is a handwritten convenience constructor shape, not an assertion about valid inputs or runtime outcomes."
+      },
+      {
+        "key": "3efd3567226b1192788a4751863fd0d3180447e6f0c05e84be329d2c6b65aa4f",
+        "status": "accepted",
+        "reason": "The cited non-generated constructor validates credential and endpoint, defaults options, and builds a pipeline containing BearerTokenAuthenticationPolicy(credential, AuthorizationScopes). The value and provenance of AuthorizationScopes are not shown, but the stated pipeline construction is."
+      },
+      {
+        "key": "2a4b9f98ea06780b46a9d7d92503922939b9de0dae02842c4289dd90e1514b5f",
+        "status": "accepted",
+        "reason": "The cited non-generated registration wrappers and implementation construct BinaryData, pass format.ContentType to the protocol calls, project Schema-* headers into SchemaProperties, preserve the raw response and mark caught diagnostic failures. This is a handwritten typed adapter, not generated protocol behavior."
+      },
+      {
+        "key": "0e7a872e3c37c4680f3515d94077cbcc8a6ccc5884167abc876ac7336abc131f",
+        "status": "accepted",
+        "reason": "The cited non-generated lookup wrappers and implementation pass the content and MIME type to GetSchemaPropertiesByContent, create typed properties from response headers, and preserve the raw response; their diagnostic scope and rethrow are visible."
+      },
+      {
+        "key": "6553de6dbf71f59173fb9ffbc7b0e0b5065739fd14f5151db5d49496ccf3f3ae",
+        "status": "accepted",
+        "reason": "The cited handwritten client overloads and both internal lookup paths call by version or ID, map response headers and BinaryData into SchemaProperties and SchemaRegistrySchema, and return the raw response. This is result shaping around protocol operations rather than evidence of generated LRO polling."
+      },
+      {
+        "key": "bcf4642fe4c6662806750649a1fac98c224e8867479048f89a7fb1b8cc2dbd79",
+        "status": "accepted",
+        "reason": "The cited non-generated helper returns its static RequestContext for a noncancellable token and creates a context carrying a cancellable token otherwise. The finding states only this implementation, not the request's runtime behavior."
+      },
+      {
+        "key": "c20db02d25f4a7718ff19f2edc104151e7c9281f944a5e3f76b0acd2fa4b11e4",
+        "status": "accepted",
+        "reason": "The non-generated options constructor at the cited lines selects the default enum member, maps three members to wire strings and throws for an unlisted value. This is concrete handwritten API-version curation."
+      },
+      {
+        "key": "a160f5420af8338616300aaa6463a881f534bcdf724f6661df9a795738de3cc7",
+        "status": "accepted",
+        "reason": "The non-generated public SchemaProperties factory overloads forward to the internal constructor, with version 1 in the shorter forms and null group/name in the two-argument form. The EditorBrowsable attributes are visible on the two shorter overloads."
+      },
+      {
+        "key": "285b5ade7b3a8da9b8971b85d4036f89e94b41d2f19f7adf781f777e192a37d2",
+        "status": "accepted",
+        "reason": "The cited non-generated public SchemaRegistrySchema factory forwards its two inputs to the internal aggregate constructor; it provides a distinct mocking factory for this result type."
+      },
+      {
+        "key": "6d9619a9ac7126dd5e2bd6bbdfb907bd1554f2933380e0ea281e332053db7f7b",
+        "status": "accepted",
+        "reason": "The cited non-generated public abstract class defines two required methods for schema generation and validation. It is a handwritten extension contract, not evidence of either method's implementation or execution."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "91d5de2997ca6b5684f47e4310e85e6d4fa5196b4b55184832aad0ff36e3de15",
+        "category": "Model overrides",
+        "subtype": "Case-insensitive schema-format comparison",
+        "explanation": "SchemaFormat defines equality operators and Equals implementations whose value comparison uses InvariantCultureIgnoreCase; its separately written GetHashCode calls the stored string's GetHashCode without visible case normalization.",
+        "pattern": "model-value-equality",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The equality methods and hash implementation are concrete members in src/SchemaFormat.cs outside Generated; neither is included in the MIME-mapping proposals.",
+        "symbols": [
+          "SchemaFormat.op_Equality",
+          "SchemaFormat.op_Inequality",
+          "SchemaFormat.Equals",
+          "SchemaFormat.GetHashCode"
+        ],
+        "evidence": [
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 62,
+            "endLine": 77
+          }
+        ]
+      },
+      {
+        "key": "0fef40f2ca555c3c43193ed6dae4daebb167af1ac7f05916a1d38dc9c3708fd7",
+        "category": "Convenience methods",
+        "subtype": "Implicit string-to-format conversion",
+        "explanation": "SchemaFormat declares an implicit conversion from string that invokes its public string constructor.",
+        "pattern": "model-implicit-string-conversion",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The conversion operator is a concrete handwritten public API member in src/SchemaFormat.cs outside Generated, distinct from the constructors' MIME-value mapping.",
+        "symbols": [
+          "SchemaFormat.op_Implicit"
+        ],
+        "evidence": [
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 66,
+            "endLine": 67
+          }
+        ]
+      },
+      {
+        "key": "a8190241eef66bb6c282c4e43b5fada02aeb34462f96587abee55f14cb3296be",
+        "category": "Model overrides",
+        "subtype": "Schema-format string representation",
+        "explanation": "SchemaFormat overrides ToString to return its stored format value.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The explicit override is implemented in src/SchemaFormat.cs outside Generated; it is separate from MIME metadata and reverse MIME mapping.",
+        "symbols": [
+          "SchemaFormat.ToString"
+        ],
+        "evidence": [
+          {
+            "id": "e40eeea89eac32bd9eed9ee6d9fcf07329d30802260526285b9f1955897471e4",
+            "startLine": 79,
+            "endLine": 79
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "The partial scan captures nine of 56 eligible files. Serializer implementations, serializer options and their event source are explicitly omitted; cache usage and serializer behavior cannot be established.",
+      "Except for the custom context, collector provenance is unknown. Non-generated source locations and partial extensions are interpreted using the supplied .NET guideline; no generated baseline or historical diff was supplied.",
+      "The context's issue comment and SchemaFormat's bug comment are unmeasured developer explanations, not verified generator defects or evidence that the referenced issues remain open.",
+      "CredentialScope contains an Event Hubs scope string, but the constructor actually passes AuthorizationScopes, whose definition is absent. The effective scope is not inferred from the unused visible constant.",
+      "The visible response wrappers dereference nullable Schema-Version values and call FromContentType with a potentially absent header; no graceful missing-header behavior or successful execution is claimed.",
+      "SchemaFormat's equality, hashing, string conversion and simple operators resemble extensible-enum scaffolding and are not separately counted as customizations. The Protobuf public property is commented out; constants alone do not establish operational Protobuf support.",
+      "LRU mutation methods lock, but enumeration and property reads do not establish a universal thread-safety guarantee. Capacity is checked by entry count, not TotalLength.",
+      "No generated protocol bodies or serialization call sites were supplied. The findings describe the visible handwritten API additions and adapters, not exhaustive discovery, schema-validation execution or package-wide absence.",
+      "Coverage is partial: 9 of 56 eligible files were captured, and three serialization files were explicitly skipped. No conclusion about unexamined files or library-wide absence of other customizations follows.",
+      "Generated source and the TypeSpec specification are not in the supplied evidence, so direct generated-versus-handwritten comparisons and generator feasibility cannot be independently established. Non-Generated source locations are treated as handwritten according to the supplied .NET guideline, not as proof of a particular generator defect.",
+      "The excerpt includes no callers of LruCache or SchemaValidator implementations; it shows their local behavior and contract only. README, project configuration and comments are contextual statements, not execution evidence.",
+      "The SchemaFormat equality excerpt compares values case-insensitively while its hash implementation does not visibly normalize case; the effect on actual hashed collections is not tested or asserted here. The three omissions are candidate findings for independent assessment, not accepted findings."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Custom/Models/AzureDataSchemaRegistryContext.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "78a8c88cfed7790b9717dc18cca1af1b8fd386ce4d8f4301c6310bb4b29ba5da"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/LruCache.cs",
+      "startLine": 1,
+      "endLine": 117,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "9585637a61349eb454123b0414bfc3996b92d1c336d220766325df5f1c13ccf1"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaFormat.cs",
+      "startLine": 1,
+      "endLine": 103,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "2bd1cb5cd622e4facf2c242d9e04eec14c144e4230994f08d9a5557202e838c9"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaProperties.cs",
+      "startLine": 1,
+      "endLine": 45,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e57444ce540a1d73a06c18cd4972bdbab25cfcf80b64a0aa7fbeb973ce4bee5c"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClient.cs",
+      "startLine": 1,
+      "endLine": 408,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6848c070f272a359a30270eb080822d81599e132b4064c48497920a7748dd66a"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryClientOptions.cs",
+      "startLine": 1,
+      "endLine": 30,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "97b580ce47a3e036f4a5651aae478ce88a20137ccf360b69e92e5c1da5169fcf"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistryModelFactory.cs",
+      "startLine": 1,
+      "endLine": 52,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "bb0d9883092f074edeaff45bf7a8eec8d4709fbc4d1dea8093399f41e54c30c6"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaRegistrySchema.cs",
+      "startLine": 1,
+      "endLine": 27,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "ec2080f54dbca1d88ee2d0336de25dd314228509c9fd43760179d94ad0939ef2"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/SchemaValidator.cs",
+      "startLine": 1,
+      "endLine": 37,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7fa52e8d27563f6031302dcb8c45c2125a1d07c7289e2852f7c5bb9aca4cf815"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializationEventSource.cs",
+      "startLine": 1,
+      "endLine": 59,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "56f191344ac5b77f9e1780ec675010ac01054a87dff2b2445075f274799d1a62"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializer.cs",
+      "startLine": 1,
+      "endLine": 560,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "9f52334b03be05cfe83f10a11521b89e05090e60f3b37077f02a4ff3d8b95854"
+    },
+    {
+      "path": "sdk/schemaregistry/Azure.Data.SchemaRegistry/src/Serialization/SchemaRegistrySerializerOptions.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a0f6fb891d48922b7c2fbec87a195d85a73fb67b78562c433557e08e48e69466"
+    }
+  ]
+}

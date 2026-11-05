@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "id": "f9698319-a0de-4d70-902b-52652920625a",
+  "observedAt": "2026-10-22T20:42:46.995Z",
+  "identity": "dotnet:azure.ai.language.text:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.AI.Language.Text",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/cognitivelanguage/Azure.AI.Language.Text"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "57612b2a9cc6cf90878030f4e04185f8c8a955e3"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 465,
+    "eligibleFiles": 395,
+    "capturedFiles": 6,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/RedactionCharacter.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Language.Text\n{\n    [CodeGenSuppress(\"Equals\")]\n    public readonly partial struct RedactionCharacter\n    {\n        /// <summary> Equals sign character. </summary>\n        public static RedactionCharacter EqualsSign { get; } = new RedactionCharacter(EqualsValue);\n    }\n}\n",
+      "contentHash": "2a881a24294900d5c026ecb032bfe90d2bf36b0cebb36c70e857175f0f70d6ca",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/RedactionCharacter.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "unknown",
+      "id": "335c1718e9baaae656db19d845becdb9b8ed45e7f35088485abe907083d2c70e"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClient.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Text;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Language.Text\n{\n    /// <summary> The language service API is a suite of natural language processing (NLP) skills built with best-in-class Microsoft machine learning algorithms.  The API can be used to analyze unstructured text for tasks such as sentiment analysis, key phrase extraction, language detection and question answering. Further documentation can be found in &lt;a href=\"https://docs.microsoft.com/azure/cognitive-services/language-service/overview\"&gt;https://docs.microsoft.com/azure/cognitive-services/language-service/overview&lt;/a&gt;.0. </summary>\n    [CodeGenType(\"TextAnalysis\")]\n    [CodeGenSuppress(\"TextAnalysisClient\", typeof(Uri), typeof(TokenCredential), typeof(TextAnalysisClientOptions))]\n    public partial class TextAnalysisClient\n    {\n        /// <summary> Initializes a new instance of TextAnalysisClient. </summary>\n        /// <param name=\"endpoint\"> Supported Cognitive Services endpoint (e.g., https://&lt;resource-name&gt;.cognitiveservices.azure.com). </param>\n        /// <param name=\"credential\"> A credential used to authenticate to an Azure Service. </param>\n        /// <param name=\"options\"> The options for configuring the client. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/> or <paramref name=\"credential\"/> is null. </exception>\n        public TextAnalysisClient(Uri endpoint, TokenCredential credential, TextAnalysisClientOptions options)\n        {\n            Argument.AssertNotNull(endpoint, nameof(endpoint));\n            Argument.AssertNotNull(credential, nameof(credential));\n            options ??= new TextAnalysisClientOptions();\n\n            var authorizationScope = $\"{(string.IsNullOrEmpty(options.Audience?.ToString()) ? TextAudience.AzurePublicCloud : options.Audience)}/.default\";\n\n            ClientDiagnostics = new ClientDiagnostics(options, true);\n            Pipeline = HttpPipelineBuilder.Build(options, new HttpPipelinePolicy[] { new BearerTokenAuthenticationPolicy(credential, authorizationScope) }, Array.Empty<HttpPipelinePolicy>(), new ResponseClassifier());\n            _endpoint = endpoint;\n            _apiVersion = options.Version;\n        }\n\n        /// <summary> Submit a collection of text documents for analysis and get the results. Specify one or more unique tasks to be executed as a long-running operation. </summary>\n        /// <param name=\"textInput\"> Contains the input to be analyzed. </param>\n        /// <param name=\"actions\"> List of tasks to be performed as part of the LRO. </param>\n        /// <param name=\"displayName\"> Name for the task. </param>\n        /// <param name=\"defaultLanguage\"> Default language to use for records requesting automatic language detection. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"textInput\"/> or <paramref name=\"actions\"/> is null. </exception>\n        public virtual Response<AnalyzeTextJobState> AnalyzeTextOperation(MultiLanguageTextInput textInput, IEnumerable<AnalyzeTextOperationAction> actions, string displayName = null, string defaultLanguage = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(textInput, nameof(textInput));\n            Argument.AssertNotNull(actions, nameof(actions));\n\n            string scopeName = $\"{nameof(TextAnalysisClient)}.{nameof(AnalyzeTextOperation)}\";\n            using var scope = ClientDiagnostics.CreateScope(scopeName);\n            scope.Start();\n\n            AnalyzeTextSubmitJobRequest analyzeTextOperationInput = new AnalyzeTextSubmitJobRequest(displayName, textInput, actions.ToList(), defaultLanguage, null, null);\n            RequestContext context = cancellationToken.ToRequestContext();\n\n            try\n            {\n                using HttpMessage message = CreateAnalyzeTextSubmitJobRequest(analyzeTextOperationInput, context);\n                var operation = ProtocolOperationHelpers.ProcessMessage(Pipeline, message, ClientDiagnostics, scopeName, OperationFinalStateVia.OperationLocation, context, WaitUntil.Completed);\n                Response response = operation.GetRawResponse();\n                return Response.FromValue((AnalyzeTextJobState)response, response);\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Submit a collection of text documents for analysis and get the results. Specify one or more unique tasks to be executed as a long-running operation. </summary>\n        /// <param name=\"textInput\"> Contains the input to be analyzed. </param>\n        /// <param name=\"actions\"> List of tasks to be performed as part of the LRO. </param>\n        /// <param name=\"displayName\"> Name for the task. </param>\n        /// <param name=\"defaultLanguage\"> Default language to use for records requesting automatic language detection. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"textInput\"/> or <paramref name=\"actions\"/> is null. </exception>\n        public virtual async Task<Response<AnalyzeTextJobState>> AnalyzeTextOperationAsync(MultiLanguageTextInput textInput, IEnumerable<AnalyzeTextOperationAction> actions, string displayName = null, string defaultLanguage = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(textInput, nameof(textInput));\n            Argument.AssertNotNull(actions, nameof(actions));\n\n            string scopeName = $\"{nameof(TextAnalysisClient)}.{nameof(AnalyzeTextOperation)}\";\n            using var scope = ClientDiagnostics.CreateScope(scopeName);\n            scope.Start();\n\n            AnalyzeTextSubmitJobRequest analyzeTextOperationInput = new AnalyzeTextSubmitJobRequest(displayName, textInput, actions.ToList(), defaultLanguage, null, null);\n            RequestContext context = cancellationToken.ToRequestContext();\n\n            try\n            {\n                using HttpMessage message = CreateAnalyzeTextSubmitJobRequest(analyzeTextOperationInput, context);\n                var operation = await ProtocolOperationHelpers.ProcessMessageAsync(Pipeline, message, ClientDiagnostics, scopeName, OperationFinalStateVia.OperationLocation, context, WaitUntil.Completed).ConfigureAwait(false);\n                Response response = operation.GetRawResponse();\n                return Response.FromValue((AnalyzeTextJobState)response, response);\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n    }\n}\n",
+      "contentHash": "6420db20bc834dc6d465cacfb005188cd5f18161e8e70e8b1c2fa31e4814cd3d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClient.cs",
+      "startLine": 1,
+      "endLine": 106,
+      "kind": "unknown",
+      "id": "639ca022994b2c3881ce37e2dc4362905cf8a3a8cb7f91c89ca9fac1d17d5897"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientBuilderExtensions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Language.Text\n{\n    /// <summary> Extension methods to add <see cref=\"TextAnalysisClient\"/> to client builder. </summary>\n    [CodeGenType(\"LanguageTextClientBuilderExtensions\")]\n    public static partial class TextAnalysisClientBuilderExtensions\n    {\n    }\n}\n",
+      "contentHash": "d27d576c319fe7c5db0307072e72b5d5b0392574e01945bdf22993ffe640c456",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "kind": "unknown",
+      "id": "aecbbeea282f9f07519cfa7342644987a01e80fb82c1112740423d002dd13e7f"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Azure.Core;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Language.Text\n{\n    [CodeGenType(\"TextAnalysisOptions\")]\n    public partial class TextAnalysisClientOptions : ClientOptions\n    {\n        /// <summary>\n        /// Gets or sets the audience to use for authentication with Azure Active Directory (AAD). The audience is not considered when using a shared key.\n        /// </summary>\n        /// <value>If <c>null</c>, <see cref=\"TextAudience.AzurePublicCloud\" /> will be assumed.</value>\n        internal TextAudience? Audience { get; set; }\n    }\n}\n",
+      "contentHash": "237480a31749ea14a78e9d76611a620cf55800ee6c4a3dcf33bb75fffcda0194",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "kind": "unknown",
+      "id": "67eb935b6a40c9783d7cda5676bcd751561d705085827a981bb5e3c6e464fa8f"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisModelFactory.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Language.Text\n{\n    /// <summary> Model factory for models. </summary>\n    [CodeGenType(\"LanguageTextModelFactory\")]\n    public static partial class TextAnalysisModelFactory\n    {\n    }\n}\n",
+      "contentHash": "2306d1b5f38d36777f7db0d1cb45862394858a306dc75cd1e384ba3539fd5098",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisModelFactory.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "kind": "unknown",
+      "id": "a03607ec94010f12ceef8617d08367ad84826eea24aeb2047d498087b960e5b8"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAudience.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\n\nnamespace Azure.AI.Language.Text\n{\n    /// <summary> Cloud audiences available for Text. </summary>\n    internal readonly partial struct TextAudience : IEquatable<TextAudience>\n    {\n        private readonly string _value;\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"TextAudience\"/> object.\n        /// </summary>\n        /// <param name=\"value\">The Azure Active Directory audience to use when forming authorization scopes.For the Language service, this value corresponds to a URL that identifies the Azure cloud where the resource is located. For more information: <see href=\"https://learn.microsoft.com/azure/azure-government/documentation-government-cognitiveservices\" />.</param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"value\"/> is null. </exception>\n        /// <remarks>Please use one of the constant members over creating a custom value unless you have special needs for doing so.</remarks>\n        public TextAudience(string value)\n        {\n            Argument.AssertNotNullOrEmpty(value, nameof(value));\n            _value = value;\n        }\n\n        private const string AzureChinaValue = \"https://cognitiveservices.azure.cn\";\n        private const string AzureGovernmentValue = \"https://cognitiveservices.azure.us\";\n        private const string AzurePublicCloudValue = \"https://cognitiveservices.azure.com\";\n\n        /// <summary> Azure China. </summary>\n        public static TextAudience AzureChina { get; } = new TextAudience(AzureChinaValue);\n\n        /// <summary> Azure Government. </summary>\n        public static TextAudience AzureGovernment { get; } = new TextAudience(AzureGovernmentValue);\n\n        /// <summary> Azure Public Cloud. </summary>\n        public static TextAudience AzurePublicCloud { get; } = new TextAudience(AzurePublicCloudValue);\n\n        /// <summary> Determines if two <see cref=\"TextAudience\"/> values are the same. </summary>\n        public static bool operator ==(TextAudience left, TextAudience right) => left.Equals(right);\n        /// <summary> Determines if two <see cref=\"TextAudience\"/> values are not the same. </summary>\n        public static bool operator !=(TextAudience left, TextAudience right) => !left.Equals(right);\n        /// <summary> Converts a string to a <see cref=\"TextAudience\"/>. </summary>\n        public static implicit operator TextAudience(string value) => new TextAudience(value);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override bool Equals(object obj) => obj is TextAudience other && Equals(other);\n        /// <inheritdoc />\n        public bool Equals(TextAudience other) => string.Equals(_value, other._value, StringComparison.InvariantCultureIgnoreCase);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override int GetHashCode() => _value?.GetHashCode() ?? 0;\n        /// <inheritdoc />\n        public override string ToString() => _value;\n    }\n}\n",
+      "contentHash": "99c9c695fcc738947c844a3497a3030cb214d5f9d2002b56d59dcafd55035b5c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAudience.cs",
+      "startLine": 1,
+      "endLine": 58,
+      "kind": "unknown",
+      "id": "8ee08175f87203d20000ad8a233b1239d5959db8a55c3b0c1b482e7c2b292ea3"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/Azure.AI.Language.Text.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>This is the Text client library for developing .NET applications with rich experience.</Description>\n    <AssemblyTitle>Azure SDK Code Generation Text for Azure Data Plane</AssemblyTitle>\n    <Version>1.0.0-beta.5</Version>\n    <PackageTags>Azure Text</PackageTags>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n  </PropertyGroup>\n\n  <!-- Shared source from Azure.Core -->\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureKeyCredentialPolicy.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n</Project>",
+      "contentHash": "af1aab5119bfad837617584510d99afbfadea5206062df4c236fb8a83b2bb28b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/src/Azure.AI.Language.Text.csproj"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/tsp-location.yaml",
+      "text": "repo: azure/azure-rest-api-specs\ncommit: 527337dac1fa566f6191168b2b5bef2efc293590\ndirectory: specification/cognitiveservices/data-plane/LanguageAnalyzeText/\n\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-emitter-package.json\"\n",
+      "contentHash": "b14cdf2cdfe04e505a8472c0338150a7eea30e2959c7064e134d0432c16dc371",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/cognitivelanguage/Azure.AI.Language.Text/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/RedactionCharacter.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "2a881a24294900d5c026ecb032bfe90d2bf36b0cebb36c70e857175f0f70d6ca"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClient.cs",
+      "startLine": 1,
+      "endLine": 106,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6420db20bc834dc6d465cacfb005188cd5f18161e8e70e8b1c2fa31e4814cd3d"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d27d576c319fe7c5db0307072e72b5d5b0392574e01945bdf22993ffe640c456"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisClientOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "237480a31749ea14a78e9d76611a620cf55800ee6c4a3dcf33bb75fffcda0194"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAnalysisModelFactory.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "2306d1b5f38d36777f7db0d1cb45862394858a306dc75cd1e384ba3539fd5098"
+    },
+    {
+      "path": "sdk/cognitivelanguage/Azure.AI.Language.Text/src/TextAudience.cs",
+      "startLine": 1,
+      "endLine": 58,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "99c9c695fcc738947c844a3497a3030cb214d5f9d2002b56d59dcafd55035b5c"
+    }
+  ]
+}

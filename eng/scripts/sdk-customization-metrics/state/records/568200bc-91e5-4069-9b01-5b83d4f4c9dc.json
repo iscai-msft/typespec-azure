@@ -1,0 +1,1073 @@
+{
+  "schemaVersion": 1,
+  "id": "568200bc-91e5-4069-9b01-5b83d4f4c9dc",
+  "observedAt": "2026-10-23T17:55:13.071Z",
+  "identity": "javascript:@azure/ai-voicelive:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/ai-voicelive",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/voicelive/ai-voicelive"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "54b628c0f4a3d59d193612bea602c38bad2e3e14"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 124,
+    "eligibleFiles": 34,
+    "capturedFiles": 4,
+    "skipped": [
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/constants.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/errors/connectionErrors.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/handlers/sessionHandlers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/handlers/subscriptionManager.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/protocol/messageParser.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/telemetry/attributes.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/telemetry/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/telemetry/sessionTelemetryTracker.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/telemetry/tracing.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/websocket/connectionManager.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/websocket/websocket.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/websocket/websocketFactory.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/voicelive/ai-voicelive/src/websocket/websocketLike.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/auth/credentialHandler.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { TokenCredential, KeyCredential, AccessToken } from \"@azure/core-auth\";\nimport { VoiceLiveAuthenticationError, VoiceLiveErrorCodes } from \"../errors/index.js\";\nimport { logger } from \"../logger.js\";\nimport type { AgentSessionConfig } from \"../client/types.js\";\n\n/**\n * Union type for supported credential types\n */\nexport type VoiceLiveCredential = TokenCredential | KeyCredential;\n\n/**\n * Type guard to check if credential is a KeyCredential\n */\nfunction isKeyCredential(credential: VoiceLiveCredential): credential is KeyCredential {\n  return \"key\" in credential && typeof (credential as KeyCredential).key === \"string\";\n}\n\n/**\n * Handles both Azure TokenCredential and KeyCredential authentication for Voice Live service\n */\nexport class CredentialHandler {\n  private _accessToken?: AccessToken;\n  private readonly _scope: string | string[];\n  private readonly _tokenRefreshBuffer = 5 * 60 * 1000; // 5 minutes\n  private readonly _credential: VoiceLiveCredential;\n  private readonly _isApiKey: boolean;\n\n  constructor(credential: VoiceLiveCredential, scope?: string | string[]) {\n    this._credential = credential;\n    this._isApiKey = isKeyCredential(credential);\n\n    // Voice Live specific scope - using .default suffix as required by AAD\n    this._scope = scope || [\"https://ai.azure.com/.default\"];\n\n    logger.info(\"CredentialHandler initialized\", {\n      credentialType: this._isApiKey ? \"KeyCredential\" : \"TokenCredential\",\n      scope: this._scope,\n    });\n  }\n\n  /**\n   * Gets a valid access token or API key, refreshing if necessary\n   */\n  async getAccessToken(): Promise<string> {\n    // For API Key credentials, return the key directly\n    if (this._isApiKey) {\n      const keyCredential = this._credential as KeyCredential;\n      logger.info(\"Using API key for authentication\");\n      return keyCredential.key;\n    }\n\n    // For Token credentials, handle token lifecycle\n    const tokenCredential = this._credential as TokenCredential;\n\n    // Check if current token is still valid\n    if (this._accessToken && this._isTokenValid(this._accessToken)) {\n      return this._accessToken.token;\n    }\n\n    try {\n      logger.info(\"Acquiring new access token\", { scope: this._scope });\n\n      // Get new token from credential\n      const tokenResponse = await tokenCredential.getToken(this._scope);\n\n      if (!tokenResponse) {\n        throw new VoiceLiveAuthenticationError(\n          \"Failed to acquire access token - credential returned null\",\n          VoiceLiveErrorCodes.AuthenticationFailed,\n        );\n      }\n\n      this._accessToken = tokenResponse;\n\n      logger.info(\"Successfully acquired access token\", {\n        expiresAt: new Date(this._accessToken.expiresOnTimestamp),\n      });\n\n      return this._accessToken.token;\n    } catch (error) {\n      logger.error(\"Failed to obtain access token\", { error, scope: this._scope });\n\n      if (error instanceof VoiceLiveAuthenticationError) {\n        throw error;\n      }\n\n      throw new VoiceLiveAuthenticationError(\n        `Failed to obtain access token: ${error instanceof Error ? error.message : \"Unknown error\"}`,\n        VoiceLiveErrorCodes.AuthenticationFailed,\n        error instanceof Error ? error : new Error(String(error)),\n      );\n    }\n  }\n\n  /**\n   * Builds the WebSocket URL with authentication.\n   * Supports both model-centric (model parameter) and agent-centric (agent query params) sessions.\n   *\n   * @param baseEndpoint - The base endpoint URL\n   * @param apiVersion - The API version\n   * @param model - The model name (for model-centric sessions)\n   * @param agentConfig - The agent configuration (for agent-centric sessions)\n   */\n  async getWebSocketUrl(\n    baseEndpoint: string,\n    apiVersion: string,\n    model?: string,\n    agentConfig?: AgentSessionConfig,\n  ): Promise<string> {\n    const authValue = await this.getAccessToken();\n\n    const url = new URL(baseEndpoint);\n    url.protocol = url.protocol === \"https:\" ? \"wss:\" : \"ws:\";\n    url.pathname = \"/voice-live/realtime\"; // Voice Live WebSocket endpoint path\n    url.searchParams.set(\"api-version\", apiVersion);\n\n    // Add model or agent parameters based on session type\n    if (model !== undefined) {\n      // Model-centric session\n      url.searchParams.set(\"model\", model);\n    } else if (agentConfig) {\n      // Agent-centric session - required parameters\n      url.searchParams.set(\"agent-name\", agentConfig.agentName);\n      url.searchParams.set(\"agent-project-name\", agentConfig.projectName);\n\n      // Optional agent parameters\n      if (agentConfig.agentVersion) {\n        url.searchParams.set(\"agent-version\", agentConfig.agentVersion);\n      }\n      if (agentConfig.conversationId) {\n        url.searchParams.set(\"conversation-id\", agentConfig.conversationId);\n      }\n      if (agentConfig.authenticationIdentityClientId) {\n        url.searchParams.set(\n          \"agent-authentication-identity-client-id\",\n          agentConfig.authenticationIdentityClientId,\n        );\n      }\n      if (agentConfig.foundryResourceOverride) {\n        url.searchParams.set(\"foundry-resource-override\", agentConfig.foundryResourceOverride);\n      }\n    }\n\n    // For API keys, add as query parameter\n    if (this._isApiKey) {\n      url.searchParams.set(\"api-key\", authValue);\n    } else {\n      // For tokens, we'll use headers instead of query params\n      // The token will be added in getAuthHeaders()\n    }\n\n    return url.toString();\n  }\n\n  /**\n   * Gets authentication headers for the WebSocket connection\n   */\n  async getAuthHeaders(): Promise<Record<string, string>> {\n    const authValue = await this.getAccessToken();\n\n    const headers: Record<string, string> = {\n      \"X-MS-Client-Request-ID\": this._generateRequestId(),\n      \"User-Agent\": \"Azure-Voice-Live-SDK-JS/1.0.0\",\n    };\n\n    // Add appropriate authentication header based on credential type\n    if (this._isApiKey) {\n      // For API keys, use the X-API-Key header or similar\n      headers[\"api-key\"] = authValue;\n    } else {\n      // For tokens, use standard Bearer authorization\n      headers[\"Authorization\"] = `Bearer ${authValue}`;\n    }\n\n    return headers;\n  }\n\n  /**\n   * Returns the type of credential being used\n   */\n  get credentialType(): \"key\" | \"token\" {\n    return this._isApiKey ? \"key\" : \"token\";\n  }\n\n  /**\n   * Returns whether this is using an API key credential\n   */\n  get isApiKey(): boolean {\n    return this._isApiKey;\n  }\n\n  private _isTokenValid(token: AccessToken): boolean {\n    const expiresAt = token.expiresOnTimestamp;\n    const now = Date.now();\n    return expiresAt > now + this._tokenRefreshBuffer;\n  }\n\n  private _generateRequestId(): string {\n    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;\n  }\n}\n",
+      "contentHash": "153853c9fb30a4f10ded98c346bf87f83ac334d74059dafa0b3f3722fe5991ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/src/auth/credentialHandler.ts",
+      "startLine": 1,
+      "endLine": 204,
+      "kind": "unknown",
+      "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/types.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * Configuration for creating a session with an agent as the main AI actor.\n *\n * When using an agent session, the agent's configuration (tools, instructions,\n * temperature, etc.) is managed in the Foundry portal, not in session code.\n *\n * @remarks\n * This is distinct from {@link AgentConfig} which represents agent information\n * returned by the service in session responses.\n */\nexport interface AgentSessionConfig {\n  /** The name of the Foundry agent to use */\n  agentName: string;\n  /** The name of the Azure AI project which the agent belongs to */\n  projectName: string;\n  /** The version of the agent to use. If not specified, the latest version will be used. */\n  agentVersion?: string;\n  /** The conversation ID to continue. If not specified, a new conversation will be created. */\n  conversationId?: string;\n  /**\n   * The client ID of a user-assigned managed identity used for authenticating to the Foundry Agent service.\n   * If not specified, the system-assigned managed identity will be used.\n   */\n  authenticationIdentityClientId?: string;\n  /**\n   * The Foundry resource name to use for cross-resource agent mode.\n   * When set, the agent service endpoint will use this resource instead of the one from the connection URL.\n   */\n  foundryResourceOverride?: string;\n}\n\n/**\n * Target for a Voice Live session, specifying either a model or an agent.\n *\n * Use `{ model: string }` for model-centric sessions where the LLM is the main actor.\n * Use `{ agent: AgentSessionConfig }` for agent-centric sessions where the agent is the main actor.\n *\n * @example Model-centric session\n * ```typescript snippet:CreateSessionModelTarget\n * import { DefaultAzureCredential } from \"@azure/identity\";\n * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n *\n * const credential = new DefaultAzureCredential();\n * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n * const client = new VoiceLiveClient(endpoint, credential);\n *\n * const session = client.createSession({ model: \"gpt-realtime\" });\n * ```\n *\n * @example Agent-centric session\n * ```typescript snippet:CreateSessionAgentTarget\n * import { DefaultAzureCredential } from \"@azure/identity\";\n * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n *\n * const credential = new DefaultAzureCredential();\n * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n * const client = new VoiceLiveClient(endpoint, credential);\n *\n * const session = client.createSession({\n *   agent: { agentName: \"my-agent\", projectName: \"my-project\" },\n * });\n * ```\n */\nexport type SessionTarget =\n  { model: string; agent?: never } | { agent: AgentSessionConfig; model?: never };\n\n/**\n * Type guard to check if a SessionTarget specifies an agent session.\n * @param target - The session target to check\n * @returns True if the target specifies an agent session\n */\nexport function isAgentSessionTarget(\n  target: SessionTarget,\n): target is { agent: AgentSessionConfig; model?: never } {\n  return \"agent\" in target && target.agent !== undefined;\n}\n\n/**\n * Type guard to check if a SessionTarget specifies a model session.\n * @param target - The session target to check\n * @returns True if the target specifies a model session\n */\nexport function isModelSessionTarget(\n  target: SessionTarget,\n): target is { model: string; agent?: never } {\n  return \"model\" in target && target.model !== undefined;\n}\n",
+      "contentHash": "1876810d0a91570491bfe726c84b0a51fa1327f06275ef4065d894c0fcca98d4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/src/client/types.ts",
+      "startLine": 1,
+      "endLine": 90,
+      "kind": "unknown",
+      "id": "f77bbc278e3249ec7ca770bff61c62d7088580951e6110a6e41619dabbd77f16"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/voiceLiveClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { KeyCredential, TokenCredential } from \"@azure/core-auth\";\nimport type { RequestSession } from \"../models/index.js\";\nimport type {\n  CreateSessionOptions,\n  StartSessionOptions,\n  VoiceLiveSessionOptions,\n} from \"./voiceLiveSession.js\";\nimport { VoiceLiveSession } from \"./voiceLiveSession.js\";\nimport { logger } from \"../logger.js\";\nimport type { SessionTarget } from \"./types.js\";\nimport { isAgentSessionTarget, isModelSessionTarget } from \"./types.js\";\nimport { DEFAULT_API_VERSION } from \"../constants.js\";\n\nexport interface VoiceLiveClientOptions {\n  /** API version to use for the Voice Live service */\n  apiVersion?: string;\n  /** Default session options to apply to all created sessions */\n  defaultSessionOptions?: VoiceLiveSessionOptions;\n}\n\n/**\n * The VoiceLive client provides session management for real-time conversational AI capabilities.\n *\n * This client acts as a factory for creating VoiceLiveSession instances, which handle the actual\n * WebSocket connections and real-time interactions with the service.\n */\nexport class VoiceLiveClient {\n  private readonly _endpoint: string;\n  private readonly _credential: TokenCredential | KeyCredential;\n  private readonly _options: Required<VoiceLiveClientOptions>;\n\n  /**\n   * Creates an instance of VoiceLiveClient with endpoint and credential.\n   *\n   * @param endpoint - The Voice Live service endpoint URL\n   * @param credential - Azure TokenCredential or KeyCredential for authentication\n   * @param options - Optional configuration for the client\n   */\n  constructor(\n    endpoint: string,\n    credential: TokenCredential | KeyCredential,\n    options: VoiceLiveClientOptions = {},\n  ) {\n    this._endpoint = this._normalizeEndpoint(endpoint);\n    this._credential = credential;\n    this._options = this._buildDefaultOptions(options);\n\n    logger.info(\"VoiceLiveClient created\", {\n      endpoint: this._endpoint,\n      apiVersion: this._options.apiVersion,\n    });\n  }\n\n  /**\n   * Creates a new VoiceLiveSession for real-time voice communication.\n   *\n   * @param model - The model name to use for the session (e.g., \"gpt-realtime\")\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A new VoiceLiveSession instance ready to connect\n   */\n  createSession(model: string, sessionOptions?: CreateSessionOptions): VoiceLiveSession;\n\n  /**\n   * Creates a new VoiceLiveSession using a session target (model or agent).\n   *\n   * @param target - The session target specifying either a model or agent\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A new VoiceLiveSession instance ready to connect\n   *\n   * @example Model-centric session\n   * ```typescript snippet:CreateSessionModelTarget\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n   *\n   * const credential = new DefaultAzureCredential();\n   * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n   * const client = new VoiceLiveClient(endpoint, credential);\n   *\n   * const session = client.createSession({ model: \"gpt-realtime\" });\n   * ```\n   *\n   * @example Agent-centric session\n   * ```typescript snippet:CreateSessionAgentTarget\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n   *\n   * const credential = new DefaultAzureCredential();\n   * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n   * const client = new VoiceLiveClient(endpoint, credential);\n   *\n   * const session = client.createSession({\n   *   agent: { agentName: \"my-agent\", projectName: \"my-project\" },\n   * });\n   * ```\n   */\n  createSession(target: SessionTarget, sessionOptions?: CreateSessionOptions): VoiceLiveSession;\n\n  /**\n   * Creates a new VoiceLiveSession for real-time voice communication with session configuration.\n   *\n   * @param sessionConfig - Session configuration including model and other settings\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A new VoiceLiveSession instance ready to connect\n   */\n  createSession(\n    sessionConfig: RequestSession,\n    sessionOptions?: CreateSessionOptions,\n  ): VoiceLiveSession;\n\n  createSession(\n    modelOrConfigOrTarget: string | RequestSession | SessionTarget,\n    sessionOptions?: CreateSessionOptions,\n  ): VoiceLiveSession {\n    // Merge default session options with provided options. The client's apiVersion\n    // serves as the base; defaultSessionOptions and per-call sessionOptions may override.\n    const mergedOptions: VoiceLiveSessionOptions = {\n      apiVersion: this._options.apiVersion,\n      ...this._options.defaultSessionOptions,\n      ...sessionOptions,\n    };\n\n    // Handle string model (backward compat)\n    if (typeof modelOrConfigOrTarget === \"string\") {\n      if (!modelOrConfigOrTarget) {\n        throw new Error(\n          \"Model name is required when providing a string argument. Use SessionTarget with agent for agent-centric sessions.\",\n        );\n      }\n\n      const session = new VoiceLiveSession(\n        this._endpoint,\n        this._credential,\n        modelOrConfigOrTarget,\n        mergedOptions,\n      );\n      logger.info(\"VoiceLiveSession created\", { model: modelOrConfigOrTarget });\n      return session;\n    }\n\n    // Handle SessionTarget (new discriminated union pattern)\n    if (this._isSessionTarget(modelOrConfigOrTarget)) {\n      if (isModelSessionTarget(modelOrConfigOrTarget)) {\n        const session = new VoiceLiveSession(\n          this._endpoint,\n          this._credential,\n          modelOrConfigOrTarget.model,\n          mergedOptions,\n        );\n        logger.info(\"VoiceLiveSession created\", { model: modelOrConfigOrTarget.model });\n        return session;\n      } else if (isAgentSessionTarget(modelOrConfigOrTarget)) {\n        const session = new VoiceLiveSession(\n          this._endpoint,\n          this._credential,\n          modelOrConfigOrTarget.agent,\n          mergedOptions,\n        );\n        logger.info(\"VoiceLiveSession created\", {\n          agentName: modelOrConfigOrTarget.agent.agentName,\n        });\n        return session;\n      }\n    }\n\n    // Handle RequestSession (full config)\n    const requestSession = modelOrConfigOrTarget as RequestSession;\n    if (!requestSession.model) {\n      throw new Error(\n        \"Model name is required when using RequestSession. Provide a model property, or use SessionTarget with agent for agent-centric sessions.\",\n      );\n    }\n\n    const session = new VoiceLiveSession(\n      this._endpoint,\n      this._credential,\n      requestSession.model,\n      mergedOptions,\n    );\n\n    // Store full session config for later use\n    (session as any)._initialSessionConfig = requestSession;\n\n    logger.info(\"VoiceLiveSession created\", { model: requestSession.model });\n    return session;\n  }\n\n  /**\n   * Type guard to check if a value is a SessionTarget.\n   * SessionTarget has exactly one of: { model: string } or { agent: AgentSessionConfig }\n   * with no other keys (to distinguish from RequestSession which may have model + other keys).\n   */\n  private _isSessionTarget(value: unknown): value is SessionTarget {\n    if (typeof value !== \"object\" || value === null) {\n      return false;\n    }\n\n    const obj = value as Record<string, unknown>;\n    const keys = Object.keys(obj);\n\n    // SessionTarget with model: exactly one key \"model\" with string value\n    if (keys.length === 1 && keys[0] === \"model\" && typeof obj.model === \"string\") {\n      return true;\n    }\n\n    // SessionTarget with agent: exactly one key \"agent\" with AgentSessionConfig object\n    if (\n      keys.length === 1 &&\n      keys[0] === \"agent\" &&\n      typeof obj.agent === \"object\" &&\n      obj.agent !== null &&\n      \"agentName\" in (obj.agent as Record<string, unknown>)\n    ) {\n      return true;\n    }\n\n    return false;\n  }\n\n  /**\n   * Creates and immediately connects a new VoiceLiveSession.\n   *\n   * @param model - The model name to use for the session (e.g., \"gpt-realtime\")\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A connected VoiceLiveSession instance\n   */\n  async startSession(\n    model: string,\n    sessionOptions?: StartSessionOptions,\n  ): Promise<VoiceLiveSession>;\n\n  /**\n   * Creates and immediately connects a new VoiceLiveSession using a session target.\n   *\n   * @param target - The session target specifying either a model or agent\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A connected VoiceLiveSession instance\n   *\n   * @example Model-centric session\n   * ```typescript snippet:StartSessionModelTarget\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n   *\n   * const credential = new DefaultAzureCredential();\n   * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n   * const client = new VoiceLiveClient(endpoint, credential);\n   *\n   * const session = await client.startSession({ model: \"gpt-realtime\" });\n   * ```\n   *\n   * @example Agent-centric session\n   * ```typescript snippet:StartSessionAgentTarget\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { VoiceLiveClient } from \"@azure/ai-voicelive\";\n   *\n   * const credential = new DefaultAzureCredential();\n   * const endpoint = \"https://your-resource.cognitiveservices.azure.com\";\n   * const client = new VoiceLiveClient(endpoint, credential);\n   *\n   * const session = await client.startSession({\n   *   agent: { agentName: \"my-agent\", projectName: \"my-project\" },\n   * });\n   * ```\n   */\n  async startSession(\n    target: SessionTarget,\n    sessionOptions?: StartSessionOptions,\n  ): Promise<VoiceLiveSession>;\n\n  /**\n   * Creates and immediately connects a new VoiceLiveSession with session configuration.\n   *\n   * @param sessionConfig - Session configuration including model and other settings\n   * @param sessionOptions - Optional configuration specific to this session\n   * @returns A connected VoiceLiveSession instance\n   */\n  async startSession(\n    sessionConfig: RequestSession,\n    sessionOptions?: StartSessionOptions,\n  ): Promise<VoiceLiveSession>;\n\n  async startSession(\n    modelOrConfigOrTarget: string | RequestSession | SessionTarget,\n    sessionOptions?: StartSessionOptions,\n  ): Promise<VoiceLiveSession> {\n    const session = this.createSession(modelOrConfigOrTarget as any, sessionOptions);\n\n    // Only subscribe if sessionHandlers are provided\n    if (sessionOptions?.sessionHandlers) {\n      // The subscription lives for the session lifetime and is cleaned up when session is disposed\n      session.subscribe(sessionOptions.sessionHandlers);\n    }\n\n    await session.connect();\n\n    // If RequestSession was provided (has model property but not as SessionTarget), send it after connection\n    if (\n      typeof modelOrConfigOrTarget !== \"string\" &&\n      !this._isSessionTarget(modelOrConfigOrTarget)\n    ) {\n      await session.updateSession(modelOrConfigOrTarget as RequestSession);\n    }\n\n    return session;\n  }\n\n  // Properties\n  get endpoint(): string {\n    return this._endpoint;\n  }\n\n  get apiVersion(): string {\n    return this._options.apiVersion;\n  }\n\n  private _buildDefaultOptions(options: VoiceLiveClientOptions): Required<VoiceLiveClientOptions> {\n    return {\n      apiVersion: options.apiVersion || DEFAULT_API_VERSION,\n      defaultSessionOptions: options.defaultSessionOptions || {},\n    };\n  }\n\n  private _normalizeEndpoint(endpoint: string): string {\n    // Ensure endpoint has proper protocol\n    if (!endpoint.startsWith(\"http://\") && !endpoint.startsWith(\"https://\")) {\n      endpoint = `https://${endpoint}`;\n    }\n\n    // Remove trailing slash\n    return endpoint.replace(/\\/$/, \"\");\n  }\n}\n",
+      "contentHash": "8260ea5a074fdccbc5c098e050e05b8fe21f5a195746d7890796ba48d42d4a5a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/src/client/voiceLiveClient.ts",
+      "startLine": 1,
+      "endLine": 334,
+      "kind": "unknown",
+      "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/voiceLiveSession.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { KeyCredential, TokenCredential } from \"@azure/core-auth\";\nimport { uint8ArrayToString } from \"@azure/core-util\";\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\nimport {\n  type RequestSession,\n  type ClientEventSessionUpdate,\n  type ClientEventUnion,\n  type ClientEventInputAudioBufferAppend,\n  type ClientEventInputAudioTurnStart,\n  type ClientEventInputAudioTurnAppend,\n  type ClientEventInputAudioTurnEnd,\n  type ConversationRequestItemUnion,\n  type ClientEventConversationItemCreate,\n  type ServerEventUnion,\n  KnownClientEventType,\n  KnownServerEventType,\n} from \"../models/index.js\";\nimport { ConnectionManager, ConnectionState } from \"../websocket/connectionManager.js\";\nimport { VoiceLiveWebSocketFactory } from \"../websocket/websocketFactory.js\";\nimport { VoiceLiveMessageParser } from \"../protocol/messageParser.js\";\nimport { CredentialHandler } from \"../auth/credentialHandler.js\";\nimport { VoiceLiveConnectionError, classifyConnectionError } from \"../errors/index.js\";\nimport { logger } from \"../logger.js\";\nimport type {\n  VoiceLiveSessionHandlers,\n  VoiceLiveSubscription,\n  ConnectionContext,\n  SessionContext,\n  ConnectedEventArgs,\n  DisconnectedEventArgs,\n  ErrorEventArgs,\n} from \"../handlers/sessionHandlers.js\";\nimport { SubscriptionManager } from \"../handlers/subscriptionManager.js\";\nimport type { AgentSessionConfig } from \"./types.js\";\nimport { SessionTelemetryTracker } from \"../telemetry/index.js\";\nimport { DEFAULT_API_VERSION } from \"../constants.js\";\n\nexport interface VoiceLiveSessionOptions {\n  /** API version to use for the Voice Live service. Defaults to the latest known version when not specified. */\n  apiVersion?: string;\n  /** Connection timeout in milliseconds */\n  connectionTimeoutInMs?: number;\n}\n\nexport interface CreateSessionOptions extends VoiceLiveSessionOptions {}\n\nexport interface StartSessionOptions extends VoiceLiveSessionOptions {\n  /** Optional session handlers to subscribe immediately upon connection */\n  sessionHandlers?: VoiceLiveSessionHandlers;\n}\n\nexport interface ConnectOptions {\n  /** Abort signal to cancel connection attempt */\n  abortSignal?: AbortSignalLike;\n  /** Override connection timeout for this operation */\n  timeoutInMs?: number;\n}\n\nexport interface SendEventOptions {\n  /** Abort signal to cancel send operation */\n  abortSignal?: AbortSignalLike;\n  /** Timeout for send operation */\n  timeoutInMs?: number;\n}\n\nexport interface AudioStreamOptions extends SendEventOptions {\n  /** Turn ID for turn-based audio (if not provided, uses buffer mode) */\n  turnId?: string;\n}\n\nexport interface TurnOptions extends SendEventOptions {\n  /** Custom turn ID (if not provided, one will be generated) */\n  turnId?: string;\n}\n\n/**\n * Represents a WebSocket-based session for real-time voice communication with the Azure VoiceLive service.\n *\n * This class manages the connection, handles real-time communication, and provides access to all\n * interactive features including audio streaming, conversation management, and avatar control.\n */\nexport class VoiceLiveSession {\n  private readonly _endpoint: string;\n  private readonly _credentialHandler: CredentialHandler;\n  private readonly _options: Required<VoiceLiveSessionOptions>;\n  private readonly _messageParser: VoiceLiveMessageParser;\n  private readonly _model?: string;\n  private readonly _agentConfig?: AgentSessionConfig;\n  private readonly _apiVersion: string;\n  private _connectionManager?: ConnectionManager;\n  private _sessionId?: string;\n  private _activeTurnId?: string;\n  private _disposed = false;\n  // Handler-based subscription management\n  private readonly _subscriptionManager: SubscriptionManager;\n  // Telemetry tracker for tracing\n  private readonly _telemetryTracker: SessionTelemetryTracker;\n\n  /**\n   * Creates an instance of VoiceLiveSession for model-centric sessions.\n   *\n   * @param endpoint - The Voice Live service endpoint URL\n   * @param credential - Azure TokenCredential or KeyCredential for authentication\n   * @param model - The model name to use for the session\n   * @param options - Optional configuration for the session, including `apiVersion`\n   */\n  constructor(\n    endpoint: string,\n    credential: TokenCredential | KeyCredential,\n    model: string,\n    options?: VoiceLiveSessionOptions,\n  );\n\n  /**\n   * Creates an instance of VoiceLiveSession for agent-centric sessions.\n   *\n   * @param endpoint - The Voice Live service endpoint URL\n   * @param credential - Azure TokenCredential or KeyCredential for authentication\n   * @param agentConfig - The agent configuration for the session\n   * @param options - Optional configuration for the session, including `apiVersion`\n   */\n  constructor(\n    endpoint: string,\n    credential: TokenCredential | KeyCredential,\n    agentConfig: AgentSessionConfig,\n    options?: VoiceLiveSessionOptions,\n  );\n\n  constructor(\n    endpoint: string,\n    credential: TokenCredential | KeyCredential,\n    modelOrAgent: string | AgentSessionConfig,\n    options: VoiceLiveSessionOptions = {},\n  ) {\n    this._endpoint = this._normalizeEndpoint(endpoint);\n    this._credentialHandler = new CredentialHandler(credential);\n    this._options = this._buildDefaultOptions(options);\n    this._messageParser = new VoiceLiveMessageParser();\n    this._apiVersion = this._options.apiVersion;\n\n    // Determine if this is a model or agent session\n    if (typeof modelOrAgent === \"string\") {\n      logger.info(\"Creating model-centric VoiceLiveSession\", { model: modelOrAgent });\n      this._model = modelOrAgent;\n      this._agentConfig = undefined;\n    } else {\n      this._model = undefined;\n      this._agentConfig = modelOrAgent;\n    }\n\n    // Initialize handler-based subscription management\n    this._subscriptionManager = new SubscriptionManager();\n\n    // Initialize telemetry tracker (no-op if user has no tracing configured)\n    const parsedUrl = this._parseEndpoint(this._endpoint);\n    this._telemetryTracker = new SessionTelemetryTracker({\n      serverAddress: parsedUrl.hostname,\n      serverPort: parsedUrl.port,\n      model: this._model,\n      agentName: this._agentConfig?.agentName,\n      agentVersion: this._agentConfig?.agentVersion,\n      agentProjectName: this._agentConfig?.projectName,\n      conversationId: this._agentConfig?.conversationId,\n    });\n\n    logger.info(\"VoiceLiveSession created\", {\n      endpoint: this._endpoint,\n      model: this._model,\n      agentName: this._agentConfig?.agentName,\n      apiVersion: this._apiVersion,\n    });\n  }\n\n  /**\n   * Establishes connection to the Voice Live service with authentication.\n   */\n  async connect(options: ConnectOptions = {}): Promise<void> {\n    this._ensureNotDisposed();\n\n    if (this.isConnected) {\n      logger.info(\"VoiceLiveSession already connected\");\n      return;\n    }\n\n    try {\n      logger.info(\"Connecting to Voice Live service\", {\n        endpoint: this._endpoint,\n        model: this._model,\n        agentName: this._agentConfig?.agentName,\n      });\n\n      // Start the connect span (parent for the session lifetime)\n      this._telemetryTracker.startConnectSpan();\n\n      // Get WebSocket URL with authentication and model or agent config\n      const wsUrl = await this._credentialHandler.getWebSocketUrl(\n        this._endpoint,\n        this._apiVersion,\n        this._model,\n        this._agentConfig,\n      );\n      const authHeaders = await this._credentialHandler.getAuthHeaders();\n\n      // Create connection manager\n      const websocketFactory = new VoiceLiveWebSocketFactory();\n      this._connectionManager = new ConnectionManager(\n        () =>\n          websocketFactory.create({\n            headers: { ...authHeaders },\n            connectionTimeoutInMs: this._options.connectionTimeoutInMs,\n            compression: true,\n          }),\n        {\n          endpoint: wsUrl,\n          connectionTimeout: options.timeoutInMs || this._options.connectionTimeoutInMs,\n        },\n      );\n\n      // Setup connection event handlers\n      this._setupConnectionEventHandlers();\n\n      // Connect with proper error handling\n      await this._connectionManager.connect(options.abortSignal);\n\n      this._telemetryTracker.recordConnectSuccess();\n      logger.info(\"Successfully connected to Voice Live service\");\n    } catch (error) {\n      logger.error(\"Failed to connect to Voice Live service\", { error });\n      this._telemetryTracker.recordConnectError(\n        error instanceof Error ? error : new Error(String(error)),\n      );\n\n      // Use error classification\n      if (error instanceof VoiceLiveConnectionError) {\n        throw error;\n      } else {\n        throw classifyConnectionError(error);\n      }\n    }\n  }\n\n  /**\n   * Disconnects from the Voice Live service and cleans up resources.\n   */\n  async disconnect(): Promise<void> {\n    if (!this._connectionManager) {\n      return;\n    }\n\n    logger.info(\"Disconnecting from Voice Live service\");\n\n    try {\n      await this._connectionManager.disconnect();\n    } catch (error) {\n      logger.error(\"Error during disconnect\", { error });\n    } finally {\n      // End tracing for this session\n      this._telemetryTracker.traceClose();\n      this._connectionManager = undefined;\n      this._sessionId = undefined;\n      this._activeTurnId = undefined;\n      logger.info(\"Disconnected from Voice Live service\");\n    }\n  }\n\n  /**\n   * Subscribe to VoiceLive session events using strongly-typed handlers.\n   *\n   * @param handlers - Handler functions for different types of events\n   * @returns A subscription object that can be used to stop receiving events\n   */\n  subscribe(handlers: VoiceLiveSessionHandlers): VoiceLiveSubscription {\n    this._ensureNotDisposed();\n\n    logger.info(\"Creating VoiceLive session subscription\");\n    return this._subscriptionManager.createSubscription(handlers);\n  }\n\n  /**\n   * Sends a custom client event to the service.\n   */\n  async sendEvent(event: ClientEventUnion, options: SendEventOptions = {}): Promise<void> {\n    this._ensureConnected();\n    await this._sendEvent(event, options);\n  }\n\n  /**\n   * Updates the session configuration with the service.\n   */\n  async updateSession(session: RequestSession, options: SendEventOptions = {}): Promise<void> {\n    this._ensureConnected();\n\n    const updateEvent: ClientEventSessionUpdate = {\n      type: KnownClientEventType.SessionUpdate,\n      session: session,\n      eventId: this._generateEventId(),\n    };\n\n    await this._sendEvent(updateEvent, options);\n  }\n\n  /**\n   * Sends audio data to the service using turn-based or buffer-based approach.\n   */\n  async sendAudio(\n    audioData: ArrayBuffer | Uint8Array,\n    options: AudioStreamOptions = {},\n  ): Promise<void> {\n    this._ensureConnected();\n\n    const audioBase64 = this._arrayBufferToBase64(audioData);\n\n    if (options.turnId) {\n      // Turn-based audio\n      const appendEvent: ClientEventInputAudioTurnAppend = {\n        type: KnownClientEventType.InputAudioTurnAppend,\n        audio: audioBase64,\n        turnId: options.turnId,\n        eventId: this._generateEventId(),\n      };\n      await this._sendEvent(appendEvent, options);\n    } else {\n      // Buffer-based audio (VAD mode)\n      const bufferEvent: ClientEventInputAudioBufferAppend = {\n        type: KnownClientEventType.InputAudioBufferAppend,\n        audio: audioBase64,\n        eventId: this._generateEventId(),\n      };\n      await this._sendEvent(bufferEvent, options);\n    }\n  }\n\n  /**\n   * Starts a new audio turn for turn-based audio input.\n   */\n  async startAudioTurn(options: TurnOptions = {}): Promise<string> {\n    this._ensureConnected();\n\n    const turnId = options.turnId || this._generateTurnId();\n    this._activeTurnId = turnId;\n\n    const startEvent: ClientEventInputAudioTurnStart = {\n      type: KnownClientEventType.InputAudioTurnStart,\n      turnId: turnId,\n      eventId: this._generateEventId(),\n    };\n\n    await this._sendEvent(startEvent, options);\n    return turnId;\n  }\n\n  /**\n   * Ends the current audio turn.\n   */\n  async endAudioTurn(turnId?: string, options: SendEventOptions = {}): Promise<void> {\n    this._ensureConnected();\n\n    const targetTurnId = turnId || this._activeTurnId;\n    if (!targetTurnId) {\n      throw new VoiceLiveConnectionError(\"No active audio turn to end\", \"INVALID_STATE\");\n    }\n\n    const endEvent: ClientEventInputAudioTurnEnd = {\n      type: KnownClientEventType.InputAudioTurnEnd,\n      turnId: targetTurnId,\n      eventId: this._generateEventId(),\n    };\n\n    await this._sendEvent(endEvent, options);\n\n    if (targetTurnId === this._activeTurnId) {\n      this._activeTurnId = undefined;\n    }\n  }\n\n  /**\n   * Adds a conversation item (message) to the conversation.\n   */\n  async addConversationItem(\n    item: ConversationRequestItemUnion,\n    options: SendEventOptions = {},\n  ): Promise<void> {\n    this._ensureConnected();\n\n    const createEvent: ClientEventConversationItemCreate = {\n      type: KnownClientEventType.ConversationItemCreate,\n      item: item,\n      eventId: this._generateEventId(),\n    };\n\n    await this._sendEvent(createEvent, options);\n  }\n\n  /**\n   * Indicates whether the session is currently connected to the Voice Live service.\n   */\n  get isConnected(): boolean {\n    return this._connectionManager?.isConnected || false;\n  }\n\n  /**\n   * Gets the current connection state of the session.\n   */\n  get connectionState(): ConnectionState {\n    return this._connectionManager?.state || ConnectionState.Disconnected;\n  }\n\n  /**\n   * Gets the current session ID.\n   */\n  get sessionId(): string | undefined {\n    return this._sessionId;\n  }\n\n  /**\n   * Gets the current active audio turn ID.\n   */\n  get activeTurnId(): string | undefined {\n    return this._activeTurnId;\n  }\n\n  /**\n   * Disposes the session and cleans up resources.\n   */\n  async dispose(): Promise<void> {\n    if (this._disposed) {\n      return;\n    }\n\n    logger.info(\"Disposing VoiceLiveSession\");\n\n    try {\n      // Close all subscriptions first\n      await this._subscriptionManager.closeAll();\n\n      // Then disconnect\n      await this.disconnect();\n    } catch (error) {\n      logger.error(\"Error during session disposal\", { error });\n    } finally {\n      this._disposed = true;\n      logger.info(\"VoiceLiveSession disposed\");\n    }\n  }\n\n  // Private methods\n\n  private _buildDefaultOptions(\n    options: VoiceLiveSessionOptions,\n  ): Required<VoiceLiveSessionOptions> {\n    return {\n      apiVersion: options.apiVersion || DEFAULT_API_VERSION,\n      connectionTimeoutInMs: options.connectionTimeoutInMs || 30000,\n    };\n  }\n\n  private _normalizeEndpoint(endpoint: string): string {\n    // Ensure endpoint has proper protocol\n    if (!endpoint.startsWith(\"http://\") && !endpoint.startsWith(\"https://\")) {\n      endpoint = `https://${endpoint}`;\n    }\n\n    // Remove trailing slash\n    return endpoint.replace(/\\/$/, \"\");\n  }\n\n  private _setupConnectionEventHandlers(): void {\n    if (!this._connectionManager) return;\n\n    this._connectionManager.updateEventHandlers({\n      onStateChange: (state, previousState) => {\n        logger.info(\"Connection state changed\", { state, previousState });\n\n        // Handle connection state changes for handler-based subscriptions\n        if (state === ConnectionState.Connected && previousState === ConnectionState.Connecting) {\n          this._notifyConnectionEvent(\"connected\", {\n            connectionId: `conn_${Date.now()}`,\n            timestamp: new Date(),\n          });\n        } else if (\n          state === ConnectionState.Disconnected &&\n          previousState === ConnectionState.Connected\n        ) {\n          this._notifyConnectionEvent(\"disconnected\", {\n            code: 1006, // Abnormal closure\n            reason: \"Connection lost during session\",\n            wasClean: false,\n            timestamp: new Date(),\n          });\n          this._markSessionAsDead(\n            \"Connection lost during session - session is permanently unusable\",\n          );\n        }\n      },\n      onMessage: (data) => {\n        this._handleIncomingMessage(data);\n      },\n      onError: (error) => {\n        logger.error(\"Connection error - marking session as dead\", { error });\n        this._notifyConnectionEvent(\"error\", {\n          error: error,\n          context: \"WebSocket connection error\",\n          recoverable: false,\n          timestamp: new Date(),\n        });\n        this._markSessionAsDead(`Connection error: ${error.message}`);\n      },\n    });\n  }\n\n  private _markSessionAsDead(reason: string): void {\n    if (this._disposed) return;\n\n    logger.error(\"Session marked as permanently dead\", { reason });\n\n    // End tracing with error\n    this._telemetryTracker.traceClose(new Error(reason));\n\n    // Mark as disposed to prevent further use\n    this._disposed = true;\n\n    // Clean up connection manager\n    this._connectionManager = undefined;\n    this._sessionId = undefined;\n    this._activeTurnId = undefined;\n  }\n\n  private _handleIncomingMessage(data: string | ArrayBuffer): void {\n    try {\n      logger.info(\"Message received\", {\n        type: typeof data,\n        size: typeof data === \"string\" ? data.length : data.byteLength,\n      });\n\n      // Parse and process the message\n      const parsed = this._messageParser.parseIncomingMessage(data);\n      if (parsed && parsed.type === \"server\") {\n        // Trace the received event\n        this._telemetryTracker.traceRecv(parsed.event as unknown as Record<string, unknown>);\n        // Handle server events\n        this._handleServerEvent(parsed.event);\n      }\n    } catch (error) {\n      logger.error(\"Error handling incoming message\", { error });\n    }\n  }\n\n  private _handleServerEvent(event: any): void {\n    // Extract session information from events\n    if (event.type === KnownServerEventType.SessionCreated && event.session?.id) {\n      this._sessionId = event.session.id;\n      logger.info(\"Session created\", { sessionId: this._sessionId });\n    }\n\n    // Notify handler-based subscriptions\n    this._notifyServerEvent(event);\n  }\n\n  private _notifyConnectionEvent(\n    eventType: \"connected\" | \"disconnected\" | \"error\",\n    args: ConnectedEventArgs | DisconnectedEventArgs | ErrorEventArgs,\n  ): void {\n    const context: ConnectionContext = {\n      endpoint: this._endpoint,\n      sessionId: this._sessionId,\n      timestamp: new Date(),\n      model: this._model,\n      agentName: this._agentConfig?.agentName,\n    };\n\n    // Fire and forget - don't await to avoid blocking\n    this._subscriptionManager.processConnectionEvent(eventType, args, context).catch((error) => {\n      logger.error(\"Error processing connection event in handlers\", { eventType, error });\n    });\n  }\n\n  private _notifyServerEvent(event: ServerEventUnion): void {\n    if (!this._sessionId) {\n      // Can't notify server events without a session ID\n      return;\n    }\n\n    const context: SessionContext = {\n      endpoint: this._endpoint,\n      sessionId: this._sessionId,\n      timestamp: new Date(),\n      model: this._model,\n      agentName: this._agentConfig?.agentName,\n      conversationId: undefined, // Could extract from event if available\n    };\n\n    // Fire and forget - don't await to avoid blocking\n    this._subscriptionManager.processServerEvent(event, context).catch((error) => {\n      logger.error(\"Error processing server event in handlers\", { eventType: event.type, error });\n    });\n  }\n\n  private async _sendEvent(event: ClientEventUnion, options: SendEventOptions): Promise<void> {\n    if (!this._connectionManager?.isConnected) {\n      throw new VoiceLiveConnectionError(\"Not connected to Voice Live service\", \"NOT_CONNECTED\");\n    }\n\n    try {\n      // Trace the send operation\n      this._telemetryTracker.traceSend(event as unknown as Record<string, unknown>);\n\n      const serialized = this._messageParser.serializeOutgoingMessage(event);\n      await this._connectionManager.send(serialized, options.abortSignal);\n\n      logger.info(\"Sent event\", { type: event.type, eventId: (event as any).eventId });\n    } catch (error) {\n      if (error instanceof VoiceLiveConnectionError) {\n        throw error;\n      }\n\n      throw classifyConnectionError(error);\n    }\n  }\n\n  private _ensureConnected(): void {\n    this._ensureNotDisposed();\n    if (!this.isConnected) {\n      throw new VoiceLiveConnectionError(\n        \"Must be connected to Voice Live service\",\n        \"NOT_CONNECTED\",\n      );\n    }\n  }\n\n  private _ensureNotDisposed(): void {\n    if (this._disposed) {\n      throw new VoiceLiveConnectionError(\n        \"Session is permanently dead and cannot be used. Create a new session to continue.\",\n        \"SESSION_DEAD\",\n      );\n    }\n  }\n\n  private _generateEventId(): string {\n    return `evt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;\n  }\n\n  private _generateTurnId(): string {\n    return `turn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;\n  }\n\n  private _arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {\n    const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;\n    return uint8ArrayToString(bytes, \"base64\");\n  }\n\n  private _parseEndpoint(endpoint: string): { hostname: string; port: number | undefined } {\n    try {\n      const url = new URL(endpoint);\n      const port = url.port\n        ? parseInt(url.port, 10)\n        : url.protocol === \"https:\" || url.protocol === \"wss:\"\n          ? 443\n          : 80;\n      return { hostname: url.hostname, port };\n    } catch {\n      return { hostname: endpoint, port: undefined };\n    }\n  }\n}\n",
+      "contentHash": "3f9727b5855b94563b0171ead493439cc0dcd197b901cd24e61cbcb6e15de1aa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/src/client/voiceLiveSession.ts",
+      "startLine": 1,
+      "endLine": 668,
+      "kind": "unknown",
+      "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/voicelive/ai-voicelive/package.json",
+      "text": "{\n  \"name\": \"@azure/ai-voicelive\",\n  \"version\": \"1.1.1\",\n  \"description\": \"A generated SDK for VoiceLiveClient.\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"sdk-type\": \"client\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/voicelive/ai-voicelive\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/voicelive/ai-voicelive/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/constants.ts\",\n        \"prefix\": \"SDK_VERSION\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/abort-controller\": \"^2.1.0\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-rest-pipeline\": \"^1.20.0\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/core-util\": \"^1.12.0\",\n    \"@azure/logger\": \"^1.2.0\",\n    \"https-proxy-agent\": \"^9.1.0\",\n    \"tslib\": \"^2.8.1\",\n    \"ws\": \"^8.18.3\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/ai-projects\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@types/ws\": \"^8.18.1\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"microsoft-cognitiveservices-speech-sdk\": \"^1.47.0\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"build:samples\": \"echo skipped\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"execute:samples\": \"echo skipped\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"generate:client\": \"tsp-client update -d && npm run format && dev-tool customization apply\",\n    \"test:browser\": \"dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:browser:debug\": \"dev-tool run build-test && vitest --config vitest.browser.debug.config.ts --browser\",\n    \"test:browser:grep\": \"dev-tool run build-test && vitest --config vitest.browser.debug.config.ts --browser --run -t\",\n    \"test:browser:ui\": \"dev-tool run build-test && vitest --config vitest.browser.debug.config.ts --browser --ui\",\n    \"build\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"fastbuild\": \"dev-tool run build-package\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"test:node:esm\": \"dev-tool run test:vitest --esm\",\n    \"test:debug\": \"vitest -c vitest.debug.config.ts\",\n    \"test:debug:ui\": \"vitest -c vitest.debug.config.ts --ui\",\n    \"test:node:verbose\": \"AZURE_LOG_LEVEL=verbose DEBUG=azure:ai-voicelive:* dev-tool run test:vitest --reporter=verbose\",\n    \"test:vitest\": \"vitest\",\n    \"test:vitest:ui\": \"vitest --ui\",\n    \"test:grep\": \"dev-tool run test:vitest -- --run --reporter=verbose -t\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:integration\": \"bash ./scripts/integration-test.sh\",\n    \"test:integration:windows\": \"powershell -ExecutionPolicy Bypass -File ./scripts/integration-test.ps1\",\n    \"update-snippets\": \"dev-tool run update-snippets\",\n    \"dev\": \"./fast-dev.sh\",\n    \"watch\": \"dev-tool run build-package --watch\"\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/models/index.d.ts\",\n        \"default\": \"./dist/react-native/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "a925d33ffe7435aa351bc8f0b528bc0177231bb92e649fcb3b7351825bdb5140",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/package.json"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/tsp-location.yaml",
+      "text": "directory: specification/ai/data-plane/VoiceLive\ncommit: 436ab04b53ca6ed634c6f44c75ed0ca5432c3fa9\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "34fdc2d9954458e4a667bec197d60ee0e986f645a4e3d3cd3193d260601e93a8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/voicelive/ai-voicelive/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "cc3661d5c90a20a8c36fe0db7f6918d9777dc38c5c31855deb77239873d6771f",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "eddd2b75499ab9802949ce0164cbe9eafefbd957c05674af34bd4d35c6781dc5",
+        "category": "Auth",
+        "subtype": "dual-credential-token-cache-and-refresh-buffer",
+        "pattern": "credential-token-cache",
+        "generatorAddressable": "yes",
+        "explanation": "CredentialHandler returns API keys directly, otherwise reuses cached tokens until five minutes before expiry and obtains a replacement using the configured/default scope.",
+        "handwrittenRationale": "The separate src/auth helper has no generated header and implements a stateful credential lifecycle for the custom websocket session layer, consistent with the guideline's handwritten-module layout.",
+        "symbols": [
+          "CredentialHandler.constructor",
+          "CredentialHandler.getAccessToken",
+          "CredentialHandler._isTokenValid"
+        ],
+        "evidence": [
+          {
+            "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+            "startLine": 24,
+            "endLine": 82
+          },
+          {
+            "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+            "startLine": 195,
+            "endLine": 199
+          }
+        ]
+      },
+      {
+        "key": "3fb2d14d5e684f6aa1ecf555b8276717d7b35cd3ce8b7f5040f48fcfce073fbb",
+        "category": "Retry / error handling",
+        "subtype": "authentication-specific-error-normalization",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "explanation": "Null token results become VoiceLiveAuthenticationError; other acquisition exceptions are wrapped with an authentication failure code and cause while existing authentication errors are preserved.",
+        "handwrittenRationale": "The src/auth module without a generation marker implements explicit credential error normalization around getToken.",
+        "symbols": [
+          "CredentialHandler.getAccessToken"
+        ],
+        "evidence": [
+          {
+            "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+            "startLine": 63,
+            "endLine": 95
+          }
+        ]
+      },
+      {
+        "key": "7f458d8ebfa7a85d8d7d90bd7d8ca0e82273f9457866161c2580a682a8193982",
+        "category": "Auth",
+        "subtype": "model-or-agent-websocket-url-and-auth-headers",
+        "pattern": "websocket-auth-handshake",
+        "generatorAddressable": "yes",
+        "explanation": "The credential helper converts HTTP(S) endpoints to WS(S), sets the realtime path/version, selects model or agent query parameters, adds an API-key query parameter for key credentials, and supplies handshake headers.",
+        "handwrittenRationale": "The standalone auth helper explicitly constructs websocket URLs and headers outside ordinary generated operation/model files.",
+        "symbols": [
+          "CredentialHandler.getWebSocketUrl",
+          "CredentialHandler.getAuthHeaders"
+        ],
+        "evidence": [
+          {
+            "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+            "startLine": 107,
+            "endLine": 178
+          }
+        ]
+      },
+      {
+        "key": "3f4065dee4342e3bad8e4cf7e3abb779eb51f5e77261a3bc22271fee3913f0db",
+        "category": "Model overrides",
+        "subtype": "exclusive-session-target-union-and-type-guards",
+        "pattern": "discriminated-session-target",
+        "generatorAddressable": "yes",
+        "explanation": "SessionTarget models mutually exclusive model/agent session creation, with an agent configuration interface and exported guards identifying each target.",
+        "handwrittenRationale": "The definitions live in src/client/types.ts separately from the imported service models and carry no generated header, matching a custom client configuration module.",
+        "symbols": [
+          "AgentSessionConfig",
+          "SessionTarget",
+          "isAgentSessionTarget",
+          "isModelSessionTarget"
+        ],
+        "evidence": [
+          {
+            "id": "f77bbc278e3249ec7ca770bff61c62d7088580951e6110a6e41619dabbd77f16",
+            "startLine": 14,
+            "endLine": 33
+          },
+          {
+            "id": "f77bbc278e3249ec7ca770bff61c62d7088580951e6110a6e41619dabbd77f16",
+            "startLine": 67,
+            "endLine": 90
+          }
+        ]
+      },
+      {
+        "key": "b678776103a52c46b771b127520efba32435644ac02159ead6f660cd00698837",
+        "category": "Convenience methods",
+        "subtype": "merge-defaults-and-select-model-agent-or-request-config",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "explanation": "createSession merges client/default/per-call options and accepts a model string, an exclusive model/agent target or a full RequestSession, constructing VoiceLiveSession accordingly and retaining the full configuration.",
+        "handwrittenRationale": "The public src/client factory without generated markers composes a websocket session class rather than emitting a standard REST operation.",
+        "symbols": [
+          "VoiceLiveClient.createSession",
+          "VoiceLiveClient._isSessionTarget"
+        ],
+        "evidence": [
+          {
+            "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2",
+            "startLine": 113,
+            "endLine": 219
+          }
+        ]
+      },
+      {
+        "key": "82f56c1e4dc409ae2aedefb037dea3419674cf6c7cd06502c4c3df6dd5d0ab0e",
+        "category": "Convenience methods",
+        "subtype": "create-subscribe-connect-and-configure-session",
+        "pattern": "connected-session-factory",
+        "generatorAddressable": "yes",
+        "explanation": "startSession creates a session, installs provided handlers before connecting, then sends a full RequestSession configuration after connection when that overload was used.",
+        "handwrittenRationale": "This custom client method explicitly orchestrates the websocket session lifecycle without generated markers.",
+        "symbols": [
+          "VoiceLiveClient.startSession"
+        ],
+        "evidence": [
+          {
+            "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2",
+            "startLine": 284,
+            "endLine": 307
+          }
+        ]
+      },
+      {
+        "key": "6c4b2a536a9f42c33001629ca071541aa2cc1cb8a369d458934b70cb4595548b",
+        "category": "Convenience methods",
+        "subtype": "default-https-and-trim-trailing-slash",
+        "pattern": "client-endpoint-normalization",
+        "generatorAddressable": "yes",
+        "explanation": "The client and session constructors normalize endpoints by adding https:// when no HTTP(S) prefix is present and removing a trailing slash.",
+        "handwrittenRationale": "The normalization bodies are visible in the separate custom src/client modules without generated headers.",
+        "symbols": [
+          "VoiceLiveClient._normalizeEndpoint",
+          "VoiceLiveSession._normalizeEndpoint"
+        ],
+        "evidence": [
+          {
+            "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2",
+            "startLine": 325,
+            "endLine": 333
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 460,
+            "endLine": 468
+          }
+        ]
+      },
+      {
+        "key": "78b27a5a212504807406f0753f92c49a7f4c5961bd951a8d39e3f0323b7e1cf1",
+        "category": "SSE / streaming",
+        "subtype": "authenticated-websocket-connect-disconnect-dispose",
+        "pattern": "websocket-session-lifecycle",
+        "generatorAddressable": "yes",
+        "explanation": "VoiceLiveSession assembles the credential handler, parser, subscription manager and connection manager, obtains handshake data, forwards connection abort/timeout, and clears connection/session/turn state on disconnect or disposal.",
+        "handwrittenRationale": "The src/client session module explicitly composes protocol and websocket helpers and holds connection state outside service model definitions, with no generated marker.",
+        "symbols": [
+          "VoiceLiveSession.constructor",
+          "VoiceLiveSession.connect",
+          "VoiceLiveSession.disconnect",
+          "VoiceLiveSession.dispose"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 132,
+            "endLine": 167
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 180,
+            "endLine": 267
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 428,
+            "endLine": 446
+          }
+        ]
+      },
+      {
+        "key": "5fcdee05b66e21294dc58e7d89d381b2907d4a65d638bc18bee0cd6e37ec5828",
+        "category": "Convenience methods",
+        "subtype": "session-update-and-conversation-item-events",
+        "pattern": "typed-protocol-event-helper",
+        "generatorAddressable": "yes",
+        "explanation": "updateSession and addConversationItem validate connection state, build typed protocol events with generated event ids and send them through the session.",
+        "handwrittenRationale": "The custom src/client session layer constructs events using separately imported service model types.",
+        "symbols": [
+          "VoiceLiveSession.updateSession",
+          "VoiceLiveSession.addConversationItem"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 293,
+            "endLine": 303
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 382,
+            "endLine": 395
+          }
+        ]
+      },
+      {
+        "key": "ad616a5d9c065ec0f92b21f649b82e886900fac82d96dce059621fffc342b7b6",
+        "category": "SSE / streaming",
+        "subtype": "binary-audio-base64-and-turn-or-buffer-dispatch",
+        "pattern": "audio-stream-event-encoding",
+        "generatorAddressable": "yes",
+        "explanation": "sendAudio converts ArrayBuffer/Uint8Array to base64 and sends a turn-append event when a turn id is supplied or a buffer-append event otherwise.",
+        "handwrittenRationale": "The custom session method manually constructs protocol event variants in a non-generated src/client module.",
+        "symbols": [
+          "VoiceLiveSession.sendAudio",
+          "VoiceLiveSession._arrayBufferToBase64"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 308,
+            "endLine": 334
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 650,
+            "endLine": 653
+          }
+        ]
+      },
+      {
+        "key": "cc371d5e591288d6ffb0ee4e257c4533ce6e19ffbd4f90fa4a338a88612e72b2",
+        "category": "SSE / streaming",
+        "subtype": "start-end-audio-turn-state-management",
+        "pattern": "audio-turn-state-management",
+        "generatorAddressable": "yes",
+        "explanation": "startAudioTurn generates or accepts a turn id and stores it; endAudioTurn uses an explicit or active id, rejects missing state, sends the end event and clears a matching active id.",
+        "handwrittenRationale": "The custom session layer maintains local turn state around separately imported wire event types.",
+        "symbols": [
+          "VoiceLiveSession.startAudioTurn",
+          "VoiceLiveSession.endAudioTurn"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 339,
+            "endLine": 377
+          }
+        ]
+      },
+      {
+        "key": "e40db3b113960612e186c4d4a94129a898659e27038555c6dd0e14b4a1f16788",
+        "category": "SSE / streaming",
+        "subtype": "parse-server-events-and-dispatch-with-session-context",
+        "pattern": "typed-stream-event-dispatch",
+        "generatorAddressable": "yes",
+        "explanation": "Incoming messages are parsed, server SessionCreated events update the session id, and connection/server events are asynchronously forwarded to subscriptions with endpoint/model/agent context; server dispatch requires a session id.",
+        "handwrittenRationale": "The session module explicitly layers subscription and local-session behavior over its protocol parser, without a generated header.",
+        "symbols": [
+          "VoiceLiveSession.subscribe",
+          "VoiceLiveSession._handleIncomingMessage",
+          "VoiceLiveSession._handleServerEvent",
+          "VoiceLiveSession._notifyConnectionEvent",
+          "VoiceLiveSession._notifyServerEvent"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 275,
+            "endLine": 280
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 531,
+            "endLine": 599
+          }
+        ]
+      },
+      {
+        "key": "33cf5e14b66343030e5464cc1ac7d634ad4b05b2a2b608dc321d18800f3d1ed7",
+        "category": "Retry / error handling",
+        "subtype": "permanent-session-invalidation-on-connection-loss",
+        "pattern": "terminal-stream-session-state",
+        "generatorAddressable": "yes",
+        "explanation": "A connected-to-disconnected transition or connection error notifies handlers and permanently marks the session disposed, clears state, and causes later use to throw SESSION_DEAD.",
+        "handwrittenRationale": "Explicit connection-state handlers and local guards in the non-generated session module implement this terminal lifecycle.",
+        "symbols": [
+          "VoiceLiveSession._setupConnectionEventHandlers",
+          "VoiceLiveSession._markSessionAsDead",
+          "VoiceLiveSession._ensureNotDisposed"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 470,
+            "endLine": 529
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 633,
+            "endLine": 640
+          }
+        ]
+      },
+      {
+        "key": "6ba4a0e64cdb0c55c5a2cbad5b3b42880ac2e6eaaf0b602764ec639ee09dfc4c",
+        "category": "Tracing / telemetry",
+        "subtype": "connection-and-protocol-event-session-tracing",
+        "pattern": "stream-session-telemetry",
+        "generatorAddressable": "yes",
+        "explanation": "The session initializes a telemetry tracker with endpoint/model/agent context, records connection success/errors, traces sent/received events and closes tracing on disconnect or terminal failure.",
+        "handwrittenRationale": "These explicit instrumentation calls appear throughout the custom session wrapper, outside ordinary wire models.",
+        "symbols": [
+          "VoiceLiveSession.constructor",
+          "VoiceLiveSession.connect",
+          "VoiceLiveSession.disconnect",
+          "VoiceLiveSession._handleIncomingMessage",
+          "VoiceLiveSession._sendEvent"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 157,
+            "endLine": 167
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 195,
+            "endLine": 234
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 259,
+            "endLine": 264
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 538,
+            "endLine": 544
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 601,
+            "endLine": 611
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "eddd2b75499ab9802949ce0164cbe9eafefbd957c05674af34bd4d35c6781dc5",
+        "status": "accepted",
+        "reason": "The separate auth helper explicitly branches by credential type, caches token responses, and tests expiry against a five-minute buffer. Its reusable token-lifecycle shape could in principle be generated for credential-bearing clients; the code does not establish whether the current generator does this."
+      },
+      {
+        "key": "3fb2d14d5e684f6aa1ecf555b8276717d7b35cd3ce8b7f5040f48fcfce073fbb",
+        "status": "revised",
+        "reason": "The normalization is shown, but custom-error-type implies a handwritten error class, whose definition is not supplied. The reusable shape here is credential acquisition error normalization.",
+        "finding": {
+          "key": "3fb2d14d5e684f6aa1ecf555b8276717d7b35cd3ce8b7f5040f48fcfce073fbb",
+          "category": "Retry / error handling",
+          "subtype": "credential-acquisition-error-normalization",
+          "explanation": "Null token results raise VoiceLiveAuthenticationError, and other token-acquisition errors are logged and wrapped with an authentication failure code and cause while existing authentication errors are rethrown.",
+          "pattern": "credential-acquisition-error-normalization",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The src/auth helper has no generation marker and explicitly implements the credential error path rather than merely importing a generated error model.",
+          "symbols": [
+            "CredentialHandler.getAccessToken"
+          ],
+          "evidence": [
+            {
+              "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+              "startLine": 63,
+              "endLine": 95
+            }
+          ]
+        }
+      },
+      {
+        "key": "7f458d8ebfa7a85d8d7d90bd7d8ca0e82273f9457866161c2580a682a8193982",
+        "status": "revised",
+        "reason": "The service-specific path and agent parameters make this particular handshake unsuitable to call generator-addressable on the supplied evidence. The bearer-header value in the source evidence is redacted, so its exact content cannot be checked.",
+        "finding": {
+          "key": "7f458d8ebfa7a85d8d7d90bd7d8ca0e82273f9457866161c2580a682a8193982",
+          "category": "Auth",
+          "subtype": "model-or-agent-websocket-handshake",
+          "explanation": "The helper switches HTTP(S) to WS(S), sets a realtime path, version, and model-or-agent query parameters, attaches the key to the URL for key credentials, and builds handshake headers including an API-key header or an Authorization assignment whose value is redacted in the evidence.",
+          "pattern": "websocket-auth-handshake",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "The unmarked src/auth helper explicitly builds service-specific websocket URLs and authentication headers for a separately implemented session.",
+          "symbols": [
+            "CredentialHandler.getWebSocketUrl",
+            "CredentialHandler.getAuthHeaders"
+          ],
+          "evidence": [
+            {
+              "id": "77d5fef07f62acac62548606822d77ae5569e5834bb7fa236b3982bf4caf7b15",
+              "startLine": 107,
+              "endLine": 178
+            }
+          ]
+        }
+      },
+      {
+        "key": "3f4065dee4342e3bad8e4cf7e3abb779eb51f5e77261a3bc22271fee3913f0db",
+        "status": "revised",
+        "reason": "This defines new client-side target inputs and guards, not an override of an identified generated model. The source does not establish that a generator could represent this client-side model/agent selection.",
+        "finding": {
+          "key": "3f4065dee4342e3bad8e4cf7e3abb779eb51f5e77261a3bc22271fee3913f0db",
+          "category": "Other",
+          "subtype": "exclusive-client-session-target-input",
+          "explanation": "A client-facing union makes model and agent targets mutually exclusive, and exported guards distinguish the two forms; AgentSessionConfig supplies the agent-target fields.",
+          "pattern": "exclusive-client-target-union",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked src/client/types.ts defines inputs for the custom session factory separately from the imported service models.",
+          "symbols": [
+            "AgentSessionConfig",
+            "SessionTarget",
+            "isAgentSessionTarget",
+            "isModelSessionTarget"
+          ],
+          "evidence": [
+            {
+              "id": "f77bbc278e3249ec7ca770bff61c62d7088580951e6110a6e41619dabbd77f16",
+              "startLine": 14,
+              "endLine": 33
+            },
+            {
+              "id": "f77bbc278e3249ec7ca770bff61c62d7088580951e6110a6e41619dabbd77f16",
+              "startLine": 67,
+              "endLine": 90
+            }
+          ]
+        }
+      },
+      {
+        "key": "b678776103a52c46b771b127520efba32435644ac02159ead6f660cd00698837",
+        "status": "revised",
+        "reason": "This is an overloaded session factory, not merely options-model unpacking. The full RequestSession is assigned to a private ad hoc field, but no supplied reader establishes that the stored value is used. Generator addressability of this bespoke session factory is not demonstrated.",
+        "finding": {
+          "key": "b678776103a52c46b771b127520efba32435644ac02159ead6f660cd00698837",
+          "category": "Convenience methods",
+          "subtype": "overloaded-model-agent-and-config-session-factory",
+          "explanation": "createSession merges client, default-session and per-call options and creates a VoiceLiveSession from a model string, exclusive target, or RequestSession; for the latter it also assigns the full configuration to a private ad hoc field.",
+          "pattern": "overloaded-session-factory",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked public src/client factory constructs the custom websocket session and distinguishes its accepted input forms in handwritten code.",
+          "symbols": [
+            "VoiceLiveClient.createSession",
+            "VoiceLiveClient._isSessionTarget"
+          ],
+          "evidence": [
+            {
+              "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2",
+              "startLine": 113,
+              "endLine": 219
+            }
+          ]
+        }
+      },
+      {
+        "key": "82f56c1e4dc409ae2aedefb037dea3419674cf6c7cd06502c4c3df6dd5d0ab0e",
+        "status": "accepted",
+        "reason": "The method visibly creates a session, conditionally subscribes, connects, and sends full configuration when appropriate. A connected-session convenience factory is a reusable generator candidate, although no generator capability is established here."
+      },
+      {
+        "key": "6c4b2a536a9f42c33001629ca071541aa2cc1cb8a369d458934b70cb4595548b",
+        "status": "revised",
+        "reason": "These are private endpoint-normalization helpers, not public convenience methods. Normalizing an endpoint is generic and potentially generator-addressable in client/session constructors.",
+        "finding": {
+          "key": "6c4b2a536a9f42c33001629ca071541aa2cc1cb8a369d458934b70cb4595548b",
+          "category": "Other",
+          "subtype": "default-https-and-trim-trailing-slash",
+          "explanation": "The client and session constructors call private helpers that add https:// to endpoints without an HTTP(S) prefix and remove one trailing slash.",
+          "pattern": "client-endpoint-normalization",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Matching normalization implementations appear in two unmarked src/client modules of the custom client/session layer.",
+          "symbols": [
+            "VoiceLiveClient._normalizeEndpoint",
+            "VoiceLiveSession._normalizeEndpoint"
+          ],
+          "evidence": [
+            {
+              "id": "051f02a3a7ddc8f8e770f6a6d6d793a86a0c769b966353d7799a8cdb5ffe12c2",
+              "startLine": 325,
+              "endLine": 333
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 460,
+              "endLine": 468
+            }
+          ]
+        }
+      },
+      {
+        "key": "78b27a5a212504807406f0753f92c49a7f4c5961bd951a8d39e3f0323b7e1cf1",
+        "status": "revised",
+        "reason": "The session lifecycle is explicitly implemented, but no supplied generator output or specification demonstrates that a generator can synthesize this connection/abort/disposal orchestration.",
+        "finding": {
+          "key": "78b27a5a212504807406f0753f92c49a7f4c5961bd951a8d39e3f0323b7e1cf1",
+          "category": "SSE / streaming",
+          "subtype": "authenticated-websocket-session-lifecycle",
+          "explanation": "VoiceLiveSession composes authentication, parsing, subscriptions and a websocket connection manager, passes connection timeout and abort options, and clears local connection/session/turn state during disconnect or disposal.",
+          "pattern": "websocket-session-lifecycle",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked src/client session implements websocket connection and resource lifecycle over separate protocol and transport helpers rather than merely re-exporting service models.",
+          "symbols": [
+            "VoiceLiveSession.constructor",
+            "VoiceLiveSession.connect",
+            "VoiceLiveSession.disconnect",
+            "VoiceLiveSession.dispose"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 132,
+              "endLine": 167
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 180,
+              "endLine": 267
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 428,
+              "endLine": 446
+            }
+          ]
+        }
+      },
+      {
+        "key": "5fcdee05b66e21294dc58e7d89d381b2907d4a65d638bc18bee0cd6e37ec5828",
+        "status": "accepted",
+        "reason": "Both methods construct typed wire events around their inputs and delegate sending; this is a reusable typed-protocol convenience shape that could be generated given a suitable event protocol description."
+      },
+      {
+        "key": "ad616a5d9c065ec0f92b21f649b82e886900fac82d96dce059621fffc342b7b6",
+        "status": "revised",
+        "reason": "The code supports the encoding and event-variant dispatch, but the existing pattern name is audio-specific rather than describing the reusable binary-to-wire-event shape. Whether generation could cover this particular event protocol is unclear without its specification.",
+        "finding": {
+          "key": "ad616a5d9c065ec0f92b21f649b82e886900fac82d96dce059621fffc342b7b6",
+          "category": "SSE / streaming",
+          "subtype": "binary-audio-base64-and-turn-or-buffer-dispatch",
+          "explanation": "sendAudio converts ArrayBuffer or Uint8Array input to base64 and sends a turn-append event if turnId is set, otherwise a buffer-append event.",
+          "pattern": "binary-stream-event-encoding",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked custom session method assembles typed events and explicitly encodes binary input using a core utility.",
+          "symbols": [
+            "VoiceLiveSession.sendAudio",
+            "VoiceLiveSession._arrayBufferToBase64"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 308,
+              "endLine": 334
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 650,
+              "endLine": 653
+            }
+          ]
+        }
+      },
+      {
+        "key": "cc371d5e591288d6ffb0ee4e257c4533ce6e19ffbd4f90fa4a338a88612e72b2",
+        "status": "revised",
+        "reason": "The turn-state behavior is directly supported, but whether a generator could derive local stateful audio-turn control from the wire events is not supported by the evidence.",
+        "finding": {
+          "key": "cc371d5e591288d6ffb0ee4e257c4533ce6e19ffbd4f90fa4a338a88612e72b2",
+          "category": "SSE / streaming",
+          "subtype": "start-end-audio-turn-state-management",
+          "explanation": "startAudioTurn accepts or generates a turn ID, stores it and sends a start event; endAudioTurn resolves the active or explicit ID, rejects missing state, sends an end event and clears a matching active ID.",
+          "pattern": "stream-turn-state-management",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked custom session manages local turn state around imported wire event types.",
+          "symbols": [
+            "VoiceLiveSession.startAudioTurn",
+            "VoiceLiveSession.endAudioTurn"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 339,
+              "endLine": 377
+            }
+          ]
+        }
+      },
+      {
+        "key": "e40db3b113960612e186c4d4a94129a898659e27038555c6dd0e14b4a1f16788",
+        "status": "revised",
+        "reason": "The subscription/event routing is visible, but the parser and subscription manager implementations are outside the supplied evidence, and no specification establishes generator addressability of this event dispatch.",
+        "finding": {
+          "key": "e40db3b113960612e186c4d4a94129a898659e27038555c6dd0e14b4a1f16788",
+          "category": "SSE / streaming",
+          "subtype": "parse-server-events-and-dispatch-with-session-context",
+          "explanation": "The session passes incoming messages to a parser, records SessionCreated IDs, and forwards connection and server events asynchronously to subscribers with local context; server-event forwarding requires a session ID.",
+          "pattern": "typed-stream-event-dispatch",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked custom session explicitly invokes separate parser and subscription helpers and constructs local notification context.",
+          "symbols": [
+            "VoiceLiveSession.subscribe",
+            "VoiceLiveSession._handleIncomingMessage",
+            "VoiceLiveSession._handleServerEvent",
+            "VoiceLiveSession._notifyConnectionEvent",
+            "VoiceLiveSession._notifyServerEvent"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 275,
+              "endLine": 280
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 531,
+              "endLine": 599
+            }
+          ]
+        }
+      },
+      {
+        "key": "33cf5e14b66343030e5464cc1ac7d634ad4b05b2a2b608dc321d18800f3d1ed7",
+        "status": "revised",
+        "reason": "The error/transition handlers and dead-state guard establish this behavior. The supplied material does not show that terminal-state policy can be generated, rather than being a custom websocket lifecycle decision.",
+        "finding": {
+          "key": "33cf5e14b66343030e5464cc1ac7d634ad4b05b2a2b608dc321d18800f3d1ed7",
+          "category": "Retry / error handling",
+          "subtype": "permanent-session-invalidation-on-connection-loss",
+          "explanation": "A connected-to-disconnected transition or connection error notifies subscribers and marks the session permanently disposed, clears local connection state, and makes later guarded operations throw SESSION_DEAD.",
+          "pattern": "terminal-stream-session-state",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked src/client session implements explicit terminal-state event handlers and local guards.",
+          "symbols": [
+            "VoiceLiveSession._setupConnectionEventHandlers",
+            "VoiceLiveSession._markSessionAsDead",
+            "VoiceLiveSession._ensureNotDisposed"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 470,
+              "endLine": 529
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 633,
+              "endLine": 640
+            }
+          ]
+        }
+      },
+      {
+        "key": "6ba4a0e64cdb0c55c5a2cbad5b3b42880ac2e6eaaf0b602764ec639ee09dfc4c",
+        "status": "revised",
+        "reason": "Instrumentation calls are visible, but the tracker implementation is omitted and no generator/specification evidence shows that such custom transport tracing could be emitted automatically.",
+        "finding": {
+          "key": "6ba4a0e64cdb0c55c5a2cbad5b3b42880ac2e6eaaf0b602764ec639ee09dfc4c",
+          "category": "Tracing / telemetry",
+          "subtype": "connection-and-protocol-event-session-tracing",
+          "explanation": "The session configures a telemetry tracker with endpoint and target context, records connection outcomes, traces received and sent events, and closes tracing on disconnect or terminal failure.",
+          "pattern": "stream-session-telemetry",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Explicit telemetry calls are embedded throughout the unmarked custom session class rather than service wire models.",
+          "symbols": [
+            "VoiceLiveSession.constructor",
+            "VoiceLiveSession.connect",
+            "VoiceLiveSession.disconnect",
+            "VoiceLiveSession._markSessionAsDead",
+            "VoiceLiveSession._handleIncomingMessage",
+            "VoiceLiveSession._sendEvent"
+          ],
+          "evidence": [
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 157,
+              "endLine": 167
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 195,
+              "endLine": 234
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 259,
+              "endLine": 264
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 519,
+              "endLine": 520
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 538,
+              "endLine": 544
+            },
+            {
+              "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+              "startLine": 601,
+              "endLine": 611
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [
+      {
+        "key": "9ad32045a3c0989c044af8ba8a18496c307222dde228a6a599db5c010af5e6cd",
+        "category": "SSE / streaming",
+        "subtype": "raw-typed-client-event-send",
+        "explanation": "A public sendEvent accepts an arbitrary ClientEventUnion, checks connection state, serializes it and sends it over the websocket with an abort signal; unlike the proposed typed event helpers, callers construct the event themselves.",
+        "pattern": "raw-typed-stream-event-send",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The public forwarding method and serialization/send path are explicit in the unmarked custom src/client session, with a separately imported parser and connection manager.",
+        "symbols": [
+          "VoiceLiveSession.sendEvent",
+          "VoiceLiveSession._sendEvent"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 282,
+            "endLine": 288
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 601,
+            "endLine": 621
+          }
+        ]
+      },
+      {
+        "key": "29ed5de9ec1b9d67daa33eef6876c6fed499ae773111a184a660bba52291f471",
+        "category": "Retry / error handling",
+        "subtype": "connection-and-send-error-classification",
+        "explanation": "Connect and event-send catch blocks preserve VoiceLiveConnectionError and pass other errors to classifyConnectionError before rethrowing.",
+        "pattern": "transport-error-classification",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The unmarked custom session explicitly normalizes transport errors; the implementation of the imported classifier was not supplied.",
+        "symbols": [
+          "VoiceLiveSession.connect",
+          "VoiceLiveSession._sendEvent"
+        ],
+        "evidence": [
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 230,
+            "endLine": 242
+          },
+          {
+            "id": "b1abf61dbc394f3ccb010898a7a1d27d192da6ba0e9e0f9be31d473a43034239",
+            "startLine": 614,
+            "endLine": 620
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only four files are provided. Parser, connection manager, socket factory, subscriptions, telemetry implementation, error classes and service models are omitted. Findings cover visible orchestration, not unseen helper behavior.",
+      "The evidence kind is unknown and no baseline overlay diff is supplied. Handwritten attribution relies on the distinct auth/client stateful-module layout and lack of generation markers, supported by package metadata invoking customization apply; a reviewer should mark any unresolved provenance inconclusive rather than treat the package's generated-SDK description as proof either way.",
+      "credentialHandler.ts lines 174-175 are redacted and syntactically incomplete in the supplied evidence. The exact token Authorization header value/scheme cannot be assessed; no claim reconstructs that text.",
+      "SendEventOptions declares timeoutInMs, but the supplied _sendEvent implementation forwards only abortSignal. No finding claims send-timeout enforcement.",
+      "No executable service calls or independent security verification were performed, and this partial review does not prove absence of other customizations.",
+      "Only four of 34 eligible source files were captured; 15 specifically listed files were skipped, including websocket, parser, handler, error and telemetry implementations. These decisions make no claim about omitted source.",
+      "No generated/ counterpart, customization operation, or generator output is supplied. The files lack generation headers and compose separate models and protocol helpers, which supports a handwritten-layer reading but does not prove exact provenance of each file.",
+      "The Authorization header value in credentialHandler.ts is redacted in the supplied evidence; its exact contents cannot be validated. The package description calls the package generated while the captured source implements a custom websocket client; no underlying TypeSpec contract was supplied to reconcile those facts.",
+      "The scope of the imported classifier, tracker, parser, subscription and transport helpers cannot be verified from their call sites. The RequestSession value assigned to _initialSessionConfig has no demonstrated reader in the supplied evidence."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/auth/credentialHandler.ts",
+      "startLine": 1,
+      "endLine": 204,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "153853c9fb30a4f10ded98c346bf87f83ac334d74059dafa0b3f3722fe5991ec"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/types.ts",
+      "startLine": 1,
+      "endLine": 90,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1876810d0a91570491bfe726c84b0a51fa1327f06275ef4065d894c0fcca98d4"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/voiceLiveClient.ts",
+      "startLine": 1,
+      "endLine": 334,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8260ea5a074fdccbc5c098e050e05b8fe21f5a195746d7890796ba48d42d4a5a"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/client/voiceLiveSession.ts",
+      "startLine": 1,
+      "endLine": 668,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3f9727b5855b94563b0171ead493439cc0dcd197b901cd24e61cbcb6e15de1aa"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/constants.ts",
+      "startLine": 1,
+      "endLine": 18,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "bd11899a0fc109b1c354d5cfb7a4a8f2551973de3598fd12a9258945a6ea1ca9"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/errors/connectionErrors.ts",
+      "startLine": 1,
+      "endLine": 238,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f537478207835d8ca31d4b2c93c09842cd41c6ed4f8dcb1bebf35ee8958b590c"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/handlers/sessionHandlers.ts",
+      "startLine": 1,
+      "endLine": 545,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ea65d6bc3211cfb8955878e71ffdb70a7ed8171c7b6dfdfa7d45affb5778e202"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/handlers/subscriptionManager.ts",
+      "startLine": 1,
+      "endLine": 341,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "438c9cf349cfdb30e5880daeb71f6afea6c14ed37f507cc1a4939a26333860d8"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/index.ts",
+      "startLine": 1,
+      "endLine": 300,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1a635f25db6fb5d9e9721c6644b1e0e68677e1198d8f91f7c82343bb2ad4885d"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 6855,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "359c4901ae15806f6e8c8014cfdb83edbeb66b020585f20ae81f1d01c990d701"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/protocol/messageParser.ts",
+      "startLine": 1,
+      "endLine": 125,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0bdcd0c0f213a3c0b7310c7907718907021174a58e94c2b71c3443203559e9c7"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/telemetry/attributes.ts",
+      "startLine": 1,
+      "endLine": 88,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "33d0c4fc74c4cea3f84dd02d4d238465939d04deb9f345e58b7073d6b83df102"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/telemetry/index.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "81c22cf10e1d939882c948d58da55c497ac6c4362bdd25f86d2c8f5042db0cf4"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/telemetry/sessionTelemetryTracker.ts",
+      "startLine": 1,
+      "endLine": 815,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8afc8eee0d71598b6947cc9b06a9c22e38b1cc8e68a622df1b8e4a704907faef"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/telemetry/tracing.ts",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a673adde58cc0f606ce866f1bb9e13df6314ec209d2fcf108796370767804f4e"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/websocket/connectionManager.ts",
+      "startLine": 1,
+      "endLine": 266,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b714998962c3bf5f298e44f79593cee36947b11a3bfca027de4382ee01e71a60"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/websocket/websocket.ts",
+      "startLine": 1,
+      "endLine": 286,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a4ee76695058eae4652412e11296830ab521d05607d49ef202a853b2161bb5df"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/websocket/websocketFactory.ts",
+      "startLine": 1,
+      "endLine": 23,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "790af846056dfad4d4f94d07902b4cf9b9e3295e3bfdeecd3a472249a1898ab5"
+    },
+    {
+      "path": "sdk/voicelive/ai-voicelive/src/websocket/websocketLike.ts",
+      "startLine": 1,
+      "endLine": 96,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "7bb35dd7caedf08faf85835a19b94ac55d41cf3c85de8362826ce3ddcf3db7ad"
+    }
+  ]
+}

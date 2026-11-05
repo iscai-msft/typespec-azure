@@ -1,0 +1,716 @@
+{
+  "schemaVersion": 1,
+  "id": "891a2ca8-666f-4911-9fdd-15cb9fd68dc0",
+  "observedAt": "2026-10-22T20:52:50.927Z",
+  "identity": "java:azure-monitor-ingestion:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-monitor-ingestion",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/monitor/azure-monitor-ingestion"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "facbcb70a471456f1217e6b4ba0eb9d2c1838eea"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 51,
+    "eligibleFiles": 22,
+    "capturedFiles": 7,
+    "skipped": [
+      {
+        "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionClientBuilder.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsIngestionAudience.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadError.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadException.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadOptions.java",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Batcher.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion.implementation;\n\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.core.util.serializer.JsonSerializer;\nimport com.azure.core.util.serializer.JsonSerializerProviders;\nimport com.azure.core.util.serializer.ObjectSerializer;\nimport com.azure.json.JsonProviders;\nimport com.azure.json.JsonWriter;\nimport com.azure.monitor.ingestion.models.LogsUploadOptions;\nimport reactor.core.publisher.Flux;\n\nimport java.io.ByteArrayOutputStream;\nimport java.io.IOException;\nimport java.io.UncheckedIOException;\nimport java.nio.charset.StandardCharsets;\nimport java.util.ArrayList;\nimport java.util.Iterator;\nimport java.util.List;\nimport java.util.Spliterator;\nimport java.util.Spliterators;\nimport java.util.stream.Stream;\nimport java.util.stream.StreamSupport;\n\nimport static com.azure.monitor.ingestion.implementation.Utils.MAX_REQUEST_PAYLOAD_SIZE;\nimport static com.azure.monitor.ingestion.implementation.Utils.getConcurrency;\nimport static com.azure.monitor.ingestion.implementation.Utils.gzipRequest;\n\n/**\n * Provides iterator and streams for batches over log objects.\n */\npublic class Batcher implements Iterator<LogsIngestionRequest> {\n    private static final ClientLogger LOGGER = new ClientLogger(Batcher.class);\n    private static final JsonSerializer DEFAULT_SERIALIZER = JsonSerializerProviders.createInstance(true);\n    private final ObjectSerializer serializer;\n    private final int concurrency;\n    private final Iterator<Object> iterator;\n    private long currentBatchSize;\n    private List<String> serializedLogs;\n    private List<Object> originalLogsRequest;\n\n    public Batcher(LogsUploadOptions options, Iterable<Object> logs) {\n        this.serializer = getSerializer(options);\n        this.concurrency = getConcurrency(options);\n        this.serializedLogs = new ArrayList<>();\n        this.originalLogsRequest = new ArrayList<>();\n        this.iterator = logs.iterator();\n    }\n\n    /**\n     * Checks if there are more logs to batch. This method is not thread safe!\n     *\n     * When used concurrently, it should be synchronized along with {@link Batcher#next()}:\n     *\n     * <pre>{@code\n     * synchronized (batcher) {\n     *     if (batcher.hasNext()) {\n     *         request = batcher.next();\n     *     }\n     * }\n     * }</pre>\n     */\n    @Override\n    public boolean hasNext() {\n        return iterator.hasNext() || currentBatchSize > 0;\n    }\n\n    /**\n     * Collects next batch and serializes it into {@link LogsIngestionRequest}. This method is not thread-safe!\n     *\n     * Returns null when complete.\n     */\n    @Override\n    public LogsIngestionRequest next() {\n        try {\n            return nextInternal();\n        } catch (IOException ex) {\n            throw LOGGER.logExceptionAsError(new UncheckedIOException(ex));\n        }\n    }\n\n    /**\n     * Creates stream of requests split for configured concurrency. Returns parallel stream if concurrency is bigger than 1.\n     */\n    public Stream<LogsIngestionRequest> toStream() {\n        if (concurrency == 1) {\n            return StreamSupport\n                .stream(Spliterators.spliteratorUnknownSize(this, Spliterator.NONNULL | Spliterator.ORDERED), false);\n        }\n\n        return StreamSupport.stream(new ConcurrencyLimitingSpliterator<>(this, concurrency), true);\n    }\n\n    /**\n     * Creates flux with requests.\n     */\n    public Flux<LogsIngestionRequest> toFlux() {\n        return Flux.create(emitter -> {\n            try {\n                while (hasNext()) {\n                    LogsIngestionRequest next = nextInternal();\n                    if (next != null) {\n                        emitter.next(next);\n                    }\n                }\n            } catch (IOException ex) {\n                emitter.error(ex);\n            }\n\n            emitter.complete();\n        });\n    }\n\n    private LogsIngestionRequest nextInternal() throws IOException {\n        LogsIngestionRequest result = null;\n        while (iterator.hasNext() && result == null) {\n            Object currentLog = iterator.next();\n            byte[] bytes = serializer.serializeToBytes(currentLog);\n            currentBatchSize += bytes.length;\n            if (currentBatchSize > MAX_REQUEST_PAYLOAD_SIZE) {\n                result = createRequest(false);\n                currentBatchSize = bytes.length;\n            }\n\n            serializedLogs.add(new String(bytes, StandardCharsets.UTF_8));\n            originalLogsRequest.add(currentLog);\n        }\n\n        if (result == null && currentBatchSize > 0) {\n            currentBatchSize = 0;\n            return createRequest(true);\n        }\n\n        return result;\n    }\n\n    private LogsIngestionRequest createRequest(boolean last) throws IOException {\n        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();\n            JsonWriter writer = JsonProviders.createWriter(byteArrayOutputStream)) {\n            writer.writeStartArray();\n            for (String log : serializedLogs) {\n                writer.writeRawValue(log);\n            }\n            writer.writeEndArray();\n            writer.flush();\n            byte[] zippedRequestBody = gzipRequest(byteArrayOutputStream.toByteArray());\n            return new LogsIngestionRequest(originalLogsRequest, zippedRequestBody);\n        } finally {\n            if (!last) {\n                originalLogsRequest = new ArrayList<>();\n                serializedLogs.clear();\n            }\n        }\n    }\n\n    private static ObjectSerializer getSerializer(LogsUploadOptions options) {\n        if (options != null && options.getObjectSerializer() != null) {\n            return options.getObjectSerializer();\n        }\n\n        return DEFAULT_SERIALIZER;\n    }\n}\n",
+      "contentHash": "0ea06de26fd767548dc2fdfd5d0de1b53bb60ed5cc35255c88416162e9aa1e55",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Batcher.java",
+      "startLine": 1,
+      "endLine": 165,
+      "kind": "unknown",
+      "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/ConcurrencyLimitingSpliterator.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion.implementation;\n\nimport java.util.Iterator;\nimport java.util.Objects;\nimport java.util.Spliterator;\nimport java.util.concurrent.atomic.AtomicInteger;\nimport java.util.function.Consumer;\n\n/**\n * Splits list of items into a given number of sub-lists allowing to process\n * sub-lists concurrently.\n * <p>\n * Follows example here: https://docs.oracle.com/javase/8/docs/api/java/util/Spliterator.html\n */\nclass ConcurrencyLimitingSpliterator<T> implements Spliterator<T> {\n    private final AtomicInteger concurrency;\n    private final Iterator<T> iterator;\n\n    /**\n     * Creates spliterator.\n     *\n     * @param concurrency Number of sub-lists to split items to. When processing items concurrently,\n     *                    indicates number of threads to process items with.\n     */\n    ConcurrencyLimitingSpliterator(Iterator<T> iterator, int concurrency) {\n        Objects.requireNonNull(iterator, \"'iterator' cannot be null\");\n        if (concurrency == 0) {\n            throw new IllegalArgumentException(\"'concurrency' must be a positive number.\");\n        }\n\n        this.concurrency = new AtomicInteger(concurrency);\n        this.iterator = iterator;\n    }\n\n    @Override\n    public boolean tryAdvance(Consumer<? super T> action) {\n        // this method is called on individual spliterators concurrently\n        // it synchronizes access to logs iterator while requesting the next batch.\n        T request = null;\n        synchronized (iterator) {\n            if (iterator.hasNext()) {\n                request = iterator.next();\n            }\n        }\n\n        if (request != null) {\n            action.accept(request);\n            return true;\n        }\n\n        return false;\n    }\n\n    @Override\n    public Spliterator<T> trySplit() {\n        // here we split the stream, creating multiple spliterators that will be executed concurrently\n        return concurrency.getAndDecrement() > 1 ? new ConcurrencyLimitingSpliterator<>(iterator, 1) : null;\n    }\n\n    @Override\n    public long estimateSize() {\n        return Integer.MAX_VALUE;\n    }\n\n    @Override\n    public int characteristics() {\n        return NONNULL | ORDERED & ~(Spliterator.SIZED | Spliterator.SUBSIZED);\n    }\n}\n",
+      "contentHash": "ba61673942b35c7f81d152e37ef8eb85dabe8853a7af6e9ca21c9cbd328bb8e2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/ConcurrencyLimitingSpliterator.java",
+      "startLine": 1,
+      "endLine": 72,
+      "kind": "unknown",
+      "id": "38fc0e4d8c9a6235a29a452f8bb4d2350568e4ff6ffc2acd84a87b850683c667"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/LogsIngestionRequest.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion.implementation;\n\nimport java.util.List;\n\npublic class LogsIngestionRequest {\n\n    private final List<Object> logs;\n    private final byte[] requestBody;\n\n    public LogsIngestionRequest(List<Object> logs, byte[] requestBody) {\n        this.logs = logs;\n        this.requestBody = requestBody;\n    }\n\n    public List<Object> getLogs() {\n        return logs;\n    }\n\n    public byte[] getRequestBody() {\n        return requestBody;\n    }\n}\n",
+      "contentHash": "ad2162cb4ea6fb10d588dcc479ecf8a216e584c576a9c062341dd543952304fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/LogsIngestionRequest.java",
+      "startLine": 1,
+      "endLine": 25,
+      "kind": "unknown",
+      "id": "fe155e19ff42febdcdec56d5bdd2272042b778e9904b9fb26079425329a876d6"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/UploadLogsResponseHolder.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion.implementation;\n\nimport com.azure.core.annotation.Immutable;\nimport com.azure.core.exception.HttpResponseException;\nimport com.azure.core.models.ResponseError;\n\n/**\n * The intermediate response holder for converting exceptions to {@link ResponseError} instances.\n */\n@Immutable\npublic final class UploadLogsResponseHolder {\n\n    private final HttpResponseException exception;\n    private final LogsIngestionRequest request;\n\n    public UploadLogsResponseHolder(LogsIngestionRequest request, HttpResponseException ex) {\n        this.request = request;\n        this.exception = ex;\n    }\n\n    public LogsIngestionRequest getRequest() {\n        return request;\n    }\n\n    public HttpResponseException getException() {\n        return exception;\n    }\n}\n",
+      "contentHash": "b132e9aaa0bfeb7159f699de921d79e24feef35a2df96ca4ba62056fec43dd51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/UploadLogsResponseHolder.java",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "unknown",
+      "id": "713b15d24496d25c7858fe7c3e0940068fc7feeda38d2004c4deb4ff4774e55e"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Utils.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion.implementation;\n\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.core.util.serializer.JacksonAdapter;\nimport com.azure.monitor.ingestion.models.LogsUploadOptions;\n\nimport java.io.ByteArrayOutputStream;\nimport java.io.IOException;\nimport java.io.UncheckedIOException;\nimport java.util.zip.GZIPOutputStream;\n\nimport com.azure.core.http.HttpPipeline;\nimport com.azure.monitor.ingestion.LogsIngestionServiceVersion;\n\npublic final class Utils {\n    public static final long MAX_REQUEST_PAYLOAD_SIZE = 1024 * 1024; // 1 MB\n    public static final String GZIP = \"gzip\";\n\n    private static final ClientLogger LOGGER = new ClientLogger(Utils.class);\n\n    private Utils() {\n    }\n\n    /**\n     * Gzips the input byte array.\n     * @param bytes The input byte array.\n     * @return gzipped byte array.\n     */\n    public static byte[] gzipRequest(byte[] bytes) {\n        // This should be moved to azure-core and should be enabled when the client library requests for gzipping the\n        // request body content.\n        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();\n        try (GZIPOutputStream zip = new GZIPOutputStream(byteArrayOutputStream)) {\n            zip.write(bytes);\n        } catch (IOException exception) {\n            throw LOGGER.logExceptionAsError(new UncheckedIOException(exception));\n        }\n        return byteArrayOutputStream.toByteArray();\n    }\n\n    public static int getConcurrency(LogsUploadOptions options) {\n        if (options != null && options.getMaxConcurrency() != null) {\n            return options.getMaxConcurrency();\n        }\n\n        return 1;\n    }\n\n    public static LogsIngestionClientImpl getLogsIngestionClientImpl(HttpPipeline httpPipeline, String endpoint,\n        LogsIngestionServiceVersion serviceVersion) {\n        return new LogsIngestionClientImpl(httpPipeline, JacksonAdapter.createDefaultSerializerAdapter(), endpoint,\n            serviceVersion);\n    }\n}\n",
+      "contentHash": "71bb5c52c840d9970817916bf2e55b59fb0c013ff76fb149c1cdc1a7baaceee8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Utils.java",
+      "startLine": 1,
+      "endLine": 57,
+      "kind": "unknown",
+      "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionAsyncClient.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion;\n\nimport com.azure.core.annotation.ReturnType;\nimport com.azure.core.annotation.ServiceClient;\nimport com.azure.core.annotation.ServiceMethod;\nimport com.azure.core.credential.TokenCredential;\nimport com.azure.core.exception.ClientAuthenticationException;\nimport com.azure.core.exception.HttpResponseException;\nimport com.azure.core.exception.ResourceModifiedException;\nimport com.azure.core.exception.ResourceNotFoundException;\nimport com.azure.core.http.HttpHeader;\nimport com.azure.core.http.HttpHeaderName;\nimport com.azure.core.http.rest.RequestOptions;\nimport com.azure.core.http.rest.Response;\nimport com.azure.core.util.BinaryData;\nimport com.azure.core.util.Context;\nimport com.azure.monitor.ingestion.implementation.Batcher;\nimport com.azure.monitor.ingestion.implementation.LogsIngestionRequest;\nimport com.azure.monitor.ingestion.implementation.UploadLogsResponseHolder;\nimport com.azure.monitor.ingestion.models.LogsUploadError;\nimport com.azure.monitor.ingestion.models.LogsUploadException;\nimport com.azure.monitor.ingestion.models.LogsUploadOptions;\n\nimport reactor.core.publisher.Mono;\nimport reactor.core.publisher.SynchronousSink;\n\nimport java.util.ArrayList;\nimport java.util.Collections;\nimport java.util.List;\nimport java.util.Objects;\nimport java.util.function.Consumer;\n\nimport static com.azure.core.util.FluxUtil.withContext;\nimport com.azure.monitor.ingestion.implementation.LogsIngestionClientImpl;\nimport static com.azure.monitor.ingestion.implementation.Utils.GZIP;\nimport static com.azure.monitor.ingestion.implementation.Utils.getConcurrency;\nimport static com.azure.monitor.ingestion.implementation.Utils.gzipRequest;\n\n/**\n * <p>This class provides an asynchronous client for uploading custom logs to an Azure Monitor Log Analytics workspace.\n * This client encapsulates REST API calls, used to send data to a Log Analytics workspace, into a set of asynchronous\n * operations.</p>\n *\n * <h2>Getting Started</h2>\n *\n * <p>To create an instance of the {@link LogsIngestionClient}, use the {@link LogsIngestionClientBuilder} and configure\n * the various options provided by the builder to customize the client as per your requirements. There are two required\n * properties that should be set to build a client:\n * <ol>\n * <li>{@code endpoint} - The <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview?tabs=portal#create-a-data-collection-endpoint\">data collection endpoint</a>.\n * See {@link LogsIngestionClientBuilder#endpoint(String) endpoint} method for more details.</li>\n * <li>{@code credential} - The AAD authentication credential that has the \"Monitoring Metrics Publisher\" role assigned\n * to it.\n * <a href=\"https://learn.microsoft.com/java/api/overview/azure/identity-readme?view=azure-java-stable\">Azure Identity</a>\n * provides a variety of AAD credential types that can be used. See\n * {@link LogsIngestionClientBuilder#credential(TokenCredential) credential} method for more details.</li>\n * </ol>\n *\n * <p><strong>Instantiating an asynchronous Logs ingestion client</strong></p>\n * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionAsyncClient.instantiation -->\n * <pre>\n * LogsIngestionAsyncClient logsIngestionAsyncClient = new LogsIngestionClientBuilder&#40;&#41;\n *         .credential&#40;tokenCredential&#41;\n *         .endpoint&#40;&quot;&lt;data-collection-endpoint&gt;&quot;&#41;\n *         .buildAsyncClient&#40;&#41;;\n * </pre>\n * <!-- end com.azure.monitor.ingestion.LogsIngestionAsyncClient.instantiation -->\n *\n * <h3>Client Usage</h3>\n *\n * <p>\n *     For additional information on how to use this client, see the following method documentation:\n * </p>\n *\n * <ul>\n *     <li>\n *         {@link #upload(String, String, Iterable) upload(String, String, Iterable)} - Uploads\n *         logs to a Log Analytics workspace.\n *     </li>\n *     <li>\n *         {@link #upload(String, String, Iterable, LogsUploadOptions) upload(String, String, Iterable, LogsUploadOptions)}\n *         - Uploads logs to a Log Analytics workspace with options to configure the upload request.\n *     </li>\n *     <li>\n *         {@link #uploadWithResponse(String, String, BinaryData, RequestOptions) uploadWithResponse(String, String, BinaryData, RequestOptions)}\n *         - Uploads logs to a Log Analytics workspace with options to configure the HTTP request.\n *     </li>\n * </ul>\n *\n * @see LogsIngestionClientBuilder\n * @see LogsIngestionClient\n * @see com.azure.monitor.ingestion\n */\n@ServiceClient(isAsync = true, builder = LogsIngestionClientBuilder.class)\npublic final class LogsIngestionAsyncClient {\n    private final LogsIngestionClientImpl service;\n\n    /**\n     * Creates a {@link LogsIngestionAsyncClient} that sends requests to the data collection endpoint.\n     *\n     * @param service The {@link LogsIngestionClientImpl} that the client routes its request through.\n     */\n    LogsIngestionAsyncClient(LogsIngestionClientImpl service) {\n        this.service = service;\n    }\n\n    /**\n     * Uploads logs to Azure Monitor with specified data collection rule id and stream name. The input logs may be\n     * too large to be sent as a single request to the Azure Monitor service. In such cases, this method will split\n     * the input logs into multiple smaller requests before sending to the service.\n     *\n     * <p>\n     * Each log in the input collection must be a valid JSON object. The JSON object should match the\n     * <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal.\n     * </p>\n     *\n     * <p><strong>Upload logs to Azure Monitor</strong></p>\n     * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionAsyncClient.upload -->\n     * <pre>\n     * List&lt;Object&gt; logs = getLogs&#40;&#41;;\n     * logsIngestionAsyncClient.upload&#40;&quot;&lt;data-collection-rule-id&gt;&quot;, &quot;&lt;stream-name&gt;&quot;, logs&#41;\n     *         .subscribe&#40;&#41;;\n     * </pre>\n     * <!-- end com.azure.monitor.ingestion.LogsIngestionAsyncClient.upload -->\n     *\n     * @param ruleId the data collection rule id that is configured to collect and transform the logs.\n     * @param streamName the stream name configured in data collection rule that matches defines the structure of the\n     * logs sent in this request.\n     * @param logs the collection of logs to be uploaded.\n     * @return the {@link Mono} that completes on completion of the upload request.\n     * @throws NullPointerException if any of {@code ruleId}, {@code streamName} or {@code logs} are null.\n     * @throws IllegalArgumentException if {@code logs} is empty.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Void> upload(String ruleId, String streamName, Iterable<Object> logs) {\n        return upload(ruleId, streamName, logs, new LogsUploadOptions());\n    }\n\n    /**\n     * Uploads logs to Azure Monitor with specified data collection rule id and stream name. The input logs may be\n     * too large to be sent as a single request to the Azure Monitor service. In such cases, this method will split\n     * the input logs into multiple smaller requests before sending to the service. If an\n     * {@link LogsUploadOptions#setLogsUploadErrorConsumer(Consumer) error handler} is set,\n     * then the service errors are surfaced to the error handler and the subscriber of this method won't receive an\n     * error signal.\n     *\n     * <p>\n     * Each log in the input collection must be a valid JSON object. The JSON object should match the\n     * <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal.\n     * </p>\n     *\n     *\n     * <p><strong>Upload logs to Azure Monitor</strong></p>\n     * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionAsyncClient.uploadWithConcurrency -->\n     * <pre>\n     * List&lt;Object&gt; logs = getLogs&#40;&#41;;\n     * LogsUploadOptions logsUploadOptions = new LogsUploadOptions&#40;&#41;.setMaxConcurrency&#40;4&#41;;\n     * logsIngestionAsyncClient.upload&#40;&quot;&lt;data-collection-rule-id&gt;&quot;, &quot;&lt;stream-name&gt;&quot;, logs, logsUploadOptions&#41;\n     *         .subscribe&#40;&#41;;\n     * </pre>\n     * <!-- end com.azure.monitor.ingestion.LogsIngestionAsyncClient.uploadWithConcurrency -->\n     *\n     * @param ruleId the data collection rule id that is configured to collect and transform the logs.\n     * @param streamName the stream name configured in data collection rule that matches defines the structure of the\n     * logs sent in this request.\n     * @param logs the collection of logs to be uploaded.\n     * @param options the options to configure the upload request.\n     * @return the {@link Mono} that completes on completion of the upload request.\n     * @throws NullPointerException if any of {@code ruleId}, {@code streamName} or {@code logs} are null.\n     * @throws IllegalArgumentException if {@code logs} is empty.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Void> upload(String ruleId, String streamName, Iterable<Object> logs, LogsUploadOptions options) {\n        return withContext(context -> upload(ruleId, streamName, logs, options, context));\n    }\n\n    /**\n     * This method is used to upload logs to Azure Monitor Log Analytics with specified data collection rule id and\n     * stream name. This upload method provides a more granular control of the HTTP request sent to the service. Use\n     * {@link RequestOptions} to configure the HTTP request.\n     *\n     * <p>\n     * The input logs should be a JSON array with each element in the array\n     * matching the <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal. This content will be gzipped before\n     * sending to the service. If the content is already gzipped, then set the {@code Content-Encoding} header to\n     * {@code gzip} using {@link RequestOptions#setHeader(HttpHeaderName, String) requestOptions} and pass the content\n     * as is.\n     * </p>\n     *\n     * <p><strong>Header Parameters</strong>\n     *\n     * <table border=\"1\">\n     *     <caption>Header Parameters</caption>\n     *     <tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr>\n     *     <tr><td>Content-Encoding</td><td>String</td><td>No</td><td>gzip</td></tr>\n     *     <tr><td>x-ms-client-request-id</td><td>String</td><td>No</td><td>Client request Id</td></tr>\n     * </table>\n     *\n     * <p><strong>Request Body Schema</strong>\n     *\n     * <pre>{@code\n     * [\n     *     Object\n     * ]\n     * }</pre>\n     *\n     * @param ruleId The immutable Id of the Data Collection Rule resource.\n     * @param streamName The streamDeclaration name as defined in the Data Collection Rule.\n     * @param logs An array of objects matching the schema defined by the provided stream.\n     * @param requestOptions The options to configure the HTTP request before HTTP client sends it.\n     * @return the {@link Response} on successful completion of {@link Mono}.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Response<Void>> uploadWithResponse(String ruleId, String streamName, BinaryData logs,\n        RequestOptions requestOptions) {\n        Objects.requireNonNull(ruleId, \"'ruleId' cannot be null.\");\n        Objects.requireNonNull(streamName, \"'streamName' cannot be null.\");\n        Objects.requireNonNull(logs, \"'logs' cannot be null.\");\n\n        if (requestOptions == null) {\n            requestOptions = new RequestOptions();\n        }\n        requestOptions.addRequestCallback(request -> {\n            HttpHeader httpHeader = request.getHeaders().get(HttpHeaderName.CONTENT_ENCODING);\n            if (httpHeader == null) {\n                BinaryData gzippedRequest = BinaryData.fromBytes(gzipRequest(logs.toBytes()));\n                request.setBody(gzippedRequest);\n                request.setHeader(HttpHeaderName.CONTENT_ENCODING, GZIP);\n            }\n        });\n        return service.uploadWithResponseAsync(ruleId, streamName, logs, requestOptions);\n    }\n\n    Mono<Void> upload(String ruleId, String streamName, Iterable<Object> logs, LogsUploadOptions options,\n        Context context) {\n        return Mono.defer(() -> splitAndUpload(ruleId, streamName, logs, options, context));\n    }\n\n    /**\n     * This method splits the input logs into < 1MB HTTP requests and uploads to the Azure Monitor service.\n     *\n     * @param ruleId The data collection rule id.\n     * @param streamName The stream name configured in the data collection rule.\n     * @param logs The input logs to upload.\n     * @param options The options to configure the upload request.\n     * @param context additional context that is passed through the Http pipeline during the service call. If no\n     * additional context is required, pass {@link Context#NONE} instead.\n     * @return the {@link Mono} that completes on completion of the upload request.\n     */\n    private Mono<Void> splitAndUpload(String ruleId, String streamName, Iterable<Object> logs,\n        LogsUploadOptions options, Context context) {\n\n        int concurrency = getConcurrency(options);\n\n        return new Batcher(options, logs).toFlux()\n            .flatMapSequential(request -> uploadToService(ruleId, streamName, context, request), concurrency)\n            .<LogsUploadException>handle((responseHolder, sink) -> processResponse(options, responseHolder, sink))\n            .collectList()\n            .handle(this::processExceptions);\n    }\n\n    private void processExceptions(List<LogsUploadException> result, SynchronousSink<Void> sink) {\n        long failedLogsCount = 0L;\n        List<HttpResponseException> exceptions = new ArrayList<>();\n        for (LogsUploadException exception : result) {\n            exceptions.addAll(exception.getLogsUploadErrors());\n            failedLogsCount += exception.getFailedLogsCount();\n        }\n        if (!exceptions.isEmpty()) {\n            sink.error(new LogsUploadException(exceptions, failedLogsCount));\n        } else {\n            sink.complete();\n        }\n    }\n\n    private void processResponse(LogsUploadOptions options, UploadLogsResponseHolder responseHolder,\n        SynchronousSink<LogsUploadException> sink) {\n        if (responseHolder.getException() != null) {\n            Consumer<LogsUploadError> uploadLogsErrorConsumer = null;\n            if (options != null) {\n                uploadLogsErrorConsumer = options.getLogsUploadErrorConsumer();\n            }\n            if (uploadLogsErrorConsumer != null) {\n                uploadLogsErrorConsumer\n                    .accept(new LogsUploadError(responseHolder.getException(), responseHolder.getRequest().getLogs()));\n                return;\n            }\n            // emit the responseHolder without the original logs only if there's an error and there's no\n            // error consumer\n            sink.next(new LogsUploadException(Collections.singletonList(responseHolder.getException()),\n                responseHolder.getRequest().getLogs().size()));\n        }\n    }\n\n    private Mono<UploadLogsResponseHolder> uploadToService(String ruleId, String streamName, Context context,\n        LogsIngestionRequest request) {\n        RequestOptions requestOptions\n            = new RequestOptions().addHeader(HttpHeaderName.CONTENT_ENCODING, GZIP).setContext(context);\n        return service\n            .uploadWithResponseAsync(ruleId, streamName, BinaryData.fromBytes(request.getRequestBody()), requestOptions)\n            .map(response -> new UploadLogsResponseHolder(null, null))\n            .onErrorResume(HttpResponseException.class,\n                ex -> Mono.fromSupplier(() -> new UploadLogsResponseHolder(request, ex)));\n    }\n}\n",
+      "contentHash": "d7d60a4dbfaae78ffef757eebe5ba3e9f700b4c2fdd67be0e66944ed8e931a14",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionAsyncClient.java",
+      "startLine": 1,
+      "endLine": 315,
+      "kind": "unknown",
+      "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionClient.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.ingestion;\n\nimport java.util.List;\nimport java.util.Objects;\nimport java.util.concurrent.ExecutionException;\nimport java.util.function.Consumer;\nimport java.util.stream.Collectors;\nimport java.util.stream.Stream;\n\nimport com.azure.core.annotation.ReturnType;\nimport com.azure.core.annotation.ServiceClient;\nimport com.azure.core.annotation.ServiceMethod;\nimport com.azure.core.credential.TokenCredential;\nimport com.azure.core.exception.ClientAuthenticationException;\nimport com.azure.core.exception.HttpResponseException;\nimport com.azure.core.exception.ResourceModifiedException;\nimport com.azure.core.exception.ResourceNotFoundException;\nimport com.azure.core.http.HttpHeader;\nimport com.azure.core.http.HttpHeaderName;\nimport com.azure.core.http.rest.RequestOptions;\nimport com.azure.core.http.rest.Response;\nimport com.azure.core.util.BinaryData;\nimport com.azure.core.util.Context;\nimport com.azure.core.util.SharedExecutorService;\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.monitor.ingestion.implementation.Batcher;\nimport com.azure.monitor.ingestion.implementation.LogsIngestionClientImpl;\nimport com.azure.monitor.ingestion.implementation.LogsIngestionRequest;\nimport com.azure.monitor.ingestion.implementation.UploadLogsResponseHolder;\nimport static com.azure.monitor.ingestion.implementation.Utils.GZIP;\nimport static com.azure.monitor.ingestion.implementation.Utils.getConcurrency;\nimport static com.azure.monitor.ingestion.implementation.Utils.gzipRequest;\nimport com.azure.monitor.ingestion.models.LogsUploadError;\nimport com.azure.monitor.ingestion.models.LogsUploadException;\nimport com.azure.monitor.ingestion.models.LogsUploadOptions;\n\n/**\n * <p>This class provides a synchronous client for uploading custom logs to an Azure Monitor Log Analytics workspace.\n * This client encapsulates REST API calls, used to send data to a Log Analytics workspace, into a set of synchronous\n * operations.</p>\n *\n * <h2>Getting Started</h2>\n *\n * <p>To create an instance of the {@link LogsIngestionClient}, use the {@link LogsIngestionClientBuilder} and configure\n * the various options provided by the builder to customize the client as per your requirements. There are two required\n * properties that should be set to build a client:\n * <ol>\n * <li>{@code endpoint} - The <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview?tabs=portal#create-a-data-collection-endpoint\">data collection endpoint</a>.\n * See {@link LogsIngestionClientBuilder#endpoint(String) endpoint} method for more details.</li>\n * <li>{@code credential} - The AAD authentication credential that has the \"Monitoring Metrics Publisher\" role assigned to it.\n * <a href=\"https://learn.microsoft.com/java/api/overview/azure/identity-readme?view=azure-java-stable\">Azure Identity</a>\n * provides a variety of AAD credential types that can be used. See\n * {@link LogsIngestionClientBuilder#credential(TokenCredential) credential} method for more details.</li>\n * </ol>\n *\n * <p><strong>Instantiating a synchronous Logs ingestion client</strong></p>\n * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionClient.instantiation -->\n * <pre>\n * LogsIngestionClient logsIngestionClient = new LogsIngestionClientBuilder&#40;&#41;\n *         .credential&#40;tokenCredential&#41;\n *         .endpoint&#40;&quot;&lt;data-collection-endpoint&gt;&quot;&#41;\n *         .buildClient&#40;&#41;;\n * </pre>\n * <!-- end com.azure.monitor.ingestion.LogsIngestionClient.instantiation -->\n *\n * <h3>Client Usage</h3>\n *\n * <p>\n *     For additional information on how to use this client, see the following method documentation:\n * </p>\n *\n * <ul>\n *     <li>\n *         {@link #upload(String, String, Iterable) upload(String, String, Iterable)} - Uploads logs to a Log Analytics\n *         workspace.\n *     </li>\n *     <li>\n *         {@link #upload(String, String, Iterable, LogsUploadOptions) upload(String, String, Iterable, LogsUploadOptions)}\n *         - Uploads logs to a Log Analytics workspace with options to configure the upload request.\n *     </li>\n *     <li>\n *         {@link #uploadWithResponse(String, String, BinaryData, RequestOptions) uploadWithResponse(String, String, BinaryData, RequestOptions)}\n *         - Uploads logs to a Log Analytics workspace with options to configure the HTTP request.\n *     </li>\n * </ul>\n *\n * @see LogsIngestionClientBuilder\n * @see LogsIngestionAsyncClient\n * @see com.azure.monitor.ingestion\n */\n@ServiceClient(builder = LogsIngestionClientBuilder.class)\npublic final class LogsIngestionClient implements AutoCloseable {\n    private static final ClientLogger LOGGER = new ClientLogger(LogsIngestionClient.class);\n    private final LogsIngestionClientImpl client;\n\n    /**\n     * Creates a {@link LogsIngestionClient} that sends requests to the data collection endpoint.\n     *\n     * @param client The {@link LogsIngestionClientImpl} that the client routes its request through.\n     */\n    LogsIngestionClient(LogsIngestionClientImpl client) {\n        this.client = client;\n    }\n\n    /**\n     * Uploads logs to Azure Monitor with specified data collection rule id and stream name. The input logs may be\n     * too large to be sent as a single request to the Azure Monitor service. In such cases, this method will split\n     * the input logs into multiple smaller requests before sending to the service. This method will block until all\n     * the logs are uploaded or an error occurs.\n     *\n     * <p>\n     * Each log in the input collection must be a valid JSON object. The JSON object should match the\n     * <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal.\n     * </p>\n     *\n     * <p><strong>Upload logs to Azure Monitor</strong></p>\n     * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionClient.upload -->\n     * <pre>\n     * List&lt;Object&gt; logs = getLogs&#40;&#41;;\n     * logsIngestionClient.upload&#40;&quot;&lt;data-collection-rule-id&gt;&quot;, &quot;&lt;stream-name&gt;&quot;, logs&#41;;\n     * System.out.println&#40;&quot;Logs uploaded successfully&quot;&#41;;\n     * </pre>\n     * <!-- end com.azure.monitor.ingestion.LogsIngestionClient.upload -->\n     *\n     * @param ruleId the data collection rule id that is configured to collect and transform the logs.\n     * @param streamName the stream name configured in data collection rule that matches defines the structure of the\n     * logs sent in this request.\n     * @param logs the collection of logs to be uploaded.\n     * @throws NullPointerException if any of {@code ruleId}, {@code streamName} or {@code logs} are null.\n     * @throws IllegalArgumentException if {@code logs} is empty.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public void upload(String ruleId, String streamName, Iterable<Object> logs) {\n        upload(ruleId, streamName, logs, null);\n    }\n\n    /**\n     * Uploads logs to Azure Monitor with specified data collection rule id and stream name. The input logs may be\n     * too large to be sent as a single request to the Azure Monitor service. In such cases, this method will split\n     * the input logs into multiple smaller requests before sending to the service. This method will block until all\n     * the logs are uploaded or an error occurs. If an\n     * {@link LogsUploadOptions#setLogsUploadErrorConsumer(Consumer) error handler} is set, then the service errors are\n     * surfaced to the error handler and this method won't throw an exception.\n     *\n     * <p>\n     * Each log in the input collection must be a valid JSON object. The JSON object should match the\n     * <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal.\n     * </p>\n     *\n     * <p><strong>Upload logs to Azure Monitor</strong></p>\n     * <!-- src_embed com.azure.monitor.ingestion.LogsIngestionClient.uploadWithConcurrency -->\n     * <pre>\n     * List&lt;Object&gt; logs = getLogs&#40;&#41;;\n     * LogsUploadOptions logsUploadOptions = new LogsUploadOptions&#40;&#41;.setMaxConcurrency&#40;4&#41;;\n     * logsIngestionClient.upload&#40;&quot;&lt;data-collection-rule-id&gt;&quot;, &quot;&lt;stream-name&gt;&quot;, logs,\n     *         logsUploadOptions, Context.NONE&#41;;\n     * System.out.println&#40;&quot;Logs uploaded successfully&quot;&#41;;\n     * </pre>\n     * <!-- end com.azure.monitor.ingestion.LogsIngestionClient.uploadWithConcurrency -->\n     *\n     * @param ruleId the data collection rule id that is configured to collect and transform the logs.\n     * @param streamName the stream name configured in data collection rule that matches defines the structure of the\n     * logs sent in this request.\n     * @param logs the collection of logs to be uploaded.\n     * @param options the options to configure the upload request.\n     * @throws NullPointerException if any of {@code ruleId}, {@code streamName} or {@code logs} are null.\n     * @throws IllegalArgumentException if {@code logs} is empty.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public void upload(String ruleId, String streamName, Iterable<Object> logs, LogsUploadOptions options) {\n        upload(ruleId, streamName, logs, options, Context.NONE);\n    }\n\n    /**\n     * Uploads logs to Azure Monitor with specified data collection rule id and stream name. The input logs may be\n     * too large to be sent as a single request to the Azure Monitor service. In such cases, this method will split\n     * the input logs into multiple smaller requests before sending to the service. This method will block until all\n     * the logs are uploaded or an error occurs. If an\n     * {@link LogsUploadOptions#setLogsUploadErrorConsumer(Consumer) error handler} is set, then the service errors are\n     * surfaced to the error handler and this method won't throw an exception.\n     *\n     * <p>\n     * Each log in the input collection must be a valid JSON object. The JSON object should match the\n     * <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal.\n     * </p>\n     *\n     * @param ruleId the data collection rule id that is configured to collect and transform the logs.\n     * @param streamName the stream name configured in data collection rule that matches defines the structure of the\n     * logs sent in this request.\n     * @param logs the collection of logs to be uploaded.\n     * @param options the options to configure the upload request.\n     * @param context additional context that is passed through the Http pipeline during the service call. If no\n     * additional context is required, pass {@link Context#NONE} instead.\n     * @throws NullPointerException if any of {@code ruleId}, {@code streamName} or {@code logs} are null.\n     * @throws IllegalArgumentException if {@code logs} is empty.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public void upload(String ruleId, String streamName, Iterable<Object> logs, LogsUploadOptions options,\n        Context context) {\n        Objects.requireNonNull(ruleId, \"'ruleId' cannot be null.\");\n        Objects.requireNonNull(streamName, \"'streamName' cannot be null.\");\n        Objects.requireNonNull(logs, \"'logs' cannot be null.\");\n\n        Consumer<LogsUploadError> uploadLogsErrorConsumer\n            = options == null ? null : options.getLogsUploadErrorConsumer();\n\n        RequestOptions requestOptions = new RequestOptions();\n        requestOptions.addHeader(HttpHeaderName.CONTENT_ENCODING, GZIP);\n        requestOptions.setContext(context);\n\n        Stream<UploadLogsResponseHolder> responses\n            = new Batcher(options, logs).toStream().map(r -> uploadToService(ruleId, streamName, requestOptions, r));\n\n        responses = submit(responses, getConcurrency(options)).filter(response -> response.getException() != null);\n\n        if (uploadLogsErrorConsumer != null) {\n            responses.forEach(response -> uploadLogsErrorConsumer\n                .accept(new LogsUploadError(response.getException(), response.getRequest().getLogs())));\n            return;\n        }\n\n        final int[] failedLogCount = new int[1];\n        List<HttpResponseException> exceptions = responses.map(response -> {\n            failedLogCount[0] += response.getRequest().getLogs().size();\n            return response.getException();\n        }).collect(Collectors.toList());\n\n        if (!exceptions.isEmpty()) {\n            throw LOGGER.logExceptionAsError(new LogsUploadException(exceptions, failedLogCount[0]));\n        }\n    }\n\n    private Stream<UploadLogsResponseHolder> submit(Stream<UploadLogsResponseHolder> responseStream, int concurrency) {\n        if (concurrency == 1) {\n            return responseStream;\n        }\n\n        try {\n            return SharedExecutorService.getInstance().submit(() -> responseStream).get();\n        } catch (InterruptedException | ExecutionException e) {\n            throw LOGGER.logExceptionAsError(new RuntimeException(e));\n        }\n    }\n\n    private UploadLogsResponseHolder uploadToService(String ruleId, String streamName, RequestOptions requestOptions,\n        LogsIngestionRequest request) {\n        HttpResponseException exception = null;\n        try {\n            client.uploadWithResponse(ruleId, streamName, BinaryData.fromBytes(request.getRequestBody()),\n                requestOptions);\n        } catch (HttpResponseException ex) {\n            exception = ex;\n        }\n\n        return new UploadLogsResponseHolder(request, exception);\n    }\n\n    /**\n     * This method is used to upload logs to Azure Monitor Log Analytics with specified data collection rule id and\n     * stream name. This upload method provides a more granular control of the HTTP request sent to the service. Use\n     * {@link RequestOptions} to configure the HTTP request.\n     *\n     * <p>\n     * The input logs should be a JSON array with each element in the array\n     * matching the <a href=\"https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure#streamdeclarations\">schema defined\n     * by the stream name</a>. The stream's schema can be found in the Azure portal. This content will be gzipped before\n     * sending to the service. If the content is already gzipped, then set the {@code Content-Encoding} header to\n     * {@code gzip} using {@link RequestOptions#setHeader(HttpHeaderName, String) requestOptions} and pass the content\n     * as is.\n     * </p>\n     *\n     * <p><strong>Header Parameters</strong>\n     *\n     * <table border=\"1\">\n     *     <caption>Header Parameters</caption>\n     *     <tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr>\n     *     <tr><td>Content-Encoding</td><td>String</td><td>No</td><td>gzip</td></tr>\n     *     <tr><td>x-ms-client-request-id</td><td>String</td><td>No</td><td>Client request Id</td></tr>\n     * </table>\n     *\n     * <p><strong>Request Body Schema</strong>\n     *\n     * <pre>{@code\n     * [\n     *     Object\n     * ]\n     * }</pre>\n     *\n     * @param ruleId The immutable Id of the Data Collection Rule resource.\n     * @param streamName The streamDeclaration name as defined in the Data Collection Rule.\n     * @param logs An array of objects matching the schema defined by the provided stream.\n     * @param requestOptions The options to configure the HTTP request before HTTP client sends it.\n     * @return the {@link Response}.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Response<Void> uploadWithResponse(String ruleId, String streamName, BinaryData logs,\n        RequestOptions requestOptions) {\n        Objects.requireNonNull(ruleId, \"'ruleId' cannot be null.\");\n        Objects.requireNonNull(streamName, \"'streamName' cannot be null.\");\n        Objects.requireNonNull(logs, \"'logs' cannot be null.\");\n\n        if (requestOptions == null) {\n            requestOptions = new RequestOptions();\n        }\n\n        requestOptions.addRequestCallback(request -> {\n            HttpHeader httpHeader = request.getHeaders().get(HttpHeaderName.CONTENT_ENCODING);\n            if (httpHeader == null) {\n                BinaryData gzippedRequest = BinaryData.fromBytes(gzipRequest(logs.toBytes()));\n                request.setBody(gzippedRequest);\n                request.setHeader(HttpHeaderName.CONTENT_ENCODING, GZIP);\n            }\n        });\n        return client.uploadWithResponse(ruleId, streamName, logs, requestOptions);\n    }\n\n    @Override\n    public void close() {\n    }\n}\n",
+      "contentHash": "0475b49b04323a6fd9610225dbcc3cea825d886993910d587f5aea8118f3a071",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionClient.java",
+      "startLine": 1,
+      "endLine": 330,
+      "kind": "unknown",
+      "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <name>Microsoft Azure Monitor Ingestion client for Java</name>\n  <description>This package contains client functionality for Microsoft Monitor Ingestion</description>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-monitor-ingestion-autorest-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <dependencies>\n    <dependency>\n      <groupId>com.azure.tools</groupId>\n      <artifactId>azure-autorest-customization</artifactId>\n      <version>1.0.0-beta.8</version>\n    </dependency>\n  </dependencies>\n\n</project>\n",
+      "contentHash": "9efb029d81c8c1aa7ab5dcbfc9f02c1807633334009ad1257cac12d6d51ee444",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/customization/pom.xml"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/pom.xml",
+      "text": "<!-- Copyright (c) Microsoft Corporation. All rights reserved.\n     Licensed under the MIT License. -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">\n\n  <modelVersion>4.0.0</modelVersion>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-monitor-ingestion</artifactId>\n  <version>1.3.0-beta.1</version> <!-- {x-version-update;com.azure:azure-monitor-ingestion;current} -->\n\n  <packaging>jar</packaging>\n  <name>Microsoft Azure SDK for Azure Monitor Data Ingestion</name>\n  <description>This package contains Microsoft Azure Monitor Data Ingestion SDK.</description>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <distributionManagement>\n    <site>\n      <id>azure-java-build-docs</id>\n      <url>${site.url}/site/${project.artifactId}</url>\n    </site>\n  </distributionManagement>\n\n  <scm>\n    <url>scm:git:https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <tag>HEAD</tag>\n  </scm>\n\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <legal>\n      <![CDATA[[INFO] Any downloads listed may be third party software. Microsoft grants you no rights for third party software.]]></legal>\n    <javaModulesSurefireArgLine>\n      --add-exports com.azure.core/com.azure.core.implementation.jackson=ALL-UNNAMED\n      --add-exports com.azure.core/com.azure.core.implementation.util=ALL-UNNAMED\n      --add-exports com.azure.monitor.ingestion/com.azure.monitor.ingestion.implementation=ALL-UNNAMED\n      --add-opens com.azure.monitor.ingestion/com.azure.monitor.ingestion=ALL-UNNAMED\n      --add-opens com.azure.monitor.ingestion/com.azure.monitor.ingestion=com.fasterxml.jackson.databind\n      --add-opens com.azure.monitor.ingestion/com.azure.monitor.ingestion.implementation=com.fasterxml.jackson.databind\n    </javaModulesSurefireArgLine>\n\n    <spotbugs.skip>false</spotbugs.skip>\n  </properties>\n\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-json</artifactId>\n      <version>1.5.1</version> <!-- {x-version-update;com.azure:azure-json;dependency} -->\n    </dependency>\n\n    <!-- test -->\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "8a35fcfd1aa566a7ce79d8554a7f9233f0b03db97a9b682be5a3b4879ef563a1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/pom.xml"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/README.md",
+      "text": "# Azure Monitor Ingestion client library for Java\n\nThe Azure Monitor Ingestion client library is used to send custom logs to [Azure Monitor][azure_monitor_overview] using \nthe [Logs Ingestion API][ingestion_overview].\n\nThis library allows you to send data from virtually any source to supported built-in tables or to custom tables \nthat you create in Log Analytics workspace. You can even extend the schema of built-in tables with custom columns.\n\n## Getting started\n\n### Prerequisites\n- A [Java Development Kit (JDK)][jdk_link], version 8 or later.\n  - Here are details about [Java 8 client compatibility with Azure Certificate Authority](https://learn.microsoft.com/azure/security/fundamentals/azure-ca-details?tabs=root-and-subordinate-cas-list#client-compatibility-for-public-pkis).\n- [Azure Subscription][azure_subscription]\n- A [Data Collection Endpoint][data_collection_endpoint]\n- A [Data Collection Rule][data_collection_rule]\n- A [Log Analytics workspace][log_analytics_workspace]\n\n### Include the package\n\n#### Include the BOM file\n\nPlease include the `azure-sdk-bom` to your project to take a dependency on the latest stable version of the library. In \nthe following snippet, replace the `{bom_version_to_target}` placeholder with the version number.\nTo learn more about the BOM, see the [AZURE SDK BOM README](https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/boms/azure-sdk-bom/README.md).\n\n```xml\n<dependencyManagement>\n    <dependencies>\n        <dependency>\n            <groupId>com.azure</groupId>\n            <artifactId>azure-sdk-bom</artifactId>\n            <version>{bom_version_to_target}</version>\n            <type>pom</type>\n            <scope>import</scope>\n        </dependency>\n    </dependencies>\n</dependencyManagement>\n```\nand then include the direct dependency in the dependencies section without the version tag as shown below.\n\n```xml\n<dependencies>\n  <dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-monitor-ingestion</artifactId>\n  </dependency>\n</dependencies>\n```\n\n#### Include direct dependency\n\nIf you want to take dependency on a particular version of the library that is not present in the BOM,\nadd the direct dependency to your project as follows.\n\n[//]: # ({x-version-update-start;com.azure:azure-monitor-ingestion;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-monitor-ingestion</artifactId>\n    <version>1.2.11</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### Create the client\n\nAn authenticated client is required to upload logs to Azure Monitor. The library includes both synchronous and asynchronous forms of the clients. To authenticate, \nthe following examples use `DefaultAzureCredentialBuilder` from the [azure-identity](https://central.sonatype.com/artifact/com.azure/azure-identity/1.8.1) package.\n\n#### Authenticating using Azure Active Directory\nYou can authenticate with Azure Active Directory using the [Azure Identity library][azure_identity].\n\nAfter setup, you can choose which type of [credential][azure_identity_credential_type] from `azure-identity` to use.\nWe recommend using [DefaultAzureCredential][identity_dac], configured through the `AZURE_TOKEN_CREDENTIALS` environment variable.\nSet this variable as described in the [Learn documentation][customize_defaultAzureCredential], which provides the most up-to-date guidance and examples.\n\nTo use the [DefaultAzureCredential][DefaultAzureCredential] provider shown below, or other credential providers provided with the Azure SDK, please include the `azure-identity` package:\n\n[//]: # ({x-version-update-start;com.azure:azure-identity;dependency})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-identity</artifactId>\n    <version>1.18.2</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n#### Synchronous Logs Ingestion client\n\n```java readme-sample-createLogsIngestionClient\nDefaultAzureCredential tokenCredential = new DefaultAzureCredentialBuilder().build();\n\nLogsIngestionClient client = new LogsIngestionClientBuilder()\n        .endpoint(\"<data-collection-endpoint>\")\n        .credential(tokenCredential)\n        .buildClient();\n```\n\n#### Asynchronous Logs Ingestion client\n\n```java readme-sample-createLogsIngestionAsyncClient\nDefaultAzureCredential tokenCredential = new DefaultAzureCredentialBuilder().build();\n\nLogsIngestionAsyncClient asyncClient = new LogsIngestionClientBuilder()\n        .endpoint(\"<data-collection-endpoint>\")\n        .credential(tokenCredential)\n        .buildAsyncClient();\n```\n## Key concepts\n\n### Data Collection Endpoint\n\nData Collection Endpoints (DCEs) allow you to uniquely configure ingestion settings for Azure Monitor. [This \narticle][data_collection_endpoint] provides an overview of data collection endpoints including their contents and \nstructure and how you can create and work with them.\n\n### Data Collection Rule\n\nData collection rules (DCR) define data collected by Azure Monitor and specify how and where that data should be sent or\nstored. The REST API call must specify a DCR to use. A single DCE can support multiple DCRs, so you can specify a\ndifferent DCR for different sources and target tables.\n\nThe DCR must understand the structure of the input data and the structure of the target table. If the two don't match,\nit can use a transformation to convert the source data to match the target table. You may also use the transform to\nfilter source data and perform any other calculations or conversions.\n\nFor more details, see [Data collection rules in Azure Monitor][data_collection_rule]. For information on how to retrieve \na DCR ID, see [this tutorial][data_collection_rule_tutorial].\n\n### Log Analytics Workspace Tables\n\nCustom logs can send data to any custom table that you create and to certain built-in tables in your Log Analytics \nworkspace. The target table must exist before you can send data to it. The following built-in tables are currently supported:\n\n- [CommonSecurityLog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/commonsecuritylog)\n- [SecurityEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/securityevent)\n- [Syslog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/syslog)\n- [WindowsEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/windowsevent)\n\n### Logs retrieval\nThe logs that were uploaded using this library can be queried using the \n[Azure Monitor Query](https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/monitor/azure-monitor-query#readme) \nclient library.\n\n## Examples\n\n- [Upload custom logs](#upload-custom-logs)\n- [Upload custom logs with max concurrency](#upload-custom-logs-with-max-concurrency)\n- [Upload custom logs with error handling](#upload-custom-logs-with-error-handling)\n\n### Upload custom logs\n\n```java readme-sample-uploadLogs\nDefaultAzureCredential tokenCredential = new DefaultAzureCredentialBuilder().build();\n\nLogsIngestionClient client = new LogsIngestionClientBuilder()\n        .endpoint(\"<data-collection-endpoint>\")\n        .credential(tokenCredential)\n        .buildClient();\n\nList<Object> logs = getLogs();\nclient.upload(\"<data-collection-rule-id>\", \"<stream-name>\", logs);\nSystem.out.println(\"Logs uploaded successfully\");\n```\n\n### Upload custom logs with max concurrency\n\nIf the in input logs collection is too large, the client will split the input into multiple smaller requests. These \nrequests are sent serially, by default, but by configuring the max concurrency in `LogsUploadOptions`, these requests\ncan be concurrently sent to the service as shown in the example below.\n\n```java readme-sample-uploadLogsWithMaxConcurrency\nDefaultAzureCredential tokenCredential = new DefaultAzureCredentialBuilder().build();\n\nLogsIngestionClient client = new LogsIngestionClientBuilder()\n        .endpoint(\"<data-collection-endpoint>\")\n        .credential(tokenCredential)\n        .buildClient();\n\nList<Object> logs = getLogs();\nLogsUploadOptions logsUploadOptions = new LogsUploadOptions()\n        .setMaxConcurrency(3);\nclient.upload(\"<data-collection-rule-id>\", \"<stream-name>\", logs, logsUploadOptions,\n        Context.NONE);\nSystem.out.println(\"Logs uploaded successfully\");\n```\n\n### Upload custom logs with error handling\n\nWhen uploading large collection of logs, the client splits the input into multiple smaller service requests. The upload \nmethod provides an option to handle individual service errors through an error handler as shown in the example below. \nThis error handler include the exception details and the list of all logs that failed to upload. If an error handler is \nnot provided, the upload method will throw an aggregate exception that includes all the service errors.\n\n```java readme-sample-uploadLogs-error-handler\nDefaultAzureCredential tokenCredential = new DefaultAzureCredentialBuilder().build();\n\nLogsIngestionClient client = new LogsIngestionClientBuilder()\n        .endpoint(\"<data-collection-endpoint>\")\n        .credential(tokenCredential)\n        .buildClient();\n\nList<Object> logs = getLogs();\n\nLogsUploadOptions logsUploadOptions = new LogsUploadOptions()\n        .setLogsUploadErrorConsumer(uploadLogsError -> {\n            System.out.println(\"Error message \" + uploadLogsError.getResponseException().getMessage());\n            System.out.println(\"Total logs failed to upload = \" + uploadLogsError.getFailedLogs().size());\n\n            // throw the exception here to abort uploading remaining logs\n            // throw uploadLogsError.getResponseException();\n        });\nclient.upload(\"<data-collection-rule-id>\", \"<stream-name>\", logs, logsUploadOptions,\n        Context.NONE);\n```\n## Troubleshooting\n\nFor details on diagnosing various failure scenarios, see our [troubleshooting guide](https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/monitor/azure-monitor-ingestion/TROUBLESHOOTING.md).\n\n## Next steps\nMore samples can be found [here][samples].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License\nAgreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution.\nFor details, visit [https://cla.microsoft.com](https://cla.microsoft.com).\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the\nPR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this\nonce across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).\nFor more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact\n[opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.\n\n<!-- LINKS -->\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/identity/azure-identity\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[azure_subscription]: https://azure.microsoft.com/free\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n[data_collection_endpoint]: https://learn.microsoft.com//azure/azure-monitor/essentials/data-collection-endpoint-overview\n[data_collection_rule]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview\n[data_collection_rule_tutorial]: https://learn.microsoft.com/azure/azure-monitor/logs/tutorial-logs-ingestion-portal#collect-information-from-the-dcr\n[DefaultAzureCredential]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity/README.md#defaultazurecredential\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[jdk_link]: https://learn.microsoft.com/java/azure/jdk/?view=azure-java-stable\n[log_analytics_workspace]: https://learn.microsoft.com//azure/azure-monitor/logs/log-analytics-workspace-overview\n[logging]: https://learn.microsoft.com//azure/developer/java/sdk/logging-overview\n[samples]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/monitor/azure-monitor-ingestion/src/samples/java/com/azure/monitor/ingestion\n[customize_defaultAzureCredential]: https://aka.ms/azsdk/java/identity/credential-chains#how-to-customize-defaultazurecredential\n[azure_identity_credential_type]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/identity/azure-identity#credentials\n[identity_dac]: https://aka.ms/azsdk/java/identity/credential-chains#defaultazurecredential-overview\n",
+      "contentHash": "6d90de4634c123df4a15de79d378597b6c46cf4f145384ca59c9354178360ffd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/README.md"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Ingestion\ncommit: 6267b64842af3d744c5b092a3f3beef49729ad6d\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "51804eee7a9a117d2a88558a4296d5c3364a1bb2c1c7acdaebc810d35630cc43",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-ingestion/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "51cc715ae315f9868563831a17ab717f909ecb991d3f9698c816056754463334",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "488472e9c726eae50771e8a28b52a1cc89301173bbff6565edddb701c5860d25",
+        "category": "Convenience methods",
+        "subtype": "Log batching under payload limit",
+        "explanation": "Batcher splits an Iterable of logs into requests, starting a new request when serialized size exceeds MAX_REQUEST_PAYLOAD_SIZE.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file. Contains custom batching logic with no @Generated markers.",
+        "symbols": [
+          "Batcher",
+          "Batcher.nextInternal",
+          "Batcher.createRequest"
+        ],
+        "evidence": [
+          {
+            "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9",
+            "startLine": 116,
+            "endLine": 156
+          }
+        ],
+        "pattern": "client-side-request-batching",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "8dec8761bf508d063b686f0ec0742a4b9cfa8cdad92487aaaf492404f637a660",
+        "category": "Convenience methods",
+        "subtype": "Batch iterator, stream and flux adapters",
+        "explanation": "Batcher implements Iterator and exposes toStream() and toFlux() to feed sync and async upload paths.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "Batcher.hasNext",
+          "Batcher.next",
+          "Batcher.toStream",
+          "Batcher.toFlux"
+        ],
+        "evidence": [
+          {
+            "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9",
+            "startLine": 65,
+            "endLine": 114
+          }
+        ],
+        "pattern": "batch-iterator-stream-adapter",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "26a672e7bd4c0cf85424a5da5ee33996921419d39990f9cfc25c220acc55af42",
+        "category": "Serialization",
+        "subtype": "Custom ObjectSerializer for log objects",
+        "explanation": "Batcher serializes each log with options.getObjectSerializer() when set, otherwise a default JsonSerializer, and writes raw JSON values into an array.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "Batcher.getSerializer",
+          "Batcher.DEFAULT_SERIALIZER"
+        ],
+        "evidence": [
+          {
+            "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9",
+            "startLine": 36,
+            "endLine": 36
+          },
+          {
+            "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9",
+            "startLine": 139,
+            "endLine": 164
+          }
+        ],
+        "pattern": "custom-object-serializer-option",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "886d3953453ced15d488cccdfebe5ffb92a45454f5c321d93513f928cbb32680",
+        "category": "Convenience methods",
+        "subtype": "Concurrency-limited parallel spliterator",
+        "explanation": "ConcurrencyLimitingSpliterator splits a shared iterator into a bounded number of spliterators for parallel stream processing.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file. Package-private custom class.",
+        "symbols": [
+          "ConcurrencyLimitingSpliterator",
+          "trySplit",
+          "tryAdvance"
+        ],
+        "evidence": [
+          {
+            "id": "38fc0e4d8c9a6235a29a452f8bb4d2350568e4ff6ffc2acd84a87b850683c667",
+            "startLine": 18,
+            "endLine": 71
+          }
+        ],
+        "pattern": "concurrency-limited-spliterator",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "39b40620add2efe3cee628c08e7b63c66dff5827e4614583b4563e33f6932dc9",
+        "category": "Other",
+        "subtype": "Gzip request compression",
+        "explanation": "Utils.gzipRequest compresses payload bytes with GZIPOutputStream; the in-code comment says it should move to azure-core.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "Utils.gzipRequest",
+          "Utils.GZIP"
+        ],
+        "evidence": [
+          {
+            "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+            "startLine": 20,
+            "endLine": 20
+          },
+          {
+            "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+            "startLine": 28,
+            "endLine": 42
+          }
+        ],
+        "pattern": "request-gzip-compression",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "cf13462eab6da96595490fc61a4313fe96e2d95a8843df274d7d3c397d6aee1a",
+        "category": "Convenience methods",
+        "subtype": "uploadWithResponse gzips body via request callback",
+        "explanation": "The sync uploadWithResponse validates arguments and adds a request callback that gzips the body and sets Content-Encoding when absent.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file. Public method with custom body, not delegating directly to generated client.",
+        "symbols": [
+          "LogsIngestionClient.uploadWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+            "startLine": 305,
+            "endLine": 325
+          }
+        ],
+        "pattern": "request-callback-gzip",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "74f2e3c18661bb4b7fff77c634e37a684dd796249fc56fa2ddff2543f25c3328",
+        "category": "Convenience methods",
+        "subtype": "Async uploadWithResponse gzips body via request callback",
+        "explanation": "The async uploadWithResponse adds the same gzip request callback and null checks before calling the implementation client.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "LogsIngestionAsyncClient.uploadWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+            "startLine": 223,
+            "endLine": 242
+          }
+        ],
+        "pattern": "request-callback-gzip",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "97566403ddc8e4adf6e7da702a92fd1d78d8808d2aff12b33739607a158e4f03",
+        "category": "Convenience methods",
+        "subtype": "Sync upload with automatic splitting and error consumer",
+        "explanation": "LogsIngestionClient.upload overloads batch logs, upload them (optionally concurrently), and either route failures to an error consumer or throw an aggregate LogsUploadException.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file. Public upload(Iterable) overloads are not part of a generated surface.",
+        "symbols": [
+          "LogsIngestionClient.upload",
+          "LogsIngestionClient.submit",
+          "LogsIngestionClient.uploadToService"
+        ],
+        "evidence": [
+          {
+            "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+            "startLine": 136,
+            "endLine": 262
+          }
+        ],
+        "pattern": "convenience-batch-upload",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "687fbd72eff7826b49f4247c1e145938041addd62612ceed6eed13887f16bd63",
+        "category": "Convenience methods",
+        "subtype": "Async upload with automatic splitting and error consumer",
+        "explanation": "LogsIngestionAsyncClient.upload overloads batch logs via Batcher.toFlux, upload with flatMapSequential at the configured concurrency, and aggregate errors.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "LogsIngestionAsyncClient.upload",
+          "LogsIngestionAsyncClient.splitAndUpload",
+          "LogsIngestionAsyncClient.uploadToService"
+        ],
+        "evidence": [
+          {
+            "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+            "startLine": 138,
+            "endLine": 180
+          },
+          {
+            "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+            "startLine": 250,
+            "endLine": 314
+          }
+        ],
+        "pattern": "convenience-batch-upload",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "527bc4f900b608f14701d8da962d394591868a8f169403951266a2f309b31ebc",
+        "category": "Retry / error handling",
+        "subtype": "Aggregate partial upload failure exception",
+        "explanation": "Failed batch uploads are collected into UploadLogsResponseHolder and surfaced as LogsUploadException (with failed log count) or passed to a LogsUploadError consumer.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "UploadLogsResponseHolder",
+          "LogsUploadException",
+          "LogsUploadError",
+          "LogsIngestionAsyncClient.processExceptions",
+          "LogsIngestionAsyncClient.processResponse"
+        ],
+        "evidence": [
+          {
+            "id": "713b15d24496d25c7858fe7c3e0940068fc7feeda38d2004c4deb4ff4774e55e",
+            "startLine": 14,
+            "endLine": 30
+          },
+          {
+            "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+            "startLine": 272,
+            "endLine": 303
+          },
+          {
+            "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+            "startLine": 204,
+            "endLine": 237
+          }
+        ],
+        "pattern": "aggregate-partial-failure-exception",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "140f67cc81bd48d671dc39782584fe1202889827e97c6a1c9646fe944045e7f8",
+        "category": "Other",
+        "subtype": "Internal batch request value type",
+        "explanation": "LogsIngestionRequest pairs original logs with the gzipped request body to support error reporting.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "LogsIngestionRequest"
+        ],
+        "evidence": [
+          {
+            "id": "fe155e19ff42febdcdec56d5bdd2272042b778e9904b9fb26079425329a876d6",
+            "startLine": 8,
+            "endLine": 24
+          }
+        ],
+        "pattern": "internal-request-holder",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "6a1bfc441bc5e1f6cf7206c68859a514344032fc494b8b6ba512709d78b80645",
+        "category": "Convenience methods",
+        "subtype": "Max concurrency option resolution",
+        "explanation": "Utils.getConcurrency reads LogsUploadOptions.getMaxConcurrency, defaulting to 1, and drives parallel upload.",
+        "handwrittenRationale": "Hand-written class in the package; no @Generated annotation and not in a generated implementation file.",
+        "symbols": [
+          "Utils.getConcurrency"
+        ],
+        "evidence": [
+          {
+            "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+            "startLine": 44,
+            "endLine": 50
+          }
+        ],
+        "pattern": "max-concurrency-option",
+        "generatorAddressable": "no"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "488472e9c726eae50771e8a28b52a1cc89301173bbff6565edddb701c5860d25",
+        "status": "accepted",
+        "reason": "Batcher.nextInternal (lines 116-137) accumulates serialized log sizes and cuts a new request once MAX_REQUEST_PAYLOAD_SIZE (1 MB) is exceeded; createRequest (139-156) builds the JSON array body. Batcher.java has no @Generated members, so it is handwritten client-side batching that a generator would not produce."
+      },
+      {
+        "key": "8dec8761bf508d063b686f0ec0742a4b9cfa8cdad92487aaaf492404f637a660",
+        "status": "rejected",
+        "reason": "hasNext/next/toStream/toFlux (lines 65-114) are internal plumbing that exposes the same batching behavior to the sync and async upload paths. They are not a distinct customization; the behavior is already counted by the batching finding and the two upload findings."
+      },
+      {
+        "key": "26a672e7bd4c0cf85424a5da5ee33996921419d39990f9cfc25c220acc55af42",
+        "status": "accepted",
+        "reason": "Line 36 and lines 158-164 resolve a user-supplied ObjectSerializer from LogsUploadOptions, falling back to a default JsonSerializer; lines 120 and 142-146 serialize each log and write raw JSON values into an array. This is a handwritten serialization hook, and the cited range 139-164 covers it."
+      },
+      {
+        "key": "886d3953453ced15d488cccdfebe5ffb92a45454f5c321d93513f928cbb32680",
+        "status": "revised",
+        "reason": "The spliterator is real and handwritten, but on its own it is one piece of a single behavior: bounded concurrent upload of batches driven by LogsUploadOptions.maxConcurrency. The finding is broadened to include Utils.getConcurrency (whose separate proposal is folded in here) and Batcher.toStream's use of the spliterator, and the pattern is renamed to describe the reusable shape.",
+        "finding": {
+          "key": "886d3953453ced15d488cccdfebe5ffb92a45454f5c321d93513f928cbb32680",
+          "category": "Convenience methods",
+          "subtype": "Bounded concurrent batch upload",
+          "explanation": "Utils.getConcurrency resolves LogsUploadOptions.maxConcurrency (default 1), and Batcher.toStream returns a parallel stream backed by ConcurrencyLimitingSpliterator, which splits a synchronized shared iterator into at most that many spliterators so batches upload concurrently.",
+          "pattern": "bounded-concurrent-upload",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "ConcurrencyLimitingSpliterator.java, Utils.java and Batcher.java carry no @Generated annotations and implement client-side orchestration not described by the service API.",
+          "symbols": [
+            "ConcurrencyLimitingSpliterator",
+            "ConcurrencyLimitingSpliterator.trySplit",
+            "ConcurrencyLimitingSpliterator.tryAdvance",
+            "Utils.getConcurrency",
+            "Batcher.toStream"
+          ],
+          "evidence": [
+            {
+              "id": "38fc0e4d8c9a6235a29a452f8bb4d2350568e4ff6ffc2acd84a87b850683c667",
+              "startLine": 18,
+              "endLine": 71
+            },
+            {
+              "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+              "startLine": 44,
+              "endLine": 50
+            },
+            {
+              "id": "a4c056d4d647e579210f35549821ba1e413bc94f7753d41569ac5df89572cfc9",
+              "startLine": 87,
+              "endLine": 94
+            }
+          ]
+        }
+      },
+      {
+        "key": "39b40620add2efe3cee628c08e7b63c66dff5827e4614583b4563e33f6932dc9",
+        "status": "revised",
+        "reason": "Real handwritten gzip helper (Utils lines 20 and 28-42). Pattern names were inconsistent: this proposal used 'request-gzip-compression' and the uploadWithResponse proposals used 'request-callback-gzip' for the same request-body gzip behavior. All three are aligned on 'request-body-gzip'.",
+        "finding": {
+          "key": "39b40620add2efe3cee628c08e7b63c66dff5827e4614583b4563e33f6932dc9",
+          "category": "Other",
+          "subtype": "Gzip request compression",
+          "explanation": "Utils.gzipRequest compresses request payload bytes with GZIPOutputStream and Utils.GZIP supplies the Content-Encoding value; the in-code comment says this should move to azure-core.",
+          "rootCauseHypothesis": "The in-code comment suggests azure-core lacks built-in request-body compression, so the library implements it locally.",
+          "pattern": "request-body-gzip",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Utils.java has no @Generated annotations and contains a comment describing the code as a local workaround.",
+          "symbols": [
+            "Utils.gzipRequest",
+            "Utils.GZIP"
+          ],
+          "evidence": [
+            {
+              "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "4f4ec1ca036f52af32e06168836e7466faf8538b8fdd145733085e09c093afe3",
+              "startLine": 28,
+              "endLine": 42
+            }
+          ]
+        }
+      },
+      {
+        "key": "cf13462eab6da96595490fc61a4313fe96e2d95a8843df274d7d3c397d6aee1a",
+        "status": "revised",
+        "reason": "Lines 305-325 really do add a request callback that gzips the body and sets Content-Encoding when absent. But this is a protocol method with transparent wire-level compression, not a convenience helper, so the category becomes Other. The pattern is aligned with the gzip helper as 'request-body-gzip'.",
+        "finding": {
+          "key": "cf13462eab6da96595490fc61a4313fe96e2d95a8843df274d7d3c397d6aee1a",
+          "category": "Other",
+          "subtype": "uploadWithResponse gzips body via request callback",
+          "explanation": "The sync uploadWithResponse null-checks its arguments and registers a RequestOptions callback that gzips the body and sets Content-Encoding: gzip unless the caller already set Content-Encoding, then calls the implementation client.",
+          "pattern": "request-body-gzip",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "LogsIngestionClient.java contains no @Generated annotations; the method body adds custom request-mutation logic before delegating to LogsIngestionClientImpl.",
+          "symbols": [
+            "LogsIngestionClient.uploadWithResponse"
+          ],
+          "evidence": [
+            {
+              "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+              "startLine": 305,
+              "endLine": 325
+            }
+          ]
+        }
+      },
+      {
+        "key": "74f2e3c18661bb4b7fff77c634e37a684dd796249fc56fa2ddff2543f25c3328",
+        "status": "revised",
+        "reason": "This is the async counterpart of the sync gzip callback (lines 223-242), so it gets the same corrections: category Other and pattern 'request-body-gzip'.",
+        "finding": {
+          "key": "74f2e3c18661bb4b7fff77c634e37a684dd796249fc56fa2ddff2543f25c3328",
+          "category": "Other",
+          "subtype": "Async uploadWithResponse gzips body via request callback",
+          "explanation": "The async uploadWithResponse null-checks its arguments and registers a RequestOptions callback that gzips the body and sets Content-Encoding: gzip unless already present, then calls uploadWithResponseAsync on the implementation client.",
+          "pattern": "request-body-gzip",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "LogsIngestionAsyncClient.java contains no @Generated annotations; the method adds custom request-mutation logic before delegating to LogsIngestionClientImpl.",
+          "symbols": [
+            "LogsIngestionAsyncClient.uploadWithResponse"
+          ],
+          "evidence": [
+            {
+              "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+              "startLine": 223,
+              "endLine": 242
+            }
+          ]
+        }
+      },
+      {
+        "key": "97566403ddc8e4adf6e7da702a92fd1d78d8808d2aff12b33739607a158e4f03",
+        "status": "accepted",
+        "reason": "Lines 136-262 define the public upload(Iterable) overloads, which batch logs with Batcher, upload each gzipped batch (optionally concurrently via submit), and route failures to the error consumer or throw LogsUploadException. This is handwritten convenience over the single protocol operation."
+      },
+      {
+        "key": "687fbd72eff7826b49f4247c1e145938041addd62612ceed6eed13887f16bd63",
+        "status": "accepted",
+        "reason": "Lines 138-180 and 250-314 show the async upload overloads using Batcher.toFlux with flatMapSequential at the configured concurrency, plus error aggregation. This mirrors the sync finding and uses the same pattern name."
+      },
+      {
+        "key": "527bc4f900b608f14701d8da962d394591868a8f169403951266a2f309b31ebc",
+        "status": "accepted",
+        "reason": "UploadLogsResponseHolder (14-30), async processExceptions/processResponse (272-303) and the sync error handling (204-237) collect per-batch HttpResponseExceptions into LogsUploadException with a failed-log count, or hand them to a LogsUploadError consumer. This is a distinct handwritten error-handling behavior. The LogsUploadException and LogsUploadError definitions themselves were not supplied."
+      },
+      {
+        "key": "140f67cc81bd48d671dc39782584fe1202889827e97c6a1c9646fe944045e7f8",
+        "status": "rejected",
+        "reason": "LogsIngestionRequest (lines 8-24) is an internal value holder pairing the original logs with the gzipped body. It is supporting plumbing for the batching and error-reporting findings, not a separate behavior."
+      },
+      {
+        "key": "6a1bfc441bc5e1f6cf7206c68859a514344032fc494b8b6ba512709d78b80645",
+        "status": "rejected",
+        "reason": "Utils.getConcurrency (lines 44-50) is a two-line option-default helper that belongs to the bounded concurrent upload behavior. It is folded into the revised finding 886d3953..."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "970374b30ac4a4aae766611cc10d8fda24139834fc07eb8db795fd806c105bc5",
+        "category": "Hand-written client",
+        "subtype": "Public sync and async clients wrapping the implementation client",
+        "explanation": "LogsIngestionClient and LogsIngestionAsyncClient are public @ServiceClient classes with no @Generated members that wrap LogsIngestionClientImpl through package-private constructors; LogsIngestionClient also implements AutoCloseable with an empty close().",
+        "rootCauseHypothesis": "The public surface (batched upload of Iterable<Object>) differs enough from the generated protocol client that the client classes are maintained by hand.",
+        "pattern": "handwritten-client-over-generated-impl",
+        "generatorAddressable": "no",
+        "handwrittenRationale": "Neither client file contains any @Generated annotation, and both hold LogsIngestionClientImpl from the implementation package.",
+        "symbols": [
+          "LogsIngestionClient",
+          "LogsIngestionAsyncClient",
+          "LogsIngestionClient.close"
+        ],
+        "evidence": [
+          {
+            "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+            "startLine": 94,
+            "endLine": 106
+          },
+          {
+            "id": "c2269a7d7f0039efa809428e3a1b3250eae0dfefa3fe2c5680a44034970e48c4",
+            "startLine": 327,
+            "endLine": 329
+          },
+          {
+            "id": "24de4bbaf10dc2f69de1ae0a87246ac1b9d4d3c5606e0a94af9f7651ecfa6666",
+            "startLine": 97,
+            "endLine": 108
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only 7 of 22 eligible files captured; LogsIngestionClientBuilder, LogsIngestionAudience and the models (LogsUploadOptions etc.) were skipped for review budget, so the audience/auth customization and model customizations are not assessed.",
+      "The customization/ script source (MonitorIngestionCustomizations.java) was not in the evidence; only its pom.xml.",
+      "@Generated annotations are not visible in the captured clients; hand-written status inferred from the public upload surface and custom logic.",
+      "LogsIngestionClientBuilder, LogsIngestionAudience, LogsUploadError, LogsUploadException and LogsUploadOptions were skipped, so audience/auth customization (described in the guideline example), builder changes and the options/exception models were not reviewed.",
+      "The customization/ script folder and LogsIngestionClientImpl were not supplied, so it could not be confirmed whether any handwritten code is applied via Customization scripts.",
+      "Utils.getLogsIngestionClientImpl (lines 52-56) is a small factory helper and was not reported separately."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionAsyncClient.java",
+      "startLine": 1,
+      "endLine": 315,
+      "provenance": "Java handwritten source",
+      "contentHash": "d7d60a4dbfaae78ffef757eebe5ba3e9f700b4c2fdd67be0e66944ed8e931a14"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionClient.java",
+      "startLine": 1,
+      "endLine": 330,
+      "provenance": "Java handwritten source",
+      "contentHash": "0475b49b04323a6fd9610225dbcc3cea825d886993910d587f5aea8118f3a071"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/LogsIngestionClientBuilder.java",
+      "startLine": 1,
+      "endLine": 376,
+      "provenance": "Java handwritten source",
+      "contentHash": "bc59867ba2e01acd549323da9f62a39e378cd0f89d057da2209e54b039a841f8"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Batcher.java",
+      "startLine": 1,
+      "endLine": 165,
+      "provenance": "Java handwritten source",
+      "contentHash": "0ea06de26fd767548dc2fdfd5d0de1b53bb60ed5cc35255c88416162e9aa1e55"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/ConcurrencyLimitingSpliterator.java",
+      "startLine": 1,
+      "endLine": 72,
+      "provenance": "Java handwritten source",
+      "contentHash": "ba61673942b35c7f81d152e37ef8eb85dabe8853a7af6e9ca21c9cbd328bb8e2"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/LogsIngestionRequest.java",
+      "startLine": 1,
+      "endLine": 25,
+      "provenance": "Java handwritten source",
+      "contentHash": "ad2162cb4ea6fb10d588dcc479ecf8a216e584c576a9c062341dd543952304fc"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/UploadLogsResponseHolder.java",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "Java handwritten source",
+      "contentHash": "b132e9aaa0bfeb7159f699de921d79e24feef35a2df96ca4ba62056fec43dd51"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/implementation/Utils.java",
+      "startLine": 1,
+      "endLine": 57,
+      "provenance": "Java handwritten source",
+      "contentHash": "71bb5c52c840d9970817916bf2e55b59fb0c013ff76fb149c1cdc1a7baaceee8"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsIngestionAudience.java",
+      "startLine": 1,
+      "endLine": 56,
+      "provenance": "Java handwritten source",
+      "contentHash": "4c47ba704ebd3094ce73328294dbc40042a1a53481b4ba9f463d37a6cf9c46f0"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadError.java",
+      "startLine": 1,
+      "endLine": 45,
+      "provenance": "Java handwritten source",
+      "contentHash": "88caff6f7e93c54e19056e0cfce2467220c2e9d6a235d99b23fd28ccb66dc581"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadException.java",
+      "startLine": 1,
+      "endLine": 49,
+      "provenance": "Java handwritten source",
+      "contentHash": "3c5a078e682472d99ee35365f3af44e5974777402e0bb70d9ccf2c3537533ce4"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/src/main/java/com/azure/monitor/ingestion/models/LogsUploadOptions.java",
+      "startLine": 1,
+      "endLine": 81,
+      "provenance": "Java handwritten source",
+      "contentHash": "ff7a9725908a816a946f478a2dfa7713e8fd369709bef731a6ec38cca33291ed"
+    }
+  ]
+}

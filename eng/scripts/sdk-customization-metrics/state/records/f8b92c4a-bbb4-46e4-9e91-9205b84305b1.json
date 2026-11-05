@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "f8b92c4a-bbb4-46e4-9e91-9205b84305b1",
+  "observedAt": "2026-10-22T20:42:57.355Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/monitor/ingestion/azlogs"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "eaf2a91aaa3b57a8f2633d8eca20d7e03d090b47"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 23,
+    "eligibleFiles": 8,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/ingestion/azlogs/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azlogs\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"errors\"\n\t\"reflect\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n}\n\n// NewClient creates a client to upload logs to Azure Monitor Ingestion.\nfunc NewClient(endpoint string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tif reflect.ValueOf(options.Cloud).IsZero() {\n\t\toptions.Cloud = cloud.AzurePublic\n\t}\n\tc, ok := options.Cloud.Services[ServiceNameIngestion]\n\tif !ok || c.Audience == \"\" {\n\t\treturn nil, errors.New(\"provided Cloud field is missing Azure Monitor Ingestion configuration\")\n\t}\n\n\tauthPolicy := runtime.NewBearerTokenPolicy(credential, []string{c.Audience + \"/.default\"}, nil)\n\tazcoreClient, err := azcore.NewClient(moduleName, version, runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{internal: azcoreClient, endpoint: endpoint}, nil\n}\n",
+      "contentHash": "39e786077945620204c0d604b13d8fbdbf25643627e5459a6214d215eaa8a92c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/ingestion/azlogs/custom_client.go",
+      "startLine": 1,
+      "endLine": 42,
+      "kind": "unknown",
+      "id": "b8d52b8e44912df123ff976b4056dc371862a9533fb202f49f0e76f3f1a9edbb"
+    },
+    {
+      "path": "sdk/monitor/ingestion/azlogs/cloud_config.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azlogs\n\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\n// Cloud Service Names for Monitor Ingestion, used to identify the respective cloud.ServiceConfiguration\nconst (\n\tServiceNameIngestion cloud.ServiceName = \"ingestion/azlogs\"\n)\n\nfunc init() {\n\tcloud.AzureChina.Services[ServiceNameIngestion] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://monitor.azure.cn/\",\n\t}\n\tcloud.AzureGovernment.Services[ServiceNameIngestion] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://monitor.azure.us/\",\n\t}\n\tcloud.AzurePublic.Services[ServiceNameIngestion] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://monitor.azure.com/\",\n\t}\n}\n",
+      "contentHash": "6f2e420d877649abf939237835ab0c9ed8c310c0bfe88561a9edecf050d82b40",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/ingestion/azlogs/cloud_config.go",
+      "startLine": 1,
+      "endLine": 23,
+      "kind": "unknown",
+      "id": "1b121c8e5e79d047ce36767918d0fd0ccd0a6a1477caecc141b5d7349776d794"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/ingestion/azlogs/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "d88daececa1fb97b996d22f2eb1a992ea16ee38f9b8dfdf85a6647b5001e0558",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/ingestion/azlogs/go.mod"
+    },
+    {
+      "path": "sdk/monitor/ingestion/azlogs/README.md",
+      "text": "# Azure Monitor Ingestion client module for Go\n\n* Upload logs (this module): send custom logs to Azure Monitor using the Logs Ingestion API\n* Query logs ([query/azlogs][query_azlogs]): execute read-only queries against Azure Monitor Logs\n* Query metrics ([query/azmetrics][query_azmetrics]): execute read-only queries against Azure Monitor Metrics\n\n[Source code][source_code] | [Package (pkg.go.dev)][pkg_go] | [Product documentation][azure_monitor_overview] | [Samples][examples]\n\n## Getting started\n\n### Prerequisites\n\n* A supported Go version (the Azure SDK supports the two most recent Go releases)\n* An [Azure subscription][azure_subscription]\n* An [Azure Log Analytics workspace][azure_monitor_create_using_portal]\n* A [Data Collection Endpoint][data_collection_endpoint]\n* A [Data Collection Rule][data_collection_rule]\n\n### Install the package\n\nInstall the `azlogs` and `azidentity` modules with `go get`:\n\n```bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n\nThe [azidentity][azure_identity] module is used for Azure Active Directory authentication while creating the client.\n\n### Authentication\n\nAn authenticated client object is required to upload logs. The examples demonstrate using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate; however, the client accepts any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\nThe client defaults to the Azure public cloud. For other cloud configurations, see the [cloud][cloud_documentation] package documentation.\n\n#### Create a client\n\nExample [client][example_client]\n\n## Key concepts\n\nThe Azure Monitor Logs Ingestion client module is used to send custom logs to [Azure Monitor][azure_monitor_overview] using the [Logs Ingestion API][ingestion_overview].\n\nThis library allows you to send data from virtually any source to supported built-in tables or to custom tables that you create in Log Analytics workspaces. You can even extend the schema of built-in tables with custom columns.\n\n### Data Collection Endpoint\n\nData Collection Endpoints (DCEs) allow you to uniquely configure ingestion settings for Azure Monitor. [This article][data_collection_endpoint] provides an overview of data collection endpoints including their contents and structure and how you can create and work with them.\n\n### Data Collection Rule\n\nData collection rules (DCR) define data collected by Azure Monitor and specify how and where that data should be sent or stored. The REST API call must specify a DCR to use. A single DCE can support multiple DCRs, so you can specify a different DCR for different sources and target tables.\n\nThe DCR must understand the structure of the input data and the structure of the target table. If the two don't match, it can use a transformation to convert the source data to match the target table. You may also use the transform to filter source data and perform any other calculations or conversions.\n\nFor more information, see [Data collection rules in Azure Monitor][data_collection_rule], and see [this article][data_collection_rule_structure] for details about a DCR's structure. For information on how to retrieve a DCR ID, see [this tutorial][data_collection_rule_tutorial].\n\n### Log Analytics workspace tables\n\nCustom logs can send data to any custom table that you create and to certain built-in tables in your Log Analytics workspace. The target table must exist before you can send data to it. The following built-in tables are currently supported:\n\n- [CommonSecurityLog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/commonsecuritylog)\n- [SecurityEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/securityevent)\n- [Syslog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/syslog)\n- [WindowsEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/windowsevent)\n\n### Logs retrieval\n\nThe logs that were uploaded using this module can be queried using the [query/azlogs][query_azlogs] module (Azure Monitor Query Logs).\n\n## Examples\n\nGet started with our [examples][examples].\n\n## Troubleshooting\n\nSee our [troubleshooting guide][troubleshooting_guide] for details on how to diagnose various failure scenarios.\n\n## Next steps\n\nTo learn more about Azure Monitor, see the [Azure Monitor service documentation][azure_monitor_overview].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit [cla.microsoft.com][cla].\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or comments.\n\n<!-- LINKS -->\n[azure_identity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[azure_monitor_create_using_portal]: https://learn.microsoft.com/azure/azure-monitor/logs/quick-create-workspace\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/\n[azure_subscription]: https://azure.microsoft.com/free/\n[cloud_documentation]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\n[data_collection_endpoint]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview\n[data_collection_rule]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview\n[data_collection_rule_structure]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure\n[data_collection_rule_tutorial]: https://learn.microsoft.com/azure/azure-monitor/logs/tutorial-logs-ingestion-portal#collect-information-from-the-dcr\n[default_cred_ref]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity#defaultazurecredential\n[examples]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs#pkg-examples\n[example_client]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs#example-NewClient\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[pkg_go]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs\n[query_azlogs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\n[query_azmetrics]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics\n[source_code]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/monitor/ingestion/azlogs\n[troubleshooting_guide]: https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/monitor/ingestion/azlogs/TROUBLESHOOTING.md\n\n[cla]: https://cla.microsoft.com\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com",
+      "contentHash": "97cb957d46b03d590b7289093bf8d1c6e2a0b9ac83bc6275d95f3b1f9ff30e21",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/ingestion/azlogs/README.md"
+    },
+    {
+      "path": "sdk/monitor/ingestion/azlogs/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Ingestion\ncommit: 3d00012653b43a88016fb7af01653f4916d9bcfa\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "dfc33062261759ec89d5e3505eb2bff7b8d0de53871fb346ecc1d8dae99c0130",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/ingestion/azlogs/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/ingestion/azlogs/cloud_config.go",
+      "startLine": 1,
+      "endLine": 23,
+      "provenance": "Go handwritten source",
+      "contentHash": "6f2e420d877649abf939237835ab0c9ed8c310c0bfe88561a9edecf050d82b40"
+    },
+    {
+      "path": "sdk/monitor/ingestion/azlogs/custom_client.go",
+      "startLine": 1,
+      "endLine": 42,
+      "provenance": "Go custom source",
+      "contentHash": "39e786077945620204c0d604b13d8fbdbf25643627e5459a6214d215eaa8a92c"
+    }
+  ]
+}

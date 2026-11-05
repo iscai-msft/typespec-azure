@@ -1,0 +1,794 @@
+{
+  "schemaVersion": 1,
+  "id": "99a85fbc-7d16-46e3-9b30-55c49f0564c6",
+  "observedAt": "2026-10-24T04:10:17.992Z",
+  "identity": "dotnet:azure.monitor.query.metrics:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Monitor.Query.Metrics",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/monitor/Azure.Monitor.Query.Metrics"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "491af6d48d106ce0a748cd55a817534f5d12a9d9"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 81,
+    "eligibleFiles": 61,
+    "capturedFiles": 12,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Internal/Argument.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    internal static partial class Argument\n    {\n        public static void AssertNotNullOrWhiteSpace(string value, string name)\n        {\n            if (value is null)\n            {\n                throw new ArgumentNullException(name);\n            }\n            if (string.IsNullOrWhiteSpace(value))\n            {\n                throw new ArgumentException(\"Value cannot be empty or contain only white-space characters.\", name);\n            }\n        }\n    }\n}\n",
+      "contentHash": "42adeb430415e348ebea4da7bd061aebe1f380d90a2926a1464155db0c518542",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Internal/Argument.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "84d3bd042d044abdc5f1c79a098f80b345b5a35330b37782a78511bb296c5ef8"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClient.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Monitor.Query.Metrics.Models;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    public partial class MetricsClient\n    {\n        /// <summary>\n        /// Gets the endpoint used by the client.\n        /// </summary>\n        public Uri Endpoint => _endpoint;\n\n        /// <summary>\n        /// Returns all the Azure Monitor metrics requested for the batch of resources.\n        /// </summary>\n        /// <param name=\"resourceIds\">The resource URIs for which the metrics are requested.</param>\n        /// <param name=\"metricNames\">The names of the metrics to query.</param>\n        /// <param name=\"metricNamespace\">The namespace of the metrics to query.</param>\n        /// <param name=\"options\">The <see cref=\"MetricsQueryResourcesOptions\"/> to configure the query.</param>\n        /// <param name=\"cancellationToken\">The <see cref=\"CancellationToken\"/> to use.</param>\n        /// <returns>A time series metrics result for the requested metric names.</returns>\n        public virtual Response<MetricsQueryResourcesResult> QueryResources(IEnumerable<ResourceIdentifier> resourceIds, IEnumerable<string> metricNames, string metricNamespace, MetricsQueryResourcesOptions options = null, CancellationToken cancellationToken = default)\n        {\n            if (!resourceIds.Any() || !metricNames.Any())\n            {\n                throw new ArgumentException($\"{nameof(resourceIds)} or {nameof(metricNames)} cannot be empty\");\n            }\n            if (metricNamespace == null)\n            {\n                throw new ArgumentNullException(nameof(metricNamespace));\n            }\n\n            var subscriptionId = GetSubscriptionId(resourceIds.FirstOrDefault());\n\n            string filter = null;\n            string granularity = null;\n            string aggregations = null;\n            string startTime = null;\n            int? top = null;\n            string orderBy = null;\n            string endTime = null;\n            IEnumerable<string> rollUpBy = null;\n\n            ResourceIdList resourceIdList = new ResourceIdList(resourceIds.ToList(), additionalBinaryDataProperties: null);\n\n            if (options != null)\n            {\n                if (options.TimeRange.HasValue)\n                {\n                    startTime = options.TimeRange.Value.Start.ToIsoString();\n                    endTime = options.TimeRange.Value.End.ToIsoString();\n                }\n                else\n                {\n                    // Use values from Start and End TimeRange properties if they are set\n                    if (options.StartTime.HasValue)\n                    {\n                        startTime = options.StartTime.Value.ToIsoString();\n                    }\n                    if (options.EndTime.HasValue)\n                    {\n                        endTime = options.EndTime.Value.ToIsoString();\n                    }\n                }\n\n                aggregations = MetricsClientExtensions.CommaJoin(options.Aggregations);\n                granularity = options.Granularity == null ? null : TypeFormatters.ConvertToString(options.Granularity, SerializationFormat.Duration_ISO8601);\n                top = options.Size;\n                orderBy = options.OrderBy;\n                filter = options.Filter;\n                rollUpBy = options.RollUpBy;\n            }\n\n            return QueryResources(subscriptionId, metricNamespace, metricNames, resourceIdList, startTime, endTime, granularity, aggregations, top, orderBy, filter, rollUpBy != null ? MetricsClientExtensions.CommaJoin(rollUpBy) : null, cancellationToken);\n        }\n\n        /// <summary>\n        /// Returns all the Azure Monitor metrics requested for the batch of resources.\n        /// </summary>\n        /// <param name=\"resourceIds\">The resource URIs for which the metrics are requested.</param>\n        /// <param name=\"metricNames\">The names of the metrics to query.</param>\n        /// <param name=\"metricNamespace\">The namespace of the metrics to query.</param>\n        /// <param name=\"options\">The <see cref=\"MetricsQueryResourcesOptions\"/> to configure the query.</param>\n        /// <param name=\"cancellationToken\">The <see cref=\"CancellationToken\"/> to use.</param>\n        /// <returns>A time series metrics result for the requested metric names.</returns>\n        public virtual async Task<Response<MetricsQueryResourcesResult>> QueryResourcesAsync(IEnumerable<ResourceIdentifier> resourceIds, IEnumerable<string> metricNames, string metricNamespace, MetricsQueryResourcesOptions options = null, CancellationToken cancellationToken = default)\n        {\n            if (!resourceIds.Any() || !metricNames.Any())\n            {\n                throw new ArgumentException($\"{nameof(resourceIds)} or {nameof(metricNames)} cannot be empty\");\n            }\n            if (metricNamespace == null)\n            {\n                throw new ArgumentNullException(nameof(metricNamespace));\n            }\n\n            var subscriptionId = GetSubscriptionId(resourceIds.FirstOrDefault());\n\n            string filter = null;\n            string granularity = null;\n            string aggregations = null;\n            string startTime = null;\n            int? top = null;\n            string orderBy = null;\n            string endTime = null;\n            IEnumerable<string> rollUpBy = null;\n\n            ResourceIdList resourceIdList = new ResourceIdList(resourceIds.ToList(), additionalBinaryDataProperties: null);\n\n            if (options != null)\n            {\n                if (options.TimeRange.HasValue)\n                {\n                    startTime = options.TimeRange.Value.Start.ToIsoString();\n                    endTime = options.TimeRange.Value.End.ToIsoString();\n                }\n                else\n                {\n                    // Use values from Start and End TimeRange properties if they are set\n                    if (options.StartTime.HasValue)\n                    {\n                        startTime = options.StartTime.Value.ToIsoString();\n                    }\n                    if (options.EndTime.HasValue)\n                    {\n                        endTime = options.EndTime.Value.ToIsoString();\n                    }\n                }\n\n                aggregations = MetricsClientExtensions.CommaJoin(options.Aggregations);\n                granularity = options.Granularity == null ? null : TypeFormatters.ConvertToString(options.Granularity, SerializationFormat.Duration_ISO8601);\n                top = options.Size;\n                orderBy = options.OrderBy;\n                filter = options.Filter;\n                rollUpBy = options.RollUpBy;\n            }\n\n            return await QueryResourcesAsync(subscriptionId, metricNamespace, metricNames, resourceIdList, startTime, endTime, granularity, aggregations, top, orderBy, filter, rollUpBy != null ? MetricsClientExtensions.CommaJoin(rollUpBy) : null, cancellationToken).ConfigureAwait(false);\n        }\n        private Guid GetSubscriptionId(string resourceId)\n        {\n            int startIndex = resourceId.IndexOf(\"subscriptions/\") + 14;\n            return Guid.Parse(resourceId.Substring(startIndex, resourceId.IndexOf(\"/\", startIndex) - startIndex));\n        }\n    }\n}\n",
+      "contentHash": "e45a65c6c87832ee267505773f9b54950e91d3b6ae7a6587d5816509763418cc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClient.cs",
+      "startLine": 1,
+      "endLine": 154,
+      "kind": "unknown",
+      "id": "aed29fc764e736d02b23c76a71e65f9224036c7158aab6f317f3cd80ca17acaa"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientAudience.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    /// <summary> Cloud audiences available for <see cref=\"MetricsClient\"/>. </summary>\n    public readonly partial struct MetricsClientAudience : IEquatable<MetricsClientAudience>\n    {\n        private readonly string _value;\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"MetricsClientAudience\"/> object.\n        /// </summary>\n        /// <param name=\"value\">The Microsoft Entra audience to use when forming authorization scopes. This value corresponds to a URL that identifies the Azure cloud where the resource is located.</param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"value\"/> is null. </exception>\n        /// <remarks>Use one of the constant members over creating a custom value, unless you have special needs for doing so.</remarks>\n        public MetricsClientAudience(string value)\n        {\n            Argument.AssertNotNullOrEmpty(value, nameof(value));\n            _value = value;\n        }\n\n        private const string AzureChinaValue = \"https://metrics.monitor.azure.cn\";\n        private const string AzureGovernmentValue = \"https://metrics.monitor.azure.us\";\n        private const string AzurePublicCloudValue = \"https://metrics.monitor.azure.com\";\n\n        /// <summary> Azure China. </summary>\n        public static MetricsClientAudience AzureChina { get; } = new MetricsClientAudience(AzureChinaValue);\n\n        /// <summary> Azure US Government. </summary>\n        public static MetricsClientAudience AzureGovernment { get; } = new MetricsClientAudience(AzureGovernmentValue);\n\n        /// <summary> Azure Public Cloud. </summary>\n        public static MetricsClientAudience AzurePublicCloud { get; } = new MetricsClientAudience(AzurePublicCloudValue);\n\n        /// <summary> Determines if two <see cref=\"MetricsClientAudience\"/> values are the same. </summary>\n        public static bool operator ==(MetricsClientAudience left, MetricsClientAudience right) => left.Equals(right);\n        /// <summary> Determines if two <see cref=\"MetricsClientAudience\"/> values are not the same. </summary>\n        public static bool operator !=(MetricsClientAudience left, MetricsClientAudience right) => !left.Equals(right);\n        /// <summary> Converts a string to a <see cref=\"MetricsClientAudience\"/>. </summary>\n        public static implicit operator MetricsClientAudience(string value) => new MetricsClientAudience(value);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override bool Equals(object obj) => obj is MetricsClientAudience other && Equals(other);\n        /// <inheritdoc />\n        public bool Equals(MetricsClientAudience other) => string.Equals(_value, other._value, StringComparison.InvariantCultureIgnoreCase);\n\n        /// <inheritdoc />\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override int GetHashCode() => _value?.GetHashCode() ?? 0;\n        /// <inheritdoc />\n        public override string ToString() => _value;\n    }\n}\n",
+      "contentHash": "f0ed3d2691e49a634da16191b40af285474b87199d563d3017a1e26897611f1f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientAudience.cs",
+      "startLine": 1,
+      "endLine": 58,
+      "kind": "unknown",
+      "id": "968b61a008ae879e109da82bd92731d1bd316577d873412d134e76d7ad2416f8"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientExtensions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Globalization;\nusing System.Linq;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    /// <summary>\n    /// Metrics Client Extension methods\n    /// </summary>\n    internal static partial class MetricsClientExtensions\n    {\n        /// <summary>\n        /// Join a collection of strings into a single comma separated string.\n        /// If the collection is null or empty, a null string will be returned.\n        /// </summary>\n        /// <param name=\"items\">The items to join.</param>\n        /// <returns>The items joined together by commas.</returns>\n        internal static string CommaJoin(this IEnumerable<string> items) =>\n            items != null && items.Any() ? string.Join(\",\", items) : null;\n\n        internal static string ToIsoString(this DateTimeOffset value)\n        {\n            if (value.Offset == TimeSpan.Zero)\n            {\n                // Some Azure service required 0-offset dates to be formatted without the\n                // -00:00 part\n                const string roundtripZFormat = \"yyyy-MM-ddTHH:mm:ss.fffffffZ\";\n                return value.ToString(roundtripZFormat, CultureInfo.InvariantCulture);\n            }\n\n            return value.ToString(\"O\", CultureInfo.InvariantCulture);\n        }\n\n        internal static string ToIsoString(this DateTimeOffset? value) => value?.ToIsoString();\n    }\n}\n",
+      "contentHash": "73d47901e649032733506034f51a2c4b08ef83c0f535bcb803713634ba4d0d3c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientExtensions.cs",
+      "startLine": 1,
+      "endLine": 40,
+      "kind": "unknown",
+      "id": "7e8153d0cb3a63444f8115f7d0b6ebf1791105d2c38274fcca9472d9f0029ba8"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    public partial class MetricsClientOptions\n    {\n        /// <summary>\n        /// Gets or sets the audience to use for authentication with Microsoft Entra ID.\n        /// </summary>\n        /// <value>If <c>null</c>, <see cref=\"MetricsClientAudience.AzurePublicCloud\" /> will be assumed.</value>\n        public MetricsClientAudience? Audience { get; set; }\n    }\n}\n",
+      "contentHash": "9b0553e0e812ac318a68cae1f47a8b98f7784a15a0b5d6c43923466e7ecfc55b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientOptions.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "unknown",
+      "id": "5e676f1d178ca16725a564b7c4975db10e353abbcdf0db05e291858fdcf53056"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryResourcesOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.ComponentModel;\nusing Azure.Core;\nusing Azure.Monitor.Query.Metrics.Models;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    /// <summary>\n    /// Options for the <see cref=\"MetricsClient.QueryResourcesAsync(IEnumerable{ResourceIdentifier}, IEnumerable{string}, string, MetricsQueryResourcesOptions, System.Threading.CancellationToken)\"/>\n    /// and <see cref=\"MetricsClient.QueryResources(IEnumerable{ResourceIdentifier}, IEnumerable{string}, string, MetricsQueryResourcesOptions, System.Threading.CancellationToken)\"/> methods.\n    /// </summary>\n    public class MetricsQueryResourcesOptions\n    {\n        /// <summary>\n        /// Gets or sets the timespan over which the metric will be queried. If only the starttime is set, the endtime default becomes the current time. When the endtime is specified, the starttime is necessary as well. Duration is disregarded.\n        /// </summary>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public MetricsQueryTimeRange? TimeRange { get; set; }\n\n        /// <summary>\n        /// Gets the <see cref=\"StartTime\"/> of the query. If only the <see cref=\"StartTime\"/> is set, the <see cref=\"EndTime\"/> default becomes the current time. When the <see cref=\"EndTime\"/> is specified, the <see cref=\"StartTime\"/> is necessary as well.\n        /// </summary>\n        public DateTimeOffset? StartTime { get; set; }\n\n        /// <summary>\n        /// Gets the <see cref=\"EndTime\"/> of the query. If only the <see cref=\"StartTime\"/> is set, the <see cref=\"EndTime\"/> default becomes the current time. When the <see cref=\"EndTime\"/> is specified, the <see cref=\"StartTime\"/> is necessary as well.\n        /// </summary>\n        public DateTimeOffset? EndTime { get; set; }\n\n        /// <summary>\n        /// <para>\n        /// Gets the list of metric aggregations to retrieve.\n        /// </para>\n        /// <para>\n        /// Although this collection cannot be set, it can be modified.\n        /// See <see href=\"https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers#object-initializers-with-collection-read-only-property-initialization\">Object initializers with collection read-only property initialization</see>.\n        /// </para>\n        /// </summary>\n        public IList<string> Aggregations { get; } = new List<string>();\n\n        /// <summary>\n        /// Gets or sets the maximum number of records to retrieve. Valid only when <see cref=\"Filter\"/> is specified. Defaults to <c>null</c>.\n        /// </summary>\n        public int? Size { get; set; }\n\n        /// <summary>\n        /// Gets or sets the filter that is used to refine the set of metric data returned.\n        /// <example>\n        /// <see cref=\"MetricResult\"/> contains metadata A, B, and C.<br/>\n        /// <br/>\n        ///     - Return all time series of C where A = a1 and B = b1 or b2:<br/>\n        ///         <c>A eq 'a1' and B eq 'b1' or B eq 'b2' and C eq '*'</c><br/>\n        ///     - Invalid variant:<br/>\n        ///         <c>A eq 'a1' and B eq 'b1' and C eq '*' or B = 'b2'</c><br/>\n        ///         This is invalid because the logical or operator cannot separate two different metadata names.<br/>\n        ///     - Return all time series where A = a1, B = b1 and C = c1:<br/>\n        ///         <c>A eq 'a1' and B eq 'b1' and C eq 'c1'</c><br/>\n        ///     - Return all time series where A = a1<br/>\n        ///         <c>A eq 'a1' and B eq '*' and C eq '*'.</c><br/>\n        /// </example>\n        /// </summary>\n        public string Filter { get; set; }\n\n        /// <summary>\n        /// Gets or sets the aggregation to use for sorting results and the direction of the sort.\n        /// Only one order can be specified.\n        /// Examples: sum asc.\n        /// </summary>\n        public string OrderBy { get; set; }\n\n        /// <summary>\n        /// Dimension name(s) to rollup results by.\n        /// Examples: If you only want to see metric values with a filter like 'City eq Seattle or City eq Tacoma' but don't want to see separate values for each city, you can specify 'RollUpBy=City' to see the results for Seattle and Tacoma rolled up into one timeseries.\n        /// </summary>\n        public IList<string> RollUpBy { get; } = new List<string>();\n\n        /// <summary>\n        /// Gets or sets the interval at which to sample metrics.\n        /// </summary>\n        public TimeSpan? Granularity { get; set; }\n    }\n}\n",
+      "contentHash": "c0598938c0dfff05ef3ab5326c609fa1d90b7c6200ce815457d16961ea33f2c7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryResourcesOptions.cs",
+      "startLine": 1,
+      "endLine": 86,
+      "kind": "unknown",
+      "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryTimeRange.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing System.Xml;\nusing Azure.Core;\n\nnamespace Azure.Monitor.Query.Metrics\n{\n    /// <summary>\n    /// Represents a span of time over which the query would be executed.\n    /// </summary>\n    public readonly struct MetricsQueryTimeRange : IEquatable<MetricsQueryTimeRange>\n    {\n        /// <summary>\n        /// Represents the maximum <see cref=\"MetricsQueryTimeRange\"/>.\n        /// </summary>\n        public static MetricsQueryTimeRange All => new MetricsQueryTimeRange(TimeSpan.MaxValue);\n\n        /// <summary>\n        /// Gets the duration of the range.\n        /// </summary>\n        public TimeSpan Duration { get; }\n\n        /// <summary>\n        /// Gets the start time of the range.\n        /// </summary>\n        public DateTimeOffset? Start { get; }\n\n        /// <summary>\n        /// Gets the end time of the range.\n        /// </summary>\n        public DateTimeOffset? End { get; }\n\n        /// <summary>\n        /// Initializes an instance of <see cref=\"MetricsQueryTimeRange\"/> using a duration value.\n        /// The exact query range would be determined by the service when executing the query.\n        /// </summary>\n        /// <param name=\"duration\">The duration of the range.</param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public MetricsQueryTimeRange(TimeSpan duration)\n        {\n            Duration = duration;\n            Start = null;\n            End = null;\n        }\n\n        /// <summary>\n        /// Initializes an instance of <see cref=\"MetricsQueryTimeRange\"/> using a start time and a duration value.\n        /// </summary>\n        /// <param name=\"start\">The start of the range.</param>\n        /// <param name=\"duration\">The duration of the range.</param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public MetricsQueryTimeRange(DateTimeOffset start, TimeSpan duration)\n        {\n            Duration = duration;\n            Start = start;\n            End = null;\n        }\n\n        /// <summary>\n        /// Initializes an instance of <see cref=\"MetricsQueryTimeRange\"/> using a duration and an end time.\n        /// </summary>\n        /// <param name=\"duration\">The duration of the range.</param>\n        /// <param name=\"end\">The end of the range.</param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public MetricsQueryTimeRange(TimeSpan duration, DateTimeOffset end)\n        {\n            Duration = duration;\n            Start = null;\n            End = end;\n        }\n\n        /// <summary>\n        /// Initializes an instance of <see cref=\"MetricsQueryTimeRange\"/> using a start time and an end time.\n        /// </summary>\n        /// <param name=\"start\">The start of the range.</param>\n        /// <param name=\"end\">The end of the range.</param>\n        public MetricsQueryTimeRange(DateTimeOffset start, DateTimeOffset end)\n        {\n            Duration = end - start;\n            Start = start;\n            End = end;\n        }\n\n        internal MetricsQueryTimeRange(string start, string end)\n        {\n            if (!DateTimeOffset.TryParse(start, out var startTime))\n            {\n                throw new FormatException($\"Could not parse the start time value: {start}\");\n            }\n            if (!DateTimeOffset.TryParse(end, out var endTime))\n            {\n                throw new FormatException($\"Could not parse the end time value: {end}\");\n            }\n            Duration = endTime - startTime;\n            Start = startTime;\n            End = endTime;\n        }\n\n        /// <summary>\n        /// Converts a <see cref=\"TimeSpan\"/> to a <see cref=\"MetricsQueryTimeRange\"/>.\n        /// </summary>\n        /// <param name=\"timeSpan\">The <see cref=\"TimeSpan\"/> value to convert.</param>\n        public static implicit operator MetricsQueryTimeRange(TimeSpan timeSpan) => new MetricsQueryTimeRange(timeSpan);\n\n        /// <inheritdoc />\n        public override string ToString()\n        {\n            switch (Start, End, Duration)\n            {\n                case (DateTimeOffset, DateTimeOffset, _):\n                    return $\"Start: {Start} End: {End}\";\n                case (DateTimeOffset, null, TimeSpan):\n                    return $\"Start: {Start} Duration: {Duration}\";\n                case (null, DateTimeOffset, TimeSpan):\n                    return $\"Duration: {Duration} End: {End}\";\n                default:\n                    return $\"Duration: {Duration}\";\n            }\n        }\n\n        internal string ToIsoString()\n        {\n            var startTime = Start.ToIsoString();\n            var endTime = End.ToIsoString();\n            var duration = XmlConvert.ToString(Duration);\n\n            switch (startTime, endTime, duration)\n            {\n                case (string, string, _):\n                    return $\"{startTime}/{endTime}\";\n                case (string, null, string):\n                    return $\"{startTime}/{duration}\";\n                case (null, string, string):\n                    return $\"{duration}/{endTime}\";\n                default:\n                    return duration;\n            }\n        }\n\n        /// <inheritdoc />\n        public bool Equals(MetricsQueryTimeRange other)\n        {\n            return Duration.Equals(other.Duration) &&\n                   Nullable.Equals(Start, other.Start) &&\n                   Nullable.Equals(End, other.End);\n        }\n\n        /// <inheritdoc />\n        public override bool Equals(object obj)\n        {\n            return obj is MetricsQueryTimeRange other && Equals(other);\n        }\n\n        /// <summary>\n        /// Determines if two <see cref=\"MetricsQueryTimeRange\"/> values are the same.\n        /// </summary>\n        /// <param name=\"left\">The first <see cref=\"MetricsQueryTimeRange\"/> to compare.</param>\n        /// <param name=\"right\">The second <see cref=\"MetricsQueryTimeRange\"/> to compare.</param>\n        /// <returns>True if <paramref name=\"left\"/> and <paramref name=\"right\"/> are the same; otherwise, false.</returns>\n        public static bool operator ==(MetricsQueryTimeRange left, MetricsQueryTimeRange right)\n        {\n            return left.Equals(right);\n        }\n\n        /// <summary>\n        /// Determines if two <see cref=\"MetricsQueryTimeRange\"/> values are different.\n        /// </summary>\n        /// <param name=\"left\">The first <see cref=\"MetricsQueryTimeRange\"/> to compare.</param>\n        /// <param name=\"right\">The second <see cref=\"MetricsQueryTimeRange\"/> to compare.</param>\n        /// <returns>True if <paramref name=\"left\"/> and <paramref name=\"right\"/> are different; otherwise, false.</returns>\n        public static bool operator !=(MetricsQueryTimeRange left, MetricsQueryTimeRange right)\n        {\n            return !left.Equals(right);\n        }\n\n        /// <inheritdoc />\n        public override int GetHashCode()\n        {\n            return HashCodeBuilder.Combine(Start, End, Duration);\n        }\n\n        /// <summary>\n        /// Converts a <see cref=\"string\"/> value to it's <see cref=\"MetricsQueryTimeRange\"/> representation.\n        /// </summary>\n        /// <param name=\"value\">The string to convert.</param>\n        /// <returns>A <see cref=\"MetricsQueryTimeRange\" /> equivalent of the string.</returns>\n        /// <exception cref=\"FormatException\"><paramref name=\"value\" /> is not in correct format to represent a <see cref=\"MetricsQueryTimeRange\" /> value.</exception>\n        internal static MetricsQueryTimeRange Parse(string value)\n        {\n            Argument.AssertNotNullOrWhiteSpace(value, nameof(value));\n\n            FormatException CreateFormatException(Exception inner = null) =>\n                new(\"Unable to parse the DateTimeRange value. \" +\n                      \"Expected one of the following formats:\" +\n                      \" Duration,\" +\n                      \" Duration/EndTime,\" +\n                      \" StartTime/Duration,\" +\n                      \" StartTime/EndTime\", inner);\n\n            TimeSpan ParseTimeSpan(string s)\n            {\n                try\n                {\n                    return XmlConvert.ToTimeSpan(s);\n                }\n                catch (FormatException e)\n                {\n                    throw CreateFormatException(e);\n                }\n            }\n\n            var parts = value.Split(new[] { '/' }, StringSplitOptions.None);\n            switch (parts.Length)\n            {\n                case 1:\n                    return ParseTimeSpan(parts[0]);\n                case 2:\n                    var firstIsDateTime = DateTimeOffset.TryParse(parts[0], out var dateTimeFirst);\n                    var secondIsDateTime = DateTimeOffset.TryParse(parts[1], out var dateTimeSecond);\n\n                    return (firstIsDateTime, secondIsDateTime) switch\n                    {\n                        (true, true) => new MetricsQueryTimeRange(dateTimeFirst, dateTimeSecond),\n                        (true, false) => new MetricsQueryTimeRange(dateTimeFirst, ParseTimeSpan(parts[1])),\n                        (false, true) => new MetricsQueryTimeRange(ParseTimeSpan(parts[0]), dateTimeSecond),\n                        _ => throw CreateFormatException()\n                    };\n                default:\n                    throw CreateFormatException();\n            }\n        }\n    }\n}\n",
+      "contentHash": "15a36958e77d0c4f9e1f56bd1439ce71eedadbf4a2faaf1f4282b95182a8f586",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryTimeRange.cs",
+      "startLine": 1,
+      "endLine": 236,
+      "kind": "unknown",
+      "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricResult.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Monitor.Query.Metrics.Models\n{\n    public partial class MetricResult\n    {\n        private const string SuccessErrorCode = \"Success\";\n        private ResponseError _error;\n\n        /// <summary> The name of the metric. </summary>\n        public string Name => LocalizedName.Value;\n\n        /// <summary> The name and the display name of the metric, i.e. it is localizable string. </summary>\n        internal LocalizableString LocalizedName { get; }\n\n        /// <summary> 'Success' or the error details on query failures for this metric. </summary>\n        internal string ErrorCode { get; }\n\n        /// <summary> Error message encountered querying this specific metric. </summary>\n        internal string ErrorMessage { get; }\n\n        /// <summary>\n        /// Gets the error that occurred while querying the metric.\n        /// </summary>\n        public ResponseError Error => ErrorCode == SuccessErrorCode ? null : _error ??= new ResponseError(ErrorCode, ErrorMessage);\n    }\n}\n",
+      "contentHash": "27fed8a1efc625178599d4d8387a53339868244de8210d4bf62c431222273476",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricResult.cs",
+      "startLine": 1,
+      "endLine": 28,
+      "kind": "unknown",
+      "id": "6835435c4f412bf1e0080b504898bb419eff5f96848ac0f5cef83b0cc9a0e178"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryModelFactory.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Monitor.Query.Metrics.Models\n{\n    [CodeGenType(\"QueryMetricsModelFactory\")]\n    [CodeGenSuppress(\"MetricTimeSeriesElement\", typeof(IEnumerable<MetadataValue>), typeof(IEnumerable<MetricValue>))]\n    [CodeGenSuppress(\"MetricResult\", typeof(DateTimeOffset), typeof(double?), typeof(double?), typeof(double?), typeof(double?), typeof(double?))]\n    [CodeGenSuppress(\"MetricResult\", typeof(string), typeof(string), typeof(LocalizableString), typeof(string), typeof(string), typeof(string), typeof(MetricUnit), typeof(IEnumerable<MetricTimeSeriesElement>))]\n    public static partial class MetricsQueryModelFactory\n    {\n        /// <summary>\n        /// Creates an instance of <see cref=\"Models.MetricTimeSeriesElement\"/> to support <see href=\"https://aka.ms/azsdk/net/mocking\">mocking</see>.\n        /// </summary>\n        /// <param name=\"metadataValues\"> A dictionary comprised of metric metadata values. </param>\n        /// <param name=\"values\"> A list of <see cref=\"Models.MetricValue\"/> elements. </param>\n        public static MetricTimeSeriesElement MetricTimeSeriesElement(IReadOnlyDictionary<string, string> metadataValues, IEnumerable<MetricValue> values)\n        {\n            var metadataValueList = new List<MetadataValue>();\n            foreach (var value in metadataValues)\n            {\n                var metadataValue = new MetadataValue(new LocalizableString(value.Key), value.Value, additionalBinaryDataProperties: null);\n                metadataValueList.Add(metadataValue);\n            }\n            return new MetricTimeSeriesElement(metadataValueList, values.ToList(), additionalBinaryDataProperties: null);\n        }\n\n        /// <summary>\n        /// Creates an instance of <see cref=\"Models.MetricResult\"/> to support <see href=\"https://aka.ms/azsdk/net/mocking\">mocking</see>.\n        /// </summary>\n        /// <param name=\"id\"> The metric ID. </param>\n        /// <param name=\"resourceType\"> The resource type of the metric resource. </param>\n        /// <param name=\"name\"> The name of the metric. </param>\n        /// <param name=\"unit\"> The unit of the metric. </param>\n        /// <param name=\"timeSeries\"> The time series returned when a data query is performed. </param>\n        public static MetricResult MetricResult(string id, string resourceType, string name, MetricUnit unit, IEnumerable<MetricTimeSeriesElement> timeSeries)\n        {\n            return new MetricResult(id, resourceType, new LocalizableString(name), unit, timeSeries);\n        }\n    }\n}\n",
+      "contentHash": "cb7c71abf88c293701e81c29c066671364ca324c6d4156d346ae3d22d055e8e0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryModelFactory.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "kind": "unknown",
+      "id": "2594076cf9467385976ca618b249a8385c593eb058784e699f67ce2c19ed124f"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryResult.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\n\nnamespace Azure.Monitor.Query.Metrics.Models\n{\n    public partial class MetricsQueryResult\n    {\n        private MetricsQueryTimeRange? _timeRange;\n\n        /// <summary>\n        /// The time span for which the data was retrieved.\n        /// This may be adjusted in the future and returned back from what was originally requested.\n        /// </summary>\n        public MetricsQueryTimeRange TimeSpan => _timeRange ??= new MetricsQueryTimeRange(StartTime, EndTime);\n\n        /// <summary> The resource that has been queried for metrics. </summary>\n        internal string ResourceId { get; }\n\n        /// <summary> The start time, in datetime format, for which the data was retrieved. </summary>\n        internal string StartTime { get; }\n\n        /// <summary> The end time, in datetime format, for which the data was retrieved. </summary>\n        internal string EndTime { get; }\n\n        /// <summary>\n        /// Returns the MetricResult for the name.\n        /// </summary>\n        /// <param name=\"name\">The name of the Metric.</param>\n        public MetricResult GetMetricByName(string name)\n        {\n            Argument.AssertNotNullOrEmpty(name, nameof(name));\n\n            foreach (var metric in Metrics)\n            {\n                if (metric.Name == name)\n                {\n                    return metric;\n                }\n            }\n\n            throw new KeyNotFoundException($\"Could not find Metric with name: {name}\");\n        }\n    }\n}\n",
+      "contentHash": "d6c79925d4db7e7cf4d27d4ae3592016c546ce3495ad596282153004261838f0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryResult.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "kind": "unknown",
+      "id": "17436b802457750f9e93f079e820003f8f24e5fea34c3a89815fc6be5afa8abb"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricTimeSeriesElement.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing System.Linq;\n\nnamespace Azure.Monitor.Query.Metrics.Models\n{\n    public partial class MetricTimeSeriesElement\n    {\n        private Dictionary<string, string> _metadata;\n        private IList<MetadataValue> Metadatavalues { get; }\n\n        /// <summary>\n        /// The metadata values returned if <see cref=\"MetricsQueryResourcesOptions.Filter\"/> was specified in the call.\n        /// </summary>\n        public IReadOnlyDictionary<string, string> Metadata => _metadata ??= Metadatavalues.ToDictionary(m => m.Name.Value, m => m.Value);\n    }\n}\n",
+      "contentHash": "864a47634a82cf673350699051958f394bf2537aa118910adf31b34bc46f4055",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricTimeSeriesElement.cs",
+      "startLine": 1,
+      "endLine": 19,
+      "kind": "unknown",
+      "id": "38558f2dd17c86b2f26255ccb50a4fabb788d15cae70833a20b905a958c4a883"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/ResourceIdList.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Azure.Core;\n\nnamespace Azure.Monitor.Query.Metrics.Models\n{\n    /// <summary> The comma separated list of resource IDs to query metrics for. </summary>\n    internal partial class ResourceIdList\n    {\n        /// <summary> Initializes a new instance of ResourceIdList. </summary>\n        public ResourceIdList(List<string> resourceIds)\n        {\n            Resourceids = new ChangeTrackingList<ResourceIdentifier>();\n            for (int i = 0; i < resourceIds.Count; i++)\n            {\n                Resourceids.Add(new ResourceIdentifier(resourceIds[i]));\n            }\n        }\n    }\n}\n",
+      "contentHash": "ffbfeac15673adc8136c6250d4ecf0f9ebb9f0b1241cdbd68028373c6dac2b41",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/ResourceIdList.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "d8b1bfae087fda172b5feb4a1fde3fb9a4ef8aefa96b3e2e5445bf9fed8d2991"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/README.md",
+      "text": "# Azure Monitor Query Metrics client library for .NET\n\nThe Azure Monitor Query Metrics client library is used to execute read-only queries for metrics across multiple Azure resources in a single request.\n\n[Metrics](https://learn.microsoft.com/azure/azure-monitor/essentials/data-platform-metrics) - Collects numeric data from monitored resources into a time series database. Metrics are numerical values that are collected at regular intervals and describe some aspect of a system at a particular time. Metrics are lightweight and capable of supporting near real-time scenarios, making them useful for alerting and fast detection of issues.\n\n**Resources:**\n\n- [Source code][source]\n- [NuGet package][package]\n- [API reference documentation][msdocs_apiref]\n- [Service documentation][azure_monitor_overview]\n- [Change log][changelog]\n\n## Getting started\n\n### Prerequisites\n\n- An [Azure subscription][azure_subscription]\n- A [TokenCredential](https://learn.microsoft.com/dotnet/api/azure.core.tokencredential?view=azure-dotnet) implementation, such as an [Azure Identity library credential type](https://learn.microsoft.com/dotnet/api/overview/azure/Identity-readme#credential-classes).\n- To query Metrics, you need an Azure resource of any kind (Storage Account, Key Vault, Cosmos DB, etc.).\n\n### Install the package\n\nInstall the Azure Monitor Query Metrics client library for .NET with NuGet:\n\n```dotnetcli\ndotnet add package Azure.Monitor.Query.Metrics\n```\n\n### Authenticate the client\n\nAn authenticated client is required to query Metrics. To authenticate, create an instance of a `TokenCredential` class. Pass it to the constructor of the `MetricsClient` class. To satisfy the `TokenCredential` requirement, the following examples use `DefaultAzureCredential` from the `Azure.Identity` package.\n\nFor Metrics queries across multiple Azure resources, use the following client:\n\n```C# Snippet:Query_Metrics_CreateMetricsClient\nvar client = new MetricsClient(\n    new Uri(\"https://<region>.metrics.monitor.azure.com\"),\n    new DefaultAzureCredential());\n```\n\n#### Configure client for Azure sovereign cloud\n\nBy default, `MetricsClient` is configured to use the Azure Public Cloud. To use a sovereign cloud instead, set the `Audience` property on the `MetricsClientOptions` class. For example:\n\n```C# Snippet:Query_Metrics_CreateClientsWithOptions\n// MetricsClient\nvar metricsClientOptions = new MetricsClientOptions\n{\n    Audience = MetricsClientAudience.AzureGovernment\n};\nvar metricsClient = new MetricsClient(\n    new Uri(\"https://usgovvirginia.metrics.monitor.azure.us\"),\n    new DefaultAzureCredential(),\n    metricsClientOptions);\n```\n\n### Execute the query\n\nFor examples of Metrics queries, see the [Examples](#examples) section.\n\n## Key concepts\n\n### Metrics data structure\n\nEach set of metric values is a time series with the following characteristics:\n\n- The time the value was collected\n- The resource associated with the value\n- A namespace that acts like a category for the metric\n- A metric name\n- The value itself\n- Some metrics have multiple dimensions as described in multi-dimensional metrics. Custom metrics can have up to 10 dimensions.\n\n### Thread safety\n\nAll client instance methods are thread-safe and independent of each other ([guideline](https://azure.github.io/azure-sdk/dotnet_introduction.html#dotnet-service-methods-thread-safety)). This design ensures that the recommendation of reusing client instances is always safe, even across threads.\n\n### Additional concepts\n\n<!-- CLIENT COMMON BAR -->\n[Client options](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#configuring-service-clients-using-clientoptions) |\n[Accessing the response](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#accessing-http-response-details-using-responset) |\n[Long-running operations](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#consuming-long-running-operations-using-operationt) |\n[Handling failures](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#reporting-errors-requestfailedexception) |\n[Diagnostics](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/samples/Diagnostics.md) |\n[Mocking](https://learn.microsoft.com/dotnet/azure/sdk/unit-testing-mocking) |\n[Client lifetime](https://devblogs.microsoft.com/azure-sdk/lifetime-management-and-thread-safety-guarantees-of-azure-sdk-net-clients/)\n<!-- CLIENT COMMON BAR -->\n\n## Examples\n\n- [Query metrics for multiple resources](#query-metrics-for-multiple-resources)\n  - [Query with options](#query-metrics-with-options)\n  - [Query with time range](#query-metrics-with-time-range)\n- [Register the client with dependency injection](#register-the-client-with-dependency-injection)\n\n### Query metrics for multiple resources\n\nTo query metrics for multiple Azure resources in a single request, use the `MetricsClient.QueryResourcesAsync` method. This method:\n\n- Calls a regional metrics endpoint. You must specify the regional endpoint when creating the client. For example, \"https://westus3.metrics.monitor.azure.com\".\n- Requires that each Azure resource must reside in:\n  - The same region as the endpoint specified when creating the client.\n  - The same Azure subscription.\n\nFurthermore:\n\n- The user must be authorized to read monitoring data at the Azure subscription level. For example, the [Monitoring Reader role](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/monitor#monitoring-reader) on the subscription to be queried.\n- The metric namespace containing the metrics to be queried must be provided. For a list of metric namespaces, see [Supported metrics and log categories by resource type][metric_namespaces].\n\n```C# Snippet:Query_Metrics_QueryResourcesMetrics\nstring resourceId =\n    \"/subscriptions/<id>/resourceGroups/<rg-name>/providers/<source>/storageAccounts/<resource-name-1>\";\nvar client = new MetricsClient(\n    new Uri(\"https://<region>.metrics.monitor.azure.com\"),\n    new DefaultAzureCredential());\nResponse<MetricsQueryResourcesResult> result = await client.QueryResourcesAsync(\n    resourceIds: new List<ResourceIdentifier> { new ResourceIdentifier(resourceId) },\n    metricNames: new List<string> { \"Ingress\" },\n    metricNamespace: \"Microsoft.Storage/storageAccounts\").ConfigureAwait(false);\n\nMetricsQueryResourcesResult metricsQueryResults = result.Value;\nforeach (MetricsQueryResult value in metricsQueryResults.Values)\n{\n    Console.WriteLine(value.Metrics.Count);\n}\n```\n\nFor an inventory of metrics and dimensions available for each Azure resource type, see [Supported metrics with Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/essentials/metrics-supported).\n\n#### Query metrics with options\n\nThe `QueryResourcesAsync` method also accepts a `MetricsQueryResourcesOptions`-typed argument, in which the user can specify extra properties to filter the results. The following example demonstrates the `OrderBy` and `Size` properties:\n\n```C# Snippet:Query_Metrics_QueryResourcesMetricsWithOptions\nstring resourceId =\n    \"/subscriptions/<id>/resourceGroups/<rg-name>/providers/<source>/storageAccounts/<resource-name-1>\";\nvar client = new MetricsClient(\n    new Uri(\"https://<region>.metrics.monitor.azure.com\"),\n    new DefaultAzureCredential());\nvar options = new MetricsQueryResourcesOptions\n{\n    OrderBy = \"sum asc\",\n    Size = 10\n};\n\nResponse<MetricsQueryResourcesResult> result = await client.QueryResourcesAsync(\n    resourceIds: new List<ResourceIdentifier> { new ResourceIdentifier(resourceId) },\n    metricNames: new List<string> { \"Ingress\" },\n    metricNamespace: \"Microsoft.Storage/storageAccounts\",\n    options).ConfigureAwait(false);\n\nMetricsQueryResourcesResult metricsQueryResults = result.Value;\nforeach (MetricsQueryResult value in metricsQueryResults.Values)\n{\n    Console.WriteLine(value.Metrics.Count);\n}\n```\n\n#### Query metrics with time range\n\nThe `MetricsQueryResourcesOptions`-typed argument also has a `StartTime` and `EndTime` property to allow for querying a specific time range. If only the `StartTime` is set, the `EndTime` default becomes the current time. When the `EndTime` is specified, the `StartTime` is necessary as well. The following example demonstrates the use of these properties:\n\n```C# Snippet:Query_Metrics_QueryResourcesMetricsWithOptionsStartTimeEndTime\nstring resourceId =\n    \"/subscriptions/<id>/resourceGroups/<rg-name>/providers/<source>/storageAccounts/<resource-name-1>\";\nvar client = new MetricsClient(\n    new Uri(\"https://<region>.metrics.monitor.azure.com\"),\n    new DefaultAzureCredential());\nvar options = new MetricsQueryResourcesOptions\n{\n    StartTime = DateTimeOffset.Now.AddHours(-4),\n    EndTime = DateTimeOffset.Now.AddHours(-1),\n    OrderBy = \"sum asc\",\n    Size = 10\n};\n\nResponse<MetricsQueryResourcesResult> result = await client.QueryResourcesAsync(\n    resourceIds: new List<ResourceIdentifier> { new ResourceIdentifier(resourceId) },\n    metricNames: new List<string> { \"Ingress\" },\n    metricNamespace: \"Microsoft.Storage/storageAccounts\",\n    options).ConfigureAwait(false);\n\nMetricsQueryResourcesResult metricsQueryResults = result.Value;\nforeach (MetricsQueryResult value in metricsQueryResults.Values)\n{\n    Console.WriteLine(value.Metrics.Count);\n}\n```\n\n### Register the client with dependency injection\n\nTo register a client with the dependency injection container, invoke the `AddMetricsClient` extension method.\n\nFor more information, see [Register client](https://learn.microsoft.com/dotnet/azure/sdk/dependency-injection#register-client).\n\n## Troubleshooting\n\nTo diagnose various failure scenarios, see the [troubleshooting guide](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/monitor/Azure.Monitor.Query.Metrics/TROUBLESHOOTING.md).\n\n## Next steps\n\nTo learn more about Azure Monitor, see the [Azure Monitor service documentation][azure_monitor_overview].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit [cla.microsoft.com][cla].\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately with labels and comments. Follow the instructions provided by the bot. You'll only need to sign the CLA once across all Microsoft repos.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any questions or comments.\n\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[azure_subscription]: https://azure.microsoft.com/free/dotnet/\n[changelog]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/monitor/Azure.Monitor.Query.Metrics/CHANGELOG.md\n[metric_namespaces]: https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/metrics-index#supported-metrics-and-log-categories-by-resource-type\n[msdocs_apiref]: https://learn.microsoft.com/dotnet/api/overview/azure/monitor.query.metrics-readme?view=azure-dotnet\n[package]: https://www.nuget.org/packages/Azure.Monitor.Query.Metrics\n[source]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/monitor/Azure.Monitor.Query.Metrics/src\n\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n",
+      "contentHash": "06c0c32010d1e45db3f3ccafd76a98cd7f421677f5a449275750ab9e69e3a293",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/README.md"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Azure.Monitor.Query.Metrics.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>A library for querying Azure Monitor's Metrics data source.</Description>\n    <AssemblyTitle>Azure Monitor Query Metrics client library</AssemblyTitle>\n    <Version>1.1.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.0.0</ApiCompatVersion>\n    <PackageTags>Azure Monitor Query Metrics</PackageTags>\n    <DisableEnhancedAnalysis>true</DisableEnhancedAnalysis>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n    <IsTrimmable Condition=\"$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))\">true</IsTrimmable>\n    <IsAotCompatible Condition=\"$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))\">true</IsAotCompatible>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n  <!-- Shared source from Azure.Core -->\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)HashCodeBuilder.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TypeBinder.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)PageResponseEnumerator.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n</Project>",
+      "contentHash": "60a97fda77430e80ac806ff148fcf06ba04b6b4a93ddafba65135652893d44ba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/src/Azure.Monitor.Query.Metrics.csproj"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/tsp-location.yaml",
+      "text": "repo: Azure/azure-rest-api-specs\ndirectory: specification/monitor/Monitor.Query.Metrics\ncommit: 0f07da5845f320e8595a1e376bfd634b99e7e556\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-emitter-package.json\"\n",
+      "contentHash": "8feec8fdd5436eaf79f08cb88b35ce2f00d731c2311503d1db5cce31b6d3135e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/monitor/Azure.Monitor.Query.Metrics/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "a88bcf70f56f2311f32537a0226dbd911bc55b3e4e0505714ee6afe14c6a5a39",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "3d4a195d43d6ea3388aa25cb42810759f26ad0e9370c588b9ad4cebb527bad73",
+        "category": "Convenience methods",
+        "subtype": "Expose the retained endpoint through a read-only property",
+        "explanation": "The partial MetricsClient adds a public Endpoint getter that returns _endpoint. The captured file does not show the field's initialization or perform URI normalization in this getter.",
+        "pattern": "client-endpoint-property",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The property is implemented on a partial client in src/MetricsClient.cs outside Generated, matching the supplied .NET handwritten-source rule.",
+        "symbols": [
+          "MetricsClient.Endpoint"
+        ],
+        "evidence": [
+          {
+            "id": "aed29fc764e736d02b23c76a71e65f9224036c7158aab6f317f3cd80ca17acaa",
+            "startLine": 14,
+            "endLine": 19
+          }
+        ]
+      },
+      {
+        "key": "963b7b1165c5fc3e2e812de6affcf9494dd85209e5fcc7d6fc11ce11cd835945",
+        "category": "Convenience methods",
+        "subtype": "Derive a subscription and flatten metrics query options",
+        "explanation": "QueryResources checks resource/metric enumerables with Any and explicitly rejects a null metricNamespace, derives a Guid from the first resource ID using GetSubscriptionId's literal subscriptions/ substring parsing, materializes a ResourceIdList and calls another QueryResources overload. It gives TimeRange.Start/End precedence over separate StartTime/EndTime, joins aggregation/rollup collections, formats granularity, and maps Size, OrderBy and Filter to flattened parameters. It does not verify that every resource belongs to the same subscription.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial client contains the concrete public convenience overload and private subscription extractor; the supplied options class defines the values it unpacks.",
+        "symbols": [
+          "MetricsClient.QueryResources"
+        ],
+        "evidence": [
+          {
+            "id": "aed29fc764e736d02b23c76a71e65f9224036c7158aab6f317f3cd80ca17acaa",
+            "startLine": 30,
+            "endLine": 83
+          },
+          {
+            "id": "aed29fc764e736d02b23c76a71e65f9224036c7158aab6f317f3cd80ca17acaa",
+            "startLine": 148,
+            "endLine": 152
+          },
+          {
+            "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1",
+            "startLine": 16,
+            "endLine": 48
+          },
+          {
+            "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1",
+            "startLine": 66,
+            "endLine": 84
+          }
+        ]
+      },
+      {
+        "key": "da42ffa47d4d371caa19dc9d440fdb6c65fb317bc5b06d1d30a05f423fecd039",
+        "category": "Convenience methods",
+        "subtype": "Async metrics query facade flattens options and resource identifiers",
+        "explanation": "QueryResourcesAsync rejects empty resource/metric enumerables and a null metricNamespace, extracts the first resource's subscription Guid, constructs the resource-ID model and awaits another overload with ConfigureAwait(false). It prefers TimeRange.Start/End over the separate options timestamps, maps aggregation/rollup collections and query controls to flattened arguments, and forwards cancellation. No local same-subscription/region check or current-time default is implemented.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This concrete async options overload and its supporting options type are supplied as source outside Generated; the partial client extends another overload rather than merely declaring an API listing.",
+        "symbols": [
+          "MetricsClient.QueryResourcesAsync"
+        ],
+        "evidence": [
+          {
+            "id": "aed29fc764e736d02b23c76a71e65f9224036c7158aab6f317f3cd80ca17acaa",
+            "startLine": 94,
+            "endLine": 152
+          },
+          {
+            "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1",
+            "startLine": 16,
+            "endLine": 48
+          },
+          {
+            "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1",
+            "startLine": 66,
+            "endLine": 84
+          }
+        ]
+      },
+      {
+        "key": "1a25dd46c391962f81418a9d048fd00f85d7d1c502725b13d225531218d1c967",
+        "category": "Auth",
+        "subtype": "Nullable audience option with public, government and China value helpers",
+        "explanation": "MetricsClientOptions adds nullable Audience, while the readonly partial MetricsClientAudience struct accepts a nonempty string and exposes AzureChina, AzureGovernment and AzurePublicCloud URL values plus string conversion and equality operations. This is the public authentication-configuration surface; the supplied evidence does not show an authentication pipeline consuming it or implementing the documented null-to-public-cloud fallback.",
+        "pattern": "auth-audience-configuration",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The partial options/value types have concrete declarations outside Generated, the location the frozen .NET guideline treats as handwritten.",
+        "symbols": [
+          "MetricsClientOptions.Audience",
+          "MetricsClientAudience"
+        ],
+        "evidence": [
+          {
+            "id": "5e676f1d178ca16725a564b7c4975db10e353abbcdf0db05e291858fdcf53056",
+            "startLine": 6,
+            "endLine": 12
+          },
+          {
+            "id": "968b61a008ae879e109da82bd92731d1bd316577d873412d134e76d7ad2416f8",
+            "startLine": 10,
+            "endLine": 56
+          }
+        ]
+      },
+      {
+        "key": "7e69117ab277f379c9b60c977593bb4e2695a8e3e795b7b0d8080bdc431bc710",
+        "category": "Model overrides",
+        "subtype": "Time-range value type supports timestamp/duration construction and ISO parsing",
+        "explanation": "MetricsQueryTimeRange stores nullable Start/End and a Duration, with duration-only, timestamp/duration, timestamp-pair and internal string-pair constructors. The pair constructors compute end minus start; timestamp/duration constructors leave the other timestamp null. ToIsoString emits start/end, start/duration, duration/end or duration, and Parse accepts the corresponding one/two-part forms using DateTimeOffset.TryParse and XmlConvert.ToTimeSpan. The type also exposes All, TimeSpan conversion and value equality. This does not mean the query wrappers transmit Duration: their captured code reads only Start/End.",
+        "pattern": "model-time-range-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete value-type implementation is supplied in non-Generated src, including executable construction, formatting and parsing rather than a generated API stub.",
+        "symbols": [
+          "MetricsQueryTimeRange"
+        ],
+        "evidence": [
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 14,
+            "endLine": 34
+          },
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 42,
+            "endLine": 106
+          },
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 124,
+            "endLine": 149
+          },
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 191,
+            "endLine": 233
+          }
+        ]
+      },
+      {
+        "key": "22c9c0c32430f85d7e763f11d614b3a6f052efaa765b7be00f826529bf2d33b6",
+        "category": "Model overrides",
+        "subtype": "Expose the string value of an internal localizable metric name",
+        "explanation": "MetricResult exposes public Name as LocalizedName.Value while retaining LocalizedName as an internal LocalizableString property. No fallback for a null LocalizedName is added in the captured getter.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial model implements the public projection and internal source-property declaration.",
+        "symbols": [
+          "MetricResult.Name"
+        ],
+        "evidence": [
+          {
+            "id": "6835435c4f412bf1e0080b504898bb419eff5f96848ac0f5cef83b0cc9a0e178",
+            "startLine": 6,
+            "endLine": 15
+          }
+        ]
+      },
+      {
+        "key": "1e6376d1cc65a9d96f25a57b86c6c104ffbc660d483e3317e2e9f9828e424de7",
+        "category": "Retry / error handling",
+        "subtype": "Translate a non-success metric error code into a cached ResponseError",
+        "explanation": "MetricResult.Error returns null when ErrorCode equals the exact string Success; otherwise it returns a cached ResponseError or creates one from ErrorCode and ErrorMessage. The underlying strings remain internal. This is result/error representation, not retry behavior or an HTTP failure classifier.",
+        "pattern": "model-error-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A partial model outside Generated contains the concrete lazy getter and its private error cache.",
+        "symbols": [
+          "MetricResult.Error"
+        ],
+        "evidence": [
+          {
+            "id": "6835435c4f412bf1e0080b504898bb419eff5f96848ac0f5cef83b0cc9a0e178",
+            "startLine": 6,
+            "endLine": 9
+          },
+          {
+            "id": "6835435c4f412bf1e0080b504898bb419eff5f96848ac0f5cef83b0cc9a0e178",
+            "startLine": 17,
+            "endLine": 26
+          }
+        ]
+      },
+      {
+        "key": "6bc359de1941013248f09ee1131edff13caca7b54b4b2036602489b86ecdb62a",
+        "category": "Model overrides",
+        "subtype": "Rename the generated model factory and suppress three generated signatures",
+        "explanation": "MetricsQueryModelFactory maps the generated type name QueryMetricsModelFactory to the public partial factory class and declares CodeGenSuppress for one MetricTimeSeriesElement signature and two MetricResult signatures. These attributes measure generator-facing type/member surface shaping; they do not establish the implementation of absent generated factory methods.",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Explicit CodeGenType and CodeGenSuppress attributes directly identify customization of generated factory surface in the non-Generated partial.",
+        "symbols": [
+          "MetricsQueryModelFactory"
+        ],
+        "evidence": [
+          {
+            "id": "2594076cf9467385976ca618b249a8385c593eb058784e699f67ce2c19ed124f",
+            "startLine": 7,
+            "endLine": 15
+          }
+        ]
+      },
+      {
+        "key": "818b0362fe0a79c340e88851e2da77d10444c448218609d9822cd182a476f250",
+        "category": "Model overrides",
+        "subtype": "Mocking factory converts metadata dictionary entries into model values",
+        "explanation": "MetricsQueryModelFactory.MetricTimeSeriesElement accepts an IReadOnlyDictionary<string,string> and metric values, converts each dictionary entry into MetadataValue(new LocalizableString(key), value, null), materializes the values enumerable and constructs a MetricTimeSeriesElement with null additional binary-data properties. It is documented as a mocking factory, not production request serialization.",
+        "pattern": "model-factory-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The attributed non-Generated partial factory supplies an executable dictionary-to-model adapter rather than only a generated declaration.",
+        "symbols": [
+          "MetricsQueryModelFactory.MetricTimeSeriesElement"
+        ],
+        "evidence": [
+          {
+            "id": "2594076cf9467385976ca618b249a8385c593eb058784e699f67ce2c19ed124f",
+            "startLine": 17,
+            "endLine": 31
+          }
+        ]
+      },
+      {
+        "key": "053c9c8716524a1ad8041b23813bd9946aebc9bb62e932490521d33b563bae5e",
+        "category": "Model overrides",
+        "subtype": "Mocking factory wraps a plain metric name in LocalizableString",
+        "explanation": "MetricsQueryModelFactory.MetricResult offers id, resourceType, plain string name, unit and timeSeries parameters, wraps name in new LocalizableString(name) and invokes the model constructor. No localized display-name population or error synthesis is shown.",
+        "pattern": "model-factory-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial model factory implements this concrete mocking-oriented argument adaptation.",
+        "symbols": [
+          "MetricsQueryModelFactory.MetricResult"
+        ],
+        "evidence": [
+          {
+            "id": "2594076cf9467385976ca618b249a8385c593eb058784e699f67ce2c19ed124f",
+            "startLine": 33,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "5fdda7afb4454ec3f55823dfcf6834998e7d520b9b26ab3e2b69eb43300fd2b6",
+        "category": "Model overrides",
+        "subtype": "Lazily project response timestamp strings into a time-range value",
+        "explanation": "MetricsQueryResult.TimeSpan returns a cached MetricsQueryTimeRange, initially constructed from internal StartTime and EndTime strings. The supplied value type's string constructor parses each timestamp and throws FormatException when parsing fails; the getter adds no local catch or fallback.",
+        "pattern": "model-time-range-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial response model implements a new typed getter and private cache, with the string-conversion constructor also present in the request.",
+        "symbols": [
+          "MetricsQueryResult.TimeSpan"
+        ],
+        "evidence": [
+          {
+            "id": "17436b802457750f9e93f079e820003f8f24e5fea34c3a89815fc6be5afa8abb",
+            "startLine": 8,
+            "endLine": 25
+          },
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 87,
+            "endLine": 100
+          }
+        ]
+      },
+      {
+        "key": "507168b770405a21a701adf0fe402c25d0d2a9c407927f69e817a92672a8d77a",
+        "category": "Convenience methods",
+        "subtype": "Search the metric collection by exact name",
+        "explanation": "GetMetricByName rejects a null/empty name through the imported Argument helper, scans Metrics in order and returns the first metric whose Name equals the supplied string. If no match exists it throws KeyNotFoundException containing that name. The captured comparison is not a case-insensitive lookup.",
+        "pattern": "model-name-lookup",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The partial response model outside Generated adds this concrete convenience search method.",
+        "symbols": [
+          "MetricsQueryResult.GetMetricByName"
+        ],
+        "evidence": [
+          {
+            "id": "17436b802457750f9e93f079e820003f8f24e5fea34c3a89815fc6be5afa8abb",
+            "startLine": 27,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "623cc47cb2d70f4a4e5473488032054f391cdb8e8c3c809b576905d60233900c",
+        "category": "Model overrides",
+        "subtype": "Lazily expose model metadata as a string dictionary",
+        "explanation": "MetricTimeSeriesElement.Metadata caches Metadatavalues.ToDictionary(m => m.Name.Value, m => m.Value) and exposes it as IReadOnlyDictionary<string,string>. The captured getter does not implement duplicate-key resolution or an immutable/deep-copy guarantee.",
+        "pattern": "model-dictionary-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial model contains the private underlying-list declaration, private dictionary cache and executable public projection.",
+        "symbols": [
+          "MetricTimeSeriesElement.Metadata"
+        ],
+        "evidence": [
+          {
+            "id": "38558f2dd17c86b2f26255ccb50a4fabb788d15cae70833a20b905a958c4a883",
+            "startLine": 9,
+            "endLine": 17
+          }
+        ]
+      },
+      {
+        "key": "b980a6e9e00c3d958ce14769469d8f7fbda394f2c3fd0b3ebcad526d185ecd38",
+        "category": "Model overrides",
+        "subtype": "Alternate constructor wraps resource ID strings in tracked identifiers",
+        "explanation": "The internal partial ResourceIdList type adds a public constructor accepting List<string>, initializes Resourceids as a ChangeTrackingList<ResourceIdentifier> and adds a new ResourceIdentifier for each string. This differs from the query wrappers' captured constructor call that supplies a ResourceIdentifier list and additionalBinaryDataProperties; the string-list overload is not proven to be their executed constructor.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An executable constructor is implemented on the partial model in src/Models outside Generated.",
+        "symbols": [
+          "ResourceIdList.ResourceIdList"
+        ],
+        "evidence": [
+          {
+            "id": "d8b1bfae087fda172b5feb4a1fde3fb9a4ef8aefa96b3e2e5445bf9fed8d2991",
+            "startLine": 9,
+            "endLine": 20
+          }
+        ]
+      },
+      {
+        "key": "227bbc7747a720c1a5109e1b9202aa3b618a9c536480b9dccd82816b9c7892ac",
+        "category": "Serialization",
+        "subtype": "Use a literal Z format for zero-offset timestamps",
+        "explanation": "MetricsClientExtensions.ToIsoString formats zero-offset DateTimeOffset values with yyyy-MM-ddTHH:mm:ss.fffffffZ and invariant culture; other offsets use the invariant round-trip O format. Its nullable overload returns null for an absent value. The helper formats the existing offset rather than converting arbitrary timestamps to UTC.",
+        "pattern": "datetime-utc-z-format",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated internal partial helper implements explicit timestamp formatting used by the supplied query/time-range adapters.",
+        "symbols": [
+          "MetricsClientExtensions.ToIsoString"
+        ],
+        "evidence": [
+          {
+            "id": "7e8153d0cb3a63444f8115f7d0b6ebf1791105d2c38274fcca9472d9f0029ba8",
+            "startLine": 25,
+            "endLine": 38
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "3d4a195d43d6ea3388aa25cb42810759f26ad0e9370c588b9ad4cebb527bad73",
+        "status": "accepted",
+        "reason": "The non-generated partial client explicitly adds the public getter over _endpoint; the proposal does not attribute unshown field initialization or normalization to it."
+      },
+      {
+        "key": "963b7b1165c5fc3e2e812de6affcf9494dd85209e5fcc7d6fc11ce11cd835945",
+        "status": "accepted",
+        "reason": "The synchronous overload and private subscription extractor implement the described option flattening and delegation. The code only derives a subscription from the first ID; it does not check all IDs."
+      },
+      {
+        "key": "da42ffa47d4d371caa19dc9d440fdb6c65fb317bc5b06d1d30a05f423fecd039",
+        "status": "accepted",
+        "reason": "The separately implemented asynchronous overload has its own public symbol and matching option transformation; the cited source supports the qualified claims without assuming service defaults."
+      },
+      {
+        "key": "1a25dd46c391962f81418a9d048fd00f85d7d1c502725b13d225531218d1c967",
+        "status": "revised",
+        "reason": "The option and audience value type are evidenced, but the existing auth-audience-option catalog pattern already describes this reusable audience-configuration shape. No pipeline consumption or fallback is established.",
+        "finding": {
+          "key": "1a25dd46c391962f81418a9d048fd00f85d7d1c502725b13d225531218d1c967",
+          "category": "Auth",
+          "subtype": "Configurable authentication audience and cloud value helpers",
+          "explanation": "MetricsClientOptions exposes a nullable Audience, and MetricsClientAudience offers a string constructor and public cloud, government and China audience values. The captured source does not establish how the auth pipeline consumes the option or supplies a default.",
+          "pattern": "auth-audience-option",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both concrete partial declarations are in src outside Generated, the .NET guideline's handwritten-source location.",
+          "symbols": [
+            "MetricsClientOptions.Audience",
+            "MetricsClientAudience"
+          ],
+          "evidence": [
+            {
+              "id": "5e676f1d178ca16725a564b7c4975db10e353abbcdf0db05e291858fdcf53056",
+              "startLine": 6,
+              "endLine": 12
+            },
+            {
+              "id": "968b61a008ae879e109da82bd92731d1bd316577d873412d134e76d7ad2416f8",
+              "startLine": 10,
+              "endLine": 35
+            }
+          ]
+        }
+      },
+      {
+        "key": "7e69117ab277f379c9b60c977593bb4e2695a8e3e795b7b0d8080bdc431bc710",
+        "status": "revised",
+        "reason": "Construction and parsing/ISO formatting form this handwritten time-range value adaptation, but model-time-range-adapter is also assigned to the distinct response-property projection. A value-type-specific pattern keeps the reusable shapes separate; human-readable ToString is a separate omission.",
+        "finding": {
+          "key": "7e69117ab277f379c9b60c977593bb4e2695a8e3e795b7b0d8080bdc431bc710",
+          "category": "Model overrides",
+          "subtype": "Time-range value supports alternate construction and ISO conversion",
+          "explanation": "MetricsQueryTimeRange stores start, end and duration, provides duration- and timestamp-based constructors and a TimeSpan conversion, and implements ISO interval formatting and parsing of duration or timestamp pairs. The captured query wrappers read Start and End rather than transmitting Duration.",
+          "pattern": "model-time-range-value",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The value-type implementation, including constructors and conversion methods, is supplied in src outside Generated.",
+          "symbols": [
+            "MetricsQueryTimeRange"
+          ],
+          "evidence": [
+            {
+              "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+              "startLine": 14,
+              "endLine": 106
+            },
+            {
+              "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+              "startLine": 124,
+              "endLine": 149
+            },
+            {
+              "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+              "startLine": 191,
+              "endLine": 233
+            }
+          ]
+        }
+      },
+      {
+        "key": "22c9c0c32430f85d7e763f11d614b3a6f052efaa765b7be00f826529bf2d33b6",
+        "status": "accepted",
+        "reason": "The handwritten partial model explicitly projects LocalizedName.Value as Name; the source does not show any null fallback."
+      },
+      {
+        "key": "1e6376d1cc65a9d96f25a57b86c6c104ffbc660d483e3317e2e9f9828e424de7",
+        "status": "accepted",
+        "reason": "The lazy ResponseError projection and exact Success comparison are visible in the partial model. The proposal correctly distinguishes per-metric result presentation from HTTP retries."
+      },
+      {
+        "key": "6bc359de1941013248f09ee1131edff13caca7b54b4b2036602489b86ecdb62a",
+        "status": "accepted",
+        "reason": "CodeGenType and CodeGenSuppress together shape this factory's generated public surface; the proposal confines its claim to the declared attributes rather than inferring the missing generated implementations."
+      },
+      {
+        "key": "818b0362fe0a79c340e88851e2da77d10444c448218609d9822cd182a476f250",
+        "status": "accepted",
+        "reason": "The executable factory method converts the supplied metadata dictionary into model values and materializes the value sequence; its source documentation identifies a mocking factory, not a wire serializer."
+      },
+      {
+        "key": "053c9c8716524a1ad8041b23813bd9946aebc9bb62e932490521d33b563bae5e",
+        "status": "accepted",
+        "reason": "The separate factory method wraps a plain name in LocalizableString and constructs the metric result. No additional localization or error behavior is claimed."
+      },
+      {
+        "key": "5fdda7afb4454ec3f55823dfcf6834998e7d520b9b26ab3e2b69eb43300fd2b6",
+        "status": "accepted",
+        "reason": "The response model's lazy TimeSpan getter and the cited string-pair constructor support the stated typed projection and parsing-failure behavior."
+      },
+      {
+        "key": "507168b770405a21a701adf0fe402c25d0d2a9c407927f69e817a92672a8d77a",
+        "status": "accepted",
+        "reason": "The non-generated GetMetricByName method validates, scans and returns the first exact name match or throws KeyNotFoundException."
+      },
+      {
+        "key": "623cc47cb2d70f4a4e5473488032054f391cdb8e8c3c809b576905d60233900c",
+        "status": "accepted",
+        "reason": "The handwritten model constructs and caches a dictionary from metadata names and values; the proposal does not claim duplicate handling or immutability absent from the getter."
+      },
+      {
+        "key": "b980a6e9e00c3d958ce14769469d8f7fbda394f2c3fd0b3ebcad526d185ecd38",
+        "status": "accepted",
+        "reason": "The alternate string-list constructor implements identifier conversion in an internal partial model. The proposal correctly notes that the captured client calls a different constructor."
+      },
+      {
+        "key": "227bbc7747a720c1a5109e1b9202aa3b618a9c536480b9dccd82816b9c7892ac",
+        "status": "accepted",
+        "reason": "The helper explicitly selects an invariant literal-Z format only for zero-offset values and otherwise uses invariant round-trip formatting, without converting offsets."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "f518c66fa63e4d0209035a1a165a2c7a40ade56d7108c8c8116643296fa84831",
+        "category": "Model overrides",
+        "subtype": "Expose separate timestamps alongside a hidden time-range option",
+        "explanation": "MetricsQueryResourcesOptions declares public StartTime and EndTime properties alongside a TimeRange property marked EditorBrowsable(Never). The client facade's mapping of these values is separately covered by its own proposal; this candidate concerns the option model's public shape, not a proven compatibility history.",
+        "pattern": "model-time-range-options",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The option properties and visibility attribute are concretely declared in the non-Generated src/MetricsQueryResourcesOptions.cs file.",
+        "symbols": [
+          "MetricsQueryResourcesOptions.TimeRange",
+          "MetricsQueryResourcesOptions.StartTime",
+          "MetricsQueryResourcesOptions.EndTime"
+        ],
+        "evidence": [
+          {
+            "id": "a8dc1cec5cfecd386eae8163d46a40f25faed6788bc975e0d4ccc13a584ce7f1",
+            "startLine": 16,
+            "endLine": 32
+          }
+        ]
+      },
+      {
+        "key": "51476a77935e046c2465b2a8133f4877645f4903c5ac904ec7afcf471d318bde",
+        "category": "Model overrides",
+        "subtype": "Display a time range in human-readable form",
+        "explanation": "MetricsQueryTimeRange.ToString formats the available start, end and duration values into descriptive labels; it is separate from the type's ISO request-interval conversion.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The override and its four formatting branches are implemented in the non-Generated src/MetricsQueryTimeRange.cs source.",
+        "symbols": [
+          "MetricsQueryTimeRange.ToString"
+        ],
+        "evidence": [
+          {
+            "id": "8e2e82e2f64a3b07de38de521fda1686e54c30819501448d1db517307245617a",
+            "startLine": 108,
+            "endLine": 122
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only 12 of 61 eligible files were captured from 81 discovered files. The extraction marks these items unknown; handwritten classification follows the frozen .NET rule for concrete non-Generated src and partial/CodeGen customization signals, not a complete comparison with generated output.",
+      "Generated client overloads, authentication construction/consumption, most generated model initialization and shared Azure.Core implementation are absent. The evidence establishes API/model adapters and declared audience values, not wire correctness, token scopes, service defaults, runtime behavior or full omission coverage.",
+      "The query wrappers use only the first resource to derive a subscription and do not locally enforce the README's same-subscription/region requirements. They explicitly check only null for metricNamespace; enumerable null behavior and service validation were not executed.",
+      "TimeRange takes precedence over separate timestamps but only its Start and End are forwarded. Duration is not used to calculate an absent timestamp, and no captured wrapper inserts the current time when EndTime is missing. The value type itself permits duration-only and partially specified ranges.",
+      "The audience type compares strings with InvariantCultureIgnoreCase but delegates hashing to the stored string. This is a literal source observation, not a tested runtime defect or a request to modify SDK code.",
+      "Internal whitespace validation and CommaJoin plumbing are included in the consuming range/query behavior rather than counted again. The options bag's individual property declarations and standard equality operators are not separate instances.",
+      "The captured project version is 1.1.0-beta.1 while latestRelease metadata reports stable 1.0.0; the pinned checkout is not assumed to be identical to the latest published artifact.",
+      "Only 12 of 61 eligible source files were captured (partial coverage); unobserved files, generated counterparts and client-construction/authentication pipeline are not evidence of absence or implementation.",
+      "All captured source evidence is tagged unknown provenance, although the cited non-Generated src locations and concrete partial implementations meet the supplied proposed .NET handwritten rule; generated counterparts were not supplied for comparison.",
+      "No execution or service response evidence establishes runtime defaults, cross-resource subscription/region validation outside the captured overloads, or historical reasons for the API shapes. Omissions are candidate findings requiring separate review, not accepted counts."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Internal/Argument.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "42adeb430415e348ebea4da7bd061aebe1f380d90a2926a1464155db0c518542"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClient.cs",
+      "startLine": 1,
+      "endLine": 154,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e45a65c6c87832ee267505773f9b54950e91d3b6ae7a6587d5816509763418cc"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientAudience.cs",
+      "startLine": 1,
+      "endLine": 58,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f0ed3d2691e49a634da16191b40af285474b87199d563d3017a1e26897611f1f"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientExtensions.cs",
+      "startLine": 1,
+      "endLine": 40,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "73d47901e649032733506034f51a2c4b08ef83c0f535bcb803713634ba4d0d3c"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsClientOptions.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "9b0553e0e812ac318a68cae1f47a8b98f7784a15a0b5d6c43923466e7ecfc55b"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryResourcesOptions.cs",
+      "startLine": 1,
+      "endLine": 86,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c0598938c0dfff05ef3ab5326c609fa1d90b7c6200ce815457d16961ea33f2c7"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/MetricsQueryTimeRange.cs",
+      "startLine": 1,
+      "endLine": 236,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "15a36958e77d0c4f9e1f56bd1439ce71eedadbf4a2faaf1f4282b95182a8f586"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricResult.cs",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "27fed8a1efc625178599d4d8387a53339868244de8210d4bf62c431222273476"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricTimeSeriesElement.cs",
+      "startLine": 1,
+      "endLine": 19,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "864a47634a82cf673350699051958f394bf2537aa118910adf31b34bc46f4055"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryModelFactory.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "cb7c71abf88c293701e81c29c066671364ca324c6d4156d346ae3d22d055e8e0"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/MetricsQueryResult.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d6c79925d4db7e7cf4d27d4ae3592016c546ce3495ad596282153004261838f0"
+    },
+    {
+      "path": "sdk/monitor/Azure.Monitor.Query.Metrics/src/Models/ResourceIdList.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "ffbfeac15673adc8136c6250d4ecf0f9ebb9f0b1241cdbd68028373c6dac2b41"
+    }
+  ]
+}

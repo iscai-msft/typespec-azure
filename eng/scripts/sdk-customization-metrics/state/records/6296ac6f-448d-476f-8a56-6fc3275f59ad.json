@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "id": "6296ac6f-448d-476f-8a56-6fc3275f59ad",
+  "observedAt": "2026-10-24T03:33:37.735Z",
+  "identity": "python:azure-ai-transcription:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-transcription",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/transcription/azure-ai-transcription"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "44d303349e0c1be57718ac4187e0b4428303a001"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 75,
+    "eligibleFiles": 25,
+    "capturedFiles": 3,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom collections.abc import MutableMapping\nfrom typing import Any, Optional\nimport json\nfrom azure.core.tracing.decorator import distributed_trace\nfrom azure.core.exceptions import (\n    map_error,\n    HttpResponseError,\n    ClientAuthenticationError,\n    ResourceNotFoundError,\n    ResourceExistsError,\n    ResourceNotModifiedError,\n)\n\nfrom .. import models as _models\nfrom .._utils.model_base import _deserialize, SdkJSONEncoder\nfrom ._operations import (\n    _TranscriptionClientOperationsMixin as _TranscriptionClientOperationsMixinGenerated,\n    build_transcription_transcribe_request,\n)\n\nJSON = MutableMapping[str, Any]\n\n\nclass _TranscriptionClientOperationsMixin(_TranscriptionClientOperationsMixinGenerated):\n    \"\"\"Custom operations mixin for TranscriptionClient.\"\"\"\n\n    @distributed_trace\n    def transcribe_from_url(\n        self, audio_url: str, *, options: Optional[_models.TranscriptionOptions] = None, **kwargs: Any\n    ) -> _models.TranscriptionResult:\n        \"\"\"Transcribes audio from a URL.\n\n        Use this method when the audio is hosted at a URL that the service can access.\n        For transcribing local audio files or byte streams, use :meth:`transcribe` instead.\n\n        :param audio_url: The URL of the audio file to transcribe. The audio must be shorter than 2\n         hours in duration and smaller than 250 MB in size. Required.\n        :type audio_url: str\n        :keyword options: Optional transcription configuration. If provided, the audio_url parameter\n         will override the audio_url field in the options object.\n        :paramtype options: ~azure.ai.transcription.models.TranscriptionOptions\n        :return: TranscriptionResult with the transcription text and phrases.\n        :rtype: ~azure.ai.transcription.models.TranscriptionResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/sample_transcribe_from_url.py\n                :start-after: [START transcribe_from_url]\n                :end-before: [END transcribe_from_url]\n                :language: python\n                :dedent: 4\n                :caption: Transcribe audio from a URL.\n        \"\"\"\n        # Create or update options with the audio URL\n        if options is None:\n            options = _models.TranscriptionOptions(audio_url=audio_url)\n        else:\n            options.audio_url = audio_url\n\n        # Send as multipart request with only definition (no audio file)\n        error_map: MutableMapping = {\n            401: ClientAuthenticationError,\n            404: ResourceNotFoundError,\n            409: ResourceExistsError,\n            304: ResourceNotModifiedError,\n        }\n        error_map.update(kwargs.pop(\"error_map\", {}) or {})\n\n        _headers = kwargs.pop(\"headers\", {}) or {}\n        _params = kwargs.pop(\"params\", {}) or {}\n\n        _params[\"api-version\"] = self._config.api_version\n        _headers[\"Accept\"] = \"application/json\"\n\n        # Serialize definition as JSON string for multipart\n        definition_json = json.dumps(options.as_dict(), cls=SdkJSONEncoder, exclude_readonly=True)\n\n        # Build multipart request - pass definition through files to ensure multipart encoding\n        # The definition needs to be in files list with explicit content-type to trigger multipart/form-data\n        _request = build_transcription_transcribe_request(\n            api_version=self._config.api_version,\n            files=[(\"definition\", (None, definition_json, \"application/json\"))],\n            headers=_headers,\n            params=_params,\n        )\n\n        path_format_arguments = {\n            \"endpoint\": self._serialize.url(\"self._config.endpoint\", self._config.endpoint, \"str\", skip_quote=True),\n        }\n        _request.url = self._client.format_url(_request.url, **path_format_arguments)\n\n        pipeline_response = self._client._pipeline.run(  # pylint: disable=protected-access\n            _request, stream=False, **kwargs\n        )\n        response = pipeline_response.http_response\n\n        if response.status_code not in [200]:\n            map_error(status_code=response.status_code, response=response, error_map=error_map)\n            raise HttpResponseError(response=response)\n\n        deserialized = _deserialize(_models.TranscriptionResult, response.json())\n        return deserialized\n\n\n__all__: list[str] = [\n    \"_TranscriptionClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "c6c817835d899f5c3637f8d89fe2e7b4124638ada295aab76bd9dbe102973003",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/transcription/azure-ai-transcription/azure/ai/transcription/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 127,
+      "kind": "handwritten-marker",
+      "id": "8c6668989ff6929992af0e30ce18381a6f5fad397f4e20022af8cda94d72bc30"
+    },
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/aio/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom collections.abc import MutableMapping\nfrom typing import Any, Optional\nimport json\nfrom azure.core.tracing.decorator_async import distributed_trace_async\nfrom azure.core.exceptions import (\n    map_error,\n    HttpResponseError,\n    ClientAuthenticationError,\n    ResourceNotFoundError,\n    ResourceExistsError,\n    ResourceNotModifiedError,\n)\n\nfrom ... import models as _models\nfrom ..._utils.model_base import _deserialize, SdkJSONEncoder\nfrom ..._operations._operations import build_transcription_transcribe_request\nfrom ._operations import (\n    _TranscriptionClientOperationsMixin as _TranscriptionClientOperationsMixinGenerated,\n)\n\nJSON = MutableMapping[str, Any]\n\n\nclass _TranscriptionClientOperationsMixin(_TranscriptionClientOperationsMixinGenerated):\n    \"\"\"Custom async operations mixin for TranscriptionClient.\"\"\"\n\n    @distributed_trace_async\n    async def transcribe_from_url(\n        self, audio_url: str, *, options: Optional[_models.TranscriptionOptions] = None, **kwargs: Any\n    ) -> _models.TranscriptionResult:\n        \"\"\"Transcribes audio from a URL.\n\n        Use this method when the audio is hosted at a URL that the service can access.\n        For transcribing local audio files or byte streams, use :meth:`transcribe` instead.\n\n        :param audio_url: The URL of the audio file to transcribe. The audio must be shorter than 2\n         hours in duration and smaller than 250 MB in size. Required.\n        :type audio_url: str\n        :keyword options: Optional transcription configuration. If provided, the audio_url parameter\n         will override the audio_url field in the options object.\n        :paramtype options: ~azure.ai.transcription.models.TranscriptionOptions\n        :return: TranscriptionResult with the transcription text and phrases.\n        :rtype: ~azure.ai.transcription.models.TranscriptionResult\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        .. admonition:: Example:\n\n            .. literalinclude:: ../samples/async_samples/sample_transcribe_from_url_async.py\n                :start-after: [START transcribe_from_url_async]\n                :end-before: [END transcribe_from_url_async]\n                :language: python\n                :dedent: 4\n                :caption: Transcribe audio from a URL asynchronously.\n        \"\"\"\n        # Create or update options with the audio URL\n        if options is None:\n            options = _models.TranscriptionOptions(audio_url=audio_url)\n        else:\n            options.audio_url = audio_url\n\n        # Send as multipart request with only definition (no audio file)\n        error_map: MutableMapping = {\n            401: ClientAuthenticationError,\n            404: ResourceNotFoundError,\n            409: ResourceExistsError,\n            304: ResourceNotModifiedError,\n        }\n        error_map.update(kwargs.pop(\"error_map\", {}) or {})\n\n        _headers = kwargs.pop(\"headers\", {}) or {}\n        _params = kwargs.pop(\"params\", {}) or {}\n\n        _headers[\"Accept\"] = \"application/json\"\n\n        # Serialize definition as JSON string for multipart\n        definition_json = json.dumps(options.as_dict(), cls=SdkJSONEncoder, exclude_readonly=True)\n\n        # Build multipart request - pass definition through files to ensure multipart encoding\n        # The definition needs to be in files list with explicit content-type to trigger multipart/form-data\n        _request = build_transcription_transcribe_request(\n            api_version=self._config.api_version,\n            files=[(\"definition\", (None, definition_json, \"application/json\"))],\n            headers=_headers,\n        )\n\n        path_format_arguments = {\n            \"endpoint\": self._serialize.url(\"self._config.endpoint\", self._config.endpoint, \"str\", skip_quote=True),\n        }\n        _request.url = self._client.format_url(_request.url, **path_format_arguments)\n\n        pipeline_response = await self._client._pipeline.run(  # pylint: disable=protected-access\n            _request, stream=False, **kwargs\n        )\n        response = pipeline_response.http_response\n\n        if response.status_code not in [200]:\n            map_error(status_code=response.status_code, response=response, error_map=error_map)\n            raise HttpResponseError(response=response)\n\n        deserialized = _deserialize(_models.TranscriptionResult, response.json())\n        return deserialized\n\n\n__all__: list[str] = [\n    \"_TranscriptionClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "797c7903b7bf3607eb54264f786543f9b57cb1190ebed6ebca3816ae6379a3d0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/transcription/azure-ai-transcription/azure/ai/transcription/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 125,
+      "kind": "handwritten-marker",
+      "id": "cd900760dbbd756f4719596e17985257aecd37c7aa4edf793b89632dd3300fb2"
+    },
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/models/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import Any, Optional\n\nfrom ._models import EnhancedModeProperties as _EnhancedModeProperties\n\n\nclass EnhancedModeProperties(_EnhancedModeProperties):\n    \"\"\"Enhanced mode properties for transcription.\n\n    :ivar task: Task type for enhanced mode.\n    :vartype task: str\n    :ivar target_language: Target language for enhanced mode.\n    :vartype target_language: str\n    :ivar prompt: A list of user prompts.\n    :vartype prompt: list[str]\n    \"\"\"\n\n    def __init__(\n        self,\n        *,\n        task: Optional[str] = None,\n        target_language: Optional[str] = None,\n        prompt: Optional[list[str]] = None,\n        **kwargs: Any,\n    ) -> None:\n        super().__init__(task=task, target_language=target_language, prompt=prompt, **kwargs)\n        # Automatically set enabled=True if any enhanced mode properties are specified\n        # This is hidden from public API but sent to the server\n        self._enabled: Optional[bool] = None\n        if task is not None or target_language is not None or prompt is not None:\n            self._enabled = True\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> dict[str, Any]:\n        \"\"\"Return a dict that can be turned into json using json.dump.\n\n        :keyword bool exclude_readonly: Whether to remove the readonly properties.\n        :returns: A dict JSON compatible object\n        :rtype: dict\n        \"\"\"\n        result = super().as_dict(exclude_readonly=exclude_readonly)\n        # Always include enabled in the request if it's set\n        if self._enabled is not None:\n            result[\"enabled\"] = self._enabled\n        return result\n\n\n__all__: list[str] = [\n    \"EnhancedModeProperties\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "a2c4f4b43881ae995a83de2201731aa5e01a40520f8bb66265db8bcefb408054",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/transcription/azure-ai-transcription/azure/ai/transcription/models/_patch.py",
+      "startLine": 1,
+      "endLine": 66,
+      "kind": "handwritten-marker",
+      "id": "f35fa468c8573e49101a6fccceffa702cfbdf3175572abfc666aed29ea67397d"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/transcription/azure-ai-transcription/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-ai-transcription\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure AI Transcription Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.ai.transcription._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.ai\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-build]\nverifytypes = false\nis_stable = false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "bcd088e231314f2a68eb1be86d30193a3df3b8615672f23a11b979815e353dfa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/transcription/azure-ai-transcription/pyproject.toml"
+    },
+    {
+      "path": "sdk/transcription/azure-ai-transcription/tsp-location.yaml",
+      "text": "directory: specification/cognitiveservices/Speech.Transcription\ncommit: d6252ab190c48cbb78b72e32404fa03043430624\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "07337d10bf6301d7ae29b295173c8c93fe47c0486156fd2311cd149675e0cc1e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/transcription/azure-ai-transcription/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "2c4bdeb7112b9fbfc9a5070e09e53835c5cb19fad09194a7c3459c04424777a4",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "63f2a3fb59666ffea044b06ef61236fd17d59f58c19c0c16b897bb5d6434525f",
+        "category": "Multipart",
+        "subtype": "Send URL transcription as a definition-only JSON multipart request",
+        "explanation": "The traced transcribe_from_url creates options or mutates the supplied options.audio_url, serializes options.as_dict through SdkJSONEncoder and passes a single application/json definition part with no filename to the generated request builder. It sets Accept and configured API version, forwards params, formats the endpoint and runs the pipeline without streaming. Non-200 responses use an overridable error map then HttpResponseError; successful JSON is deserialized into TranscriptionResult.",
+        "pattern": "multipart-definition-only-request",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The operations _patch.py exports a generated-mixin subclass with a complete additional public method implementing request preparation and pipeline/result handling.",
+        "symbols": [
+          "_TranscriptionClientOperationsMixin.transcribe_from_url"
+        ],
+        "evidence": [
+          {
+            "id": "8c6668989ff6929992af0e30ce18381a6f5fad397f4e20022af8cda94d72bc30",
+            "startLine": 34,
+            "endLine": 40
+          },
+          {
+            "id": "8c6668989ff6929992af0e30ce18381a6f5fad397f4e20022af8cda94d72bc30",
+            "startLine": 65,
+            "endLine": 113
+          }
+        ]
+      },
+      {
+        "key": "69d73ac20cd50606811dbd9727495130aae55dad8fc3a180bbe26c9f391dd4fb",
+        "category": "Multipart",
+        "subtype": "Build a definition-only URL-transcription multipart request and await its pipeline",
+        "explanation": "The async traced method creates or mutates options.audio_url, serializes the definition and invokes the generated builder with one application/json definition part, configured api_version and Accept header. It awaits the non-streaming pipeline, maps non-200 errors and deserializes successful JSON. It pops params into _params but does not pass that mapping to the builder, unlike the sync implementation.",
+        "pattern": "multipart-definition-only-request",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The aio operations patch exports a generated-mixin subclass and supplies this concrete async method rather than skeleton code.",
+        "symbols": [
+          "_TranscriptionClientOperationsMixin.transcribe_from_url"
+        ],
+        "evidence": [
+          {
+            "id": "cd900760dbbd756f4719596e17985257aecd37c7aa4edf793b89632dd3300fb2",
+            "startLine": 34,
+            "endLine": 40
+          },
+          {
+            "id": "cd900760dbbd756f4719596e17985257aecd37c7aa4edf793b89632dd3300fb2",
+            "startLine": 65,
+            "endLine": 111
+          }
+        ]
+      },
+      {
+        "key": "6e663311425d0ff2b6c926844375b40e44f82e230a4384d55d8c345e76b2fb7e",
+        "category": "Model overrides",
+        "subtype": "Infer an internal enabled flag from provided enhanced-mode options",
+        "explanation": "EnhancedModeProperties.__init__ forwards task, target_language and prompt to its generated base, initializes _enabled to None and sets it True when any of those inputs is non-None. Empty strings or an empty prompt list therefore satisfy the visible non-None test; no explicit False assignment or input validation is present.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The models patch exports a generated-model subclass with additional constructor state and conditional behavior.",
+        "symbols": [
+          "EnhancedModeProperties.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "f35fa468c8573e49101a6fccceffa702cfbdf3175572abfc666aed29ea67397d",
+            "startLine": 15,
+            "endLine": 39
+          }
+        ]
+      },
+      {
+        "key": "00946ae4906c3dec22bbda2a515d05e380b6d9ea5ae61b7d15c02aa2bf16f61e",
+        "category": "Serialization",
+        "subtype": "Inject enabled into the model dictionary when its internal flag is set",
+        "explanation": "EnhancedModeProperties.as_dict delegates with the requested exclude_readonly value, then writes result['enabled'] from _enabled whenever that field is non-None. This conditional injection happens after the base serialization call and returns the modified dictionary.",
+        "pattern": "conditional-model-field-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported models-patch subclass overrides as_dict with a substantive field-injection body.",
+        "symbols": [
+          "EnhancedModeProperties.as_dict"
+        ],
+        "evidence": [
+          {
+            "id": "f35fa468c8573e49101a6fccceffa702cfbdf3175572abfc666aed29ea67397d",
+            "startLine": 41,
+            "endLine": 52
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "63f2a3fb59666ffea044b06ef61236fd17d59f58c19c0c16b897bb5d6434525f",
+        "status": "accepted",
+        "reason": "The exported sync patch subclass actually defines transcribe_from_url and builds a definition-only multipart request, runs the pipeline, maps errors, and deserializes the result at the cited lines. Multipart describes the distinctive request shaping; this kind of request construction could plausibly be generated."
+      },
+      {
+        "key": "69d73ac20cd50606811dbd9727495130aae55dad8fc3a180bbe26c9f391dd4fb",
+        "status": "accepted",
+        "reason": "The exported async patch subclass defines the cited method and its definition-only multipart request and awaited response path. It pops params without forwarding them to the builder, exactly as stated; this is an observation, not proof of a runtime failure. A generated multipart operation is plausible."
+      },
+      {
+        "key": "6e663311425d0ff2b6c926844375b40e44f82e230a4384d55d8c345e76b2fb7e",
+        "status": "revised",
+        "reason": "The constructor condition and handwritten model subclass are supported, but model-alternate-constructors describes extra constructors, not the observed implicit enablement of an internal field by the ordinary constructor. Use a reusable conditional model flag pattern instead.",
+        "finding": {
+          "key": "6e663311425d0ff2b6c926844375b40e44f82e230a4384d55d8c345e76b2fb7e",
+          "category": "Model overrides",
+          "subtype": "Infer an internal enabled flag from provided enhanced-mode options",
+          "explanation": "EnhancedModeProperties.__init__ forwards task, target_language and prompt to its generated base, initializes _enabled to None and sets it to True when any of those inputs is non-None; even empty strings and an empty prompt list meet that condition. The cited constructor does not explicitly assign False.",
+          "pattern": "model-conditional-enable-flag",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The models _patch.py exports an EnhancedModeProperties subclass with a substantive constructor that adds conditional state to the generated model.",
+          "symbols": [
+            "EnhancedModeProperties.__init__"
+          ],
+          "evidence": [
+            {
+              "id": "f35fa468c8573e49101a6fccceffa702cfbdf3175572abfc666aed29ea67397d",
+              "startLine": 15,
+              "endLine": 39
+            }
+          ]
+        }
+      },
+      {
+        "key": "00946ae4906c3dec22bbda2a515d05e380b6d9ea5ae61b7d15c02aa2bf16f61e",
+        "status": "accepted",
+        "reason": "The exported patch model overrides as_dict to call the generated base and conditionally insert enabled into its returned dictionary. The cited lines support the separate serialization behavior, and conditional model field serialization is a reusable shape that a generator could plausibly implement."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Partial coverage: three of 25 eligible files among 75 discovered files are supplied. Complete patch files do not establish absence of other customizations; skipped/error lists are empty.",
+      "The three files have handwritten-marker provenance, exported subclasses and real method bodies. Their docstring-only patch_sdk hooks and imported generated serialization utilities are not separate instances.",
+      "The generated builder/mixins, models/configuration, SdkJSONEncoder, _deserialize, base as_dict and core transport/error helper implementations are absent. Actual multipart encoding, wire output, authentication and runtime correctness are not independently established.",
+      "The sync method forwards custom params after setting api-version; the async method pops params but does not forward the resulting mapping. This is a literal source difference, not a verified runtime diagnosis or a separate same-symbol customization instance.",
+      "Supplied options are mutated to set audio_url. Documentation's duration/size limits are not locally enforced in the captured methods; no URL reachability, media validation or server-side limits are inferred.",
+      "The model's _enabled is conventional internal state, not proof of an inaccessible public field: kwargs are forwarded to an uncaptured base. Serialization visibly injects the field after the base call, but exact base-field behavior is unknown.",
+      "Library metadata says stable/latest 1.0.0 while pyproject classifiers/build settings say beta/not stable; no release-state reconciliation is inferred. Generator addressability is plausible only.",
+      "Coverage is partial: only three of 25 eligible files were captured among 75 discovered files. This review cannot establish the absence of other package customizations.",
+      "The supplied evidence omits the generated model and operation implementations and the underlying TypeSpec definitions. Generator addressability is a plausibility judgment, not confirmation that current TypeSpec or the generator supports these exact behaviors.",
+      "The async method discards the popped params mapping before calling the generated builder, unlike the sync method; without the builder implementation or execution, the effect on caller-supplied query parameters cannot be established."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 127,
+      "provenance": "Python patch",
+      "contentHash": "c6c817835d899f5c3637f8d89fe2e7b4124638ada295aab76bd9dbe102973003"
+    },
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 125,
+      "provenance": "Python patch",
+      "contentHash": "797c7903b7bf3607eb54264f786543f9b57cb1190ebed6ebca3816ae6379a3d0"
+    },
+    {
+      "path": "sdk/transcription/azure-ai-transcription/azure/ai/transcription/models/_patch.py",
+      "startLine": 1,
+      "endLine": 66,
+      "provenance": "Python patch",
+      "contentHash": "a2c4f4b43881ae995a83de2201731aa5e01a40520f8bb66265db8bcefb408054"
+    }
+  ]
+}

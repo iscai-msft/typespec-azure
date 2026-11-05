@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "id": "cac10294-5ff6-474c-9991-45558869b6f3",
+  "observedAt": "2026-10-30T18:55:11.630Z",
+  "identity": "dotnet:azure.provisioning.cdn:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Provisioning.Cdn",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/cdn/Azure.Provisioning.Cdn"
+  },
+  "commit": "46c60441441d5e4d6ef965b6ce6560c717cc5307",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "1e27843ecdc702662d9a9db4a76bc1a95d1b35ab"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 269,
+    "eligibleFiles": 259,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnOrigin.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing Azure.Provisioning;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Provisioning.Cdn\n{\n    public partial class CdnOrigin\n    {\n        // Replace the duplicated flattened property until model-property flattening is fixed.\n        /// <summary> Gets or sets the HostName. </summary>\n        [CodeGenMember(\"HostName\")]\n        public BicepValue<string> HostName\n        {\n            get\n            {\n                return Properties is null ? default : Properties.HostName;\n            }\n            set\n            {\n                if (Properties is null)\n                {\n                    Properties = new OriginProperties();\n                }\n                Properties.HostName = value;\n            }\n        }\n    }\n}\n",
+      "contentHash": "361d4093e05f464e6f6ea2ccd457d65bf00e442ab2173661c932df0f640f1d5c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnOrigin.cs",
+      "startLine": 1,
+      "endLine": 32,
+      "kind": "handwritten-marker",
+      "id": "2a319751ccd239b990f24e5ddf63fae6aa8228b0a2873892916579e425846c1c"
+    },
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnProfile.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Provisioning.Cdn\n{\n    /// <summary>\n    /// Renames the generated <c>Profile</c> resource to <c>CdnProfile</c> to avoid\n    /// the AZC0012 too-generic-name analyzer warning and to preserve the public\n    /// type name used by the previous (reflection-based) provisioning generator.\n    /// </summary>\n    [CodeGenType(\"Profile\")]\n    public partial class CdnProfile\n    {\n    }\n}\n",
+      "contentHash": "f5c68ac2fdce426327a4f0975302423825b9e0fb982b4b7a0370e7f4b42783b8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnProfile.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "kind": "handwritten-marker",
+      "id": "b27128a8582505a9b763fa5932908619cccac44c46f19c9a1aed737085f520ee"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/README.md",
+      "text": "# Azure Provisioning Cdn client library for .NET\n\nAzure.Provisioning.Cdn simplifies declarative resource provisioning for Azure CDN in .NET.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.Provisioning.Cdn --prerelease\n```\n\n### Prerequisites\n\n> You must have an [Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\n## Key concepts\n\nThis library allows you to specify your infrastructure in a declarative style using dotnet.  You can then use `azd` to deploy your infrastructure to Azure directly without needing to write or maintain bicep or arm templates.\n\n## Examples\n\n### Create a CDN Profile and Endpoint with Custom Origin\n\nThis example demonstrates how to create a CDN profile and endpoint with a custom origin, based on the [Azure quickstart template](https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.cdn/cdn-with-custom-origin/main.bicep).\n\n```C# Snippet:CdnWithCustomOrigin\nInfrastructure infra = new();\n\nProvisioningParameter profileName = new(nameof(profileName), typeof(string))\n{\n    Description = \"Name of the CDN Profile.\"\n};\ninfra.Add(profileName);\n\nProvisioningParameter endpointName = new(nameof(endpointName), typeof(string))\n{\n    Description = \"Name of the CDN Endpoint, must be unique.\"\n};\ninfra.Add(endpointName);\n\nProvisioningParameter originUrl = new(nameof(originUrl), typeof(string))\n{\n    Description = \"Url of the origin.\"\n};\ninfra.Add(originUrl);\n\nCdnProfile profile = new(nameof(profile), CdnProfile.ResourceVersions.V2025_06_01)\n{\n    Name = profileName,\n    Location = new AzureLocation(\"global\"),\n    SkuName = CdnSkuName.StandardMicrosoft\n};\ninfra.Add(profile);\n\nCdnEndpoint endpoint = new(nameof(endpoint), CdnEndpoint.ResourceVersions.V2025_06_01)\n{\n    Parent = profile,\n    Name = endpointName,\n    Location = new AzureLocation(\"global\"),\n    OriginHostHeader = originUrl,\n    IsHttpAllowed = true,\n    IsHttpsAllowed = true,\n    QueryStringCachingBehavior = QueryStringCachingBehavior.IgnoreQueryString,\n    IsCompressionEnabled = true,\n    ContentTypesToCompress =\n    {\n        \"application/javascript\",\n        \"application/json\",\n        \"application/xml\",\n        \"text/css\",\n        \"text/html\",\n        \"text/plain\"\n    },\n    Origins =\n    {\n        new DeepCreatedOrigin\n        {\n            Name = \"origin1\",\n            HostName = originUrl\n        }\n    }\n};\ninfra.Add(endpoint);\n\ninfra.Add(new ProvisioningOutput(\"endpointHostName\", typeof(string)) { Value = endpoint.HostName });\n```\n\n### Create a Front Door Standard/Premium Profile\n\nThis example demonstrates how to create a Front Door Standard/Premium profile with an endpoint, origin group, origin, and route, based on the [Azure quickstart template](https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.cdn/front-door-standard-premium/main.bicep).\n\n```C# Snippet:FrontDoorStandardPremium\nInfrastructure infra = new();\n\nProvisioningParameter originHostName = new(nameof(originHostName), typeof(string))\n{\n    Description = \"The host name that should be used when connecting from Front Door to the origin.\"\n};\ninfra.Add(originHostName);\n\nCdnProfile profile = new(nameof(profile), CdnProfile.ResourceVersions.V2025_06_01)\n{\n    Name = \"MyFrontDoor\",\n    Location = new AzureLocation(\"global\"),\n    SkuName = CdnSkuName.StandardAzureFrontDoor\n};\ninfra.Add(profile);\n\nFrontDoorEndpoint endpoint = new(nameof(endpoint), FrontDoorEndpoint.ResourceVersions.V2025_06_01)\n{\n    Parent = profile,\n    Name = \"MyEndpoint\",\n    Location = new AzureLocation(\"global\"),\n    EnabledState = EnabledState.Enabled\n};\ninfra.Add(endpoint);\n\nFrontDoorOriginGroup originGroup = new(nameof(originGroup), FrontDoorOriginGroup.ResourceVersions.V2025_06_01)\n{\n    Parent = profile,\n    Name = \"MyOriginGroup\",\n    LoadBalancingSettings = new LoadBalancingSettings\n    {\n        SampleSize = 4,\n        SuccessfulSamplesRequired = 3\n    },\n    HealthProbeSettings = new HealthProbeSettings\n    {\n        ProbePath = \"/\",\n        ProbeRequestType = HealthProbeRequestType.Head,\n        ProbeProtocol = HealthProbeProtocol.Http,\n        ProbeIntervalInSeconds = 100\n    }\n};\ninfra.Add(originGroup);\n\nFrontDoorOrigin origin = new(nameof(origin), FrontDoorOrigin.ResourceVersions.V2025_06_01)\n{\n    Parent = originGroup,\n    Name = \"MyOrigin\",\n    HostName = originHostName,\n    HttpPort = 80,\n    HttpsPort = 443,\n    OriginHostHeader = originHostName,\n    Priority = 1,\n    Weight = 1000\n};\ninfra.Add(origin);\n\nFrontDoorRoute route = new(nameof(route), FrontDoorRoute.ResourceVersions.V2025_06_01)\n{\n    Parent = endpoint,\n    Name = \"MyRoute\",\n    OriginGroupId = originGroup.Id,\n    SupportedProtocols =\n    {\n        FrontDoorEndpointProtocol.Http,\n        FrontDoorEndpointProtocol.Https\n    },\n    PatternsToMatch =\n    {\n        \"/*\"\n    },\n    ForwardingProtocol = ForwardingProtocol.HttpsOnly,\n    LinkToDefaultDomain = LinkToDefaultDomain.Enabled,\n    HttpsRedirect = HttpsRedirect.Enabled\n};\ninfra.Add(route);\n\ninfra.Add(new ProvisioningOutput(\"frontDoorEndpointHostName\", typeof(string)) { Value = endpoint.HostName });\n```\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "bd3c106e3788599b6a29973fba5162a56dedf7a278dcb1f61264fbfd84e9d48c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/cdn/Azure.Provisioning.Cdn/README.md"
+    },
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/src/Azure.Provisioning.Cdn.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>Azure.Provisioning.Cdn simplifies declarative resource provisioning in .NET.</Description>\n    <Version>1.0.0-beta.5</Version>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Provisioning\" />\n  </ItemGroup>\n\n</Project>\n",
+      "contentHash": "77fc674b990fa5529e0e19e8a0d9daea3dbe60a601102f19be30d62424ebbb99",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/cdn/Azure.Provisioning.Cdn/src/Azure.Provisioning.Cdn.csproj"
+    },
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/tsp-location.yaml",
+      "text": "directory: specification/cdn/resource-manager/Microsoft.Cdn/Cdn\ncommit: b1e7325f0722352d57f2408b35b038e9896844a8\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-provisioning-emitter-package.json\"\n",
+      "contentHash": "86d24e06f3e9090921459280fe459217b5c852689400d710ef1a641a37bbb859",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/cdn/Azure.Provisioning.Cdn/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "5ed2e9f93527626d6c3e5d956f29f2a90121371aa5345a4ac4d86a9001ab16ac",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "ad3590db6c0e4525fde0a484cd5d57c12d36e4f5968ee61875839b176fdbbdad",
+        "category": "Model overrides",
+        "subtype": "Flattened property replacement",
+        "explanation": "Replaces HostName with a BicepValue<string> accessor forwarding to Properties.HostName, returning default when Properties is absent and creating OriginProperties on assignment.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "CodeGenMember and explicit forwarding bodies in a non-generated Custom partial identify a handwritten replacement; flattening generation could plausibly provide it.",
+        "symbols": [
+          "CdnOrigin.HostName"
+        ],
+        "evidence": [
+          {
+            "id": "2a319751ccd239b990f24e5ddf63fae6aa8228b0a2873892916579e425846c1c",
+            "startLine": 15,
+            "endLine": 29
+          }
+        ]
+      },
+      {
+        "key": "1c0810df2ea22bfb356c2e7ea8884d521f5eae6d77aebf195fe2d0c726e86914",
+        "category": "Model overrides",
+        "subtype": "Resource type rename",
+        "explanation": "Maps the generated Profile resource type to the public CdnProfile type.",
+        "pattern": "model-type-rename",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The Custom partial has an explicit CodeGenType mapping, so its otherwise empty body is not empty scaffolding. A declarative type-name override could express the mapping.",
+        "symbols": [
+          "CdnProfile"
+        ],
+        "evidence": [
+          {
+            "id": "b27128a8582505a9b763fa5932908619cccac44c46f19c9a1aed737085f520ee",
+            "startLine": 13,
+            "endLine": 16
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "ad3590db6c0e4525fde0a484cd5d57c12d36e4f5968ee61875839b176fdbbdad",
+        "status": "accepted",
+        "reason": "The non-generated Custom partial explicitly maps CdnOrigin.HostName with CodeGenMember and implements a getter and setter forwarding through Properties.HostName, including null handling and creation of OriginProperties (2a319751ccd239b990f24e5ddf63fae6aa8228b0a2873892916579e425846c1c, lines 11-29). This supports the model-property-alias shape as a flattened property projection, not a generated poller or an additional unrelated customization. Generator support for such a projection is plausible, not demonstrated."
+      },
+      {
+        "key": "1c0810df2ea22bfb356c2e7ea8884d521f5eae6d77aebf195fe2d0c726e86914",
+        "status": "accepted",
+        "reason": "The Custom partial CdnProfile is annotated CodeGenType(\"Profile\"), directly supporting a handwritten generated-type name mapping despite the empty class body (b27128a8582505a9b763fa5932908619cccac44c46f19c9a1aed737085f520ee, lines 13-16). The supplied README also uses CdnProfile, but the stated historical name and analyzer motivation come from its source comment, not independently supplied prior-version or analyzer evidence. model-type-rename matches the catalog, and a declarative naming facility could plausibly provide this mapping."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only the two supplied Custom files were assessed; coverage is partial, with 269 discovered files, 259 eligible files and 2 captured files. Findings do not establish exhaustive customization discovery.",
+      "Generation context consists of README, project metadata and tsp-location, not generated source or analyzer output. Source comments about duplicate flattening, analyzer warnings and previous-generator compatibility were not independently verified.",
+      "Generator-addressable judgments are plausible naming and flattening opportunities, not confirmation of current generator capabilities. No runtime or deployment tests were performed.",
+      "Coverage is partial: 2 of 259 eligible files were captured from 269 discovered files. No claim is made about customizations outside these two supplied source files.",
+      "No generated counterpart, generator output, earlier public API, or analyzer result is supplied. The attributes and explicit non-generated implementations establish the two reviewed handwritten customizations, while duplicate-generation, historical-compatibility, and motivation claims cannot independently be verified.",
+      "Both supplied source files were reviewed for distinct behavior; the forwarding property and the type mapping exhaust the candidates visible in this bounded evidence, not the package."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnOrigin.cs",
+      "startLine": 1,
+      "endLine": 32,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "361d4093e05f464e6f6ea2ccd457d65bf00e442ab2173661c932df0f640f1d5c"
+    },
+    {
+      "path": "sdk/cdn/Azure.Provisioning.Cdn/src/Custom/CdnProfile.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f5c68ac2fdce426327a4f0975302423825b9e0fb982b4b7a0370e7f4b42783b8"
+    }
+  ]
+}

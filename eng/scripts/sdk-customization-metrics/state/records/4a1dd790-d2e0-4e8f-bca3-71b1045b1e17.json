@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "id": "4a1dd790-d2e0-4e8f-bca3-71b1045b1e17",
+  "observedAt": "2026-10-22T20:42:38.404Z",
+  "identity": "python:azure-data-tables:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-data-tables",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/tables/azure-data-tables"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "9037ed41ffd2c25289bb0d4124ce1a8d5d533480"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 144,
+    "eligibleFiles": 51,
+    "capturedFiles": 4,
+    "skipped": [
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_encoder.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_entity.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_error.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_models.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_policies.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_serialize.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_shared_access_signature.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_batch.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_service_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_shared_access_signature.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_authentication_async.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_base_client_async.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_models.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_policies_async.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_table_client_async.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_table_service_client_async.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_authentication.py",
+      "text": "# -------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for\n# license information.\n# --------------------------------------------------------------------------\nfrom urllib.parse import urlparse\nfrom typing import Optional, Union, overload, cast\n\nfrom azure.core.credentials import TokenCredential, AzureSasCredential, AzureNamedKeyCredential\nfrom azure.core.exceptions import ClientAuthenticationError\nfrom azure.core.pipeline import PipelineResponse, PipelineRequest\nfrom azure.core.pipeline.policies import BearerTokenCredentialPolicy, SansIOHTTPPolicy, AzureSasCredentialPolicy\nfrom azure.core.pipeline.transport import AsyncHttpTransport\n\ntry:\n    from yarl import URL  # cspell:disable-line\nexcept ImportError:\n    pass\n\nfrom ._common_conversion import _sign_string\nfrom ._error import _wrap_exception\nfrom ._constants import STORAGE_OAUTH_SCOPE, COSMOS_OAUTH_SCOPE\n\n\nclass AzureSigningError(ClientAuthenticationError):\n    \"\"\"\n    Represents a fatal error when attempting to sign a request.\n    In general, the cause of this exception is user error. For example, the given account key is not valid.\n    Please visit https://learn.microsoft.com/azure/storage/common/storage-create-storage-account for more info.\n    \"\"\"\n\n\nclass _HttpChallenge(object):  # pylint:disable=too-few-public-methods\n    \"\"\"Represents a parsed HTTP WWW-Authentication Bearer challenge from a server.\n\n    :param challenge: The WWW-Authenticate header of the challenge response.\n    :type challenge: str\n    \"\"\"\n\n    def __init__(self, challenge):\n        if not challenge:\n            raise ValueError(\"Challenge cannot be empty\")\n\n        self._parameters = {}\n\n        # Split the scheme (\"Bearer\") from the challenge parameters\n        trimmed_challenge = challenge.strip()\n        split_challenge = trimmed_challenge.split(\" \", 1)\n        trimmed_challenge = split_challenge[1]\n\n        # Split trimmed challenge into name=value pairs; these pairs are expected to be split by either commas or spaces\n        # Values may be surrounded by quotes, which are stripped here\n        separator = \",\" if \",\" in trimmed_challenge else \" \"\n        for item in trimmed_challenge.split(separator):\n            # Process 'name=value' pairs\n            comps = item.split(\"=\")\n            if len(comps) == 2:\n                key = comps[0].strip(' \"')\n                value = comps[1].strip(' \"')\n                if key:\n                    self._parameters[key] = value\n\n        # Challenge must specify authorization or authorization_uri\n        if not self._parameters or (\n            \"authorization\" not in self._parameters and \"authorization_uri\" not in self._parameters\n        ):\n            raise ValueError(\"Invalid challenge parameters. `authorization` or `authorization_uri` must be present.\")\n\n        authorization_uri = self._parameters.get(\"authorization\") or self._parameters.get(\"authorization_uri\") or \"\"\n        # the authorization server URI should look something like https://login.windows.net/tenant-id[/oauth2/authorize]\n        uri_path = urlparse(authorization_uri).path.lstrip(\"/\")\n        self.tenant_id = uri_path.split(\"/\")[0] or None\n\n        self.scope = self._parameters.get(\"scope\") or \"\"\n        self.resource = self._parameters.get(\"resource\") or self._parameters.get(\"resource_id\") or \"\"\n\n\nclass SharedKeyCredentialPolicy(SansIOHTTPPolicy):\n    def __init__(self, credential, is_emulated=False):\n        self._credential = credential\n        self.is_emulated = is_emulated\n\n    def _get_headers(self, request, headers_to_sign):\n        headers = dict((name.lower(), value) for name, value in request.headers.items() if value)\n        if \"content-length\" in headers and headers[\"content-length\"] == \"0\":\n            del headers[\"content-length\"]\n        return \"\\n\".join(headers.get(x, \"\") for x in headers_to_sign) + \"\\n\"\n\n    def _get_verb(self, request):\n        return request.method + \"\\n\"\n\n    def _get_canonicalized_resource(self, request):\n        uri_path = urlparse(request.http_request.url).path\n        try:\n            if (\n                isinstance(request.context.transport, AsyncHttpTransport)\n                or isinstance(\n                    getattr(request.context.transport, \"_transport\", None),\n                    AsyncHttpTransport,\n                )\n                or isinstance(\n                    getattr(\n                        getattr(request.context.transport, \"_transport\", None),\n                        \"_transport\",\n                        None,\n                    ),\n                    AsyncHttpTransport,\n                )\n            ):\n                uri_path = URL(uri_path)\n                return \"/\" + self._credential.named_key.name + str(uri_path)\n        except TypeError:\n            pass\n        return \"/\" + self._credential.named_key.name + uri_path\n\n    def _get_canonicalized_headers(self, request):\n        string_to_sign = \"\"\n        x_ms_headers = []\n        for name, value in request.headers.items():\n            if name.startswith(\"x-ms-\"):\n                x_ms_headers.append((name.lower(), value))\n        x_ms_headers.sort()\n        for name, value in x_ms_headers:\n            if value is not None:\n                string_to_sign += \"\".join([name, \":\", value, \"\\n\"])\n        return string_to_sign\n\n    def _add_authorization_header(self, request, string_to_sign):\n        try:\n            signature = _sign_string(self._credential.named_key.key, string_to_sign)\n            auth_string = \"SharedKey \" + self._credential.named_key.name + \":\" + signature\n            request.headers[\"Authorization\"] = auth_string\n        except Exception as ex:\n            # Wrap any error that occurred as signing error\n            # Doing so will clarify/locate the source of problem\n            raise _wrap_exception(ex, AzureSigningError) from ex\n\n    def on_request(self, request: PipelineRequest) -> None:\n        self.sign_request(request)\n\n    def sign_request(self, request: PipelineRequest) -> None:\n        string_to_sign = (\n            self._get_verb(request.http_request)\n            + self._get_headers(\n                request.http_request,\n                [\"content-md5\", \"content-type\", \"x-ms-date\"],\n            )\n            + self._get_canonicalized_resource(request)\n            + self._get_canonicalized_resource_query(request.http_request)\n        )\n        self._add_authorization_header(request.http_request, string_to_sign)\n\n    def _get_canonicalized_resource_query(self, request):\n        for name, value in request.query.items():\n            if name == \"comp\":\n                return \"?comp=\" + value\n        return \"\"\n\n\nclass BearerTokenChallengePolicy(BearerTokenCredentialPolicy):\n    \"\"\"Adds a bearer token Authorization header to requests, for the tenant provided in authentication challenges.\n\n    See https://learn.microsoft.com/azure/active-directory/develop/claims-challenge for documentation on Microsoft\n    Entra authentication challenges.\n\n    :param credential: The credential.\n    :type credential: ~azure.core.TokenCredential\n    :param str scopes: Lets you specify the type of access needed.\n    :keyword bool discover_tenant: Determines if tenant discovery should be enabled. Defaults to True.\n    :keyword bool discover_scopes: Determines if scopes from authentication challenges should be provided to token\n        requests, instead of the scopes given to the policy's constructor, if any are present. Defaults to True.\n    :raises: :class:`~azure.core.exceptions.ServiceRequestError`\n    \"\"\"\n\n    def __init__(\n        self,\n        credential: TokenCredential,\n        *scopes: str,\n        discover_tenant: bool = True,\n        discover_scopes: bool = True,\n        **kwargs,\n    ) -> None:\n        self._discover_tenant = discover_tenant\n        self._discover_scopes = discover_scopes\n        super().__init__(credential, *scopes, **kwargs)\n\n    def on_challenge(self, request: PipelineRequest, response: PipelineResponse) -> bool:\n        \"\"\"Authorize request according to an authentication challenge\n\n        This method is called when the resource provider responds 401 with a WWW-Authenticate header.\n\n        :param ~azure.core.pipeline.PipelineRequest request: the request which elicited an authentication challenge\n        :param ~azure.core.pipeline.PipelineResponse response: the resource provider's response\n        :returns: a bool indicating whether the policy should send the request\n        :rtype: bool\n        \"\"\"\n        if not self._discover_tenant and not self._discover_scopes:\n            # We can't discover the tenant or use a different scope; the request will fail because it hasn't changed\n            return False\n\n        try:\n            challenge = _HttpChallenge(response.http_response.headers.get(\"WWW-Authenticate\"))\n            # azure-identity credentials require an AADv2 scope but the challenge may specify an AADv1 resource\n            # if no scopes are included in the challenge, challenge.scope and challenge.resource will both be ''\n            scope = challenge.scope or challenge.resource + \"/.default\" if self._discover_scopes else self._scopes\n            if scope == \"/.default\":\n                scope = self._scopes\n        except ValueError:\n            return False\n\n        if self._discover_tenant:\n            if isinstance(scope, str):\n                self.authorize_request(request, scope, tenant_id=challenge.tenant_id)\n            else:\n                self.authorize_request(request, *scope, tenant_id=challenge.tenant_id)\n        else:\n            if isinstance(scope, str):\n                self.authorize_request(request, scope)\n            else:\n                self.authorize_request(request, *scope)\n        return True\n\n\n@overload\ndef _configure_credential(\n    credential: AzureNamedKeyCredential, cosmos_endpoint: bool = False, audience: Optional[str] = None\n) -> SharedKeyCredentialPolicy: ...\n\n\n@overload\ndef _configure_credential(\n    credential: SharedKeyCredentialPolicy, cosmos_endpoint: bool = False, audience: Optional[str] = None\n) -> SharedKeyCredentialPolicy: ...\n\n\n@overload\ndef _configure_credential(\n    credential: AzureSasCredential, cosmos_endpoint: bool = False, audience: Optional[str] = None\n) -> AzureSasCredentialPolicy: ...\n\n\n@overload\ndef _configure_credential(\n    credential: TokenCredential, cosmos_endpoint: bool = False, audience: Optional[str] = None\n) -> BearerTokenChallengePolicy: ...\n\n\n@overload\ndef _configure_credential(credential: None, cosmos_endpoint: bool = False, audience: Optional[str] = None) -> None: ...\n\n\ndef _configure_credential(\n    credential: Optional[\n        Union[AzureNamedKeyCredential, AzureSasCredential, TokenCredential, SharedKeyCredentialPolicy]\n    ],\n    cosmos_endpoint: bool = False,\n    audience: Optional[str] = None,\n) -> Optional[Union[BearerTokenChallengePolicy, AzureSasCredentialPolicy, SharedKeyCredentialPolicy]]:\n    if hasattr(credential, \"get_token\"):\n        credential = cast(TokenCredential, credential)\n        if audience:\n            scope = audience.rstrip(\"/\") + \"/.default\"\n        else:\n            scope = COSMOS_OAUTH_SCOPE if cosmos_endpoint else STORAGE_OAUTH_SCOPE\n        return BearerTokenChallengePolicy(credential, scope)\n    if isinstance(credential, SharedKeyCredentialPolicy):\n        return credential\n    if isinstance(credential, AzureSasCredential):\n        return AzureSasCredentialPolicy(credential)\n    if isinstance(credential, AzureNamedKeyCredential):\n        return SharedKeyCredentialPolicy(credential)\n    if credential is not None:\n        raise TypeError(f\"Unsupported credential: {type(credential)}\")\n    return None\n",
+      "contentHash": "42a2d871be3a9e9a1a9605f4fb01156dade30b81385567656be7701eb4fff574",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/azure/data/tables/_authentication.py",
+      "startLine": 1,
+      "endLine": 274,
+      "kind": "unknown",
+      "id": "bbd73818dafa431520f952e0e82d6a8686cd9b66281fd5ae658af7e83259449c"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_base_client.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# -------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for\n# license information.\n# --------------------------------------------------------------------------\n\nimport os\nfrom uuid import uuid4\nfrom urllib.parse import parse_qs, quote, urlparse\nfrom typing import Any, List, Optional, Mapping, Union, Literal\nfrom typing_extensions import Self\n\nfrom azure.core.credentials import AzureSasCredential, AzureNamedKeyCredential, TokenCredential\nfrom azure.core.utils import parse_connection_string\nfrom azure.core.rest import HttpRequest\nfrom azure.core.pipeline.transport import HttpTransport\nfrom azure.core.pipeline.policies import (\n    RedirectPolicy,\n    ContentDecodePolicy,\n    ProxyPolicy,\n    DistributedTracingPolicy,\n    HttpLoggingPolicy,\n    UserAgentPolicy,\n    NetworkTraceLoggingPolicy,\n    CustomHookPolicy,\n    RequestIdPolicy,\n    SansIOHTTPPolicy,\n)\n\nfrom ._generated import AzureTableClient as _AzureTableClient\nfrom ._common_conversion import _is_cosmos_endpoint, _get_account\nfrom ._shared_access_signature import QueryStringConstants\nfrom ._constants import (\n    DEFAULT_COSMOS_ENDPOINT_SUFFIX,\n    DEFAULT_STORAGE_ENDPOINT_SUFFIX,\n)\nfrom ._error import RequestTooLargeError, TableTransactionError, _decode_error, _validate_tablename_error\nfrom ._models import LocationMode\nfrom ._authentication import _configure_credential\nfrom ._policies import (\n    CosmosPatchTransformPolicy,\n    StorageHeadersPolicy,\n    StorageHosts,\n    TablesRetryPolicy,\n)\nfrom ._sdk_moniker import SDK_MONIKER\n\n_SUPPORTED_API_VERSIONS = [\"2019-02-02\", \"2019-07-07\", \"2020-12-06\"]\n# cspell:disable-next-line\n_DEV_CONN_STRING = \"DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1\"  # pylint: disable=line-too-long\n\n\nclass _NoOpCredential:\n    \"\"\"Placeholder credential for SAS/connection-string authentication scenarios.\"\"\"\n\n\nAudienceType = Union[\n    str,\n    Literal[\n        \"https://storage.azure.com\",\n        \"https://storage.azure.us\",\n        \"https://storage.azure.cn\",\n        \"https://cosmos.azure.com\",\n        \"https://cosmos.azure.us\",\n        \"https://cosmos.azure.cn\",\n    ],\n]\n\n\ndef get_api_version(api_version: Optional[str], default: str) -> str:\n    if api_version and api_version not in _SUPPORTED_API_VERSIONS:\n        versions = \"\\n\".join(_SUPPORTED_API_VERSIONS)\n        raise ValueError(f\"Unsupported API version '{api_version}'. Please select from:\\n{versions}\")\n    return api_version or default\n\n\nclass TablesBaseClient:  # pylint: disable=too-many-instance-attributes\n    \"\"\"Base class for TableClient\n\n    :ivar str account_name: The name of the Tables account.\n    :ivar str scheme: The scheme component in the full URL to the Tables account.\n    :ivar str url: The storage endpoint.\n    :ivar str api_version: The service API version.\n    \"\"\"\n\n    def __init__(  # pylint: disable=missing-client-constructor-parameter-credential, too-many-statements\n        self,\n        endpoint: str,\n        *,\n        credential: Optional[Union[AzureSasCredential, AzureNamedKeyCredential, TokenCredential]] = None,\n        api_version: Optional[str] = None,\n        audience: Optional[AudienceType] = None,\n        **kwargs: Any,\n    ) -> None:\n        \"\"\"\n        :param str endpoint: A URL to an Azure Tables account.\n        :keyword credential:\n            The credentials with which to authenticate. This is optional if the\n            account URL already has a SAS token. The value can be one of AzureNamedKeyCredential (azure-core),\n            AzureSasCredential (azure-core), or a TokenCredential implementation from azure-identity.\n        :paramtype credential:\n            ~azure.core.credentials.AzureNamedKeyCredential or\n            ~azure.core.credentials.AzureSasCredential or\n            ~azure.core.credentials.TokenCredential or None\n        :keyword audience: Optional audience to use for Microsoft Entra ID authentication. If not specified,\n            the public cloud audience will be used.\n        :paramtype audience: str or None\n        :keyword api_version: Specifies the version of the operation to use for this request. Default value\n            is \"2019-02-02\".\n        :paramtype api_version: str or None\n        \"\"\"\n        try:\n            if not endpoint.lower().startswith(\"http\"):\n                endpoint = \"https://\" + endpoint\n        except AttributeError as exc:\n            raise ValueError(\"Account URL must be a string.\") from exc\n        parsed_url = urlparse(endpoint.rstrip(\"/\"))\n        if not parsed_url.netloc:\n            raise ValueError(f\"Invalid URL: {endpoint}\")\n\n        _, sas_token = parse_query(parsed_url.query)\n        if not sas_token and not credential:\n            raise ValueError(\"You need to provide either an AzureSasCredential or AzureNamedKeyCredential\")\n        self._query_str, credential = format_query_string(sas_token, credential)\n        self._location_mode = kwargs.get(\"location_mode\", LocationMode.PRIMARY)\n        self.scheme = parsed_url.scheme\n        self._cosmos_endpoint = _is_cosmos_endpoint(parsed_url)\n        account, self.account_name = _get_account(parsed_url)\n\n        secondary_hostname = None\n        self.credential = credential\n        if self.scheme.lower() != \"https\" and hasattr(self.credential, \"get_token\"):\n            raise ValueError(\"Token credential is only supported with HTTPS.\")\n        if isinstance(self.credential, AzureNamedKeyCredential):\n            self.account_name = self.credential.named_key.name\n            endpoint_suffix = os.getenv(\"TABLES_STORAGE_ENDPOINT_SUFFIX\", DEFAULT_STORAGE_ENDPOINT_SUFFIX)\n            secondary_hostname = f\"{self.account_name}-secondary.table.{endpoint_suffix}\"\n\n        _hosts = kwargs.get(\"_hosts\")\n        if not _hosts:\n            if len(account) > 1:\n                secondary_hostname = parsed_url.netloc.replace(\n                    account[0], account[0] + \"-secondary\"\n                ) + parsed_url.path.replace(account[0], account[0] + \"-secondary\").rstrip(\"/\")\n            if kwargs.get(\"secondary_hostname\"):\n                secondary_hostname = kwargs[\"secondary_hostname\"]\n            primary_hostname = (parsed_url.netloc + parsed_url.path).rstrip(\"/\")\n            _hosts = {\n                LocationMode.PRIMARY: primary_hostname,\n                LocationMode.SECONDARY: secondary_hostname,\n            }\n        self._hosts = _hosts\n\n        self._policies = self._configure_policies(audience=audience, hosts=self._hosts, **kwargs)\n        if self._cosmos_endpoint:\n            self._policies.insert(0, CosmosPatchTransformPolicy())\n\n        self._client = _AzureTableClient(\n            self.url,\n            credential=credential or _NoOpCredential(),  # type: ignore[arg-type]\n            policies=kwargs.pop(\"policies\", self._policies),\n            authentication_policy=kwargs.pop(\"authentication_policy\", SansIOHTTPPolicy()),\n            **kwargs,\n        )\n        # Incompatible assignment when assigning a str value to a Literal type variable\n        self._client._config.api_version = get_api_version(\n            api_version, self._client._config.api_version\n        )  # type: ignore[assignment]\n\n    @property\n    def url(self) -> str:\n        \"\"\"The full endpoint URL to this entity, including SAS token if used.\n\n        This could be either the primary endpoint,\n        or the secondary endpoint depending on the current :func:`location_mode`.\n\n        :return: The full endpoint URL including SAS token if used.\n        :rtype: str\n        \"\"\"\n        return self._format_url(self._hosts[self._location_mode])\n\n    @property\n    def _primary_endpoint(self):\n        \"\"\"The full primary endpoint URL.\n\n        :return: The full primary endpoint URL.\n        :rtype: str\n        \"\"\"\n        return self._format_url(self._hosts[LocationMode.PRIMARY])\n\n    @property\n    def _primary_hostname(self):\n        \"\"\"The hostname of the primary endpoint.\n\n        :return: The hostname of the primary endpoint.\n        :type: str\n        \"\"\"\n        return self._hosts[LocationMode.PRIMARY]\n\n    @property\n    def _secondary_endpoint(self):\n        \"\"\"The full secondary endpoint URL if configured.\n\n        If not available a ValueError will be raised. To explicitly specify a secondary hostname, use the optional\n        `secondary_hostname` keyword argument on instantiation.\n\n        :return: The full secondary endpoint URL.\n        :type: str\n        :raise ValueError: If the secondary endpoint URL is not configured.\n        \"\"\"\n        if not self._hosts[LocationMode.SECONDARY]:\n            raise ValueError(\"No secondary host configured.\")\n        return self._format_url(self._hosts[LocationMode.SECONDARY])\n\n    @property\n    def _secondary_hostname(self):\n        \"\"\"The hostname of the secondary endpoint.\n\n        If not available this will be None. To explicitly specify a secondary hostname, use the optional\n        `secondary_hostname` keyword argument on instantiation.\n\n        :return: The hostname of the secondary endpoint.\n        :type: str or None\n        \"\"\"\n        return self._hosts[LocationMode.SECONDARY]\n\n    @property\n    def api_version(self) -> str:\n        \"\"\"The version of the Storage API used for requests.\n\n        :return: The Storage API version.\n        :type: str\n        \"\"\"\n        return self._client._config.api_version  # pylint: disable=protected-access\n\n    def __enter__(self) -> Self:\n        self._client.__enter__()\n        return self\n\n    def __exit__(self, *args: Any) -> None:\n        self._client.__exit__(*args)\n\n    def _format_url(self, hostname):\n        \"\"\"Format the endpoint URL according to the current location\n        mode hostname.\n\n        :param str hostname: The current location mode hostname.\n        :returns: The full URL to the Tables account.\n        :rtype: str\n        \"\"\"\n        return f\"{self.scheme}://{hostname}{self._query_str}\"\n\n    def _configure_policies(self, *, audience: Optional[str] = None, **kwargs: Any) -> List[Any]:\n        credential_policy = _configure_credential(\n            self.credential, cosmos_endpoint=self._cosmos_endpoint, audience=audience\n        )\n        return [\n            RequestIdPolicy(**kwargs),\n            StorageHeadersPolicy(**kwargs),\n            UserAgentPolicy(sdk_moniker=SDK_MONIKER, **kwargs),\n            ProxyPolicy(**kwargs),\n            credential_policy,\n            ContentDecodePolicy(response_encoding=\"utf-8\"),\n            RedirectPolicy(**kwargs),\n            StorageHosts(**kwargs),\n            TablesRetryPolicy(**kwargs),\n            CustomHookPolicy(**kwargs),\n            NetworkTraceLoggingPolicy(**kwargs),\n            DistributedTracingPolicy(**kwargs),\n            HttpLoggingPolicy(**kwargs),\n        ]\n\n    def _batch_send(self, table_name: str, *reqs: HttpRequest, **kwargs) -> List[Mapping[str, Any]]:\n        # pylint:disable=docstring-should-be-keyword\n        \"\"\"Given a series of request, do a Storage batch call.\n\n        :param table_name: The table name.\n        :type table_name: str\n        :param reqs: The HTTP request.\n        :type reqs: ~azure.core.pipeline.rest.HttpRequest\n        :return: A list of batch part metadata in response.\n        :rtype: list[Mapping[str, Any]]\n        \"\"\"\n        # Pop it here, so requests doesn't feel bad about additional kwarg\n        policies = [StorageHeadersPolicy()]\n\n        changeset = HttpRequest(\"POST\", \"\")\n        changeset.set_multipart_mixed(*reqs, policies=policies, boundary=f\"changeset_{uuid4()}\")\n        request = HttpRequest(\n            method=\"POST\",\n            url=f\"{self.scheme}://{self._primary_hostname}/$batch\",\n            headers={\n                \"x-ms-version\": self.api_version,\n                \"DataServiceVersion\": \"3.0\",\n                \"MaxDataServiceVersion\": \"3.0;NetFx\",\n                \"Content-Type\": \"application/json\",\n                \"Accept\": \"application/json\",\n            },\n        )\n        request.set_multipart_mixed(\n            changeset,\n            policies=policies,\n            enforce_https=False,\n            boundary=f\"batch_{uuid4()}\",\n        )\n        response = self._client.send_request(request, stream=True, **kwargs)\n        if response.status_code == 413:\n            raise _decode_error(\n                response, error_message=\"The transaction request was too large\", error_type=RequestTooLargeError\n            )\n        if response.status_code != 202:\n            decoded = _decode_error(response)\n            _validate_tablename_error(decoded, table_name)\n            raise decoded\n\n        # The parts() method is defined on the back-compat mixin, not the protocol.\n        parts = list(response.parts())  # type: ignore[attr-defined]\n        error_parts = [p for p in parts if not 200 <= p.status_code < 300]\n        if any(error_parts):\n            if error_parts[0].status_code == 413:\n                raise _decode_error(\n                    response, error_message=\"The transaction request was too large\", error_type=RequestTooLargeError\n                )\n            decoded = _decode_error(response=error_parts[0], error_type=TableTransactionError)\n            _validate_tablename_error(decoded, table_name)\n            raise decoded\n        return [extract_batch_part_metadata(p) for p in parts]\n\n    def close(self) -> None:\n        \"\"\"This method is to close the sockets opened by the client.\n        It need not be used when using with a context manager.\n        \"\"\"\n        self._client.close()\n\n\nclass TransportWrapper(HttpTransport):\n    \"\"\"Wrapper class that ensures that an inner client created\n    by a `get_client` method does not close the outer transport for the parent\n    when used in a context manager.\n\n    :param transport: The Http Transport instance\n    :type transport: ~azure.core.pipeline.transport.HttpTransport\n    \"\"\"\n\n    def __init__(self, transport):\n        self._transport = transport\n\n    def send(self, request, **kwargs):\n        return self._transport.send(request, **kwargs)\n\n    def open(self):\n        pass\n\n    def close(self):\n        pass\n\n    def __enter__(self):\n        pass\n\n    def __exit__(self, *args):  # pylint: disable=arguments-differ\n        pass\n\n\ndef parse_connection_str(\n    conn_str: str,\n    credential: Optional[Union[AzureNamedKeyCredential, AzureSasCredential, TokenCredential]],\n    keyword_args: Any,\n):\n    if conn_str.lower() == \"usedevelopmentstorage=true\":\n        conn_str = _DEV_CONN_STRING\n    conn_settings = parse_connection_string(conn_str)\n    primary = None\n    secondary = None\n    # TODO: kwarg \"endpoint_type\" may not necessary as we can tell the type from endpoint itself\n    endpoint_type = keyword_args.pop(\"endpoint_type\", None)\n    if not credential:\n        try:\n            credential = AzureNamedKeyCredential(name=conn_settings[\"accountname\"], key=conn_settings[\"accountkey\"])\n        except KeyError as exc:\n            sas_token = conn_settings.get(\"sharedaccesssignature\", None)\n            if not sas_token:\n                raise ValueError(\"Connection string missing required connection details.\") from exc\n            credential = AzureSasCredential(sas_token)\n    primary = conn_settings.get(\"tableendpoint\")\n    secondary = conn_settings.get(\"tablesecondaryendpoint\")\n    if not primary:\n        if secondary:\n            raise ValueError(\"Connection string specifies only secondary endpoint.\")\n        try:\n            primary = f\"{conn_settings['defaultendpointsprotocol']}://{conn_settings['accountname']}.table.{conn_settings['endpointsuffix']}\"  # pylint: disable=line-too-long\n            secondary = f\"{conn_settings['accountname']}-secondary.table.{conn_settings['endpointsuffix']}\"\n        except KeyError:\n            pass\n\n    if not primary:\n        if endpoint_type and endpoint_type == \"cosmos\":\n            endpoint_suffix = os.getenv(\"TABLES_COSMOS_ENDPOINT_SUFFIX\", DEFAULT_COSMOS_ENDPOINT_SUFFIX)\n        else:\n            endpoint_suffix = os.getenv(\"TABLES_STORAGE_ENDPOINT_SUFFIX\", DEFAULT_STORAGE_ENDPOINT_SUFFIX)\n        try:\n            primary = f\"https://{conn_settings['accountname']}.table.{conn_settings.get('endpointsuffix', endpoint_suffix)}\"  # pylint: disable=line-too-long\n        except KeyError as exc:\n            raise ValueError(\"Connection string missing required connection details.\") from exc\n\n    if \"secondary_hostname\" not in keyword_args:\n        keyword_args[\"secondary_hostname\"] = secondary\n\n    return primary, credential\n\n\ndef extract_batch_part_metadata(response_part):\n    metadata = {}\n    if \"Etag\" in response_part.headers:\n        metadata[\"etag\"] = response_part.headers[\"Etag\"]\n    return metadata\n\n\ndef format_query_string(sas_token, credential):\n    query_str = \"?\"\n    if sas_token and isinstance(credential, AzureSasCredential):\n        raise ValueError(\n            \"You cannot use AzureSasCredential when the resource URI also contains a Shared Access Signature.\"\n        )\n    if sas_token and not credential:\n        query_str += sas_token\n    elif credential:\n        return \"\", credential\n    return query_str.rstrip(\"?&\"), None\n\n\ndef parse_query(query_str):\n    sas_values = QueryStringConstants.to_list()\n    parsed_query = {k: v[0] for k, v in parse_qs(query_str).items()}\n    sas_params = [f\"{k}={quote(v, safe='')}\" for k, v in parsed_query.items() if k in sas_values]\n    sas_token = None\n    if sas_params:\n        sas_token = \"&\".join(sas_params)\n\n    snapshot = parsed_query.get(\"snapshot\") or parsed_query.get(\"sharesnapshot\")\n    return snapshot, sas_token\n",
+      "contentHash": "7255d033b93844038d013262b36529ec019bcac8803bd5134e89becc5a1b82fb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/azure/data/tables/_base_client.py",
+      "startLine": 1,
+      "endLine": 441,
+      "kind": "unknown",
+      "id": "2798ff01af91cec038b10df6af89e818a811c3b249db107e08852fbe26b52d47"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_common_conversion.py",
+      "text": "# -------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for\n# license information.\n# --------------------------------------------------------------------------\nimport base64\nimport hashlib\nimport hmac\nfrom datetime import timezone\nfrom urllib.parse import ParseResult\nfrom typing import Optional, Tuple, List, Dict, Any, Union, cast\n\n\ndef _to_str(value):\n    return str(value) if value is not None else None\n\n\ndef _to_utc_datetime(value):\n    try:\n        value = value.astimezone(timezone.utc)\n    except ValueError:\n        # Before Python 3.8, this raised for a naive datetime.\n        pass\n    try:\n        return value.strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n    except ValueError:\n        return value.strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n\n\ndef _encode_base64(data):\n    if isinstance(data, str):\n        data = data.encode(\"utf-8\")\n    encoded = base64.b64encode(data)\n    return encoded.decode(\"utf-8\")\n\n\ndef _decode_base64_to_bytes(data):\n    if isinstance(data, str):\n        data = data.encode(\"utf-8\")\n    return base64.b64decode(data)\n\n\ndef _sign_string(key, string_to_sign, key_is_base64=True):\n    if key_is_base64:\n        key = _decode_base64_to_bytes(key)\n    else:\n        if isinstance(key, str):\n            key = key.encode(\"utf-8\")\n    if isinstance(string_to_sign, str):\n        string_to_sign = string_to_sign.encode(\"utf-8\")\n    signed_hmac_sha256 = hmac.HMAC(key, string_to_sign, hashlib.sha256)\n    digest = signed_hmac_sha256.digest()\n    encoded_digest = _encode_base64(digest)\n    return encoded_digest\n\n\ndef _is_cosmos_endpoint(url):\n    if \".table.cosmosdb.\" in url.hostname:\n        return True\n    if \".table.cosmos.\" in url.hostname:\n        return True\n    if url.hostname == \"localhost\" and url.port != 10002:\n        return True\n    return False\n\n\ndef _transform_patch_to_cosmos_post(request):\n    request.method = \"POST\"\n    request.headers[\"X-HTTP-Method\"] = \"MERGE\"\n\n\ndef _get_account(parsed_url: ParseResult) -> Tuple[List[str], Optional[str]]:\n    if \".core.\" in parsed_url.netloc or \".cosmos.\" in parsed_url.netloc:\n        account = parsed_url.netloc.split(\".table.core.\")\n        if \"cosmos\" in parsed_url.netloc:\n            account = parsed_url.netloc.split(\".table.cosmos.\")\n        account_name = account[0] if len(account) > 1 else None\n    else:\n        path_account_name = parsed_url.path.split(\"/\")\n        if len(path_account_name) > 1:\n            account_name = path_account_name[1]\n            account = [account_name, parsed_url.netloc]\n        else:\n            # If format doesn't fit Azurite, default to standard parsing\n            account = parsed_url.netloc.split(\".table.core.\")\n            account_name = account[0] if len(account) > 1 else None\n    return account, account_name\n\n\ndef _prepare_key(key: Union[str, int, float, None]) -> str:\n    \"\"\"Duplicate the single quote char to escape.\n\n    :param str key: The entity PartitionKey or RowKey value in table entity.\n    :return: The entity PartitionKey or RowKey value in table entity.\n    :rtype: str\n    \"\"\"\n    try:\n        return cast(str, key).replace(\"'\", \"''\")\n    except (AttributeError, TypeError) as exc:\n        raise TypeError(\"PartitionKey or RowKey must be of type string.\") from exc\n\n\ndef _get_enum_value(value):\n    if value is None or value in [\"None\", \"\"]:\n        return None\n    try:\n        return value.value\n    except AttributeError:\n        return value\n\n\ndef _normalize_headers(headers):\n    normalized = {}\n    for key, value in headers.items():\n        if key.startswith(\"x-ms-\"):\n            key = key[5:]\n        normalized[key.lower().replace(\"-\", \"_\")] = _get_enum_value(value)\n    return normalized\n\n\ndef _return_headers_and_deserialized(_, deserialized, response_headers):\n    return _normalize_headers(response_headers), deserialized\n\n\ndef _trim_service_metadata(metadata: Dict[str, str], content: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:\n    result: Dict[str, Any] = {\n        \"date\": metadata.pop(\"date\", None),\n        \"etag\": metadata.pop(\"etag\", None),\n        \"version\": metadata.pop(\"version\", None),\n    }\n    preference = metadata.pop(\"preference_applied\", None)\n    if preference:\n        result[\"preference_applied\"] = preference\n        result[\"content\"] = content\n    return result\n",
+      "contentHash": "58842d0a838f7185de2ab50b66765ccdb04358efb66e0cf0f711ce955b36c9cf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/azure/data/tables/_common_conversion.py",
+      "startLine": 1,
+      "endLine": 135,
+      "kind": "unknown",
+      "id": "2126c9a39215586b04de0c998348ac2686fdbf200d5483ac54cbab63581f13be"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_decoder.py",
+      "text": "# -------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for\n# license information.\n# --------------------------------------------------------------------------\nfrom typing import Any, Optional, Mapping, Union, Dict, Callable, cast\nfrom datetime import datetime, timezone\nfrom urllib.parse import quote\nfrom uuid import UUID\n\nfrom ._common_conversion import _decode_base64_to_bytes\nfrom ._entity import EntityProperty, EdmType, TableEntity, EntityMetadata\n\nDecoderMapType = Dict[EdmType, Callable[[Union[str, bool, int, float]], Any]]\n\n\nclass TablesEntityDatetime(datetime):\n    _service_value: str\n\n    @property\n    def tables_service_value(self) -> str:\n        try:\n            return self._service_value\n        except AttributeError:\n            return \"\"\n\n\nNO_ODATA = {\n    int: EdmType.INT32,\n    str: EdmType.STRING,\n    bool: EdmType.BOOLEAN,\n    float: EdmType.DOUBLE,\n}\n\n\nclass TableEntityDecoder:\n    def __init__(\n        self,\n        *,\n        flatten_result_entity: bool = False,\n        convert_map: Optional[DecoderMapType] = None,\n    ) -> None:\n        self.convert_map = convert_map\n        self.flatten_result_entity = flatten_result_entity\n\n    def __call__(  # pylint: disable=too-many-branches, too-many-statements\n        self, response_data: Mapping[str, Any]\n    ) -> TableEntity:\n        \"\"\"Convert json response to entity.\n        The entity format is:\n        {\n        \"Address\":\"Mountain View\",\n        \"Age\":23,\n        \"AmountDue\":200.23,\n        \"CustomerCode@odata.type\":\"Edm.Guid\",\n        \"CustomerCode\":\"c9da6455-213d-42c9-9a79-3e9149a57833\",\n        \"CustomerSince@odata.type\":\"Edm.DateTime\",\n        \"CustomerSince\":\"2008-07-10T00:00:00\",\n        \"IsActive\":true,\n        \"NumberOfOrders@odata.type\":\"Edm.Int64\",\n        \"NumberOfOrders\":\"255\",\n        \"PartitionKey\":\"my_partition_key\",\n        \"RowKey\":\"my_row_key\"\n        }\n\n        :param response_data: The entity in response.\n        :type response_data: Mapping[str, Any]\n        :return: An entity dict with additional metadata.\n        :rtype: dict[str, Any]\n        \"\"\"\n        entity = TableEntity()\n\n        properties = {}\n        edmtypes = {}\n        odata = {}\n\n        for name, value in response_data.items():\n            if name.startswith(\"odata.\"):\n                odata[name[6:]] = value\n            elif name.endswith(\"@odata.type\"):\n                edmtypes[name[:-11]] = value\n            else:\n                properties[name] = value\n\n        # Partitionkey is a known property\n        partition_key = properties.pop(\"PartitionKey\", None)\n        if partition_key is not None:\n            entity[\"PartitionKey\"] = partition_key\n\n        # Timestamp is a known property\n        timestamp = properties.pop(\"Timestamp\", None)\n\n        for name, value in properties.items():\n            mtype = edmtypes.get(name)\n\n            if not mtype:\n                mtype = NO_ODATA[type(value)]\n\n            convert = None\n            default_convert = None\n            if self.convert_map:\n                try:\n                    convert = self.convert_map[mtype]\n                except KeyError:\n                    pass\n            if convert:\n                new_property = convert(value)\n            else:\n                try:\n                    default_convert = _ENTITY_TO_PYTHON_CONVERSIONS[mtype]\n                except KeyError as e:\n                    raise TypeError(f\"Unsupported edm type: {mtype}\") from e\n                if default_convert is not None:\n                    new_property = default_convert(self, value)\n                else:\n                    new_property = EntityProperty(mtype, value)\n            entity[name] = new_property\n\n        # extract etag from entry\n        etag = odata.pop(\"etag\", None)\n        odata.pop(\"metadata\", None)\n        if timestamp:\n            if not etag:\n                etag = \"W/\\\"datetime'\" + quote(timestamp) + \"'\\\"\"\n            timestamp = self.from_entity_datetime(timestamp)\n        odata.update({\"etag\": etag, \"timestamp\": timestamp})\n        if self.flatten_result_entity:\n            for name, value in odata.items():\n                entity[name] = value\n        entity._metadata = cast(EntityMetadata, odata)  # pylint: disable=protected-access\n        return entity\n\n    def from_entity_binary(self, value: str) -> bytes:\n        return _decode_base64_to_bytes(value)\n\n    def from_entity_int32(self, value: Union[int, str]) -> int:\n        return int(value)\n\n    def from_entity_int64(self, value: str) -> EntityProperty:\n        return EntityProperty(int(value), EdmType.INT64)\n\n    def from_entity_datetime(self, value: str) -> Optional[TablesEntityDatetime]:\n        return deserialize_iso(value)\n\n    def from_entity_guid(self, value: str) -> UUID:\n        return UUID(value)\n\n    def from_entity_str(self, value: Union[str, bytes]) -> str:\n        if isinstance(value, bytes):\n            return value.decode(\"utf-8\")\n        return value\n\n\n_ENTITY_TO_PYTHON_CONVERSIONS = {\n    EdmType.BINARY: TableEntityDecoder.from_entity_binary,\n    EdmType.INT32: TableEntityDecoder.from_entity_int32,\n    EdmType.INT64: TableEntityDecoder.from_entity_int64,\n    EdmType.DOUBLE: lambda _, v: float(v),\n    EdmType.DATETIME: TableEntityDecoder.from_entity_datetime,\n    EdmType.GUID: TableEntityDecoder.from_entity_guid,\n    EdmType.STRING: TableEntityDecoder.from_entity_str,\n    EdmType.BOOLEAN: lambda _, v: v,\n}\n\n\ndef deserialize_iso(value: Optional[str]) -> Optional[TablesEntityDatetime]:\n    if not value:\n        return None\n    # New generated models may return datetime objects directly via rest_field()\n    if isinstance(value, datetime):\n        if isinstance(value, TablesEntityDatetime):\n            return value\n        return TablesEntityDatetime(\n            value.year,\n            value.month,\n            value.day,\n            value.hour,\n            value.minute,\n            value.second,\n            value.microsecond,\n            value.tzinfo,\n        )\n    # Cosmos returns this with a decimal point that throws an error on deserialization\n    cleaned_value = _clean_up_dotnet_timestamps(value)\n    try:\n        dt_obj = TablesEntityDatetime.strptime(cleaned_value, \"%Y-%m-%dT%H:%M:%S.%fZ\").replace(tzinfo=timezone.utc)\n    except ValueError:\n        dt_obj = TablesEntityDatetime.strptime(cleaned_value, \"%Y-%m-%dT%H:%M:%SZ\").replace(tzinfo=timezone.utc)\n    dt_obj._service_value = value  # pylint:disable=protected-access,assigning-non-slot\n    return dt_obj\n\n\ndef _clean_up_dotnet_timestamps(value):\n    # .NET has more decimal places than Python supports in datetime objects, this truncates\n    # values after 6 decimal places.\n    value = value.split(\".\")\n    ms = \"\"\n    if len(value) == 2:\n        ms = value[-1].replace(\"Z\", \"\")\n        if len(ms) > 6:\n            ms = ms[:6]\n        ms = ms + \"Z\"\n        return \".\".join([value[0], ms])\n    return value[0]\n",
+      "contentHash": "ac2740ad747a05c4bbbeb6dd03026a7dad5537a4a0fdc13426f97d18b6112fbc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/azure/data/tables/_decoder.py",
+      "startLine": 1,
+      "endLine": 204,
+      "kind": "unknown",
+      "id": "81029945791572bc62e92fe85c1e32767cca552060498f2e48c9adea3f550651"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/tables/azure-data-tables/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-data-tables\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Data Tables Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n    \"yarl>=1.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.data.tables._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.data\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-build]\npyright = false\nblack = true\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "b8a8e5f5d8acb5ac59e74c07333ac61ab91b590651be9c33e2755d5517b54d79",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/pyproject.toml"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/tsp-location.yaml",
+      "text": "directory: specification/cosmos-db/data-plane/Tables\ncommit: 623ace17cc16f11c09e2b5264e5e2d8c066c0ae9\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "369149534c765c3c67ed09f17c84baf7b23a7effa0a714c46ea64b1ca6139fd6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/tables/azure-data-tables/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_authentication.py",
+      "startLine": 1,
+      "endLine": 274,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "42a2d871be3a9e9a1a9605f4fb01156dade30b81385567656be7701eb4fff574"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_base_client.py",
+      "startLine": 1,
+      "endLine": 441,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "7255d033b93844038d013262b36529ec019bcac8803bd5134e89becc5a1b82fb"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_common_conversion.py",
+      "startLine": 1,
+      "endLine": 135,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "58842d0a838f7185de2ab50b66765ccdb04358efb66e0cf0f711ce955b36c9cf"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_decoder.py",
+      "startLine": 1,
+      "endLine": 204,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "ac2740ad747a05c4bbbeb6dd03026a7dad5537a4a0fdc13426f97d18b6112fbc"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_encoder.py",
+      "startLine": 1,
+      "endLine": 206,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "22483d357909c18376251168efe8142f2615b47a0a7f8e89b438561940cf116c"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_entity.py",
+      "startLine": 1,
+      "endLine": 101,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "c02cdd15a9e3bb0064e3632ceb286deb5429223180c7eba1938bf760061d266b"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_error.py",
+      "startLine": 1,
+      "endLine": 342,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d961c6a9431e19eb8e7ed466ff3ddc53f115e6dd89a6f59617514671b8acec0b"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_models.py",
+      "startLine": 1,
+      "endLine": 705,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "a13c39740a237930e232e2a8f9e1ff357cf6d6b259f478f48c944adb742a6e8c"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_policies.py",
+      "startLine": 1,
+      "endLine": 256,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "cc8be7cda52ca3c17a7abb1f055b5acfbc270205fd876d8d030e4e2436c5544a"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_serialize.py",
+      "startLine": 1,
+      "endLine": 91,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "4077fd782da39d9b614b886080d65322003ad7407ba11af09c9037a6dfa2d16b"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_shared_access_signature.py",
+      "startLine": 1,
+      "endLine": 273,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "32b12480399ff2ab2bee8485bab731baa8a7a5eacc9b4ffd63aca01e2a0d133d"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_batch.py",
+      "startLine": 1,
+      "endLine": 304,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "9928e398882cf133c32f1264b8f27f37b834fe8932f482fb56b7e9ec9e85abd1"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_client.py",
+      "startLine": 1,
+      "endLine": 772,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "82afd6e45282a1aa9acb030f2f111362eed4b7c605f75710dab9ad0fd65d1384"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_service_client.py",
+      "startLine": 1,
+      "endLine": 333,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "eaa7f7ec9cc7e5abf62fab7e3da22adaa2f60e7d457001fc34d2cc2b7ba1c323"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/_table_shared_access_signature.py",
+      "startLine": 1,
+      "endLine": 340,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "86b17cab759cbd47f7e1f12789348cc1eb36ce1a3b1766f6674d2c0bbd6b6098"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_authentication_async.py",
+      "startLine": 1,
+      "endLine": 130,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "464a8ca7f87028660ef1d93270263a99f7facad088f565809246abbcc5d42b76"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_base_client_async.py",
+      "startLine": 1,
+      "endLine": 346,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "17517769fc852e457470f7eee8c4705091608d77224c15116bec1d936066aca6"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_models.py",
+      "startLine": 1,
+      "endLine": 113,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "8ecc3a7c15257f842b8d98315cec9ebe8d948a5eccc94ac9354fd085661aac9e"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_policies_async.py",
+      "startLine": 1,
+      "endLine": 172,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "0de8c4e303d2142480f971effefd53895aa2248f8bfffa90189bcc52fef56d4b"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_table_client_async.py",
+      "startLine": 1,
+      "endLine": 799,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "2966d961641eed81c8a78b6875c5e135f1e92066b43e2ea1e23985edb85c464d"
+    },
+    {
+      "path": "sdk/tables/azure-data-tables/azure/data/tables/aio/_table_service_client_async.py",
+      "startLine": 1,
+      "endLine": 336,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "c8019158a7f6f2dd66e7a2f48a046d61a09e2c501dd6dd8e4855cf227b95ad6a"
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "id": "d14a8ae1-3f55-4f1e-b499-cd928560359e",
+  "observedAt": "2026-10-26T15:11:14.120Z",
+  "identity": "dotnet:azure.resourcemanager.resourcehealth:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.ResourceHealth",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "268bf4847a549302c325f5cc62569fa554807ddc"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 216,
+    "eligibleFiles": 190,
+    "capturedFiles": 6,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/MockableResourceHealthArmClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Threading;\nusing Azure;\nusing Azure.Core;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ResourceHealth.Mocking\n{\n    // Workaround for https://github.com/Azure/azure-sdk-for-net/issues/60100: for this extension-scoped\n    // (arbitrary resourceUri) list the generator wraps each page item into ResourceHealthEventResource, but\n    // the GA surface returns the ResourceHealthEventData model (events listed at an arbitrary scope are not\n    // addressable as the events resource). Re-emit over the generated data-typed collection results to\n    // preserve the GA API.\n    // TODO: Remove once the emitter stops wrapping extension-scoped resource list results into the resource type.\n    [CodeGenSuppress(\"GetHealthEventsOfSingleResourceAsync\", typeof(ResourceIdentifier), typeof(string), typeof(CancellationToken))]\n    [CodeGenSuppress(\"GetHealthEventsOfSingleResource\", typeof(ResourceIdentifier), typeof(string), typeof(CancellationToken))]\n    public partial class MockableResourceHealthArmClient\n    {\n        /// <summary> Lists current service health events for given resource. </summary>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> The filter to apply on the operation. For more information please see https://docs.microsoft.com/en-us/rest/api/apimanagement/apis?redirectedfrom=MSDN. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"System.ArgumentNullException\"> <paramref name=\"scope\"/> is null. </exception>\n        /// <returns> A collection of <see cref=\"ResourceHealthEventData\"/> that may take multiple service requests to iterate over. </returns>\n        public virtual AsyncPageable<ResourceHealthEventData> GetHealthEventsOfSingleResourceAsync(ResourceIdentifier scope, string filter = default, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(scope, nameof(scope));\n\n            RequestContext context = new RequestContext\n            {\n                CancellationToken = cancellationToken\n            };\n            return new EventsGetHealthEventsOfSingleResourceAsyncCollectionResultOfT(EventsRestClient, scope.ToString(), filter, context, \"MockableResourceHealthArmClient.GetHealthEventsOfSingleResource\");\n        }\n\n        /// <summary> Lists current service health events for given resource. </summary>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> The filter to apply on the operation. For more information please see https://docs.microsoft.com/en-us/rest/api/apimanagement/apis?redirectedfrom=MSDN. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"System.ArgumentNullException\"> <paramref name=\"scope\"/> is null. </exception>\n        /// <returns> A collection of <see cref=\"ResourceHealthEventData\"/> that may take multiple service requests to iterate over. </returns>\n        public virtual Pageable<ResourceHealthEventData> GetHealthEventsOfSingleResource(ResourceIdentifier scope, string filter = default, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(scope, nameof(scope));\n\n            RequestContext context = new RequestContext\n            {\n                CancellationToken = cancellationToken\n            };\n            return new EventsGetHealthEventsOfSingleResourceCollectionResultOfT(EventsRestClient, scope.ToString(), filter, context, \"MockableResourceHealthArmClient.GetHealthEventsOfSingleResource\");\n        }\n    }\n}\n",
+      "contentHash": "abac970ed0f686e666ef8211294df3db164ca33f699669d3848dda3557635783",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/MockableResourceHealthArmClient.cs",
+      "startLine": 1,
+      "endLine": 55,
+      "kind": "handwritten-marker",
+      "id": "fba738720123518a3da3b32565c376440032667b7bc62cdd800fda7cd8344ab3"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/ResourceHealthExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Threading;\nusing Azure;\nusing Azure.Core;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.ResourceHealth\n{\n    // Workaround for https://github.com/Azure/azure-sdk-for-net/issues/60100: the generator wraps this\n    // extension-scoped (arbitrary resourceUri) list into ResourceHealthEventResource, but the GA surface\n    // returns the ResourceHealthEventData model. Forward to the mockable implementation to preserve the GA API.\n    // TODO: Remove once the emitter stops wrapping extension-scoped resource list results into the resource type.\n    [CodeGenSuppress(\"GetHealthEventsOfSingleResourceAsync\", typeof(ArmClient), typeof(ResourceIdentifier), typeof(string), typeof(CancellationToken))]\n    [CodeGenSuppress(\"GetHealthEventsOfSingleResource\", typeof(ArmClient), typeof(ResourceIdentifier), typeof(string), typeof(CancellationToken))]\n    public static partial class ResourceHealthExtensions\n    {\n        /// <summary> Lists current service health events for given resource. </summary>\n        /// <param name=\"client\"> The <see cref=\"ArmClient\"/> the method will execute against. </param>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> The filter to apply on the operation. For more information please see https://docs.microsoft.com/en-us/rest/api/apimanagement/apis?redirectedfrom=MSDN. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"System.ArgumentNullException\"> <paramref name=\"client\"/> is null. </exception>\n        /// <returns> A collection of <see cref=\"ResourceHealthEventData\"/> that may take multiple service requests to iterate over. </returns>\n        [ForwardsClientCalls]\n        public static AsyncPageable<ResourceHealthEventData> GetHealthEventsOfSingleResourceAsync(this ArmClient client, ResourceIdentifier scope, string filter = default, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(client, nameof(client));\n\n            return GetMockableResourceHealthArmClient(client).GetHealthEventsOfSingleResourceAsync(scope, filter, cancellationToken);\n        }\n\n        /// <summary> Lists current service health events for given resource. </summary>\n        /// <param name=\"client\"> The <see cref=\"ArmClient\"/> the method will execute against. </param>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> The filter to apply on the operation. For more information please see https://docs.microsoft.com/en-us/rest/api/apimanagement/apis?redirectedfrom=MSDN. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"System.ArgumentNullException\"> <paramref name=\"client\"/> is null. </exception>\n        /// <returns> A collection of <see cref=\"ResourceHealthEventData\"/> that may take multiple service requests to iterate over. </returns>\n        [ForwardsClientCalls]\n        public static Pageable<ResourceHealthEventData> GetHealthEventsOfSingleResource(this ArmClient client, ResourceIdentifier scope, string filter = default, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(client, nameof(client));\n\n            return GetMockableResourceHealthArmClient(client).GetHealthEventsOfSingleResource(scope, filter, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "133672d89c37c64a1e236eec429aea81a6925c83758a3405aa5a5438aa38ce53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/ResourceHealthExtensions.cs",
+      "startLine": 1,
+      "endLine": 49,
+      "kind": "handwritten-marker",
+      "id": "dfa4b2ee58ce4954dde6b7e773ca4d1b9e3f8ba366a6a4dc783e3b74e69621f2"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventData.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Azure.ResourceManager.ResourceHealth.Models;\n\nnamespace Azure.ResourceManager.ResourceHealth\n{\n    // GA exposed these collection properties as IReadOnlyList<T>, but the generated flattened properties\n    // are IList<T> and no client.tsp decorator can change the collection interface. Re-expose them as\n    // IReadOnlyList<T> to preserve the GA surface; the generator omits its IList<T> versions because these\n    // custom members already define the names.\n    public partial class ResourceHealthEventData\n    {\n        /// <summary> Useful links of event. </summary>\n        public IReadOnlyList<ResourceHealthEventLink> Links => Properties?.Links as IReadOnlyList<ResourceHealthEventLink>;\n\n        /// <summary> List services impacted by the service health event. </summary>\n        public IReadOnlyList<ResourceHealthEventImpact> Impact => Properties?.Impact as IReadOnlyList<ResourceHealthEventImpact>;\n\n        /// <summary> Frequently asked questions for the service health event. </summary>\n        public IReadOnlyList<ResourceHealthEventFaq> Faqs => Properties?.Faqs as IReadOnlyList<ResourceHealthEventFaq>;\n    }\n}\n",
+      "contentHash": "7f0c3a804c39fb62b305bf62dc29574b5630b7f84feb0746b6e5512d438891ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventData.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "handwritten-marker",
+      "id": "655113a25377e91bd676a6f3dc2d0b0ed4048adeaffc2d3a79bd69d47d0fa4d5"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventImpactedResourceData.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Azure.ResourceManager.ResourceHealth.Models;\n\nnamespace Azure.ResourceManager.ResourceHealth\n{\n    // GA exposed Info as IReadOnlyList<T> while the generated flattened property is IList<T>, and no\n    // client.tsp decorator can change the collection interface. Re-expose it as IReadOnlyList<T> to preserve\n    // the GA surface; the generator omits its IList<T> version because this custom member defines the name.\n    public partial class ResourceHealthEventImpactedResourceData\n    {\n        /// <summary> Additional information. </summary>\n        public IReadOnlyList<ResourceHealthKeyValueItem> Info => Properties?.Info as IReadOnlyList<ResourceHealthKeyValueItem>;\n    }\n}\n",
+      "contentHash": "1653b1cceefa5b16248ed420e5430bdef1d15c55cdf99de3a8baf54c5ceb93a4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventImpactedResourceData.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "kind": "handwritten-marker",
+      "id": "81a7573c59b966955fc95f64dfb14b9f065986ac29fb884c4e5a421eaa94e827"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthMetadataEntityData.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Azure.ResourceManager.ResourceHealth.Models;\n\nnamespace Azure.ResourceManager.ResourceHealth\n{\n    // GA exposed these collection properties as IReadOnlyList<T> while the generated flattened properties are\n    // IList<T>, and no client.tsp decorator can change the collection interface. Re-expose them as\n    // IReadOnlyList<T> to preserve the GA surface; the generator omits its IList<T> versions because these\n    // custom members already define the names.\n    public partial class ResourceHealthMetadataEntityData\n    {\n        /// <summary> The list of keys on which this entity depends on. </summary>\n        public IReadOnlyList<string> DependsOn => Properties?.DependsOn as IReadOnlyList<string>;\n\n        /// <summary> The list of scenarios applicable to this metadata entity. </summary>\n        public IReadOnlyList<MetadataEntityScenario> ApplicableScenarios => Properties?.ApplicableScenarios as IReadOnlyList<MetadataEntityScenario>;\n\n        /// <summary> The list of supported values. </summary>\n        public IReadOnlyList<MetadataSupportedValueDetail> SupportedValues => Properties?.SupportedValues as IReadOnlyList<MetadataSupportedValueDetail>;\n    }\n}\n",
+      "contentHash": "248eabdaf88277c3ab921e75009c6851af303dc3bfb45dd5dba449297cdf88ee",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthMetadataEntityData.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "handwritten-marker",
+      "id": "c3259ab9af8bc39b47d8d961a62f21d85dc1a9a1df519d2fc6c57f1d0f5d4f0d"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ServiceEmergingIssueData.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Azure.ResourceManager.ResourceHealth.Models;\n\nnamespace Azure.ResourceManager.ResourceHealth\n{\n    // GA exposed these collection properties as IReadOnlyList<T> while the generated flattened properties are\n    // IList<T>, and no client.tsp decorator can change the collection interface. Re-expose them as\n    // IReadOnlyList<T> to preserve the GA surface; the generator omits its IList<T> versions because these\n    // custom members already define the names.\n    public partial class ServiceEmergingIssueData\n    {\n        /// <summary> The list of emerging issues of banner type. </summary>\n        public IReadOnlyList<EmergingIssueBannerType> StatusBanners => Properties?.StatusBanners as IReadOnlyList<EmergingIssueBannerType>;\n\n        /// <summary> The list of emerging issues of active event type. </summary>\n        public IReadOnlyList<EmergingIssueActiveEventType> StatusActiveEvents => Properties?.StatusActiveEvents as IReadOnlyList<EmergingIssueActiveEventType>;\n    }\n}\n",
+      "contentHash": "529a051cd7f9a14329da1eaefdcc4422572c678cb1e11da88fc4b3d92e4f2e9c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ServiceEmergingIssueData.cs",
+      "startLine": 1,
+      "endLine": 21,
+      "kind": "handwritten-marker",
+      "id": "f3b92b6fc630f0e5f080a7643a2f8b205ca896484048f8004502f491b5129930"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/README.md",
+      "text": "# Microsoft Azure Resource Health management client library for .NET\n\nMicrosoft Azure Resource Health helps you diagnose and get support for service problems that affect your Azure resources. It reports on the current and past health of your resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Resource Health management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.ResourceHealth\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html)\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "5dccc22c5fdc057e9ac2c4b90a4f32110f5bc33115674f6649d9b625e8a405b7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/README.md"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Azure.ResourceManager.ResourceHealth.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.2.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.1.0</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.ResourceHealth</PackageId>\n    <Description>Azure Resource Manager client SDK for Azure resource provider ResourceHealth.</Description>\n    <PackageTags>azure;management;arm;resource manager;resourcehealth</PackageTags>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "2d892cf2dd6d15a4d2b301a2da1f96ec04902836057c04e5c8938297d7192e31",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Azure.ResourceManager.ResourceHealth.csproj"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/tsp-location.yaml",
+      "text": "directory: specification/resourcehealth/resource-manager/Microsoft.ResourceHealth/ResourceHealth\ncommit: 2f721197be559e0f970f3943dff734b7bc39e29b\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n",
+      "contentHash": "3acffc53b1050dcda953c81d4f4c483fdb461b6eedddf12ecf9818bc63dcd8a9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/MockableResourceHealthArmClient.cs",
+      "startLine": 1,
+      "endLine": 55,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "abac970ed0f686e666ef8211294df3db164ca33f699669d3848dda3557635783"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/Extensions/ResourceHealthExtensions.cs",
+      "startLine": 1,
+      "endLine": 49,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "133672d89c37c64a1e236eec429aea81a6925c83758a3405aa5a5438aa38ce53"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventData.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7f0c3a804c39fb62b305bf62dc29574b5630b7f84feb0746b6e5512d438891ec"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthEventImpactedResourceData.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1653b1cceefa5b16248ed420e5430bdef1d15c55cdf99de3a8baf54c5ceb93a4"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ResourceHealthMetadataEntityData.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "248eabdaf88277c3ab921e75009c6851af303dc3bfb45dd5dba449297cdf88ee"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.ResourceManager.ResourceHealth/src/Customization/ServiceEmergingIssueData.cs",
+      "startLine": 1,
+      "endLine": 21,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "529a051cd7f9a14329da1eaefdcc4422572c678cb1e11da88fc4b3d92e4f2e9c"
+    }
+  ]
+}

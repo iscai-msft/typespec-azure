@@ -1,0 +1,847 @@
+{
+  "schemaVersion": 1,
+  "id": "4a82503e-6b3b-412d-87f9-a6b1660e71ac",
+  "observedAt": "2026-10-23T20:19:37.236Z",
+  "identity": "javascript:@azure/eventgrid-namespaces:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/eventgrid-namespaces",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/eventgrid/eventgrid-namespaces"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "681df935e1dae9294377eb0502081fc2c650d6e8"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 64,
+    "eligibleFiles": 20,
+    "capturedFiles": 7,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/cloudEventDistrubtedTracingEnricherPolicy.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  PipelineResponse,\n  PipelineRequest,\n  SendRequest,\n  PipelinePolicy,\n} from \"@azure/core-rest-pipeline\";\n\nexport const CloudEventBatchContentType = \"application/cloudevents-batch+json; charset=utf-8\";\nexport const TraceParentHeaderName = \"traceparent\";\nexport const TraceStateHeaderName = \"tracestate\";\nexport const ContentTypeHeaderName = \"Content-Type\";\n\n/**\n * The programmatic identifier of the cloudEventDistributedTracingEnricherPolicy.\n */\nexport const cloudEventDistributedTracingEnricherPolicyName =\n  \"cloudEventDistributedTracingEnricherPolicy\";\n\n/**\n * cloudEventDistributedTracingEnricherPolicy is a policy which adds distributed tracing information\n * to a batch of cloud events. It does so by copying the `traceparent` and `tracestate` properties\n * from the HTTP request into the individual events as extension properties.\n *\n * This will only happen in the case where an event does not have a `traceparent` defined already. This\n * allows events to explicitly set a traceparent and tracestate which would be respected during \"multi-hop\n * transmition\".\n *\n * See https://github.com/cloudevents/spec/blob/master/extensions/distributed-tracing.md\n * for more information on distributed tracing and cloud events.\n */\nexport function cloudEventDistributedTracingEnricherPolicy(): PipelinePolicy {\n  return {\n    name: cloudEventDistributedTracingEnricherPolicyName,\n    async sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n      const traceparent = request.headers.get(TraceParentHeaderName);\n      const tracestate = request.headers.get(TraceStateHeaderName);\n\n      if (\n        request.headers.get(ContentTypeHeaderName) === CloudEventBatchContentType &&\n        typeof request.body === \"string\" &&\n        traceparent\n      ) {\n        // per the cloud event batched content type we know the body is an array encoded in JSON.\n        const parsedBody = JSON.parse(request.body) as any[];\n\n        for (const item of parsedBody) {\n          // When using the distributed tracing extension, the \"traceparent\" is a required property\n          // and \"tracestate\" is optional. This means if an item already has a \"traceparent\" property\n          // we should not stomp over it. Well formed events will not have a \"tracestate\" without\n          // also having a \"traceparent\" so there's no need to guard against that case.\n          if (typeof item !== \"object\" || item.traceparent) {\n            continue;\n          }\n\n          item.traceparent = traceparent;\n          if (tracestate) {\n            item.tracestate = tracestate;\n          }\n        }\n\n        request.body = JSON.stringify(parsedBody);\n      }\n\n      return next(request);\n    },\n  };\n}\n",
+      "contentHash": "00b060866c18e7a979100fdb22dbbd73d8f8100b1f60eb94eb9706708085db28",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/cloudEventDistrubtedTracingEnricherPolicy.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "kind": "unknown",
+      "id": "ca3e46ba83a452bdb0dcfa777c613ba5313f2d8e597489f95e9c3e7f19b4a3a1"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/consumer.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createSerializer } from \"@azure/core-client\";\nimport type { CloudEvent } from \"./models.js\";\nimport { cloudEventReservedPropertyNames } from \"./models.js\";\nimport { CloudEvent as CloudEventMapper, parseAndWrap, validateCloudEventEvent } from \"./util.js\";\n\nconst serializer = createSerializer();\n\n/**\n * EventGridDeserializer is used to aid in processing events delivered by EventGrid. It can deserialize a JSON encoded payload\n * of either a single event or batch of events as well as be used to convert the result of `JSON.parse` into an\n * `EventGridEvent` or `CloudEvent` like object.\n *\n * Unlike normal JSON deseralization, EventGridDeserializer does some additional conversions:\n *\n * - The consumer parses the event time property into a `Date` object, for ease of use.\n * - When deserializing an event in the CloudEvent schema, if the event contains binary data, it is base64 decoded\n *   and returned as an instance of the `Uint8Array` type.\n */\nexport class EventGridDeserializer {\n  /**\n   * Deserializes events encoded in the Cloud Events 1.0 schema.\n   *\n   * @param encodedEvents - the JSON encoded representation of either a single event or an array of\n   * events, encoded in the Cloud Events 1.0 Schema.\n   */\n  public async deserializeCloudEvents(encodedEvents: string): Promise<CloudEvent<unknown>[]>;\n\n  /**\n   * Deserializes events encoded in the Cloud Events 1.0 schema.\n   *\n   * @param encodedEvents - an object representing a single event, encoded in the Cloud Events 1.0 schema.\n   */\n  public async deserializeCloudEvents(\n    encodedEvents: Record<string, unknown>,\n  ): Promise<CloudEvent<unknown>[]>;\n  public async deserializeCloudEvents(\n    encodedEvents: string | Record<string, unknown>,\n  ): Promise<CloudEvent<unknown>[]> {\n    const decodedArray = parseAndWrap(encodedEvents);\n\n    const events: CloudEvent<unknown>[] = [];\n\n    for (const o of decodedArray) {\n      validateCloudEventEvent(o);\n\n      // Check that the required fields are present and of the correct type and the optional fields are missing\n      // or of the correct type.\n\n      const deserialized = serializer.deserialize(CloudEventMapper, o, \"\");\n      const modelEvent: Record<string, any> = {\n        specversion: deserialized.specversion,\n        id: deserialized.id,\n        source: deserialized.source,\n        type: deserialized.type,\n      };\n\n      if (deserialized.datacontenttype !== undefined) {\n        modelEvent.datacontenttype = deserialized.datacontenttype;\n      }\n\n      if (deserialized.dataschema !== undefined) {\n        modelEvent.dataschema = deserialized.dataschema;\n      }\n\n      if (deserialized.subject !== undefined) {\n        modelEvent.subject = deserialized.subject;\n      }\n\n      if (deserialized.time !== undefined) {\n        modelEvent.time = deserialized.time;\n      }\n\n      if (deserialized.data !== undefined) {\n        modelEvent.data = deserialized.data;\n      }\n\n      // If the data the event represents binary, it is encoded as base64 text in a different property on the event and we need to transform it.\n      if (deserialized.dataBase64 !== undefined) {\n        if (deserialized.data !== undefined) {\n          throw new TypeError(\"event contains both a data and data_base64 field\");\n        }\n\n        if (!(deserialized.dataBase64 instanceof Uint8Array)) {\n          throw new TypeError(\"event data_base64 property is not an instance of Uint8Array\");\n        }\n\n        modelEvent.data = deserialized.dataBase64;\n      }\n\n      // Build the \"extensionsAttributes\" property bag by removing all known top level properties.\n      const extensionAttributes = { ...deserialized };\n      for (const propName of cloudEventReservedPropertyNames) {\n        delete extensionAttributes[propName];\n      }\n      delete extensionAttributes.dataBase64;\n\n      // If any properties remain, copy them to the model.\n      if (Object.keys(extensionAttributes).length > 0) {\n        modelEvent.extensionAttributes = extensionAttributes;\n      }\n\n      events.push(modelEvent as CloudEvent<unknown>);\n    }\n\n    return events;\n  }\n}\n",
+      "contentHash": "b66851022243f747de77a2dedc055afc247629e3560930f073bc9fb83b7278ae",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/consumer.ts",
+      "startLine": 1,
+      "endLine": 110,
+      "kind": "unknown",
+      "id": "979e1489160ab66a003bf535f59e88ea6eb54901627a11deae040110ab6887c6"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/eventGridReceiverClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AzureKeyCredential, TokenCredential } from \"@azure/core-auth\";\nimport type {\n  AcknowledgeResult,\n  ReleaseResult,\n  RejectResult,\n  RenewLocksResult,\n} from \"./generated/models/index.js\";\nimport { EventGridClient as EventGridClientGenerated } from \"./generated/eventGridClient.js\";\nimport type {\n  CloudEvent,\n  ReceiveResult,\n  AcknowledgeEventsOptions,\n  ReleaseEventsOptions,\n  RejectEventsOptions,\n  RenewEventLocksOptions,\n  EventGridReceiverClientOptions,\n  ReceiveEventsOptions,\n} from \"./models.js\";\nimport { cloudEventDistributedTracingEnricherPolicy } from \"./cloudEventDistrubtedTracingEnricherPolicy.js\";\nimport { tracingPolicyName } from \"@azure/core-rest-pipeline\";\nimport { uint8ArrayToString } from \"@azure/core-util\";\n\n/**\n * Event Grid Namespaces Client\n */\nexport class EventGridReceiverClient {\n  private _client: EventGridClientGenerated;\n  private _topicName: string;\n  private _subscriptionName: string;\n\n  /** Azure Messaging EventGrid Client */\n  constructor(\n    endpoint: string,\n    credential: AzureKeyCredential | TokenCredential,\n    topicName: string,\n    subscriptionName: string,\n    options: EventGridReceiverClientOptions = {},\n  ) {\n    this._client = new EventGridClientGenerated(endpoint, credential, options);\n    this._topicName = topicName;\n    this._subscriptionName = subscriptionName;\n    this._client.pipeline.addPolicy(cloudEventDistributedTracingEnricherPolicy(), {\n      afterPolicies: [tracingPolicyName],\n    });\n  }\n\n  /**\n   * Receive Batch of Cloud Events from the Event Subscription.\n   *\n   * @param options - Options to receive\n   *\n   */\n  async receiveEvents<T>(\n    options: ReceiveEventsOptions = { requestOptions: {} },\n  ): Promise<ReceiveResult<T>> {\n    const result = await this._client.receiveCloudEvents(\n      this._topicName,\n      this._subscriptionName,\n      options,\n    );\n\n    const modifiedResult: ReceiveResult<T> = {\n      details: result.details.map((receiveDetails) => {\n        const cloudEvent: CloudEvent<T> = {\n          type: receiveDetails.event.type,\n          source: receiveDetails.event.source,\n          id: receiveDetails.event.id,\n          time: receiveDetails.event.time,\n          dataSchema: receiveDetails.event.dataschema,\n          dataContentType: receiveDetails.event.datacontenttype,\n          subject: receiveDetails.event.subject,\n          specVersion: receiveDetails.event.specversion,\n          data: receiveDetails.event.data\n            ? (receiveDetails.event.data as T)\n            : receiveDetails.event.dataBase64\n              ? (uint8ArrayToString(receiveDetails.event.dataBase64, \"base64\") as T)\n              : undefined,\n        };\n        return {\n          brokerProperties: receiveDetails.brokerProperties,\n          event: cloudEvent,\n        };\n      }),\n    };\n\n    return modifiedResult;\n  }\n\n  /**\n   * Acknowledge batch of Cloud Events. The server responds with an HTTP 200 status code if at least one\n   * event is successfully acknowledged. The response body will include the set of successfully acknowledged\n   * lockTokens, along with other failed lockTokens with their corresponding error information. Successfully\n   * acknowledged events will no longer be available to any consumer.\n   *\n   * @param lockTokens - Lock Tokens\n   * @param options - Options to Acknowledge\n   *\n   */\n  acknowledgeEvents(\n    lockTokens: string[],\n    options: AcknowledgeEventsOptions = { requestOptions: {} },\n  ): Promise<AcknowledgeResult> {\n    return this._client.acknowledgeCloudEvents(\n      this._topicName,\n      this._subscriptionName,\n      lockTokens,\n      options,\n    );\n  }\n\n  /**\n   * Release batch of Cloud Events. The server responds with an HTTP 200 status code if at least one event is\n   * successfully released. The response body will include the set of successfully released lockTokens, along\n   * with other failed lockTokens with their corresponding error information.\n   *\n   * @param lockTokens - Lock Tokens\n   * @param options - Options to release\n   *\n   */\n  releaseEvents(\n    lockTokens: string[],\n    options: ReleaseEventsOptions = { requestOptions: {} },\n  ): Promise<ReleaseResult> {\n    return this._client.releaseCloudEvents(this._topicName, this._subscriptionName, lockTokens, {\n      ...options,\n      releaseDelayInSeconds: options.releaseDelay,\n    });\n  }\n\n  /**\n   * Reject batch of Cloud Events.\n   *\n   * @param lockTokens - Lock Tokens\n   * @param options - Options to reject\n   *\n   */\n  rejectEvents(\n    lockTokens: string[],\n    options: RejectEventsOptions = { requestOptions: {} },\n  ): Promise<RejectResult> {\n    return this._client.rejectCloudEvents(\n      this._topicName,\n      this._subscriptionName,\n      lockTokens,\n      options,\n    );\n  }\n\n  /**\n   * Renew lock for batch of Cloud Events.\n   *\n   * @param lockTokens - Lock Tokens\n   * @param options - Options to renew\n   */\n  renewEventLocks(\n    lockTokens: string[],\n    options: RenewEventLocksOptions = { requestOptions: {} },\n  ): Promise<RenewLocksResult> {\n    return this._client.renewCloudEventLocks(\n      this._topicName,\n      this._subscriptionName,\n      lockTokens,\n      options,\n    );\n  }\n}\n",
+      "contentHash": "20a9645c04b711b70bbe86162be74ec449bdc4ecaf17db1eaf18437e7b067c0c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/eventGridReceiverClient.ts",
+      "startLine": 1,
+      "endLine": 169,
+      "kind": "unknown",
+      "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/eventGridSenderClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AzureKeyCredential, TokenCredential } from \"@azure/core-auth\";\nimport type { CloudEvent as CloudEventWireModel } from \"./generated/models/index.js\";\nimport { randomUUID } from \"@azure/core-util\";\nimport { EventGridClient as EventGridClientGenerated } from \"./generated/eventGridClient.js\";\nimport type { SendEventsOptions, CloudEvent, EventGridSenderClientOptions } from \"./models.js\";\nimport { cloudEventReservedPropertyNames } from \"./models.js\";\nimport { cloudEventDistributedTracingEnricherPolicy } from \"./cloudEventDistrubtedTracingEnricherPolicy.js\";\nimport { tracingPolicyName } from \"@azure/core-rest-pipeline\";\n\n/**\n * Event Grid Namespaces Client\n */\nexport class EventGridSenderClient {\n  private _client: EventGridClientGenerated;\n  private _topicName: string;\n\n  /** Azure Messaging EventGrid Client */\n  constructor(\n    endpoint: string,\n    credential: AzureKeyCredential | TokenCredential,\n    topicName: string,\n    options: EventGridSenderClientOptions = {},\n  ) {\n    this._client = new EventGridClientGenerated(endpoint, credential, options);\n    this._topicName = topicName;\n    this._client.pipeline.addPolicy(cloudEventDistributedTracingEnricherPolicy(), {\n      afterPolicies: [tracingPolicyName],\n    });\n  }\n\n  /**\n   * Publish Cloud Events to namespace topic. In case of success, the server responds with an HTTP 200\n   * status code with an empty JSON object in response. Otherwise, the server can return various error codes.\n   * For example, 401: which indicates authorization failure, 403: which indicates quota exceeded or message\n   * is too large, 410: which indicates that specific topic is not found, 400: for bad request, and 500: for\n   * internal server error.\n   *\n   * @param events - Events to publish\n   * @param options - Options to publish\n   *\n   */\n  async sendEvents<T>(\n    events: CloudEvent<T>[] | CloudEvent<T>,\n    options: SendEventsOptions = { requestOptions: {} },\n  ): Promise<void> {\n    if (Array.isArray(events)) {\n      const eventsWireModel: Array<CloudEventWireModel> = [];\n      for (const individualevent of events) {\n        eventsWireModel.push(convertCloudEventToModelType(individualevent));\n      }\n      await this._client.publishCloudEvents(this._topicName, eventsWireModel, options);\n    } else {\n      const cloudEventWireModel: CloudEventWireModel = convertCloudEventToModelType(events);\n      await this._client.publishCloudEvent(this._topicName, cloudEventWireModel, options);\n    }\n  }\n}\n\nexport function convertCloudEventToModelType<T>(event: CloudEvent<T>): CloudEventWireModel {\n  if (event.extensionAttributes) {\n    for (const propName in event.extensionAttributes) {\n      // Per the cloud events spec: \"CloudEvents attribute names MUST consist of lower-case letters ('a' to 'z') or digits ('0' to '9') from the ASCII character set\"\n      // they also can not match an existing defined property name.\n\n      if (\n        !/^[a-z0-9]*$/.test(propName) ||\n        cloudEventReservedPropertyNames.indexOf(propName) !== -1\n      ) {\n        throw new Error(`invalid extension attribute name: ${propName}`);\n      }\n    }\n  }\n\n  const converted: CloudEventWireModel = {\n    specversion: event.specVersion ?? \"1.0\",\n    type: event.type,\n    source: event.source,\n    id: event.id ?? randomUUID(),\n    time: event.time ?? new Date(),\n    subject: event.subject,\n    dataschema: event.dataSchema,\n    datacontenttype: event.dataContentType,\n    ...(event.extensionAttributes ?? []),\n  };\n\n  if (event.data instanceof Uint8Array) {\n    if (!event.dataContentType) {\n      throw new Error(\n        \"a data content type must be provided when sending an event with binary data\",\n      );\n    }\n\n    converted.datacontenttype = event.dataContentType;\n    converted.dataBase64 = event.data;\n  } else {\n    converted.datacontenttype =\n      event.dataContentType ?? \"application/cloudevents+json; charset=utf-8\";\n    converted.data = event.data;\n  }\n\n  return converted;\n}\n",
+      "contentHash": "cb778254d4d5c46301adee733db2ae69515ad2aede097a757b6844d7264339d8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/eventGridSenderClient.ts",
+      "startLine": 1,
+      "endLine": 105,
+      "kind": "unknown",
+      "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { AzureKeyCredential } from \"@azure/core-auth\";\n\nexport {\n  type BrokerProperties,\n  type AcknowledgeResult,\n  type FailedLockToken,\n  type ReleaseResult,\n  type RejectResult,\n  type ReleaseDelay,\n  KnownReleaseDelay,\n  type RenewLocksResult,\n  type AcknowledgeCloudEventsOptionalParams as AcknowledgeEventsOptionalParams,\n  type ReceiveCloudEventsOptionalParams as ReceiveEventsOptionalParams,\n  type RejectCloudEventsOptionalParams as RejectEventsOptionalParams,\n  type RenewCloudEventLocksOptionalParams as RenewEventLocksOptionalParams,\n  type PublishCloudEventsOptionalParams as SendEventsOptionalParams,\n  type PublishCloudEventOptionalParams as SendEventOptionalParams,\n} from \"./generated/index.js\";\n\nexport { EventGridSenderClient } from \"./eventGridSenderClient.js\";\n\nexport { EventGridReceiverClient } from \"./eventGridReceiverClient.js\";\n\nexport type { EventGridClientOptionalParams as EventGridClientOptions } from \"./generated/index.js\";\n\nexport type { OperationOptions } from \"@azure-rest/core-client\";\n\nexport type {\n  CloudEvent,\n  SendEventsOptions,\n  ReceiveResult,\n  ReceiveDetails,\n  ReceiveEventsOptions,\n  AcknowledgeEventsOptions,\n  ReleaseEventsOptions,\n  RejectEventsOptions,\n  RenewEventLocksOptions,\n  EventGridSenderClientOptions,\n  EventGridReceiverClientOptions,\n} from \"./models.js\";\n\nexport { EventGridDeserializer } from \"./consumer.js\";\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n",
+      "contentHash": "105e75e150b24337eb9e7521086bc9e87c95ddea8529894472e39bf74d4f8826",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/index.ts",
+      "startLine": 1,
+      "endLine": 46,
+      "kind": "unknown",
+      "id": "f56deb792f3ed266071208e7d0226d793821be04a10591f28b179181f69408c1"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport type {\n  BrokerProperties,\n  PublishCloudEventOptionalParams,\n  ReceiveCloudEventsOptionalParams,\n  AcknowledgeCloudEventsOptionalParams,\n  RejectCloudEventsOptionalParams,\n  RenewCloudEventLocksOptionalParams,\n  EventGridClientOptionalParams as EventGridOptions,\n  ReleaseDelay,\n} from \"./generated/index.js\";\n\n/** Send Event Options */\nexport interface SendEventOptions extends OperationOptions {\n  /** Content type */\n  contentType?: string;\n\n  /** Topic name */\n  topicName?: string;\n}\n\n/** Event Grid Sender Client Options */\nexport interface EventGridSenderClientOptions extends EventGridOptions {}\n\n/** Event Grid Receiver Client Options */\nexport interface EventGridReceiverClientOptions extends EventGridOptions {}\n\n/** Send Events Options */\nexport interface SendEventsOptions extends PublishCloudEventOptionalParams {}\n\n/** Receive Events Options */\nexport interface ReceiveEventsOptions extends ReceiveCloudEventsOptionalParams {}\n\n/** Acknowledge Events Options */\nexport interface AcknowledgeEventsOptions extends AcknowledgeCloudEventsOptionalParams {}\n\n/** Release Events Options */\nexport interface ReleaseEventsOptions extends OperationOptions {\n  /** Release events with the specified delay in seconds. */\n  releaseDelay?: ReleaseDelay;\n}\n\n/** Reject Events Options */\nexport interface RejectEventsOptions extends RejectCloudEventsOptionalParams {}\n\n/** Renew Event Locks Options */\nexport interface RenewEventLocksOptions extends RenewCloudEventLocksOptionalParams {}\n\n/** Receive operation details per Cloud Event. */\nexport interface ReceiveDetails<T> {\n  /** The Event Broker details. */\n  brokerProperties: BrokerProperties;\n  /** Cloud Event details. */\n  event: CloudEvent<T>;\n}\n\n/**\n * An event in the Cloud Event 1.0 schema.\n */\nexport interface CloudEvent<T> {\n  /**\n   * Type of event related to the originating occurrence.\n   */\n  type: string;\n  /**\n   * Identifies the context in which an event happened. The combination of id and source must be unique for each distinct event.\n   */\n  source: string;\n  /**\n   * An identifier for the event. The combination of id and source must be unique for each distinct event.\n   */\n  id: string;\n  /**\n   * The time the event was generated.\n   */\n  time?: Date;\n  /**\n   * Identifies the schema that data adheres to.\n   */\n  dataSchema?: string;\n  /**\n   * Content type of data value.\n   */\n  dataContentType?: string;\n  /**\n   * Event data specific to the event type.\n   */\n  data?: T;\n  /**\n   * This describes the subject of the event in the context of the event producer (identified by source).\n   */\n  subject?: string;\n  /**\n   * Additional context attributes for the event. The Cloud Event specification refers to these as \"extension attributes\".\n   */\n  extensionAttributes?: Record<string, unknown>;\n  /**\n   * The version of the CloudEvents specification which the event uses.\n   */\n  specVersion?: string | \"1.0\";\n}\n\n/** Details of the Receive operation response. */\nexport interface ReceiveResult<T> {\n  /** Array of receive responses, one per cloud event. */\n  details: ReceiveDetails<T>[];\n}\n\nexport const cloudEventReservedPropertyNames = [\n  \"specVersion\",\n  \"id\",\n  \"source\",\n  \"type\",\n  \"dataContentType\",\n  \"dataSchema\",\n  \"subject\",\n  \"time\",\n  \"data\",\n];\n",
+      "contentHash": "91b1dc62fd1e5161ef96ff47f45f2ffbdcba42fd69ce7757af7a0ca3fa5e6198",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/models.ts",
+      "startLine": 1,
+      "endLine": 122,
+      "kind": "unknown",
+      "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/util.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { KeyCredential } from \"@azure/core-auth\";\nimport type { CompositeMapper } from \"@azure/core-client\";\n\n/**\n * Stringifies a Date object in the format expected by the Event Grid service, for use in a Shared Access Signiture.\n *\n * The service expects this time string to be in the same format as what is returned by the .NET DateTime.ToString\n * method, using the \"en-US\" culture.\n *\n * This corresponds to the .NET format string: \"M/d/yyyy h:mm:ss tt\".  For example, the date \"June 5th, 2020, 12:09:03 PM\"\n * is represented as the string \"6/5/2020 12:09:03 PM\"\n *\n * The service expects a UTC time, so this method returns a string based on the UTC time of the provided Date.\n *\n * @param d - The Date object to convert to a string.\n */\nexport function dateToServiceTimeString(d: Date): string {\n  const month = d.getUTCMonth() + 1; // getUTCMonth returns 0-11 not 1-12.\n  const day = d.getUTCDate();\n  const year = d.getUTCFullYear();\n\n  const hour = d.getUTCHours() === 0 || d.getUTCHours() === 12 ? 12 : d.getUTCHours() % 12; // getUTCHours returns 0-23, and we want this in 12 hour format.\n  const minute = d.getUTCMinutes().toString().padStart(2, \"0\");\n  const second = d.getUTCSeconds().toString().padStart(2, \"0\");\n  const am = d.getUTCHours() >= 12 ? \"PM\" : \"AM\";\n\n  return `${month}/${day}/${year} ${hour}:${minute}:${second} ${am}`;\n}\n\n/**\n * Returns `true` if the credential object is like the KeyCredential interface (i.e. it has a\n * key property).\n *\n * @param credential - The object to test\n */\nexport function isKeyCredentialLike(o: unknown): o is KeyCredential {\n  const castO = o as {\n    key: unknown;\n  };\n  return castO.key !== undefined;\n}\n\nexport function parseAndWrap(jsonStringOrObject: string | Record<string, unknown>): any[] {\n  if (typeof jsonStringOrObject === \"string\") {\n    const o = JSON.parse(jsonStringOrObject);\n    if (Array.isArray(o)) {\n      return o;\n    } else {\n      return [o];\n    }\n  }\n\n  if (Array.isArray(jsonStringOrObject)) {\n    return jsonStringOrObject;\n  } else {\n    return [jsonStringOrObject];\n  }\n}\n\nconst CLOUD_EVENT_1_0_SPEC_VERSION = \"1.0\";\n\nexport function validateCloudEventEvent(o: unknown): void {\n  validateRequiredStringProperties(o, [\"type\", \"source\", \"id\", \"specVersion\"]);\n  validateOptionalStringProperties(o, [\"time\", \"dataSchema\", \"dataContentType\", \"subject\"]);\n\n  if (typeof o !== \"object\") {\n    throw new TypeError(\"event is not an object\");\n  }\n\n  const castO = o as {\n    specVersion: unknown;\n  };\n\n  if (castO.specVersion !== CLOUD_EVENT_1_0_SPEC_VERSION) {\n    throw new Error(\"event is not in the Cloud Event 1.0 schema\");\n  }\n}\n\nfunction validateRequiredStringProperties(o: any, propertyNames: string[]): void {\n  for (const propertyName of propertyNames) {\n    if (typeof o[propertyName] === \"undefined\") {\n      throw new Error(`event is missing required property '${propertyName}'`);\n    }\n\n    if (typeof o[propertyName] !== \"string\") {\n      throw new TypeError(\n        `event property '${propertyName} should be a 'string', but is '${typeof o[propertyName]}'`,\n      );\n    }\n  }\n}\n\nfunction validateOptionalStringProperties(o: any, propertyNames: string[]): void {\n  for (const propertyName of propertyNames) {\n    if (typeof o[propertyName] !== \"undefined\" && typeof o[propertyName] !== \"string\") {\n      throw new TypeError(\n        `event property '${propertyName}' should be a 'string' but it is a '${typeof o[\n          propertyName\n        ]}'`,\n      );\n    }\n  }\n}\n\nexport const CloudEvent: CompositeMapper = {\n  type: {\n    name: \"Composite\",\n    className: \"CloudEvent\",\n    additionalProperties: { type: { name: \"Object\" } },\n    modelProperties: {\n      id: {\n        serializedName: \"id\",\n        required: true,\n        type: {\n          name: \"String\",\n        },\n      },\n      source: {\n        serializedName: \"source\",\n        required: true,\n        type: {\n          name: \"String\",\n        },\n      },\n      data: {\n        serializedName: \"data\",\n        type: {\n          name: \"any\",\n        },\n      },\n      dataBase64: {\n        serializedName: \"data_base64\",\n        type: {\n          name: \"ByteArray\",\n        },\n      },\n      type: {\n        serializedName: \"type\",\n        required: true,\n        type: {\n          name: \"String\",\n        },\n      },\n      time: {\n        serializedName: \"time\",\n        type: {\n          name: \"DateTime\",\n        },\n      },\n      specversion: {\n        serializedName: \"specversion\",\n        required: true,\n        type: {\n          name: \"String\",\n        },\n      },\n      dataschema: {\n        serializedName: \"dataschema\",\n        type: {\n          name: \"String\",\n        },\n      },\n      datacontenttype: {\n        serializedName: \"datacontenttype\",\n        type: {\n          name: \"String\",\n        },\n      },\n      subject: {\n        serializedName: \"subject\",\n        type: {\n          name: \"String\",\n        },\n      },\n    },\n  },\n};\n",
+      "contentHash": "0e146dcadaeeca5f93beb033fa32851ae4cc4f73cd871c32785586904a978f36",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/src/util.ts",
+      "startLine": 1,
+      "endLine": 180,
+      "kind": "unknown",
+      "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/package.json",
+      "text": "{\n  \"name\": \"@azure/eventgrid-namespaces\",\n  \"sdk-type\": \"client\",\n  \"author\": \"Microsoft Corporation\",\n  \"description\": \"An isomorphic client library for the Azure Event Grid service.\",\n  \"version\": \"1.0.2\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\",\n    \"cloud\"\n  ],\n  \"license\": \"MIT\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/eventgrid/eventgrid-namespaces/README.md\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/eventgrid/eventgrid-namespaces\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure Event Grid\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-event-grid\"\n    ],\n    \"requiredResources\": {\n      \"Azure Event Grid Custom Topic, configured to use the Event Grid Schema\": \"https://learn.microsoft.com/azure/event-grid/scripts/event-grid-cli-create-custom-topic\",\n      \"Azure Event Grid Custom Topic, configured to use the Cloud Event 1.0 Schema\": \"https://learn.microsoft.com/azure/event-grid/scripts/event-grid-cli-create-custom-topic\",\n      \"Azure Service Bus Queue\": \"https://learn.microsoft.com/azure/service-bus-messaging/service-bus-quickstart-portal\"\n    }\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"dev-tool samples publish -f\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm dist-test temp types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure/core-rest-pipeline\": \"^1.18.2\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/eventgrid\": \"^5.8.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"buffer\": \"^6.0.0\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "b48b4ebeb2ad46681059361de89ab4439cc76e106335f8e14c745ff546f61412",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/package.json"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/README.md",
+      "text": "# Azure Event Grid Namespaces client library for JavaScript\n\n[Azure Event Grid](https://azure.microsoft.com/services/event-grid/) is a cloud-based service that provides reliable event delivery at massive scale.\n\nUse the client library to Send events to Event Grid Namespaces\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/eventgrid/eventgrid-namespaces/)\n- [Package (NPM)](https://www.npmjs.com/package/@azure/eventgrid-namespaces)\n- [API reference documentation](https://learn.microsoft.com/javascript/api/@azure/eventgrid-namespaces/)\n- [Product documentation](https://learn.microsoft.com/azure/event-grid/)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/eventgrid/eventgrid-namespaces/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge, and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n- An existing [Event Grid][event_grid] Topic or Domain. If you need to create the resource, you can use the [Azure Portal][azure_portal] or [Azure CLI][azure_cli].\n\nIf you use the Azure CLI, replace `<your-resource-group-name>` and `<your-resource-name>` with your own unique names:\n\n#### Create an Event Grid Topic\n\n```bash\naz eventgrid topic create --location <location> --resource-group <your-resource-group-name> --name <your-resource-name>\n```\n\n#### Create an Event Grid Domain\n\n```bash\naz eventgrid domain create --location <location> --resource-group <your-resource-group-name> --name <your-resource-name>\n```\n\n### Install the `@azure/eventgrid-namespaces` package\n\nInstall the Azure Event Grid Namespaces client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/eventgrid-namespaces\n```\n\n### Create and authenticate Namespace clients\n\nTo create a client object to access the Event Grid Namespaces API, you will need the `endpoint` of your Event Grid topic and a `credential`. The Event Grid Namespaces clients can use an Access Key.\n\nYou can find the endpoint for your Event Grid topic either in the [Azure Portal][azure_portal] or by using the [Azure CLI][azure_cli] snippet below:\n\n```bash\naz eventgrid topic show --name <your-resource-name> --resource-group <your-resource-group-name> --query \"endpoint\"\n```\n\n#### Using an Access Key\n\nUse the [Azure Portal][azure_portal] to browse to your Event Grid resource and retrieve an Access Key, or use the [Azure CLI][azure_cli] snippet below:\n\n```bash\naz eventgrid topic key list --resource-group <your-resource-group-name> --name <your-event-grid-topic-name>\n```\n\nOnce you have an API key and endpoint, you can use the `AzureKeyCredential` class to authenticate the client as follows:\n\n```ts snippet:ReadmeSampleCreateClient_KeyCredential\nimport {\n  EventGridSenderClient,\n  AzureKeyCredential,\n  EventGridReceiverClient,\n} from \"@azure/eventgrid-namespaces\";\n\nconst eventGridSenderClient = new EventGridSenderClient(\n  \"<endpoint>\",\n  new AzureKeyCredential(\"<Access Key>\"),\n  \"<topic-name>\",\n);\n\nconst eventGridReceiverClient = new EventGridReceiverClient(\n  \"<endpoint>\",\n  new AzureKeyCredential(\"<Access Key>\"),\n  \"<topic-name>\",\n  \"<subscription-name>\",\n);\n```\n\nAzure EventGrid provides integration with Azure Active Directory (Azure AD) for identity-based authentication of requests. With Azure AD, you can use role-based access control (RBAC) to grant access to your Azure Event Grid resources to users, groups, or applications.\n\nTo send events to a topic or domain with a `TokenCredential`, the authenticated identity should have the \"EventGrid Data Sender\" role assigned.\n\nWith the `@azure/identity` package, you can seamlessly authorize requests in both development and production environments. To learn more about Azure Active Directory, see the [`@azure/identity` README](https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/identity/identity/README.md).\n\nFor example, use can use `DefaultAzureCredential` to construct a client which will authenticate using Azure Active Directory:\n\n```ts snippet:ReadmeSampleCreateClient_TokenCredential\nimport { EventGridSenderClient, EventGridReceiverClient } from \"@azure/eventgrid-namespaces\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst eventGridSenderClient = new EventGridSenderClient(\n  \"<endpoint>\",\n  new DefaultAzureCredential(),\n  \"<topic-name>\",\n);\n\nconst eventGridReceiverClient = new EventGridReceiverClient(\n  \"<endpoint>\",\n  new DefaultAzureCredential(),\n  \"<topic-name>\",\n  \"<subscription-name>\",\n);\n```\n\n## Key concepts\n\n### Sending and Receiving Events\n\n`EventGridSenderClient` can be used for sending events to an Event Grid. You can initialize it as:\n\n```ts snippet:ReadmeSample_SenderClient\nimport { EventGridSenderClient, AzureKeyCredential } from \"@azure/eventgrid-namespaces\";\n\nconst eventGridSenderClient = new EventGridSenderClient(\n  \"<endpoint>\",\n  new AzureKeyCredential(\"<API Key>\"),\n  \"<topic-name>\",\n);\n```\n\n`EventGridReceiverClient` can be used for receiving events from an Event Grid. You can initialize it as:\n\n```ts snippet:ReadmeSample_ReceiverClient\nimport { EventGridReceiverClient, AzureKeyCredential } from \"@azure/eventgrid-namespaces\";\n\nconst eventGridReceiverClient = new EventGridReceiverClient(\n  \"<endpoint>\",\n  new AzureKeyCredential(\"<API Key>\"),\n  \"<topicName>\",\n  \"<subscription-name>\",\n);\n```\n\n### Distributed Tracing and Cloud Events\n\nThis library supports distributed tracing using [`@azure/core-tracing`][azure-core-tracing-github]. When using distributed tracing, this library will create a span during a `send` operation. In addition, when sending events using the Cloud Events 1.0 schema, the SDK will add distributed tracing metadata to the events using the [Distributed Tracing extension][cloud-events-distributed-tracing-spec]. The values for the `traceparent` and `tracestate` extension properties correspond to the `traceparent` and `tracestate` headers from the HTTP request which sends the events. If an event already has a `traceparent` extension property it is not updated.\n\n### Event Grid on Kubernetes\n\nThis library has been tested and validated on [Kubernetes using Azure Arc][eventgrid-on-kubernetes-using-azure-arc].\n\n## Examples\n\n### Publish an Event to an Event Grid Topic\n\n```ts snippet:ReadmeSamplePublishEvent\nimport { EventGridSenderClient, AzureKeyCredential } from \"@azure/eventgrid-namespaces\";\n\nconst client = new EventGridSenderClient(\n  \"<endpoint>\",\n  new AzureKeyCredential(\"<API key>\"),\n  \"<subscription-name>\",\n);\n\nconst cloudEvent = {\n  type: \"example\",\n  source: \"https://example.com\",\n  id: `singleEventIdV210001`,\n  time: new Date(),\n  data: {\n    resourceUri: \"https://dummyurl.com\",\n  },\n  specversion: \"1.0\",\n};\n\n// Publish the Cloud Event\nawait client.sendEvents(cloudEvent);\n```\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable the logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the\n[samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/eventgrid/eventgrid-namespaces/samples)\ndirectory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for Javascript](https://github.com/Azure/azure-sdk-for-js)\n\n\n\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_sub]: https://azure.microsoft.com/free/\n[event_grid]: https://learn.microsoft.com/azure/event-grid\n[azure_portal]: https://portal.azure.com\n[azure-core-tracing-github]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/core-tracing\n[cloud-events-distributed-tracing-spec]: https://github.com/cloudevents/spec/blob/v1.0.1/extensions/distributed-tracing.md\n[eventgrid-on-kubernetes-using-azure-arc]: https://learn.microsoft.com/azure/event-grid/kubernetes/\n",
+      "contentHash": "d4ac2320d555a9a14f0bb64c6fbfbf792cc74b48c938296f8c882194430d7816",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/README.md"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/tsp-location.yaml",
+      "text": "directory: specification/eventgrid/Azure.Messaging.EventGrid\ncommit: bb14eb6af57f27f06cb3fcf7ab82daffb27e04b0\nrepo: jeremymeng/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "07585811cf0d5966db071320c3bfec54c1d272279bab0d61ef50d027bdb41158",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/eventgrid/eventgrid-namespaces/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "fd4ee9d6f8fd6e5cd9299514a2f9fe8c9fc0d43e78037342492bb5624fe8c9b4",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "23eed78cae913e9fa5d6ca795e8d33545920613be2c952a46bc5ba75bdfb963b",
+        "category": "Tracing / telemetry",
+        "subtype": "Copy request tracing headers into batch event extensions",
+        "pattern": "cloud-event-tracing-enrichment",
+        "generatorAddressable": "yes",
+        "explanation": "For exactly the configured batch CloudEvent content type, a string body and a truthy traceparent header, the policy parses JSON, iterates events, skips non-object items or those with truthy traceparent, assigns traceparent and optional tracestate, reserializes the body and calls next. The code does not explicitly guard null items.",
+        "handwrittenRationale": "This application-specific body-enrichment policy sits outside the explicit generated subtree and is directly installed by both supplied outer client constructors.",
+        "symbols": [
+          "cloudEventDistributedTracingEnricherPolicy"
+        ],
+        "evidence": [
+          {
+            "id": "ca3e46ba83a452bdb0dcfa777c613ba5313f2d8e597489f95e9c3e7f19b4a3a1",
+            "startLine": 11,
+            "endLine": 14
+          },
+          {
+            "id": "ca3e46ba83a452bdb0dcfa777c613ba5313f2d8e597489f95e9c3e7f19b4a3a1",
+            "startLine": 34,
+            "endLine": 70
+          }
+        ]
+      },
+      {
+        "key": "14f4474cbc1913b1e0fa0dbe1719bb3e83bffed244c152eb2e13bd1c13d9dd71",
+        "category": "Hand-written client",
+        "subtype": "Contextual receiver around generated transport",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "yes",
+        "explanation": "The receiver constructor constructs a distinct generated EventGridClient, stores topic and subscription, and installs the event-tracing enrichment policy after tracingPolicyName.",
+        "handwrittenRationale": "The supplied outer class imports and instantiates ./generated/eventGridClient.js and implements its own contextual API outside that subtree.",
+        "symbols": [
+          "EventGridReceiverClient.constructor"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 11,
+            "endLine": 11
+          },
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 29,
+            "endLine": 48
+          }
+        ]
+      },
+      {
+        "key": "dd8e1f97dfaa99434b82fde28b358c6948a5a67cd17d59a3bc45bf503a53ecb0",
+        "category": "Serialization",
+        "subtype": "Received wire events projected into generic camel-case event models",
+        "pattern": "event-wire-model-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "receiveEvents supplies stored topic/subscription to the generated operation, maps each detail into a custom event with dataSchema/dataContentType/specVersion aliases and preserves broker properties. It chooses truthy data first, otherwise converts truthy dataBase64 bytes to a base64 string via uint8ArrayToString, otherwise uses undefined. It does not copy extension attributes in the shown projection.",
+        "handwrittenRationale": "The outer handwritten receiver explicitly transforms the distinct generated client's result into its own imported generic models.",
+        "symbols": [
+          "EventGridReceiverClient.receiveEvents"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 56,
+            "endLine": 90
+          }
+        ]
+      },
+      {
+        "key": "6b1f5063bcf532c2bb50b234b02097de1de5bdaf1fb77ed0a06c9626d339dd34",
+        "category": "Convenience methods",
+        "subtype": "Acknowledge events using stored topic/subscription",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "acknowledgeEvents forwards lockTokens and options to generated acknowledgeCloudEvents with the instance's topic/subscription, defaulting options to an empty requestOptions object.",
+        "handwrittenRationale": "The method is implemented in the outer client around the separately imported generated client.",
+        "symbols": [
+          "EventGridReceiverClient.acknowledgeEvents"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 102,
+            "endLine": 112
+          }
+        ]
+      },
+      {
+        "key": "eef46aa238188bbc59f5c1b1c7d0fe6fd1c255544a23824f588d18c69a3ea031",
+        "category": "Convenience methods",
+        "subtype": "Release events with renamed delay option",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "explanation": "ReleaseEventsOptions adds releaseDelay to OperationOptions. releaseEvents supplies stored topic/subscription, spreads caller options and forwards releaseDelay under releaseDelayInSeconds to the generated operation.",
+        "handwrittenRationale": "The custom options declaration is consumed by an explicit handwritten adapter over the distinct generated client.",
+        "symbols": [
+          "EventGridReceiverClient.releaseEvents",
+          "ReleaseEventsOptions.releaseDelay"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 123,
+            "endLine": 131
+          },
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 41,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "d0885d9f7e9d9c2fd7767658ecf86b394a971e657e8d057b71c86a214c98bdc6",
+        "category": "Convenience methods",
+        "subtype": "Reject events using stored context",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "rejectEvents supplies stored topic/subscription and caller lockTokens/options to the generated rejectCloudEvents operation, with default requestOptions.",
+        "handwrittenRationale": "This explicit forwarding method is in the outer client wrapping the separate generated subtree.",
+        "symbols": [
+          "EventGridReceiverClient.rejectEvents"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 140,
+            "endLine": 150
+          }
+        ]
+      },
+      {
+        "key": "5b69d9f29b37291552078b95a2142b1f2199c74f1db44a964196937ac08f7667",
+        "category": "Convenience methods",
+        "subtype": "Explicit lock-renewal convenience operation",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "renewEventLocks forwards stored topic/subscription and caller lockTokens/options to generated renewCloudEventLocks. It does not implement a timer or automatic renewal loop.",
+        "handwrittenRationale": "This is a concrete method of the handwritten outer receiver, not an inference from a generated operation name.",
+        "symbols": [
+          "EventGridReceiverClient.renewEventLocks"
+        ],
+        "evidence": [
+          {
+            "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+            "startLine": 158,
+            "endLine": 168
+          }
+        ]
+      },
+      {
+        "key": "af4e5f520e5c2356b965505f83bdcbb07b918620628685d38d54355fc09b05c0",
+        "category": "Hand-written client",
+        "subtype": "Topic-bound sender around generated transport",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "yes",
+        "explanation": "The sender constructor initializes the separately generated EventGridClient with endpoint/credential/options, retains the topic and installs CloudEvent tracing enrichment after the tracing policy.",
+        "handwrittenRationale": "The outer source explicitly imports and instantiates ./generated/eventGridClient.js while adding its own topic-bound interface.",
+        "symbols": [
+          "EventGridSenderClient.constructor"
+        ],
+        "evidence": [
+          {
+            "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae",
+            "startLine": 7,
+            "endLine": 11
+          },
+          {
+            "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae",
+            "startLine": 21,
+            "endLine": 32
+          }
+        ]
+      },
+      {
+        "key": "ed7a07d21b476e888268fc1f3ea89109af0cdb50c4b5766244a7056a5d1e502c",
+        "category": "Convenience methods",
+        "subtype": "Single event or batch selects generated publish operation",
+        "pattern": "single-or-batch-operation-dispatch",
+        "generatorAddressable": "yes",
+        "explanation": "sendEvents accepts one CloudEvent or an array, maps each supplied event through convertCloudEventToModelType and awaits either publishCloudEvent or publishCloudEvents with stored topic/options, returning void.",
+        "handwrittenRationale": "The outer sender implements input-shape dispatch over two distinct generated operations.",
+        "symbols": [
+          "EventGridSenderClient.sendEvents"
+        ],
+        "evidence": [
+          {
+            "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae",
+            "startLine": 45,
+            "endLine": 59
+          }
+        ]
+      },
+      {
+        "key": "61621584f7238335465cefef393fe8fd01632c68d96452601c1519a7c11b315c",
+        "category": "Serialization",
+        "subtype": "Event defaults, extension validation and binary wire mapping",
+        "pattern": "event-model-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "The converter checks extension names against its lowercase-letter/digit regex and the supplied reserved-name list, maps camel-case properties to wire names, defaults specversion/id/time and merges extensions. Uint8Array data requires a truthy content type and is assigned to dataBase64; other data is assigned to data with a default CloudEvent JSON content type. It does not itself base64-encode the assigned bytes.",
+        "handwrittenRationale": "This custom conversion helper in the outer sender is directly invoked before calls to the distinct generated client.",
+        "symbols": [
+          "convertCloudEventToModelType"
+        ],
+        "evidence": [
+          {
+            "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae",
+            "startLine": 62,
+            "endLine": 105
+          },
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 112,
+            "endLine": 122
+          }
+        ]
+      },
+      {
+        "key": "66808078357319833c8afd498ad31d57b99f72dca8dab02b83f7c4c88d1c23bc",
+        "category": "Model overrides",
+        "subtype": "Generic camel-case public CloudEvent contract",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "explanation": "The outer CloudEvent<T> interface requires type/source/id and declares optional Date time, camel-case dataSchema/dataContentType/specVersion, generic data and an extension-attribute bag. The handwritten sender and receiver bridge this type to the distinct generated wire model.",
+        "handwrittenRationale": "This separately exported interface is consumed by explicit outer-client conversion code instead of merely re-exporting the generated CloudEvent type.",
+        "symbols": [
+          "CloudEvent"
+        ],
+        "evidence": [
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 63,
+            "endLine": 104
+          }
+        ]
+      },
+      {
+        "key": "5761b8de72e3a315ef7dc7880359b5c69681b8a41a8944e7f3ca17fa2b27d7be",
+        "category": "Model overrides",
+        "subtype": "Receive detail combines broker metadata with generic event",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "explanation": "ReceiveDetails<T> pairs generated BrokerProperties with the outer generic CloudEvent<T>; the outer receiver constructs this shape for its returned details.",
+        "handwrittenRationale": "The explicitly declared wrapper type composes the generated metadata and custom event rather than simply aliasing a generated result.",
+        "symbols": [
+          "ReceiveDetails"
+        ],
+        "evidence": [
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 53,
+            "endLine": 58
+          }
+        ]
+      },
+      {
+        "key": "1b1986bfa60c166b7f9d2ba787fb1f5daceeddfde366c6861e1f94f790dcf470",
+        "category": "Model overrides",
+        "subtype": "Generic receive-result detail collection",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "explanation": "ReceiveResult<T> declares a details array of the custom ReceiveDetails<T> type and is the outer receiver's explicit result contract.",
+        "handwrittenRationale": "This is a declared custom outer result type consumed by the handwritten projection, not a re-export or empty interface extension.",
+        "symbols": [
+          "ReceiveResult"
+        ],
+        "evidence": [
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 107,
+            "endLine": 110
+          }
+        ]
+      },
+      {
+        "key": "bc68009516ffc40623d535d5f8d0e71401ab5b70444181bfe0ec6970d57d3ddf",
+        "category": "Serialization",
+        "subtype": "Custom CloudEvent deserializer and extension reconstruction",
+        "pattern": "event-deserialization-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "deserializeCloudEvents normalizes input, validates each item and invokes a supplied composite mapper. It copies selected deserialized fields using lower-case specversion/dataschema/datacontenttype names, rejects simultaneous data/dataBase64 or non-Uint8Array binary data, puts binary bytes in data and derives an extension bag by deleting configured reserved names plus dataBase64 from a clone. Its mapper declares ByteArray and DateTime conversions; their runtime implementations are not supplied.",
+        "handwrittenRationale": "This public outer deserializer implements custom validation, projection and extension reconstruction over the core serializer, and index.ts explicitly exports it alongside the outer generated-client wrappers.",
+        "symbols": [
+          "EventGridDeserializer.deserializeCloudEvents"
+        ],
+        "evidence": [
+          {
+            "id": "979e1489160ab66a003bf535f59e88ea6eb54901627a11deae040110ab6887c6",
+            "startLine": 39,
+            "endLine": 109
+          },
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 108,
+            "endLine": 180
+          },
+          {
+            "id": "f56deb792f3ed266071208e7d0226d793821be04a10591f28b179181f69408c1",
+            "startLine": 45,
+            "endLine": 45
+          }
+        ]
+      },
+      {
+        "key": "5e63d4f44a21488df5d2ec51c5c0fdcced373c740dbc92f0dad8aef190ffacf8",
+        "category": "Serialization",
+        "subtype": "Parse JSON or object and normalize to event array",
+        "pattern": "single-or-array-input-normalization",
+        "generatorAddressable": "yes",
+        "explanation": "parseAndWrap parses string inputs, returns arrays unchanged and wraps every other parsed or direct value in a single-element array. It does not itself validate an event shape.",
+        "handwrittenRationale": "This helper is directly called by the supplied custom outer deserializer and resides with its explicit validation helpers outside the generated subtree.",
+        "symbols": [
+          "parseAndWrap"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 46,
+            "endLine": 61
+          }
+        ]
+      },
+      {
+        "key": "588be1379ddb1b4510362e0fa02898778fc2d01368207d26df6aff4ec16bcdd0",
+        "category": "Serialization",
+        "subtype": "Explicit event property and version validation",
+        "pattern": "event-schema-validation",
+        "generatorAddressable": "yes",
+        "explanation": "validateCloudEventEvent requires string type/source/id/specVersion, checks optional time/dataSchema/dataContentType/subject string types, then checks typeof object and specVersion equal to 1.0. Property validation is called before the object check.",
+        "handwrittenRationale": "This explicit custom validation helper is directly called by the outer deserializer rather than inferred from a generated schema.",
+        "symbols": [
+          "validateCloudEventEvent"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 63,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "a68ebf02842f0d166f793ff86acdb991752dfdd41947b9c0958fa60424c4940e",
+        "category": "Serialization",
+        "subtype": "Required event string-property checks",
+        "pattern": "model-property-type-validation",
+        "generatorAddressable": "yes",
+        "explanation": "The helper iterates requested property names, throws Error for undefined values and TypeError for defined non-string values, including the property name and observed type in the messages.",
+        "handwrittenRationale": "The concrete helper in the custom deserialization utility module is used by the supplied event validator.",
+        "symbols": [
+          "validateRequiredStringProperties"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 82,
+            "endLine": 94
+          }
+        ]
+      },
+      {
+        "key": "ec9659bbe0225c3c64ec299b3842db91f49c4431df4d19a81a415a534e86eba1",
+        "category": "Serialization",
+        "subtype": "Optional event string-property checks",
+        "pattern": "model-property-type-validation",
+        "generatorAddressable": "yes",
+        "explanation": "The optional-property helper permits undefined but throws TypeError for every supplied property whose value is not a string, naming the property and observed type.",
+        "handwrittenRationale": "This implemented helper is used by the custom outer deserializer's validation path.",
+        "symbols": [
+          "validateOptionalStringProperties"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 96,
+            "endLine": 106
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "23eed78cae913e9fa5d6ca795e8d33545920613be2c952a46bc5ba75bdfb963b",
+        "status": "accepted",
+        "reason": "The non-generated policy is installed by both outer clients and conditionally copies HTTP trace context into individual JSON batch events without overwriting a truthy existing traceparent. Its description and cited lines match the implementation; AI acceptance does not verify runtime behavior."
+      },
+      {
+        "key": "14f4474cbc1913b1e0fa0dbe1719bb3e83bffed244c152eb2e13bd1c13d9dd71",
+        "status": "revised",
+        "reason": "The handwritten contextual receiver constructor is supported, but a generator's ability to replace the whole wrapper is not established by the supplied TypeSpec/generation context.",
+        "finding": {
+          "key": "14f4474cbc1913b1e0fa0dbe1719bb3e83bffed244c152eb2e13bd1c13d9dd71",
+          "category": "Hand-written client",
+          "subtype": "Subscription-bound receiver client over generated transport",
+          "explanation": "The outer receiver constructs a generated EventGridClient, stores topic and subscription names for its methods, and installs a separate CloudEvent tracing policy after tracingPolicyName.",
+          "pattern": "handwritten-client-over-generated",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The class in src/eventGridReceiverClient.ts imports ./generated/eventGridClient.js and implements its own constructor and methods outside the generated subtree.",
+          "symbols": [
+            "EventGridReceiverClient.constructor"
+          ],
+          "evidence": [
+            {
+              "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+              "startLine": 29,
+              "endLine": 48
+            }
+          ]
+        }
+      },
+      {
+        "key": "dd8e1f97dfaa99434b82fde28b358c6948a5a67cd17d59a3bc45bf503a53ecb0",
+        "status": "accepted",
+        "reason": "The receiver maps generated detail records to the outer CloudEvent<T>, changes property names, retains brokerProperties, and handles truthy data or dataBase64 exactly as described. The mapping is handwritten and does not retain extensions."
+      },
+      {
+        "key": "6b1f5063bcf532c2bb50b234b02097de1de5bdaf1fb77ed0a06c9626d339dd34",
+        "status": "accepted",
+        "reason": "The outer method explicitly forwards lock tokens and defaulted options with its stored topic/subscription into the separately generated acknowledgeCloudEvents operation."
+      },
+      {
+        "key": "eef46aa238188bbc59f5c1b1c7d0fe6fd1c255544a23824f588d18c69a3ea031",
+        "status": "accepted",
+        "reason": "The custom ReleaseEventsOptions.releaseDelay is mapped to releaseDelayInSeconds in the outer receiver, with topic/subscription passed to the generated release operation; the proposed finding cites both the option and adapter."
+      },
+      {
+        "key": "d0885d9f7e9d9c2fd7767658ecf86b394a971e657e8d057b71c86a214c98bdc6",
+        "status": "accepted",
+        "reason": "The handwritten receiver method passes stored topic/subscription, lock tokens and options to the generated rejectCloudEvents operation, with the defaulted requestOptions shown."
+      },
+      {
+        "key": "5b69d9f29b37291552078b95a2142b1f2199c74f1db44a964196937ac08f7667",
+        "status": "accepted",
+        "reason": "The receiver exposes an explicit lock-renewal forwarding method over the generated operation; there is no timer or automatic renewal loop in its cited implementation."
+      },
+      {
+        "key": "af4e5f520e5c2356b965505f83bdcbb07b918620628685d38d54355fc09b05c0",
+        "status": "revised",
+        "reason": "The sender's topic-bound handwritten wrapper is supported, but the supplied context does not establish that the generator could replace its client shape and policy installation.",
+        "finding": {
+          "key": "af4e5f520e5c2356b965505f83bdcbb07b918620628685d38d54355fc09b05c0",
+          "category": "Hand-written client",
+          "subtype": "Topic-bound sender client over generated transport",
+          "explanation": "The outer sender constructs a generated EventGridClient, retains the topic name used by sendEvents, and installs a CloudEvent tracing policy after tracingPolicyName.",
+          "pattern": "handwritten-client-over-generated",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The source in src/eventGridSenderClient.ts imports ./generated/eventGridClient.js and implements its own constructor and send method outside the generated subtree.",
+          "symbols": [
+            "EventGridSenderClient.constructor"
+          ],
+          "evidence": [
+            {
+              "id": "fa2c2b9d3cd989adc60a7b8f96b1b65becb142ed0e5aeceedfc063c33cebe6ae",
+              "startLine": 16,
+              "endLine": 32
+            }
+          ]
+        }
+      },
+      {
+        "key": "ed7a07d21b476e888268fc1f3ea89109af0cdb50c4b5766244a7056a5d1e502c",
+        "status": "accepted",
+        "reason": "The handwritten sendEvents dispatches one input to publishCloudEvent and an array to publishCloudEvents, converting each item first and passing the stored topic and caller options."
+      },
+      {
+        "key": "61621584f7238335465cefef393fe8fd01632c68d96452601c1519a7c11b315c",
+        "status": "accepted",
+        "reason": "The helper validates extension attribute names, maps outer fields to wire names, supplies defaults and branches on Uint8Array data exactly as proposed; bytes are assigned to dataBase64 without an explicit encoding step in this helper."
+      },
+      {
+        "key": "66808078357319833c8afd498ad31d57b99f72dca8dab02b83f7c4c88d1c23bc",
+        "status": "accepted",
+        "reason": "The outer generic CloudEvent interface defines a separately exported public model with camel-case fields and extensionAttributes, used by explicit adapters instead of merely re-exporting the distinct generated wire model."
+      },
+      {
+        "key": "5761b8de72e3a315ef7dc7880359b5c69681b8a41a8944e7f3ca17fa2b27d7be",
+        "status": "revised",
+        "reason": "ReceiveDetails and ReceiveResult together define one custom receive-result contract; count the detail and its containing collection as one behavior, rather than counting the collection again under the next proposal.",
+        "finding": {
+          "key": "5761b8de72e3a315ef7dc7880359b5c69681b8a41a8944e7f3ca17fa2b27d7be",
+          "category": "Model overrides",
+          "subtype": "Generic receive result with broker metadata and outer events",
+          "explanation": "ReceiveDetails<T> pairs generated BrokerProperties with a custom CloudEvent<T>, and ReceiveResult<T> contains an array of those details; receiveEvents returns this custom result shape.",
+          "pattern": "model-type-replacement",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both interfaces are implemented as outer models in src/models.ts and consumed by the handwritten receiver result projection, rather than only re-exported from generated/index.js.",
+          "symbols": [
+            "ReceiveDetails",
+            "ReceiveResult"
+          ],
+          "evidence": [
+            {
+              "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+              "startLine": 53,
+              "endLine": 58
+            },
+            {
+              "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+              "startLine": 107,
+              "endLine": 110
+            },
+            {
+              "id": "1d568c3237c607b38b7ec4a825ae81deb887e4d172e895e1704ee276a8ec1d64",
+              "startLine": 65,
+              "endLine": 89
+            }
+          ]
+        }
+      },
+      {
+        "key": "1b1986bfa60c166b7f9d2ba787fb1f5daceeddfde366c6861e1f94f790dcf470",
+        "status": "rejected",
+        "reason": "ReceiveResult is a collection envelope for the same custom detail/result shape already captured under the revised ReceiveDetails finding; counting its declaration again would double-count one response-model customization."
+      },
+      {
+        "key": "bc68009516ffc40623d535d5f8d0e71401ab5b70444181bfe0ec6970d57d3ddf",
+        "status": "revised",
+        "reason": "The custom deserialization path is real, but the original description obscures an important mismatch: validation reads specVersion while the mapper/projected event use specversion, and the resulting event does not normalize these fields to the outer CloudEvent camel-case contract.",
+        "finding": {
+          "key": "bc68009516ffc40623d535d5f8d0e71401ab5b70444181bfe0ec6970d57d3ddf",
+          "category": "Serialization",
+          "subtype": "CloudEvent deserialization and extension reconstruction",
+          "explanation": "deserializeCloudEvents normalizes input to an array, validates each entry and uses a custom composite mapper; it projects lowercase specversion/dataschema/datacontenttype fields, checks mutually exclusive data and dataBase64, puts decoded Uint8Array data into data, and copies non-reserved fields to extensionAttributes. The validator instead requires camel-case specVersion, and the implementation does not normalize the projected fields to the outer CloudEvent<T> names.",
+          "pattern": "event-deserialization-wrapper",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The exported outer EventGridDeserializer in src/consumer.ts explicitly invokes custom helpers and a handwritten mapper in src/util.ts rather than simply returning generated client models.",
+          "symbols": [
+            "EventGridDeserializer.deserializeCloudEvents"
+          ],
+          "evidence": [
+            {
+              "id": "979e1489160ab66a003bf535f59e88ea6eb54901627a11deae040110ab6887c6",
+              "startLine": 39,
+              "endLine": 109
+            },
+            {
+              "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+              "startLine": 63,
+              "endLine": 80
+            },
+            {
+              "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+              "startLine": 151,
+              "endLine": 174
+            }
+          ]
+        }
+      },
+      {
+        "key": "5e63d4f44a21488df5d2ec51c5c0fdcced373c740dbc92f0dad8aef190ffacf8",
+        "status": "accepted",
+        "reason": "parseAndWrap provides the separately identifiable single-or-array input normalization used by the public deserializer: strings are JSON-parsed, arrays returned intact and other values wrapped; no validation happens in this helper."
+      },
+      {
+        "key": "588be1379ddb1b4510362e0fa02898778fc2d01368207d26df6aff4ec16bcdd0",
+        "status": "accepted",
+        "reason": "The explicit handwritten validator calls required/optional string checks then tests for an object and version 1.0; its property checks precede the object guard, as described."
+      },
+      {
+        "key": "a68ebf02842f0d166f793ff86acdb991752dfdd41947b9c0958fa60424c4940e",
+        "status": "rejected",
+        "reason": "This private helper is the implementation of required string checks in the already-counted validateCloudEventEvent behavior, not an independent customization instance or public API."
+      },
+      {
+        "key": "ec9659bbe0225c3c64ec299b3842db91f49c4431df4d19a81a415a534e86eba1",
+        "status": "rejected",
+        "reason": "This private helper implements optional string checks for the same validateCloudEventEvent behavior; separately counting it would count implementation details as another customization."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "bd12e9fa854c67f8f6e689b310d0e4cda8e0badefe04ca478ca0aaecff014855",
+        "category": "Serialization",
+        "subtype": "Explicit CloudEvent wire mapper with binary and date fields",
+        "explanation": "The handwritten composite mapper defines serialized field names, required properties and dataBase64 ByteArray/time DateTime types for the core serializer used by the outer deserializer. This mapper is a candidate distinct from the deserializeCloudEvents orchestration; its separate count is inconclusive until the generated model/mapping baseline is compared.",
+        "pattern": "custom-event-wire-mapper",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The concrete CompositeMapper declaration is in src/util.ts outside the imported ./generated subtree, and src/consumer.ts explicitly passes it to createSerializer().deserialize.",
+        "symbols": [
+          "CloudEvent"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 108,
+            "endLine": 180
+          },
+          {
+            "id": "979e1489160ab66a003bf535f59e88ea6eb54901627a11deae040110ab6887c6",
+            "startLine": 52,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "33275875e8a926395d4e14620b62e73a9b5979dab8b6e89f9dea15a78f89e2b8",
+        "category": "Serialization",
+        "subtype": "UTC Date formatted for service SAS timestamp",
+        "explanation": "dateToServiceTimeString formats UTC date fields as a month/day/year 12-hour string with AM/PM. The supplied evidence does not show a call site or prove that this helper changes the shipped public behavior, so this is an inconclusive candidate.",
+        "pattern": "service-timestamp-formatting",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "A concrete UTC formatting helper is implemented in src/util.ts outside the generated subtree, rather than just re-exported.",
+        "symbols": [
+          "dateToServiceTimeString"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 7,
+            "endLine": 32
+          }
+        ]
+      },
+      {
+        "key": "9f4031095f356c64467a6d87d40740fd735dd903dc93e668d330ac266d316edb",
+        "category": "Auth",
+        "subtype": "Structural key-credential detection",
+        "explanation": "isKeyCredentialLike tests whether the argument's key property is defined to narrow it to KeyCredential. Its actual use is not supplied, so whether this changes authentication behavior remains inconclusive.",
+        "pattern": "credential-shape-detection",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "This exported type-guard implementation is present in src/util.ts outside the generated subtree; no use site appears in the captured evidence.",
+        "symbols": [
+          "isKeyCredentialLike"
+        ],
+        "evidence": [
+          {
+            "id": "f6a8799f142e2ca774ac9c05ebec020cc2439f35e17be30da33da22b8ca79968",
+            "startLine": 35,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "0e9b595ef081cc449e8bf53900b126c59d9a3244967e3a825a2fadf838ec68ce",
+        "category": "Model overrides",
+        "subtype": "Custom send options with content type and topic name",
+        "explanation": "SendEventOptions adds optional contentType and topicName to OperationOptions, but the supplied index does not export the interface and the supplied send method accepts SendEventsOptions instead; its use and impact are inconclusive.",
+        "pattern": "model-property-addition",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The substantive options fields are defined in src/models.ts outside the generated subtree, unlike the nearby empty interfaces that simply extend generated option types.",
+        "symbols": [
+          "SendEventOptions"
+        ],
+        "evidence": [
+          {
+            "id": "8aa8933773d86d891b1031341f969b9660f04501c1a5f1c9781048b9ef2223ad",
+            "startLine": 17,
+            "endLine": 23
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only seven of 20 eligible files from 64 discovered files are captured. The empty skipped array does not make this exhaustive; no generated counterparts, generator execution or SDK requests were supplied.",
+      "Positive handwritten signals come from explicit outer clients importing a distinct generated subtree and their custom conversion/policy/helper wiring, not merely unknown extraction kind or lack of a generated header. No individual copied/generated mapper property is counted as an independent customization.",
+      "The visible standalone SendEventOptions interface, UTC date formatter and isKeyCredentialLike helper have no use in the supplied consumer/sender/receiver paths. Their authorship against an uncustomized baseline, public reachability and role in actual signing/authentication remain unresolved; no additional behavioral finding is inferred from their names or comments.",
+      "Empty interfaces extending generated options and index.ts re-exports are not counted separately.",
+      "The deserializer validator expects camel-case specVersion/dataSchema/dataContentType while its mapper and result assignments use lower-case wire names; its reserved-name deletion list is also camel-case. Findings describe those exact source operations, not successful validation, correct extension stripping or interface conformance for all CloudEvent inputs.",
+      "The receiver's data selection uses truthiness and its binary branch produces a base64 string, unlike the standalone deserializer's Uint8Array branch. No universal binary-decoding or falsey-data-preservation guarantee is claimed.",
+      "No build, runtime tracing, serializer implementation or overlay comparison was executed. AI-reviewed code is not verified behavior or evidence of library-wide absence.",
+      "Only seven of twenty eligible source files were captured; no package-wide absence or full call-site claim follows from this partial source capture.",
+      "Evidence kind is unknown and the generated counterparts and TypeSpec source are not supplied; placement outside ./generated plus direct use by outer clients supports handwritten provenance, not a complete generated-versus-overlay diff.",
+      "The package manifest reports version 1.0.2 while library metadata reports latestRelease 1.0.0; this review does not reconcile release provenance.",
+      "The custom deserializer's specVersion/specversion mismatch is source-observable, but no SDK code or external serializer was executed; runtime effects and the core serializer's ByteArray/DateTime behavior were not verified.",
+      "Every accepted decision reflects independent AI review of supplied evidence, not human verification; omissions remain inconclusive."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/cloudEventDistrubtedTracingEnricherPolicy.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "00b060866c18e7a979100fdb22dbbd73d8f8100b1f60eb94eb9706708085db28"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/consumer.ts",
+      "startLine": 1,
+      "endLine": 110,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b66851022243f747de77a2dedc055afc247629e3560930f073bc9fb83b7278ae"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/eventGridReceiverClient.ts",
+      "startLine": 1,
+      "endLine": 169,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "20a9645c04b711b70bbe86162be74ec449bdc4ecaf17db1eaf18437e7b067c0c"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/eventGridSenderClient.ts",
+      "startLine": 1,
+      "endLine": 105,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "cb778254d4d5c46301adee733db2ae69515ad2aede097a757b6844d7264339d8"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/index.ts",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "105e75e150b24337eb9e7521086bc9e87c95ddea8529894472e39bf74d4f8826"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/models.ts",
+      "startLine": 1,
+      "endLine": 122,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "91b1dc62fd1e5161ef96ff47f45f2ffbdcba42fd69ce7757af7a0ca3fa5e6198"
+    },
+    {
+      "path": "sdk/eventgrid/eventgrid-namespaces/src/util.ts",
+      "startLine": 1,
+      "endLine": 180,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0e146dcadaeeca5f93beb033fa32851ae4cc4f73cd871c32785586904a978f36"
+    }
+  ]
+}
