@@ -181,3 +181,21 @@ The internal `getFeatureFileSet` accessor returns the enum configured by `@featu
 ## Documentation Feedback
 
 Use rendered documentation URLs for canonical sample links and link to canonical samples through the published samples site (`https://azure.github.io/typespec-azure/docs/samples/...`) rather than the repository source tree. In examples, omit every template argument that is equal to its declared default, including inferred `ResourceNameParameter` key, segment, and name-pattern values.
+
+## Ruleset Enablement
+
+The package-local `@azure-tools/typespec-azure-resource-manager/all` ruleset enables every registered rule except `use-scope-for-extension-routing`. The broader Azure `resource-manager` ruleset in `@azure-tools/typespec-azure-rulesets` additionally disables `use-standard-response-codes` and `use-resource-path-for-put`. Documentation must name the specific ruleset when describing whether a rule is enabled.
+
+## Incremental Rule Coverage
+
+- `list-response-envelope` covers both ARM-provider collection GET paths and authored paged `@list` operations with `@nextLink`, including POST list actions. It requires exactly `value` and `nextLink`, and `value` must be an array.
+- `resource-missing-read` requires a read operation when a resource has create or update lifecycle operations. It does not require the complete tracked-resource operation set.
+- `scope-path-segment-casing` validates exact `subscriptions` and `resourceGroups` segment casing.
+- `use-resource-path-for-put` validates that PUT paths end in resource type/name pairs.
+- `use-standard-response-codes` enforces the general ARM response-code allowlist and a stricter GET contract inside service namespaces.
+- `use-scope-for-extension-routing` is an opt-in RPaaS policy, not a general restriction on ordinary ARM extension resource paths.
+- `no-tags-on-proxy-resource` checks the resource envelope of every non-tracked ARM resource, including proxy and extension resources.
+
+## Resource Metadata Resolution
+
+`resolveArmResources(program)` returns the multi-version declaration view. Its options support either one exact version string or a mutually exclusive `serviceVersions` array of namespace/`Version` selections. A `nameResolver` can customize logical resource-model, resource occurrence, operation, and operation-group names without changing wire paths, serialized names, or ARM resource types. Version projections are isolated, and customized naming results are copied rather than shared.
