@@ -218,10 +218,14 @@ test("publish without a refresh keeps links with unknown status", async () => {
 });
 
 test("the committed tracking files are valid", async () => {
-  assert.deepEqual(
-    await readLinks(new URL("../tracking/links.json", import.meta.url).pathname),
-    [],
-  );
+  // Every link names a pattern from the catalog (an id or an alias).
+  const catalog = JSON.parse(
+    await readFile(new URL("../guidelines/patterns.json", import.meta.url), "utf8"),
+  ) as { patterns: { id: string; aliases?: string[] }[] };
+  const known = new Set(catalog.patterns.flatMap((item) => [item.id, ...(item.aliases ?? [])]));
+  for (const link of await readLinks(new URL("../tracking/links.json", import.meta.url).pathname))
+    if (link.pattern)
+      assert.ok(known.has(link.pattern), `${link.url}: unknown pattern ${link.pattern}`);
   const map: FeatureMap = JSON.parse(
     await readFile(new URL("../tracking/features.json", import.meta.url), "utf8"),
   );
