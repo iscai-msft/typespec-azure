@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "id": "48e5aa25-ead5-4e80-8988-4294e0efa4f3",
+  "observedAt": "2026-10-23T18:25:16.414Z",
+  "identity": "java:azure-iot-deviceregistry-softwareupdate:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-iot-deviceregistry-softwareupdate",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "3b5282eecd511a1c43cb8a2241ff00b2aae25d42"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 46,
+    "eligibleFiles": 33,
+    "capturedFiles": 1,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/customization/src/main/java/SoftwareUpdateCustomization.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nimport com.azure.autorest.customization.ClassCustomization;\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.github.javaparser.StaticJavaParser;\nimport org.slf4j.Logger;\n\n/**\n * Customization that preserves the {@code beginDeleteUpdate} protocol API copied from\n * {@code azure-iot-deviceupdate}.\n *\n * <p>The predecessor library returns {@code BinaryData} as the final result of the protocol LRO overloads.\n * The TypeSpec emitter instead derives {@code Void} because the delete operation has an empty {@code 204}\n * response. This customization keeps the copied protocol API consistent while leaving the model convenience\n * overloads unchanged.</p>\n */\npublic class SoftwareUpdateCustomization extends Customization {\n\n    private static final String ROOT_PACKAGE = \"com.azure.iot.deviceregistry.softwareupdate\";\n    private static final String IMPL_PACKAGE = \"com.azure.iot.deviceregistry.softwareupdate.implementation\";\n\n    @Override\n    public void customize(LibraryCustomization libraryCustomization, Logger logger) {\n        logger.info(\"Restoring 'beginDeleteUpdate' protocol overload final-result type to BinaryData.\");\n\n        restoreBinaryDataFinalResult(libraryCustomization.getClass(ROOT_PACKAGE, \"SoftwareUpdateClient\"),\n            \"beginDeleteUpdate\", false);\n        restoreBinaryDataFinalResult(libraryCustomization.getClass(ROOT_PACKAGE, \"SoftwareUpdateAsyncClient\"),\n            \"beginDeleteUpdate\", false);\n\n        ClassCustomization impl = libraryCustomization.getClass(IMPL_PACKAGE, \"SoftwareUpdatesImpl\");\n        restoreBinaryDataFinalResult(impl, \"beginDeleteUpdate\", true);\n        restoreBinaryDataFinalResult(impl, \"beginDeleteUpdateAsync\", true);\n    }\n\n    private static void restoreBinaryDataFinalResult(ClassCustomization classCustomization, String methodName,\n        boolean rewriteFinalResultTypeReference) {\n        classCustomization.customizeAst(ast -> ast.getClassByName(classCustomization.getClassName())\n            .ifPresent(clazz -> clazz.getMethodsByName(methodName).forEach(method -> {\n                String returnType = method.getTypeAsString().replace(\" \", \"\");\n                if (!returnType.equals(\"SyncPoller<BinaryData,Void>\")\n                    && !returnType.equals(\"PollerFlux<BinaryData,Void>\")) {\n                    return;\n                }\n\n                method.setType(StaticJavaParser.parseType(method.getTypeAsString().replace(\"Void\", \"BinaryData\")));\n\n                if (rewriteFinalResultTypeReference) {\n                    method.getBody()\n                        .ifPresent(body -> method.setBody(StaticJavaParser.parseBlock(body.toString()\n                            .replace(\"TypeReference.createInstance(Void.class)\",\n                                \"TypeReference.createInstance(BinaryData.class)\"))));\n                }\n            })));\n    }\n}\n",
+      "contentHash": "bc09d1cab500581854b1bdb004b450cb9d3b42d3e121263c36beed350ab69f47",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/customization/src/main/java/SoftwareUpdateCustomization.java",
+      "startLine": 1,
+      "endLine": 58,
+      "kind": "handwritten-marker",
+      "id": "b22b6d18f6f732df8866f35517c132beb1dadd9991968ab25a074c6d2abe35ff"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/customization/pom.xml",
+      "text": "<!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-iot-deviceregistry-softwareupdate-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure Device Registry Software Update client customizations</name>\n  <description>Customizations for the Microsoft Azure Device Registry Software Update client library.</description>\n\n  <properties>\n    <relative.path.to.eng.folder>../../../..</relative.path.to.eng.folder>\n  </properties>\n</project>\n",
+      "contentHash": "9b9bb6f347879860ddaeff07fc6aaff35c9ae708f697eb2b315a0e988b868c55",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/customization/pom.xml"
+    },
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\n ~ Licensed under the MIT License.\n ~ Code generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-iot-deviceregistry-softwareupdate</artifactId>\n  <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-iot-deviceregistry-softwareupdate;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for DeviceRegistrySoftwareUpdateClient</name>\n  <description>This package contains Microsoft Azure DeviceRegistrySoftwareUpdateClient client library.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "4093b1d35548c51822c0a0ae384e2b5070e5369fb011816276105d265ca1293c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/pom.xml"
+    },
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/README.md",
+      "text": "# Azure DeviceRegistry software update client library for Java\n\nSoftware Update for Device Registry enables customers to publish updates for their IoT devices to Azure and manage the\nupdate metadata associated with those devices. It uses the security and reliability of the Windows Update platform,\noptimized for IoT devices.\n\nUse this client library to:\n\n- Import, retrieve, list, and delete software updates.\n- List update providers, names, versions, and files.\n- Monitor long-running import and delete operations.\n- Retrieve and manage device classes.\n\nKey links:\n\n- [Source code][source_code]\n- [Package (Maven)][package]\n- [API reference documentation][api_reference]\n- [Product documentation][product_documentation]\n\n## Getting started\n\n### Prerequisites\n\n- [Java Development Kit (JDK)][jdk] with version 8 or above\n- An [Azure subscription][azure_subscription]\n- A Software Update for Device Registry account and its endpoint hostname, such as `contoso.api.adu.microsoft.com`\n\n### Adding the package to your product\n\n[//]: # ({x-version-update-start;com.azure:azure-iot-deviceregistry-softwareupdate;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-iot-deviceregistry-softwareupdate</artifactId>\n    <version>1.0.0-beta.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### Create and authenticate a client\n\nThe clients authenticate with Microsoft Entra ID. The [Azure Identity][azure_identity] package provides credential\nimplementations such as `DefaultAzureCredential`.\n\nAdd `azure-identity` to your project to use `DefaultAzureCredential`:\n\n[//]: # ({x-version-update-start;com.azure:azure-identity;dependency})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-identity</artifactId>\n    <version>1.18.6</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\nThe endpoint passed to the client builder must be the account hostname without a protocol, for example,\n`contoso.api.adu.microsoft.com` rather than `https://contoso.api.adu.microsoft.com`.\n\n```java readme-sample-createClient-imports\nimport com.azure.identity.DefaultAzureCredentialBuilder;\nimport com.azure.iot.deviceregistry.softwareupdate.DeviceRegistrySoftwareUpdateClientBuilder;\nimport com.azure.iot.deviceregistry.softwareupdate.SoftwareUpdateClient;\n```\n\n```java readme-sample-createClient\nString endpoint = System.getenv(\"DEVICE_REGISTRY_SOFTWARE_UPDATE_ENDPOINT\");\n\nSoftwareUpdateClient softwareUpdateClient = new DeviceRegistrySoftwareUpdateClientBuilder()\n    .endpoint(endpoint)\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildSoftwareUpdateClient();\n```\n\nThe same builder can create synchronous or asynchronous clients for software updates and device classes.\n\n## Key concepts\n\n### Software updates\n\n`SoftwareUpdateClient` provides synchronous operations for importing and managing software updates. Updates are\nidentified by a provider, name, and version. `SoftwareUpdateAsyncClient` provides equivalent non-blocking operations.\n\nImport and delete operations are long-running operations. Their `SyncPoller` or `PollerFlux` results can be used to\nwait for completion and inspect operation status.\n\n### Device classes\n\n`DeviceClassesClient` provides synchronous operations for listing, retrieving, and deleting device classes.\n`DeviceClassesAsyncClient` provides the equivalent asynchronous operations.\n\n## Examples\n\n### List imported updates\n\n```java readme-sample-listUpdates\nsoftwareUpdateClient.listUpdates().forEach(update -> {\n    System.out.printf(\"%s/%s/%s%n\", update.getUpdateId().getProvider(), update.getUpdateId().getName(),\n        update.getUpdateId().getVersion());\n});\n```\n\n### Service API versions\n\nThe client library targets the latest service API version by default.\nThe service client builder accepts an optional service API version parameter to specify which API version to communicate.\n\n#### Select a service API version\n\nYou have the flexibility to explicitly select a supported service API version when initializing a service client via the service client builder.\nThis ensures that the client can communicate with services using the specified API version.\n\nWhen selecting an API version, it is important to verify that there are no breaking changes compared to the latest API version.\nIf there are significant differences, API calls may fail due to incompatibility.\n\nAlways ensure that the chosen API version is fully supported and operational for your specific use case and that it aligns with the service's versioning policy.\n\n## Troubleshooting\n\n### Authentication and authorization\n\nHTTP `401` responses indicate that the credential could not obtain a valid token. HTTP `403` responses indicate that\nthe authenticated identity does not have permission to perform the requested operation. Verify the credential\nconfiguration and the role assignments for the Software Update for Device Registry account.\n\n### Endpoint configuration\n\nPass only the account hostname to `DeviceRegistrySoftwareUpdateClientBuilder.endpoint`. Including `https://` causes\ninvalid request URLs because the generated client adds the HTTPS protocol.\n\n### Update imports\n\nUpdate imports require an import manifest URL and URLs for all referenced update files. Ensure that the service can read\neach URL and that the supplied file sizes and hashes match the source content.\n\n### Logging\n\nThis library uses SLF4J for logging. See the [Azure SDK for Java logging documentation][logging] for information about\nconfiguring logs and enabling HTTP request and response diagnostics.\n\n## Next steps\n\nReview the [API reference documentation][api_reference] for all available client operations and model types.\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide](https://github.com/Azure/azure-sdk-for-java/blob/main/CONTRIBUTING.md).\n\n<!-- LINKS -->\n[api_reference]: https://azure.github.io/azure-sdk-for-java/\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/identity/azure-identity\n[azure_subscription]: https://azure.microsoft.com/free/\n[jdk]: https://learn.microsoft.com/azure/developer/java/fundamentals/java-jdk-install\n[logging]: https://learn.microsoft.com/azure/developer/java/sdk/logging-overview\n[package]: https://central.sonatype.com/artifact/com.azure/azure-iot-deviceregistry-softwareupdate\n[product_documentation]: https://learn.microsoft.com/azure/iot-hub-device-update/understand-device-update\n[source_code]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate\n",
+      "contentHash": "8cdb3ff85fa6a2492d6ef1b6402bc04742018f620041a448f48bae8b5e5528d3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/README.md"
+    },
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/tsp-location.yaml",
+      "text": "directory: specification/deviceupdate/data-plane/sudeviceregistry\ncommit: 8312312eb816e522b78d05f3a9001acbd008b466\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "baf78be9326a304c197bb5a8d5a8c27f023865fae01931ae4e2bc0976a9f747d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "b22b61b5aaf727d230a8b7a6cd71bf55c6cefcf68e0f78eca77447a3582c98cb",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "a8e1484f1eee29829dc629582706af7a5be6badebda36d630807bda29eb0d477",
+        "category": "LRO / polling",
+        "subtype": "delete-protocol-poller-final-type-void-to-binarydata",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "explanation": "The script targets public sync/async beginDeleteUpdate and implementation beginDeleteUpdate/beginDeleteUpdateAsync overloads whose return type is SyncPoller<BinaryData,Void> or PollerFlux<BinaryData,Void>. It changes the final-result type to BinaryData and, for implementation methods, also rewrites the Void TypeReference in their bodies to BinaryData.",
+        "handwrittenRationale": "SoftwareUpdateCustomization extends the customization framework and explicitly rewrites method types and implementation bodies through AST edits.",
+        "symbols": [
+          "SoftwareUpdateClient.beginDeleteUpdate",
+          "SoftwareUpdateAsyncClient.beginDeleteUpdate",
+          "SoftwareUpdatesImpl.beginDeleteUpdate",
+          "SoftwareUpdatesImpl.beginDeleteUpdateAsync"
+        ],
+        "evidence": [
+          {
+            "id": "b22b6d18f6f732df8866f35517c132beb1dadd9991968ab25a074c6d2abe35ff",
+            "startLine": 19,
+            "endLine": 56
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "a8e1484f1eee29829dc629582706af7a5be6badebda36d630807bda29eb0d477",
+        "status": "revised",
+        "reason": "The handwritten customization script conditionally changes the final-result type on four named beginDeleteUpdate methods and rewrites the implementation methods' final-result TypeReference; these are one coordinated LRO result-type override, not a new poller implementation. The supplied source does not establish that a general generator or TypeSpec change could preserve the claimed predecessor API, so generator addressability is unclear. The generated target methods and their post-customization output were not supplied.",
+        "finding": {
+          "key": "a8e1484f1eee29829dc629582706af7a5be6badebda36d630807bda29eb0d477",
+          "category": "LRO / polling",
+          "subtype": "protocol-lro-final-result-type-override",
+          "explanation": "A customization script conditionally changes beginDeleteUpdate poller final-result types from Void to BinaryData on the public sync/async clients and their implementation, and replaces the implementation's Void final-result TypeReference with BinaryData.",
+          "pattern": "lro-final-result-type-override",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "SoftwareUpdateCustomization extends the Java Customization class and explicitly edits method signatures and implementation bodies through customizeAst rather than defining a generated poller.",
+          "symbols": [
+            "SoftwareUpdateClient.beginDeleteUpdate",
+            "SoftwareUpdateAsyncClient.beginDeleteUpdate",
+            "SoftwareUpdatesImpl.beginDeleteUpdate",
+            "SoftwareUpdatesImpl.beginDeleteUpdateAsync"
+          ],
+          "evidence": [
+            {
+              "id": "b22b6d18f6f732df8866f35517c132beb1dadd9991968ab25a074c6d2abe35ff",
+              "startLine": 19,
+              "endLine": 56
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only the 59-line customization script was supplied as source evidence; coverage is partial with one captured item from 33 eligible files. Target client and implementation bodies are not included.",
+      "This finding describes the conditional AST rewrite, not execution of the customization pipeline or verification of the final service response. No claim is made about populated final BinaryData values for a 204 response.",
+      "The script comments describe compatibility with a predecessor library, but that predecessor's API is absent. The compatibility motivation is not independently measured.",
+      "Ordinary README descriptions of import/delete LROs and list operations do not establish additional custom pollers or pagers.",
+      "Coverage is partial: one of 33 eligible source files was captured, so uncaptured files cannot be assessed for additional customizations or absence.",
+      "Only the customization script is supplied as source evidence; generated target methods, prior-library declarations, and post-customization output are unavailable, so whether the conditional edits match and execute cannot be verified.",
+      "The script's comments attribute the type difference to a predecessor API and an empty 204 response, but those external declarations and emitter behavior are not independently evidenced here."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/deviceregistry/azure-iot-deviceregistry-softwareupdate/customization/src/main/java/SoftwareUpdateCustomization.java",
+      "startLine": 1,
+      "endLine": 58,
+      "provenance": "Java customization script",
+      "contentHash": "bc09d1cab500581854b1bdb004b450cb9d3b42d3e121263c36beed350ab69f47"
+    }
+  ]
+}

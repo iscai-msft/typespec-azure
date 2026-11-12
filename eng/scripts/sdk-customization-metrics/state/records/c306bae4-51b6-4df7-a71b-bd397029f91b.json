@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "id": "c306bae4-51b6-4df7-a71b-bd397029f91b",
+  "observedAt": "2026-10-22T20:52:50.952Z",
+  "identity": "python:azure-monitor-ingestion:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-monitor-ingestion",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/monitor/azure-monitor-ingestion"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "943cdf05bc0ee48125ba4ca6a6a50d021e97ad66"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 57,
+    "eligibleFiles": 24,
+    "capturedFiles": 4,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_operations/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom collections.abc import Sequence\nfrom io import IOBase\nimport logging\nimport sys\nfrom typing import Callable, cast, List, Any, Optional, Union, IO\n\nfrom ._operations import _LogsIngestionClientOperationsMixin as GeneratedOps\nfrom .._helpers import _create_gzip_requests, GZIP_MAGIC_NUMBER\nfrom .._models import LogsUploadError\n\nif sys.version_info >= (3, 9):\n    from collections.abc import Mapping, MutableMapping\nelse:\n    from typing import Mapping, MutableMapping\n\n\n_LOGGER = logging.getLogger(__name__)\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\n\n\nclass _LogsIngestionClientOperationsMixin(GeneratedOps):\n    def upload(\n        self,\n        rule_id: str,\n        stream_name: str,\n        logs: Union[List[JSON], IO[bytes]],\n        *,\n        on_error: Optional[Callable[[LogsUploadError], None]] = None,\n        **kwargs: Any\n    ) -> None:\n        \"\"\"Ingestion API used to directly ingest data using Data Collection Rules.\n\n        A list of logs is divided into chunks of 1MB or less, then each chunk is gzip-compressed and uploaded.\n        If an I/O stream is passed in, the stream is uploaded as-is.\n\n        :param rule_id: The immutable ID of the Data Collection Rule resource.\n        :type rule_id: str\n        :param stream_name: The streamDeclaration name as defined in the Data Collection Rule.\n        :type stream_name: str\n        :param logs: An array of objects matching the schema defined by the provided stream.\n        :type logs: list[JSON] or IO\n        :keyword on_error: The callback function that is called when a chunk of logs fails to upload.\n            This function should expect one argument that corresponds to an \"LogsUploadError\" object.\n            If no function is provided, then the first exception encountered will be raised.\n        :paramtype on_error: Optional[Callable[[~azure.monitor.ingestion.LogsUploadError], None]]\n        :return: None\n        :rtype: None\n        :raises: ~azure.core.exceptions.HttpResponseError\n        \"\"\"\n        if isinstance(logs, IOBase):\n            if not logs.readable():\n                raise ValueError(\"The 'logs' stream must be readable.\")\n            content_encoding = None\n            # Check if the stream is gzip-compressed if stream is seekable.\n            if logs.seekable():\n                if logs.read(2) == GZIP_MAGIC_NUMBER:\n                    content_encoding = \"gzip\"\n                logs.seek(0)\n\n            super()._upload(\n                rule_id,\n                stream_name=stream_name,\n                body=cast(IO[bytes], logs),\n                content_encoding=content_encoding,\n                **kwargs\n            )\n            return\n\n        if not isinstance(logs, Sequence) or isinstance(logs, str):\n            raise ValueError(\n                \"The 'logs' parameter must be a list of mappings/dictionaries or an I/O stream that is readable.\"\n            )\n\n        for gzip_data, log_chunk in _create_gzip_requests(cast(List[JSON], logs)):\n            try:\n                super()._upload(  # type: ignore\n                    rule_id, stream_name=stream_name, body=gzip_data, content_encoding=\"gzip\", **kwargs  # type: ignore\n                )\n            except Exception as err:  # pylint: disable=broad-except\n                if on_error:\n                    on_error(LogsUploadError(error=err, failed_logs=cast(List[Mapping[str, Any]], log_chunk)))\n                else:\n                    _LOGGER.error(\"Failed to upload chunk containing %d log entries\", len(log_chunk))\n                    raise err\n\n\n__all__: List[str] = [\n    \"_LogsIngestionClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "b7c91450d0c1aefd0d8756fbbb6827d5ce54342bece641ea6104089ed358baca",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 106,
+      "kind": "handwritten-marker",
+      "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import Any, TYPE_CHECKING\n\nfrom ._client import LogsIngestionClient as GeneratedClient\nfrom ._models import LogsUploadError\nfrom ._version import SDK_MONIKER\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\n\nclass LogsIngestionClient(GeneratedClient):\n    \"\"\"The synchronous client for uploading logs to Azure Monitor.\n\n    :param endpoint: The Data Collection Endpoint for the Data Collection Rule, for example\n     https://dce-name.eastus-2.ingest.monitor.azure.com.\n    :type endpoint: str\n    :param credential: Credential needed for the client to connect to Azure.\n    :type credential: ~azure.core.credentials.TokenCredential\n    :keyword api_version: Api Version. Default value is \"2023-01-01\". Note that overriding\n     this default value may result in unsupported behavior.\n    :paramtype api_version: str\n\n    .. admonition:: Example:\n\n        .. literalinclude:: ../samples/sample_authentication.py\n            :start-after: [START create_client_public_cloud]\n            :end-before: [END create_client_public_cloud]\n            :language: python\n            :dedent: 4\n            :caption: Creating the LogsIngestionClient with DefaultAzureCredential.\n\n    .. admonition:: Example:\n\n       .. literalinclude:: ../samples/sample_authentication.py\n            :start-after: [START create_client_sovereign_cloud]\n            :end-before: [END create_client_sovereign_cloud]\n            :language: python\n            :dedent: 4\n            :caption: Creating the LogsIngestionClient for use with a sovereign cloud (i.e. non-public cloud).\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: \"TokenCredential\", **kwargs: Any) -> None:\n        kwargs.setdefault(\"sdk_moniker\", SDK_MONIKER)\n        super().__init__(endpoint=endpoint, credential=credential, **kwargs)\n\n\n__all__ = [\"LogsIngestionClient\", \"LogsUploadError\"]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "d67fd82b225f870c3b82de59e037bec25dc8e20f1f5f54a4c578bec154469ea2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_patch.py",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "handwritten-marker",
+      "id": "b751a38bb4ba285b0c6ff4b35ed314659e85f53fcd694bc3a56ff2684ee3846f"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_operations/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom collections.abc import Sequence\nfrom io import IOBase\nimport logging\nimport sys\nfrom typing import Callable, cast, List, Any, Awaitable, Optional, Union, IO\n\nfrom ._operations import _LogsIngestionClientOperationsMixin as GeneratedOps\nfrom ..._helpers import _create_gzip_requests, GZIP_MAGIC_NUMBER\nfrom ..._models import LogsUploadError\n\nif sys.version_info >= (3, 9):\n    from collections.abc import Mapping, MutableMapping\nelse:\n    from typing import Mapping, MutableMapping\n\n\n_LOGGER = logging.getLogger(__name__)\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\n\n\nclass _LogsIngestionClientOperationsMixin(GeneratedOps):\n    async def upload(\n        self,\n        rule_id: str,\n        stream_name: str,\n        logs: Union[List[JSON], IO[bytes]],\n        *,\n        on_error: Optional[Callable[[LogsUploadError], Awaitable[None]]] = None,\n        **kwargs: Any\n    ) -> None:\n        \"\"\"Ingestion API used to directly ingest data using Data Collection Rules.\n\n        A list of logs is divided into chunks of 1MB or less, then each chunk is gzip-compressed and uploaded.\n        If an I/O stream is passed in, the stream is uploaded as-is.\n\n        :param rule_id: The immutable ID of the Data Collection Rule resource.\n        :type rule_id: str\n        :param stream_name: The streamDeclaration name as defined in the Data Collection Rule.\n        :type stream_name: str\n        :param logs: An array of objects matching the schema defined by the provided stream.\n        :type logs: list[JSON] or IO\n        :keyword on_error: The callback function that is called when a chunk of logs fails to upload.\n            This function should expect one argument that corresponds to an \"LogsUploadError\" object.\n            If no function is provided, then the first exception encountered will be raised.\n        :paramtype on_error: Optional[Callable[[~azure.monitor.ingestion.LogsUploadError], None]]\n        :return: None\n        :rtype: None\n        :raises: ~azure.core.exceptions.HttpResponseError\n        \"\"\"\n        if isinstance(logs, IOBase):\n            if not logs.readable():\n                raise ValueError(\"The 'logs' stream must be readable.\")\n            content_encoding = None\n            # Check if the stream is gzip-compressed if stream is seekable.\n            if logs.seekable():\n                if logs.read(2) == GZIP_MAGIC_NUMBER:\n                    content_encoding = \"gzip\"\n                logs.seek(0)\n\n            await super()._upload(\n                rule_id,\n                stream_name=stream_name,\n                body=cast(IO[bytes], logs),\n                content_encoding=content_encoding,\n                **kwargs\n            )\n            return\n\n        if not isinstance(logs, Sequence) or isinstance(logs, str):\n            raise ValueError(\n                \"The 'logs' parameter must be a list of mappings/dictionaries or an I/O stream that is readable.\"\n            )\n\n        for gzip_data, log_chunk in _create_gzip_requests(cast(List[JSON], logs)):\n            try:\n                await super()._upload(  # type: ignore\n                    rule_id, stream_name=stream_name, body=gzip_data, content_encoding=\"gzip\", **kwargs  # type: ignore\n                )\n\n            except Exception as err:  # pylint: disable=broad-except\n                if on_error:\n                    await on_error(LogsUploadError(error=err, failed_logs=cast(List[Mapping[str, Any]], log_chunk)))\n                else:\n                    _LOGGER.error(\"Failed to upload chunk containing %d log entries\", len(log_chunk))\n                    raise err\n\n\n__all__: List[str] = [\n    \"_LogsIngestionClientOperationsMixin\"\n]  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "ed0d0806cc2dcbddd10da158bb803e9bcc4012235d460d05563ae9813e860cba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 107,
+      "kind": "handwritten-marker",
+      "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import List, Any, TYPE_CHECKING\nfrom ._client import LogsIngestionClient as GeneratedClient\nfrom .._version import SDK_MONIKER\n\nif TYPE_CHECKING:\n    from azure.core.credentials_async import AsyncTokenCredential\n\n\nclass LogsIngestionClient(GeneratedClient):\n    \"\"\"The asynchronous client for uploading logs to Azure Monitor.\n\n    :param endpoint: The Data Collection Endpoint for the Data Collection Rule, for example\n     https://dce-name.eastus-2.ingest.monitor.azure.com.\n    :type endpoint: str\n    :param credential: Credential needed for the client to connect to Azure.\n    :type credential: ~azure.core.credentials_async.AsyncTokenCredential\n    :keyword api_version: Api Version. Default value is \"2023-01-01\". Note that overriding\n     this default value may result in unsupported behavior.\n    :paramtype api_version: str\n\n    .. admonition:: Example:\n\n        .. literalinclude:: ../samples/async_samples/sample_authentication_async.py\n            :start-after: [START create_client_public_cloud_async]\n            :end-before: [END create_client_public_cloud_async]\n            :language: python\n            :dedent: 4\n            :caption: Creating the LogsIngestionClient with DefaultAzureCredential.\n\n    .. admonition:: Example:\n\n       .. literalinclude:: ../samples/async_samples/sample_authentication_async.py\n            :start-after: [START create_client_sovereign_cloud_async]\n            :end-before: [END create_client_sovereign_cloud_async]\n            :language: python\n            :dedent: 4\n            :caption: Creating the LogsIngestionClient for use with a sovereign cloud (i.e. non-public cloud).\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: \"AsyncTokenCredential\", **kwargs: Any) -> None:\n        kwargs.setdefault(\"sdk_moniker\", SDK_MONIKER)\n        super().__init__(endpoint=endpoint, credential=credential, **kwargs)\n\n\n__all__: List[str] = [\"LogsIngestionClient\"]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "b06423ee8889ab50d8d56c5a64a535ee1ac44a0d95c4e08492a9dc1c7ece4256",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 62,
+      "kind": "handwritten-marker",
+      "id": "36c17386a9d7a13ccaa0bd75b9a60178bb6607801fdd31be8298cbe4dbe2d050"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-monitor-ingestion\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Monitor Ingestion Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.monitor.ingestion._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.monitor\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "276b52d41699b50378e993aadb8652ab8b1fb6b435740f59c5834278d2307da9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/pyproject.toml"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/README.md",
+      "text": "# Azure Monitor Ingestion client library for Python\n\nThe Azure Monitor Ingestion client library is used to send custom logs to [Azure Monitor][azure_monitor_overview] using the [Logs Ingestion API][ingestion_overview].\n\nThis library allows you to send data from virtually any source to supported built-in tables or to custom tables that you create in Log Analytics workspace. You can even extend the schema of built-in tables with custom columns.\n\n**Resources:**\n\n- [Source code][source]\n- [Package (PyPI)][package]\n- [Package (Conda)](https://anaconda.org/microsoft/azure-monitor-ingestion/)\n- [API reference documentation][python-ingestion-ref-docs]\n- [Service documentation][azure_monitor_overview]\n- [Samples][samples]\n- [Change log][changelog]\n\n## Getting started\n\n### Prerequisites\n\n- Python 3.9 or later\n- An [Azure subscription][azure_subscription]\n- An [Azure Log Analytics workspace][azure_monitor_create_using_portal]\n- A [Data Collection Endpoint][data_collection_endpoint]\n- A [Data Collection Rule][data_collection_rule]\n\n### Install the package\n\nInstall the Azure Monitor Ingestion client library for Python with [pip][pip]:\n\n```bash\npip install azure-monitor-ingestion\n```\n\n### Create the client\n\nAn authenticated client is required to upload Logs to Azure Monitor. The library includes both synchronous and asynchronous forms of the clients. To authenticate, create an instance of a token credential. Use that instance when creating a `LogsIngestionClient`. The following examples use `DefaultAzureCredential` from the [azure-identity](https://pypi.org/project/azure-identity/) package.\n\n#### Synchronous clients\n\nConsider the following example, which creates synchronous clients for uploading logs:\n\n```python\nimport os\nfrom azure.identity import DefaultAzureCredential\nfrom azure.monitor.ingestion import LogsIngestionClient\n\nendpoint = os.environ['DATA_COLLECTION_ENDPOINT']\ncredential = DefaultAzureCredential()\nlogs_client = LogsIngestionClient(endpoint, credential)\n```\n\n#### Asynchronous clients\n\nThe asynchronous forms of the client APIs are found in the `.aio`-suffixed namespace. For example:\n\n```python\nimport os\nfrom azure.identity.aio import DefaultAzureCredential\nfrom azure.monitor.ingestion.aio import LogsIngestionClient\n\nendpoint = os.environ['DATA_COLLECTION_ENDPOINT']\ncredential = DefaultAzureCredential()\nlogs_client = LogsIngestionClient(endpoint, credential)\n```\n\nTo use the asynchronous clients, you must also install an async transport, such as [aiohttp](https://pypi.org/project/aiohttp/).\n\n```sh\npip install aiohttp\n```\n\n#### Configure clients for non-public Azure clouds\n\nBy default, `LogsIngestionClient` is configured to connect to the public Azure cloud. To connect to non-public Azure clouds, some additional configuration is required. The appropriate scope for authentication must be provided using the `credential_scopes` keyword argument. The following example shows how to configure the client to connect to Azure US Government:\n\n```python\nfrom azure.identity import AzureAuthorityHosts, DefaultAzureCredential\nfrom azure.monitor.ingestion import LogsIngestionClient\n\n# Authority can also be set via the AZURE_AUTHORITY_HOST environment variable.\ncredential = DefaultAzureCredential(authority=AzureAuthorityHosts.AZURE_GOVERNMENT)\nlogs_client = LogsIngestionClient(endpoint, credential, credential_scopes=[\"https://monitor.azure.us/.default\"])\n```\n\n## Key concepts\n\n### Data Collection Endpoint\n\nData Collection Endpoints (DCEs) allow you to uniquely configure ingestion settings for Azure Monitor. [This article][data_collection_endpoint] provides an overview of data collection endpoints including their contents and structure and how you can create and work with them.\n\n### Data Collection Rule\n\nData collection rules (DCR) define data collected by Azure Monitor and specify how and where that data should be sent or stored. The REST API call must specify a DCR to use. A single DCE can support multiple DCRs, so you can specify a different DCR for different sources and target tables.\n\nThe DCR must understand the structure of the input data and the structure of the target table. If the two don't match, it can use a transformation to convert the source data to match the target table. You may also use the transform to filter source data and perform any other calculations or conversions.\n\nFor more information, see [Data collection rules in Azure Monitor][data_collection_rule], and see [this article][data_collection_rule_structure] for details about a DCR's structure. For information on how to retrieve a DCR ID, see [this tutorial][data_collection_rule_tutorial].\n\n### Log Analytics workspace tables\n\nCustom logs can send data to any custom table that you create and to certain built-in tables in your Log Analytics workspace. The target table must exist before you can send data to it. The following built-in tables are currently supported:\n\n- [CommonSecurityLog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/commonsecuritylog)\n- [SecurityEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/securityevent)\n- [Syslog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/syslog)\n- [WindowsEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/windowsevent)\n\n### Logs retrieval\n\nThe logs that were uploaded using this library can be queried using the [Azure Monitor Query][azure_monitor_query] client library.\n\n## Examples\n\n- [Upload custom logs](#upload-custom-logs)\n- [Upload data from JSON file or string](#upload-data-from-json-file-or-string)\n- [Upload with custom error handling](#upload-with-custom-error-handling)\n\n### Upload custom logs\n\nThis example shows uploading logs to Azure Monitor.\n\n```python\nimport os\n\nfrom azure.core.exceptions import HttpResponseError\nfrom azure.identity import DefaultAzureCredential\nfrom azure.monitor.ingestion import LogsIngestionClient\n\nendpoint = os.environ['DATA_COLLECTION_ENDPOINT']\nrule_id = os.environ['LOGS_DCR_RULE_ID']\nstream_name = os.environ['LOGS_DCR_STREAM_NAME']\n\ncredential = DefaultAzureCredential()\nclient = LogsIngestionClient(endpoint=endpoint, credential=credential, logging_enable=True)\n\nbody = [\n      {\n        \"Time\": \"2021-12-08T23:51:14.1104269Z\",\n        \"Computer\": \"Computer1\",\n        \"AdditionalContext\": \"context-2\"\n      },\n      {\n        \"Time\": \"2021-12-08T23:51:14.1104269Z\",\n        \"Computer\": \"Computer2\",\n        \"AdditionalContext\": \"context\"\n      }\n    ]\n\ntry:\n    client.upload(rule_id=rule_id, stream_name=stream_name, logs=body)\nexcept HttpResponseError as e:\n    print(f\"Upload failed: {e}\")\n```\n\n### Upload data from JSON file or string\n\nThis example shows uploading when the data is in a JSON file or string.\n\n```python\nimport json\nimport os\n\nfrom azure.core.exceptions import HttpResponseError\nfrom azure.identity import DefaultAzureCredential\nfrom azure.monitor.ingestion import LogsIngestionClient\n\nendpoint = os.environ[\"DATA_COLLECTION_ENDPOINT\"]\nrule_id = os.environ['LOGS_DCR_RULE_ID']\nstream_name = os.environ[\"LOGS_DCR_STREAM_NAME\"]\n\ncredential = DefaultAzureCredential()\nclient = LogsIngestionClient(endpoint=endpoint, credential=credential, logging_enable=True)\n\n# If you have a JSON file containing an array of JSON objects\nfile_path = \"./test-logs.json\"\nwith open(file_path, \"r\") as f:\n    logs = json.load(f)\n    try:\n        client.upload(rule_id=rule_id, stream_name=stream_name, logs=logs)\n    except HttpResponseError as e:\n        print(f\"Upload failed: {e}\")\n\n# If you have a JSON string representing an array of JSON objects\nstring = '[{\"Time\": \"2023-12-08T23:51:14.1104269Z\", \"Computer\": \"Computer1\", \"AdditionalContext\": \"context-2\"}]'\nlogs = json.loads(string)\ntry:\n    client.upload(rule_id=rule_id, stream_name=stream_name, logs=logs)\nexcept HttpResponseError as e:\n    print(f\"Upload failed: {e}\")\n```\n\n### Upload with custom error handling\n\nTo upload logs with custom error handling, you can pass a callback function to the `on_error` parameter of the `upload` method. The callback function is called for each error that occurs during the upload and should expect one argument that corresponds to an `LogsUploadError` object. This object contains the error encountered and the list of logs that failed to upload.\n\n```python\n# Example 1: Collect all logs that failed to upload.\nfailed_logs = []\ndef on_error(error):\n    print(\"Log chunk failed to upload with error: \", error.error)\n    failed_logs.extend(error.failed_logs)\n\n# Example 2: Ignore all errors.\ndef on_error_pass(error):\n    pass\n\nclient.upload(rule_id=rule_id, stream_name=stream_name, logs=body, on_error=on_error)\n```\n\n## Troubleshooting\n\nFor details on diagnosing various failure scenarios, see our [troubleshooting guide](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/TROUBLESHOOTING.md).\n\n## Next steps\n\nTo learn more about Azure Monitor, see the [Azure Monitor service documentation][azure_monitor_overview].\n\n### Samples\n\nThe following code samples show common scenarios with the Azure Monitor Ingestion client library.\n\n#### Logs Ingestion samples\n\n- [Upload a list of logs][sample_send_small_logs] ([async sample][sample_send_small_logs_async])\n- [Upload a list of logs with custom error handling][sample_custom_error_callback] ([async sample][sample_custom_error_callback_async])\n- [Upload the contents of a file][sample_upload_file_contents] ([async sample][sample_upload_file_contents_async])\n- [Upload data in a pandas DataFrame][sample_upload_pandas_dataframe] ([async sample][sample_upload_pandas_dataframe_async])\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit [cla.microsoft.com][cla].\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information, see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or comments.\n\n<!-- LINKS -->\n\n[azure_core_exceptions]: https://aka.ms/azsdk/python/core/docs#module-azure.core.exceptions\n[azure_core_ref_docs]: https://aka.ms/azsdk/python/core/docs\n[azure_monitor_create_using_portal]: https://learn.microsoft.com/azure/azure-monitor/logs/quick-create-workspace\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/\n[azure_monitor_query]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/monitor/azure-monitor-query#readme\n[azure_subscription]: https://azure.microsoft.com/free/python/\n[changelog]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/monitor/azure-monitor-ingestion/CHANGELOG.md\n[data_collection_endpoint]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview\n[data_collection_rule]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview\n[data_collection_rule_structure]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-structure\n[data_collection_rule_tutorial]: https://learn.microsoft.com/azure/azure-monitor/logs/tutorial-logs-ingestion-portal#collect-information-from-the-dcr\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[package]: https://aka.ms/azsdk-python-monitor-ingestion-pypi\n[pip]: https://pypi.org/project/pip/\n[python_logging]: https://docs.python.org/3/library/logging.html\n[python-ingestion-ref-docs]: https://aka.ms/azsdk/python/monitor-ingestion/docs\n[samples]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/monitor/azure-monitor-ingestion/samples\n[source]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/\n\n[sample_send_small_logs]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/sample_send_small_logs.py\n[sample_send_small_logs_async]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/async_samples/sample_send_small_logs_async.py\n[sample_custom_error_callback]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/sample_custom_error_callback.py\n[sample_custom_error_callback_async]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/async_samples/sample_custom_error_callback_async.py\n[sample_upload_file_contents]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/sample_upload_file_contents.py\n[sample_upload_file_contents_async]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/async_samples/sample_upload_file_contents_async.py\n[sample_upload_pandas_dataframe]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/sample_upload_pandas_dataframe.py\n[sample_upload_pandas_dataframe_async]: https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-ingestion/samples/async_samples/sample_upload_pandas_dataframe_async.py\n\n[cla]: https://cla.microsoft.com\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n",
+      "contentHash": "6904c3872ad60968da9b6877f6b250b557beeeb0622ecf939b2f86b40b53dca9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/README.md"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/swagger/README.md",
+      "text": "# Azure Monitor Data Collection Client for Python\n\n> see https://aka.ms/autorest\n\n### Configuration\n\n```yaml\ntitle: LogsIngestionClient\ndescription: Azure Monitor Data Collection Python Client\ngenerated-metadata: false\npackage-name: azure-monitor-ingestion\nlicense-header: MICROSOFT_MIT_NO_VERSION\nno-namespace-folders: true\noutput-folder: ../azure/monitor/ingestion\nsource-code-folder-path: ./azure/monitor/ingestion\nadd-credential: true\ncredential-scopes: https://monitor.azure.com//.default\ninput-file:\n    - https://raw.githubusercontent.com/Azure/azure-rest-api-specs/main/specification/monitor/data-plane/ingestion/stable/2023-01-01/DataCollectionRules.json\npython: true\nversion-tolerant: true\npython3-only: true\nblack: true\n```\n\n## Customizations\n\n### Make generated operation methods/overloads internal\n\n```yaml\ndirective:\n  - from: swagger-document\n    where: '$[\"paths\"][\"/dataCollectionRules/{ruleId}/streams/{stream}\"][\"post\"]'\n    transform: >\n      $[\"x-ms-internal\"] = true;\n```\n",
+      "contentHash": "deb9467ac8c24163268aee9ef406f477f31117cef8deb2e0882af0cd6d095d15",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/swagger/README.md"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/tsp-location.yaml",
+      "text": "directory: specification/monitor/data-plane/Ingestion\ncommit: 8cb88c73041a8f3e902d117c464ff3067e68864e\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "3164f1c04c0ab68734df2715c084bba81110cd4d4e9a1426067961645cf05110",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/monitor/azure-monitor-ingestion/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "5621586ac2e06ff4234c504537e2accbf232dddae62d4f691776bb44c7b1f14d",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "43a8f3d6b67435b8a9e89cda4153714b005d0e5b4c385981eca6fdc7761e065a",
+        "category": "Convenience methods",
+        "subtype": "Chunked gzip upload of log lists",
+        "explanation": "upload overrides the generated _upload to split a list of logs into chunks, gzip each chunk with _create_gzip_requests and upload with content_encoding gzip (sync and async).",
+        "handwrittenRationale": "Exported via __all__ in _patch.py as a subclass of the generated operations mixin.",
+        "symbols": [
+          "_LogsIngestionClientOperationsMixin.upload",
+          "_create_gzip_requests"
+        ],
+        "evidence": [
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 30,
+            "endLine": 38
+          },
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 77,
+            "endLine": 92
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 30,
+            "endLine": 38
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 77,
+            "endLine": 93
+          }
+        ],
+        "pattern": "convenience-chunked-gzip-upload",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "ad493a615e616a8f36370ddb262cd02c96eb135713f4499423b422e687acf78b",
+        "category": "Convenience methods",
+        "subtype": "Stream upload with gzip magic-number detection",
+        "explanation": "When logs is a readable IO stream, upload validates readability, sniffs the gzip magic bytes on seekable streams to set content_encoding, and uploads as-is.",
+        "handwrittenRationale": "Handwritten branch in the _patch.py override of upload.",
+        "symbols": [
+          "_LogsIngestionClientOperationsMixin.upload",
+          "GZIP_MAGIC_NUMBER"
+        ],
+        "evidence": [
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 58,
+            "endLine": 75
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 58,
+            "endLine": 75
+          }
+        ],
+        "pattern": "convenience-stream-content-encoding-sniff",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "09dabaf72983251f8e766e32e961f82da38f75d02ff9c28b9632ddcb0b143168",
+        "category": "Retry / error handling",
+        "subtype": "Per-chunk on_error callback with LogsUploadError",
+        "explanation": "upload accepts an on_error callback invoked with LogsUploadError (error and failed logs) when a chunk fails; otherwise logs and re-raises the first error.",
+        "handwrittenRationale": "Handwritten error handling in _patch.py upload override; async version awaits the callback.",
+        "symbols": [
+          "_LogsIngestionClientOperationsMixin.upload",
+          "on_error",
+          "LogsUploadError"
+        ],
+        "evidence": [
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 36,
+            "endLine": 36
+          },
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 83,
+            "endLine": 92
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 36,
+            "endLine": 36
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 83,
+            "endLine": 93
+          }
+        ],
+        "pattern": "error-callback-partial-failure",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "90b136dfa0b64f529c72cd35b2cfef25620d1986f3db7b73950b1e3d0c985b2d",
+        "category": "Convenience methods",
+        "subtype": "Input type validation for logs parameter",
+        "explanation": "upload raises ValueError when logs is not a readable stream, a Sequence of mappings or is a str.",
+        "handwrittenRationale": "Handwritten validation in the override.",
+        "symbols": [
+          "_LogsIngestionClientOperationsMixin.upload"
+        ],
+        "evidence": [
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 59,
+            "endLine": 60
+          },
+          {
+            "id": "7ee9c9d246c79ff7f7a1f07c401d80d14bd1fe6e1048ad73e525f8cdb841473c",
+            "startLine": 77,
+            "endLine": 80
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 59,
+            "endLine": 60
+          },
+          {
+            "id": "5a554fc5f50f329e63f9e7d02c3c1a5882ba9f1b13ea23ee17884b5f3910fdb1",
+            "startLine": 77,
+            "endLine": 80
+          }
+        ],
+        "pattern": "convenience-input-validation",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "8be6f3ae769819ac7f8a75d4876f2c689349fb3d6e4570ad4520a69d396181d9",
+        "category": "Tracing / telemetry",
+        "subtype": "Default sdk_moniker injected in client constructors",
+        "explanation": "LogsIngestionClient subclasses (sync and async) set a default sdk_moniker from SDK_MONIKER before calling the generated constructor.",
+        "handwrittenRationale": "Subclass of the generated client in _patch.py, exported through __all__.",
+        "symbols": [
+          "LogsIngestionClient.__init__",
+          "SDK_MONIKER"
+        ],
+        "evidence": [
+          {
+            "id": "b751a38bb4ba285b0c6ff4b35ed314659e85f53fcd694bc3a56ff2684ee3846f",
+            "startLine": 19,
+            "endLine": 52
+          },
+          {
+            "id": "36c17386a9d7a13ccaa0bd75b9a60178bb6607801fdd31be8298cbe4dbe2d050",
+            "startLine": 17,
+            "endLine": 50
+          }
+        ],
+        "pattern": "client-sdk-moniker-default",
+        "generatorAddressable": "yes"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "43a8f3d6b67435b8a9e89cda4153714b005d0e5b4c385981eca6fdc7761e065a",
+        "status": "accepted",
+        "reason": "Sync (30-38, 77-92) and async (30-38, 77-93) _patch.py overrides of upload, exported via __all__, split a list of logs with _create_gzip_requests and call the generated _upload with content_encoding=\"gzip\" per chunk."
+      },
+      {
+        "key": "ad493a615e616a8f36370ddb262cd02c96eb135713f4499423b422e687acf78b",
+        "status": "accepted",
+        "reason": "Lines 58-75 in both _patch.py files handle IOBase input: check readability, read two bytes on seekable streams to detect GZIP_MAGIC_NUMBER, set content_encoding and upload unchanged."
+      },
+      {
+        "key": "09dabaf72983251f8e766e32e961f82da38f75d02ff9c28b9632ddcb0b143168",
+        "status": "accepted",
+        "reason": "Lines 36 and 83-92 (sync) / 83-93 (async) add an on_error keyword invoked with LogsUploadError carrying the failed chunk; without it the first error is logged and re-raised. Distinct partial-failure behavior from chunking."
+      },
+      {
+        "key": "90b136dfa0b64f529c72cd35b2cfef25620d1986f3db7b73950b1e3d0c985b2d",
+        "status": "rejected",
+        "reason": "The ValueError checks at 59-60 and 77-80 are argument validation inside the same upload override already counted by the chunked-upload and stream-upload findings; they are not a separate customization behavior."
+      },
+      {
+        "key": "8be6f3ae769819ac7f8a75d4876f2c689349fb3d6e4570ad4520a69d396181d9",
+        "status": "accepted",
+        "reason": "Both _patch.py files (sync 19-52, async 17-50) subclass the generated LogsIngestionClient, are exported via __all__, and setdefault sdk_moniker to SDK_MONIKER before calling the generated constructor."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only 4 _patch.py files of 24 eligible were provided; _helpers.py (_create_gzip_requests) and _models.py (LogsUploadError) were not supplied, so chunking size and model definitions are not evaluated.",
+      "_helpers.py (_create_gzip_requests, GZIP_MAGIC_NUMBER) and _models.py (LogsUploadError) were not supplied, so chunk sizing and the error model are not verified; LogsUploadError is exported from the root _patch.py __all__ but its definition was not reviewed.",
+      "The generated _operations.py and _client.py were not supplied, so whether the generated _upload is private by TypeSpec configuration is not verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 106,
+      "provenance": "Python patch",
+      "contentHash": "b7c91450d0c1aefd0d8756fbbb6827d5ce54342bece641ea6104089ed358baca"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/_patch.py",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "Python patch",
+      "contentHash": "d67fd82b225f870c3b82de59e037bec25dc8e20f1f5f54a4c578bec154469ea2"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 107,
+      "provenance": "Python patch",
+      "contentHash": "ed0d0806cc2dcbddd10da158bb803e9bcc4012235d460d05563ae9813e860cba"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-ingestion/azure/monitor/ingestion/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 62,
+      "provenance": "Python patch",
+      "contentHash": "b06423ee8889ab50d8d56c5a64a535ee1ac44a0d95c4e08492a9dc1c7ece4256"
+    }
+  ]
+}

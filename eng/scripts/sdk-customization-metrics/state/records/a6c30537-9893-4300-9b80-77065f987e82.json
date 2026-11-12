@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "id": "a6c30537-9893-4300-9b80-77065f987e82",
+  "observedAt": "2026-10-22T20:52:50.965Z",
+  "identity": "python:azure-ai-agents:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-agents",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/ai/azure-ai-agents"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "eab1adc13ce54b2d871fe1b0646da3154b6be551"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 200,
+    "eligibleFiles": 34,
+    "capturedFiles": 2,
+    "skipped": [
+      {
+        "path": "sdk/ai/azure-ai-agents/azure/ai/agents/_patch.py",
+        "reason": "Review budget; only lines 1-453 sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-agents/azure/ai/agents/aio/_patch.py",
+        "reason": "Review budget; only lines 1-452 sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-agents/azure/ai/agents/aio/operations/_patch.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-agents/azure/ai/agents/models/_patch.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/ai/azure-ai-agents/azure/ai/agents/operations/_patch.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression,too-many-lines\n# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport io\nimport logging\nimport sys\nimport os\nimport time\nfrom typing import (\n    IO,\n    Any,\n    Dict,\n    List,\n    Optional,\n    Union,\n    Callable,\n    Set,\n    overload,\n)\n\nfrom azure.core.credentials import TokenCredential\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom . import models as _models\nfrom ._client import AgentsClient as AgentsClientGenerated\nfrom .operations._patch import _has_errors_in_toolcalls_output\nfrom . import types as _types\n\nif sys.version_info >= (3, 9):\n    from collections.abc import MutableMapping\nelse:\n    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports\n\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\n_Unset: Any = object()\n\nlogger = logging.getLogger(__name__)\n\n\nclass AgentsClient(AgentsClientGenerated):  # pylint: disable=client-accepts-api-version-keyword\n    \"\"\"AgentsClient provides a high-level, user-friendly interface for managing and interacting with AI agents in Azure AI Agents service.\n\n    :param endpoint: Project endpoint in the form of:\n     https://<aiservices-id>.services.ai.azure.com/api/projects/<project-name>. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Required.\n    :type credential: ~azure.core.credentials.TokenCredential\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: TokenCredential, **kwargs: Any) -> None:\n        if not endpoint:\n            raise ValueError(\"Please provide the 1DP endpoint.\")\n        # TODO: Remove this custom code when 1DP service will be available\n        parts = endpoint.split(\";\")\n        # Detect legacy endpoint and build it in old way only in tests.\n        if os.environ.get(\"AZURE_AI_AGENTS_TESTS_IS_TEST_RUN\") == \"True\" and len(parts) == 4:\n            endpoint = \"https://\" + parts[0]\n            subscription_id = parts[1]\n            resource_group_name = parts[2]\n            project_name = parts[3]\n            endpoint = (\n                f\"{endpoint}/agents/v1.0/subscriptions\"\n                f\"/{subscription_id}/resourceGroups/{resource_group_name}/providers\"\n                f\"/Microsoft.MachineLearningServices/workspaces/{project_name}\"\n            )\n            # Override the credential scope with the legacy one.\n            kwargs[\"credential_scopes\"] = [\"https://management.azure.com/.default\"]\n            kwargs[\"api_version\"] = \"2025-05-15-preview\"\n        # End of legacy endpoints handling.\n        super().__init__(endpoint, credential, **kwargs)\n\n        # Create and store your function tool + retry limit on the client instance.\n        self._function_tool = _models.FunctionTool(set())\n        self._function_tool_max_retry = 10\n\n        # Inject them into the RunsOperations instance so that run operations can use them.\n        self.runs._function_tool = self._function_tool\n        self.runs._function_tool_max_retry = self._function_tool_max_retry\n\n    # pylint: disable=arguments-differ\n    @overload\n    def create_agent(  # pylint: disable=arguments-differ\n        self,\n        *,\n        model: str,\n        content_type: str = \"application/json\",\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Creates a new agent.\n\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use for\n         generating responses. This must be a valid model deployment available in your Azure AI project.\n        :paramtype model: str\n        :keyword content_type: The MIME type of the request body. Use \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n         If not provided, the agent will be created without a specific name.\n        :paramtype name: str\n        :keyword description: A detailed description explaining the agent's intended purpose, capabilities,\n         or use case. This helps document the agent's functionality for future reference.\n        The maximum length is 512 characters.\n        :paramtype description: str\n        :keyword instructions: System-level instructions that define the agent's behavior, personality,\n         and how it should respond to user interactions. These instructions guide the agent's responses\n         throughout conversations.\n        The maximum length is 256,000 characters.\n        :paramtype instructions: str\n        :keyword tools: A list of tool definitions that specify the capabilities available to the agent,\n         such as code interpretation, file search, or custom functions. Each tool extends what the agent\n         can accomplish.\n        :paramtype tools: list[~azure.ai.agents.models.ToolDefinition]\n        :keyword tool_resources: Resources required by the agent's tools, such as file IDs for code\n         interpreter tools or vector store IDs for file search tools. The specific resources needed\n         depend on which tools are enabled for the agent.\n        :paramtype tool_resources: ~azure.ai.agents.models.ToolResources\n        :keyword temperature: Controls the randomness of the agent's responses. Values range from 0 to 2,\n         where higher values (e.g., 0.8) produce more creative and varied responses, while lower values\n         (e.g., 0.2) produce more focused and deterministic responses.\n        :paramtype temperature: float\n        :keyword top_p: An alternative sampling method to temperature called nucleus sampling. This parameter\n         controls diversity by considering only the tokens that comprise the top_p probability mass.\n         For example, 0.1 means only tokens in the top 10% probability are considered. Avoid using\n         both temperature and top_p simultaneously.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n         Useful for categorization, tracking, or storing application-specific data. Limited to 16 pairs,\n         with keys up to 64 characters and values up to 512 characters each.\n        :paramtype metadata: dict[str, str]\n        :return: Agent. The Agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.Agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-differ\n    @overload\n    def create_agent(  # pylint: disable=arguments-differ\n        self,\n        *,\n        model: str,\n        content_type: str = \"application/json\",\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        toolset: Optional[_models.ToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Creates a new agent.\n\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use for\n         generating responses. This must be a valid model deployment available in your Azure AI project.\n        :paramtype model: str\n        :keyword content_type: The MIME type of the request body. Use \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n         If not provided, the agent will be created without a specific name.\n        :paramtype name: str\n        :keyword description: A detailed description explaining the agent's intended purpose, capabilities,\n         or use case. This helps document the agent's functionality for future reference.\n        The maximum length is 512 characters.\n        :paramtype description: str\n        :keyword instructions: System-level instructions that define the agent's behavior, personality,\n         and how it should respond to user interactions. These instructions guide the agent's responses\n         throughout conversations.\n        The maximum length is 256,000 characters.\n        :paramtype instructions: str\n        :keyword toolset: A pre-configured collection of tools and their associated resources that provides\n         both tool definitions and resources in a single object. This is a convenient alternative\n         to manually specifying tools and tool_resources separately.\n        :paramtype toolset: ~azure.ai.agents.models.ToolSet\n        :keyword temperature: Controls the randomness of the agent's responses. Values range from 0 to 2,\n         where higher values (e.g., 0.8) produce more creative and varied responses, while lower values\n         (e.g., 0.2) produce more focused and deterministic responses.\n        :paramtype temperature: float\n        :keyword top_p: An alternative sampling method to temperature called nucleus sampling. This parameter\n         controls diversity by considering only the tokens that comprise the top_p probability mass.\n         For example, 0.1 means only tokens in the top 10% probability are considered. Avoid using\n         both temperature and top_p simultaneously.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n         Useful for categorization, tracking, or storing application-specific data. Limited to 16 pairs,\n         with keys up to 64 characters and values up to 512 characters each.\n        :paramtype metadata: dict[str, str]\n        :return: Agent. The Agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.Agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def create_agent(self, body: JSON, *, content_type: str = \"application/json\", **kwargs: Any) -> _models.Agent:\n        \"\"\"Creates a new agent using a pre-constructed JSON body.\n\n        :param body: A complete JSON object containing all agent configuration parameters including\n         model, name, description, instructions, tools, and other settings.\n        :type body: JSON\n        :keyword content_type: The MIME type of the request body. Must be \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :return: Agent. The Agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.Agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def create_agent(self, body: IO[bytes], *, content_type: str = \"application/json\", **kwargs: Any) -> _models.Agent:\n        \"\"\"Creates a new agent using a binary data stream.\n\n        :param body: A binary stream containing the agent configuration data in JSON format.\n         Useful when working with file uploads or streaming data sources.\n        :type body: IO[bytes]\n        :keyword content_type: The MIME type of the request body. Should be \"application/json\" even for\n         binary streams containing JSON data.\n        :paramtype content_type: str\n        :return: Agent. The Agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.Agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace\n    def create_agent(\n        self,\n        body: Union[JSON, IO[bytes]] = _Unset,\n        *,\n        model: str = _Unset,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        toolset: Optional[_models.ToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        content_type: str = \"application/json\",\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"\n        Creates a new agent with various configurations, delegating to the generated operations.\n\n        :param body: A complete agent configuration as JSON or binary stream. Required if `model` is not provided.\n        :type body:  Union[JSON, IO[bytes]]\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use.\n         Required if `body` is not provided.\n        :paramtype model: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n        :paramtype name: Optional[str]\n        :keyword description: A detailed description explaining the agent's intended purpose and capabilities.\n        :paramtype description: Optional[str]\n        :keyword instructions: System-level instructions that define the agent's behavior and personality.\n        :paramtype instructions: Optional[str]\n        :keyword tools: A list of tool definitions that specify the capabilities available to the agent.\n        :paramtype tools: Optional[List[_models.ToolDefinition]]\n        :keyword tool_resources: Resources required by the agent's tools, such as file IDs or vector store IDs.\n        :paramtype tool_resources: Optional[_models.ToolResources]\n        :keyword toolset: A pre-configured collection of tools and their associated resources that provides\n         both tool definitions and resources in a single object. This is a convenient alternative\n         to manually specifying tools and tool_resources separately.\n        :paramtype toolset: Optional[_models.ToolSet]\n        :keyword temperature: Controls response randomness (0-2). Higher values produce more creative responses.\n        :paramtype temperature: Optional[float]\n        :keyword top_p: Nucleus sampling parameter controlling response diversity by probability mass.\n        :paramtype top_p: Optional[float]\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n        :paramtype metadata: Optional[Dict[str, str]]\n        :keyword content_type: The MIME type of the request body when using body parameter.\n        :paramtype content_type: str\n        :return: A newly created agent object with the specified configuration.\n        :rtype: _models.Agent\n        :raises: HttpResponseError for HTTP errors during agent creation.\n        \"\"\"\n\n        self._validate_tools_and_tool_resources(tools, tool_resources)\n\n        if body is not _Unset:\n            if isinstance(body, io.IOBase):\n                return super().create_agent(body=body, content_type=content_type, **kwargs)\n            return super().create_agent(body=body, **kwargs)\n\n        if toolset is not None:\n            tools = toolset.definitions\n            tool_resources = toolset.resources\n\n        new_agent = super().create_agent(\n            model=model,\n            name=name,\n            description=description,\n            instructions=instructions,\n            tools=tools,\n            tool_resources=tool_resources,\n            temperature=temperature,\n            top_p=top_p,\n            response_format=response_format,\n            metadata=metadata,\n            **kwargs,\n        )\n\n        return new_agent\n\n    # pylint: disable=arguments-differ\n    @overload\n    def update_agent(  # pylint: disable=arguments-differ\n        self,\n        agent_id: str,\n        *,\n        content_type: str = \"application/json\",\n        model: Optional[str] = None,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Modifies an existing agent.\n\n        :param agent_id: The ID of the agent to modify. Required.\n        :type agent_id: str\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/json\".\n        :paramtype content_type: str\n        :keyword model: The ID of the model to use. Default value is None.\n        :paramtype model: str\n        :keyword name: The modified name for the agent to use. Default value is None.\n        :paramtype name: str\n        :keyword description: The modified description for the agent to use. Default value is None.\n        :paramtype description: str\n        :keyword instructions: The modified system instructions for the new agent to use. Default value\n         is None.\n        :paramtype instructions: str\n        :keyword tools: The modified collection of tools to enable for the agent. Default value is\n         None.\n        :paramtype tools: list[~azure.ai.agents.models.ToolDefinition]\n        :keyword tool_resources: A set of resources that are used by the agent's tools. The resources\n         are specific to the type of tool. For example,\n         the ``code_interpreter`` tool requires a list of file IDs, while the ``file_search`` tool\n         requires a list of vector store IDs. Default value is None.\n        :paramtype tool_resources: ~azure.ai.agents.models.ToolResources\n        :keyword temperature: What sampling temperature to use, between 0 and 2. Higher values like 0.8\n         will make the output more random,\n         while lower values like 0.2 will make it more focused and deterministic. Default value is\n         None.\n        :paramtype temperature: float\n        :keyword top_p: An alternative to sampling with temperature, called nucleus sampling, where the\n         model considers the results of the tokens with top_p probability mass.\n         So 0.1 means only the tokens comprising the top 10% probability mass are considered.\n\n         We generally recommend altering this or temperature but not both. Default value is None.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: A set of up to 16 key/value pairs that can be attached to an object, used\n         for storing additional information about that object in a structured format. Keys may be up to\n         64 characters in length and values may be up to 512 characters in length. Default value is\n         None.\n        :paramtype metadata: dict[str, str]\n        :return: Agent. The Agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.Agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-differ\n    @overload\n    def update_agent(  # pylint: disable=arguments-differ\n        self,\n        agent_id: str,\n        *,\n        content_type: str = \"application/json\",\n        model: Optional[str] = None,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        toolset: Optional[_models.ToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Modifies an existing agent.\n\n        :param agent_id: The ID of the agent to modify. Required.\n        :type agent_id: str\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/json\".\n        :paramtype content_type: str\n        :keyword model: The ID of the model to use. Default value is None.\n        :paramtype model: str\n        :keyword name: The modified name for the agent to use. Default value is None.\n        :paramtype name: str\n        :keyword description: The modified description for the agent to use. Default value is None.\n        :paramtype description: str\n        :keyword instructions: The modified system instructions for the new agent to use. Default value\n         is None.\n        :paramtype instructions: str\n        :keyword toolset: A pre-configured collection of tools and their associated resources that provides\n         both tool definitions and resources in a single object. This is a convenient alternative\n         to manually specifying tools and tool_resources separately.\n        :paramtype toolset: ~azure.ai.agents.models.ToolSet\n        :keyword temperature: What sampling temperature to use, between 0 and 2. Higher values like 0.8\n         will make the output more random,\n         while lower values like 0.2 will make it more focused and deterministic. Default value is\n         None.\n        :paramtype temperature: float\n        :keyword top_p: An alternative to sampling with temperature, called nucleus sampling, where the\n         model considers the results of the tokens with top_p probability mass.",
+      "contentHash": "8314fcc7fefe6b3fcd97145c1611dd13a222a69fc493ec008077d30c4bd3faf9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-agents/azure/ai/agents/_patch.py",
+      "startLine": 1,
+      "endLine": 453,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/aio/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression,too-many-lines\n# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport asyncio  # pylint: disable = do-not-import-asyncio\nimport io\nimport logging\nimport os\n\nfrom typing import (\n    IO,\n    TYPE_CHECKING,\n    Any,\n    Dict,\n    List,\n    MutableMapping,\n    Optional,\n    Union,\n    Callable,\n    Set,\n    overload,\n)\nfrom azure.core.tracing.decorator_async import distributed_trace_async\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom .. import models as _models\nfrom ._client import AgentsClient as AgentsClientGenerated\nfrom .operations._patch import _has_errors_in_toolcalls_output\nfrom .. import types as _types\n\nif TYPE_CHECKING:\n\n    # pylint: disable=unused-import,ungrouped-imports\n    from azure.core.credentials_async import AsyncTokenCredential\n\nlogger = logging.getLogger(__name__)\n\nJSON = MutableMapping[str, Any]  # pylint: disable=unsubscriptable-object\n_Unset: Any = object()\n\n\nclass AgentsClient(AgentsClientGenerated):  # pylint: disable=client-accepts-api-version-keyword\n    \"\"\"AgentsClient provides a high-level, user-friendly interface for managing and interacting with AI agents in Azure AI Agents service.\n\n    :param endpoint: Project endpoint in the form of:\n     https://<aiservices-id>.services.ai.azure.com/api/projects/<project-name>. Required.\n    :type endpoint: str\n    :param credential: Credential used to authenticate requests to the service. Required.\n    :type credential: ~azure.core.credentials.TokenCredential\n    \"\"\"\n\n    def __init__(self, endpoint: str, credential: \"AsyncTokenCredential\", **kwargs: Any) -> None:\n        if not endpoint:\n            raise ValueError(\"Please provide the 1DP endpoint.\")\n        # TODO: Remove this custom code when 1DP service will be available\n        parts = endpoint.split(\";\")\n        # Detect legacy endpoint and build it in old way only in tests.\n        if os.environ.get(\"AZURE_AI_AGENTS_TESTS_IS_TEST_RUN\") == \"True\" and len(parts) == 4:\n            endpoint = \"https://\" + parts[0]\n            subscription_id = parts[1]\n            resource_group_name = parts[2]\n            project_name = parts[3]\n            endpoint = (\n                f\"{endpoint}/agents/v1.0/subscriptions\"\n                f\"/{subscription_id}/resourceGroups/{resource_group_name}/providers\"\n                f\"/Microsoft.MachineLearningServices/workspaces/{project_name}\"\n            )\n            # Override the credential scope with the legacy one.\n            kwargs[\"credential_scopes\"] = [\"https://management.azure.com/.default\"]\n            kwargs[\"api_version\"] = \"2025-05-15-preview\"\n        # End of legacy endpoints handling.\n        super().__init__(endpoint, credential, **kwargs)\n\n        # Create and store your function tool + retry limit on the client instance.\n        self._function_tool = _models.AsyncFunctionTool(set())\n        self._function_tool_max_retry = 10\n\n        # Inject them into the RunsOperations instance so that run operations can use them.\n        self.runs._function_tool = self._function_tool\n        self.runs._function_tool_max_retry = self._function_tool_max_retry\n\n    # pylint: disable=arguments-differ\n    @overload\n    async def create_agent(  # pylint: disable=arguments-differ\n        self,\n        *,\n        model: str,\n        content_type: str = \"application/json\",\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Creates a new agent.\n\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use for\n         generating responses. This must be a valid model deployment available in your Azure AI project.\n        :paramtype model: str\n        :keyword content_type: The MIME type of the request body. Use \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n         If not provided, the agent will be created without a specific name.\n        :paramtype name: str\n        :keyword description: A detailed description explaining the agent's intended purpose, capabilities,\n         or use case. This helps document the agent's functionality for future reference.\n        The maximum length is 512 characters.\n        :paramtype description: str\n        :keyword instructions: System-level instructions that define the agent's behavior, personality,\n         and how it should respond to user interactions. These instructions guide the agent's responses\n         throughout conversations.\n        The maximum length is 256,000 characters.\n        :paramtype instructions: str\n        :keyword tools: A list of tool definitions that specify the capabilities available to the agent,\n         such as code interpretation, file search, or custom functions. Each tool extends what the agent\n         can accomplish.\n        :paramtype tools: list[~azure.ai.agents.models.ToolDefinition]\n        :keyword tool_resources: Resources required by the agent's tools, such as file IDs for code\n         interpreter tools or vector store IDs for file search tools. The specific resources needed\n         depend on which tools are enabled for the agent.\n        :paramtype tool_resources: ~azure.ai.agents.models.ToolResources\n        :keyword temperature: Controls the randomness of the agent's responses. Values range from 0 to 2,\n         where higher values (e.g., 0.8) produce more creative and varied responses, while lower values\n         (e.g., 0.2) produce more focused and deterministic responses.\n        :paramtype temperature: float\n        :keyword top_p: An alternative sampling method to temperature called nucleus sampling. This parameter\n         controls diversity by considering only the tokens that comprise the top_p probability mass.\n         For example, 0.1 means only tokens in the top 10% probability are considered. Avoid using\n         both temperature and top_p simultaneously.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n         Useful for categorization, tracking, or storing application-specific data. Limited to 16 pairs,\n         with keys up to 64 characters and values up to 512 characters each.\n        :paramtype metadata: dict[str, str]\n        :return: agent. The agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-differ\n    @overload\n    async def create_agent(  # pylint: disable=arguments-differ\n        self,\n        *,\n        model: str,\n        content_type: str = \"application/json\",\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        toolset: Optional[_models.AsyncToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Creates a new agent.\n\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use for\n         generating responses. This must be a valid model deployment available in your Azure AI project.\n        :paramtype model: str\n        :keyword content_type: The MIME type of the request body. Use \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n         If not provided, the agent will be created without a specific name.\n        :paramtype name: str\n        :keyword description: A detailed description explaining the agent's intended purpose, capabilities,\n         or use case. This helps document the agent's functionality for future reference.\n        The maximum length is 512 characters.\n        :paramtype description: str\n        :keyword instructions: System-level instructions that define the agent's behavior, personality,\n         and how it should respond to user interactions. These instructions guide the agent's responses\n         throughout conversations.\n        The maximum length is 256,000 characters.\n        :paramtype instructions: str\n        :keyword toolset: A pre-configured collection of tools and their associated resources that provides\n         both tool definitions and resources in a single object. This is a convenient alternative\n         to manually specifying tools and tool_resources separately.\n        :paramtype toolset: ~azure.ai.agents.models.AsyncToolSet\n        :keyword temperature: Controls the randomness of the agent's responses. Values range from 0 to 2,\n         where higher values (e.g., 0.8) produce more creative and varied responses, while lower values\n         (e.g., 0.2) produce more focused and deterministic responses.\n        :paramtype temperature: float\n        :keyword top_p: An alternative sampling method to temperature called nucleus sampling. This parameter\n         controls diversity by considering only the tokens that comprise the top_p probability mass.\n         For example, 0.1 means only tokens in the top 10% probability are considered. Avoid using\n         both temperature and top_p simultaneously.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n         Useful for categorization, tracking, or storing application-specific data. Limited to 16 pairs,\n         with keys up to 64 characters and values up to 512 characters each.\n        :paramtype metadata: dict[str, str]\n        :return: agent. The agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def create_agent(self, body: JSON, *, content_type: str = \"application/json\", **kwargs: Any) -> _models.Agent:\n        \"\"\"Creates a new agent using a pre-constructed JSON body.\n\n        :param body: A complete JSON object containing all agent configuration parameters including\n         model, name, description, instructions, tools, and other settings.\n        :type body: JSON\n        :keyword content_type: The MIME type of the request body. Must be \"application/json\" for JSON payloads.\n        :paramtype content_type: str\n        :return: agent. The agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def create_agent(\n        self, body: IO[bytes], *, content_type: str = \"application/json\", **kwargs: Any\n    ) -> _models.Agent:\n        \"\"\"Creates a new agent using a binary data stream.\n\n        :param body: A binary stream containing the agent configuration data in JSON format.\n         Useful when working with file uploads or streaming data sources.\n        :type body: IO[bytes]\n        :keyword content_type: The MIME type of the request body. Should be \"application/json\" even for\n         binary streams containing JSON data.\n        :paramtype content_type: str\n        :return: agent. The agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace_async\n    async def create_agent(\n        self,\n        body: Union[JSON, IO[bytes]] = _Unset,\n        *,\n        model: str = _Unset,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        toolset: Optional[_models.AsyncToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        content_type: str = \"application/json\",\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"\n        Creates a new agent with various configurations, delegating to the generated operations.\n\n        :param body: A complete agent configuration as JSON or binary stream. Required if `model` is not provided.\n        :type body: Union[JSON, IO[bytes]]\n        :keyword model: The deployment name or ID of the Azure AI model that the agent will use.\n         Required if `body` is not provided.\n        :paramtype model: str\n        :keyword name: A human-readable name for the agent that helps identify its purpose or role.\n        :paramtype name: Optional[str]\n        :keyword description: A detailed description explaining the agent's intended purpose and capabilities.\n        :paramtype description: Optional[str]\n        :keyword instructions: System-level instructions that define the agent's behavior and personality.\n        :paramtype instructions: Optional[str]\n        :keyword tools: A list of tool definitions that specify the capabilities available to the agent.\n        :paramtype tools: Optional[List[_models.ToolDefinition]]\n        :keyword tool_resources: Resources required by the agent's tools, such as file IDs or vector store IDs.\n        :paramtype tool_resources: Optional[_models.ToolResources]\n        :keyword toolset: A pre-configured collection of tools and resources that provides a convenient way\n         to package tool definitions and their associated resources together.\n        :paramtype toolset: Optional[_models.AsyncToolSet]\n        :keyword temperature: Controls response randomness (0-2). Higher values produce more creative responses.\n        :paramtype temperature: Optional[float]\n        :keyword top_p: Nucleus sampling parameter controlling response diversity by probability mass.\n        :paramtype top_p: Optional[float]\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n\n        :keyword metadata: Custom key-value pairs for storing additional information about the agent.\n        :paramtype metadata: Optional[Dict[str, str]]\n        :keyword content_type: The MIME type of the request body when using body parameter.\n        :paramtype content_type: str\n        :return: A newly created agent object with the specified configuration.\n        :rtype: _models.Agent\n        :raises: HttpResponseError for HTTP errors during agent creation.\n        \"\"\"\n        if body is not _Unset:\n            if isinstance(body, io.IOBase):\n                return await super().create_agent(body=body, content_type=content_type, **kwargs)\n            return await super().create_agent(body=body, **kwargs)\n\n        if toolset is not None:\n            tools = toolset.definitions\n            tool_resources = toolset.resources\n\n        new_agent = await super().create_agent(\n            model=model,\n            name=name,\n            description=description,\n            instructions=instructions,\n            tools=tools,\n            tool_resources=tool_resources,\n            temperature=temperature,\n            top_p=top_p,\n            response_format=response_format,\n            metadata=metadata,\n            **kwargs,\n        )\n\n        return new_agent\n\n    # pylint: disable=arguments-differ\n    @overload\n    async def update_agent(  # pylint: disable=arguments-differ\n        self,\n        agent_id: str,\n        *,\n        content_type: str = \"application/json\",\n        model: Optional[str] = None,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        tools: Optional[List[_models.ToolDefinition]] = None,\n        tool_resources: Optional[_models.ToolResources] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Modifies an existing agent.\n\n        :param agent_id: The ID of the agent to modify. Required.\n        :type agent_id: str\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/json\".\n        :paramtype content_type: str\n        :keyword model: The ID of the model to use. Default value is None.\n        :paramtype model: str\n        :keyword name: The modified name for the agent to use. Default value is None.\n        :paramtype name: str\n        :keyword description: The modified description for the agent to use. Default value is None.\n        :paramtype description: str\n        :keyword instructions: The modified system instructions for the new agent to use. Default value\n         is None.\n        :paramtype instructions: str\n        :keyword tools: The modified collection of tools to enable for the agent. Default value is\n         None.\n        :paramtype tools: list[~azure.ai.agents.models.ToolDefinition]\n        :keyword tool_resources: A set of resources that are used by the agent's tools. The resources\n         are specific to the type of tool. For example,\n         the ``code_interpreter`` tool requires a list of file IDs, while the ``file_search`` tool\n         requires a list of vector store IDs. Default value is None.\n        :paramtype tool_resources: ~azure.ai.agents.models.ToolResources\n        :keyword temperature: What sampling temperature to use, between 0 and 2. Higher values like 0.8\n         will make the output more random,\n         while lower values like 0.2 will make it more focused and deterministic. Default value is\n         None.\n        :paramtype temperature: float\n        :keyword top_p: An alternative to sampling with temperature, called nucleus sampling, where the\n         model considers the results of the tokens with top_p probability mass.\n         So 0.1 means only the tokens comprising the top 10% probability mass are considered.\n\n         We generally recommend altering this or temperature but not both. Default value is None.\n        :paramtype top_p: float\n        :keyword response_format: Specifies the format for the responses, particularly for tool calls.\n         Can be a string, response format mode, or structured response format object that defines how\n         the agent should structure its outputs.\n        :paramtype response_format: Optional[Union[str,\n                               ~azure.ai.agents.models.AgentsResponseFormatMode,\n                               ~azure.ai.agents.models.AgentsResponseFormat,\n                               ~azure.ai.agents.models.ResponseFormatJsonSchemaType]]\n        :keyword metadata: A set of up to 16 key/value pairs that can be attached to an object, used\n         for storing additional information about that object in a structured format. Keys may be up to\n         64 characters in length and values may be up to 512 characters in length. Default value is\n         None.\n        :paramtype metadata: dict[str, str]\n        :return: agent. The agent is compatible with MutableMapping\n        :rtype: ~azure.ai.agents.models.agent\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    # pylint: disable=arguments-differ\n    @overload\n    async def update_agent(  # pylint: disable=arguments-differ\n        self,\n        agent_id: str,\n        *,\n        content_type: str = \"application/json\",\n        model: Optional[str] = None,\n        name: Optional[str] = None,\n        description: Optional[str] = None,\n        instructions: Optional[str] = None,\n        toolset: Optional[_models.AsyncToolSet] = None,\n        temperature: Optional[float] = None,\n        top_p: Optional[float] = None,\n        response_format: Optional[\"_types.AgentsResponseFormatOption\"] = None,\n        metadata: Optional[Dict[str, str]] = None,\n        **kwargs: Any,\n    ) -> _models.Agent:\n        \"\"\"Modifies an existing agent.\n\n        :param agent_id: The ID of the agent to modify. Required.\n        :type agent_id: str\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/json\".\n        :paramtype content_type: str\n        :keyword model: The ID of the model to use. Default value is None.\n        :paramtype model: str\n        :keyword name: The modified name for the agent to use. Default value is None.\n        :paramtype name: str\n        :keyword description: The modified description for the agent to use. Default value is None.\n        :paramtype description: str\n        :keyword instructions: The modified system instructions for the new agent to use. Default value\n         is None.\n        :paramtype instructions: str\n        :keyword toolset: The Collection of tools and resources (alternative to `tools` and `tool_resources`\n         that provides a convenient way to package them together). Default value is None.\n        :paramtype toolset: ~azure.ai.agents.models.AsyncToolSet\n        :keyword temperature: What sampling temperature to use, between 0 and 2. Higher values like 0.8\n         will make the output more random,\n         while lower values like 0.2 will make it more focused and deterministic. Default value is\n         None.\n        :paramtype temperature: float\n        :keyword top_p: An alternative to sampling with temperature, called nucleus sampling, where the\n         model considers the results of the tokens with top_p probability mass.",
+      "contentHash": "8e6b1310e6d8d941316709ef191c3cb99a2b98dd971a9f18749fb05a74a00277",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-agents/azure/ai/agents/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 452,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/ai/azure-ai-agents/pyproject.toml",
+      "text": "[tool.mypy]\npython_version = \"3.10\"\nexclude = [\n]\nwarn_unused_configs = true\nignore_missing_imports = true\nfollow_imports_for_stubs = false\n\n[tool.isort]\nprofile = \"black\"\nline_length = 120\nknown_first_party = [\"azure\"]\nfilter_files=true\nextend_skip_glob = [\n  \"*/_vendor/*\",\n  \"*/_generated/*\",\n  \"*/_restclient/*\",\n  \"*/doc/*\",\n  \"*/.tox/*\",\n]\n\n[tool.azure-sdk-build]\nwhl_no_aio= false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "ece6aeb3c308ca140e36e6572bf92a8633ef93b0c38b30299386f4307d443dde",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-agents/pyproject.toml"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/tsp-location.yaml",
+      "text": "directory: specification/ai/Azure.AI.Agents\ncommit: 79479173c15b68431f01eb255a098a6e1de97ddb \nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "eabfb3bb4f5269ab68b38427a47e2c5e07334b3d6929786621330aee813b5a7a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ai/azure-ai-agents/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "0bfc82078f9543f1806d14ca8ac1ba4b200369c4aabeed1f8f33aef8287416b8",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "ca0d5ddf80b485c19821091a95b6c3dbbc26c1d9dd807569d771fa9f2234e4da",
+        "category": "Other",
+        "subtype": "Legacy semicolon endpoint rewrite with credential scope override",
+        "explanation": "AgentsClient.__init__ rejects an empty endpoint and, in test runs with a four-part semicolon endpoint, rewrites it to a legacy workspace URL and overrides credential_scopes and api_version before calling the generated constructor.",
+        "handwrittenRationale": "Subclass of the generated AgentsClient in _patch.py with a TODO comment marking it as custom code.",
+        "symbols": [
+          "AgentsClient.__init__",
+          "credential_scopes",
+          "api_version"
+        ],
+        "evidence": [
+          {
+            "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+            "startLine": 56,
+            "endLine": 76
+          },
+          {
+            "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+            "startLine": 57,
+            "endLine": 77
+          }
+        ],
+        "pattern": "legacy-endpoint-credential-scope-override",
+        "generatorAddressable": "no"
+      },
+      {
+        "key": "1525b1b3a806dce47370801906151670e608c770bed84fe78d4ca7087f762e42",
+        "category": "Convenience methods",
+        "subtype": "Client-held function tool and retry limit injected into runs operations",
+        "explanation": "The client constructor creates a FunctionTool (AsyncFunctionTool in aio) and a retry limit of 10 and assigns them onto self.runs.",
+        "handwrittenRationale": "Handwritten code in the _patch.py subclass that sets private attributes on the generated operations group.",
+        "symbols": [
+          "AgentsClient.__init__",
+          "_function_tool",
+          "_function_tool_max_retry",
+          "FunctionTool",
+          "AsyncFunctionTool"
+        ],
+        "evidence": [
+          {
+            "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+            "startLine": 78,
+            "endLine": 84
+          },
+          {
+            "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+            "startLine": 79,
+            "endLine": 85
+          }
+        ],
+        "pattern": "client-injected-tool-state",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "4f4e4027cdbe5aabb7d6feea7e7dc292a763cbb555431bd8908473cd93fa1d61",
+        "category": "Convenience methods",
+        "subtype": "create_agent overloads accepting a toolset unpacked into tools and tool_resources",
+        "explanation": "create_agent adds a toolset keyword and overloads, validates tools/tool_resources, and unpacks toolset.definitions and toolset.resources before delegating to the generated create_agent; the aio client does the same with AsyncToolSet.",
+        "handwrittenRationale": "Overridden method with @overload and @distributed_trace(_async) decorators in _patch.py that calls super().create_agent.",
+        "symbols": [
+          "AgentsClient.create_agent",
+          "ToolSet",
+          "AsyncToolSet",
+          "_validate_tools_and_tool_resources"
+        ],
+        "evidence": [
+          {
+            "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+            "startLine": 157,
+            "endLine": 172
+          },
+          {
+            "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+            "startLine": 250,
+            "endLine": 336
+          },
+          {
+            "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+            "startLine": 158,
+            "endLine": 173
+          },
+          {
+            "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+            "startLine": 253,
+            "endLine": 336
+          }
+        ],
+        "pattern": "convenience-overload-unpacking-options",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "7ebbc6aa1bd7ecf5da700b0af0190ef26cbbf62f436b18e16a7cbab2012f677c",
+        "category": "Convenience methods",
+        "subtype": "update_agent overloads accepting a toolset",
+        "explanation": "update_agent declares overloads with explicit keyword parameters, including a toolset alternative to tools and tool_resources (AsyncToolSet in aio).",
+        "handwrittenRationale": "Hand-declared overloads of a generated operation in _patch.py; the implementation body was not in the supplied range.",
+        "symbols": [
+          "AgentsClient.update_agent",
+          "ToolSet",
+          "AsyncToolSet"
+        ],
+        "evidence": [
+          {
+            "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+            "startLine": 338,
+            "endLine": 453
+          },
+          {
+            "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+            "startLine": 338,
+            "endLine": 452
+          }
+        ],
+        "pattern": "convenience-overload-unpacking-options",
+        "generatorAddressable": "yes"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "ca0d5ddf80b485c19821091a95b6c3dbbc26c1d9dd807569d771fa9f2234e4da",
+        "status": "accepted",
+        "reason": "Sync lines 56-76 and aio lines 57-77 of the handwritten _patch.py AgentsClient subclass reject an empty endpoint. When an env var is set and the endpoint has four ';'-separated parts, they rebuild a legacy workspace URL and override credential_scopes and api_version before super().__init__. The citations and symbols are correct, and the code is test-gated legacy handling that the generator cannot express."
+      },
+      {
+        "key": "1525b1b3a806dce47370801906151670e608c770bed84fe78d4ca7087f762e42",
+        "status": "revised",
+        "reason": "The behavior is real (sync 78-84, aio 79-85), but it is private state plumbing: a FunctionTool or AsyncFunctionTool and a retry limit set on self.runs. It is not a public helper that wraps a generated operation, so 'Convenience methods' does not fit and the category is changed to Other.",
+        "finding": {
+          "key": "1525b1b3a806dce47370801906151670e608c770bed84fe78d4ca7087f762e42",
+          "category": "Other",
+          "subtype": "Client-held function tool and retry limit injected into runs operations",
+          "explanation": "The client constructor creates an empty FunctionTool (AsyncFunctionTool in aio) and a retry limit of 10, stores them on the client and assigns them as private attributes on the generated self.runs operations group.",
+          "rootCauseHypothesis": "Likely supports handwritten automatic function-call execution in run operations (not shown in supplied evidence).",
+          "pattern": "client-injected-tool-state",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Handwritten code in the _patch.py subclass of the generated AgentsClient that sets private attributes on the generated operations group.",
+          "symbols": [
+            "AgentsClient.__init__",
+            "_function_tool",
+            "_function_tool_max_retry",
+            "FunctionTool",
+            "AsyncFunctionTool"
+          ],
+          "evidence": [
+            {
+              "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+              "startLine": 78,
+              "endLine": 84
+            },
+            {
+              "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+              "startLine": 79,
+              "endLine": 85
+            }
+          ]
+        }
+      },
+      {
+        "key": "4f4e4027cdbe5aabb7d6feea7e7dc292a763cbb555431bd8908473cd93fa1d61",
+        "status": "revised",
+        "reason": "The customization is real, but generatorAddressable 'yes' is not justified. The toolset parameter unpacks a handwritten ToolSet/AsyncToolSet abstraction that TypeSpec does not describe. The explanation is also wrong for aio: the async create_agent (lines 313-336) does not call _validate_tools_and_tool_resources; only the sync version does (line 311).",
+        "finding": {
+          "key": "4f4e4027cdbe5aabb7d6feea7e7dc292a763cbb555431bd8908473cd93fa1d61",
+          "category": "Convenience methods",
+          "subtype": "create_agent overloads accepting a toolset unpacked into tools and tool_resources",
+          "explanation": "create_agent adds a toolset keyword overload and an implementation that passes JSON/IO bodies through, otherwise unpacks toolset.definitions and toolset.resources into tools and tool_resources before calling the generated create_agent; the sync version also calls _validate_tools_and_tool_resources, while the aio version (AsyncToolSet) does not.",
+          "rootCauseHypothesis": "ToolSet is a client-side abstraction combining tool definitions with resources, which the service API does not model.",
+          "pattern": "convenience-overload-unpacking-options",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "Overridden method with @overload and @distributed_trace(_async) decorators in the _patch.py AgentsClient subclass that calls super().create_agent.",
+          "symbols": [
+            "AgentsClient.create_agent",
+            "ToolSet",
+            "AsyncToolSet",
+            "_validate_tools_and_tool_resources"
+          ],
+          "evidence": [
+            {
+              "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+              "startLine": 156,
+              "endLine": 172
+            },
+            {
+              "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+              "startLine": 250,
+              "endLine": 336
+            },
+            {
+              "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+              "startLine": 157,
+              "endLine": 173
+            },
+            {
+              "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+              "startLine": 253,
+              "endLine": 336
+            }
+          ]
+        }
+      },
+      {
+        "key": "7ebbc6aa1bd7ecf5da700b0af0190ef26cbbf62f436b18e16a7cbab2012f677c",
+        "status": "revised",
+        "reason": "The toolset overloads are visible (sync 409-426, aio 409-426), but the implementation is outside the supplied range, so the unpacking itself is not shown. generatorAddressable 'yes' is unjustified for the same reason as create_agent: ToolSet is a handwritten abstraction. Evidence is narrowed to the toolset overload, and the explanation now notes that the body is unseen.",
+        "finding": {
+          "key": "7ebbc6aa1bd7ecf5da700b0af0190ef26cbbf62f436b18e16a7cbab2012f677c",
+          "category": "Convenience methods",
+          "subtype": "update_agent overloads accepting a toolset",
+          "explanation": "update_agent declares a handwritten overload taking a toolset (ToolSet, or AsyncToolSet in aio) as an alternative to tools and tool_resources; the implementing body is outside the supplied excerpt.",
+          "rootCauseHypothesis": "Mirrors create_agent's toolset convenience; ToolSet is a client-side abstraction not modeled by the service.",
+          "pattern": "convenience-overload-unpacking-options",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "Hand-declared overloads of a generated operation in the _patch.py AgentsClient subclass referencing the handwritten ToolSet type.",
+          "symbols": [
+            "AgentsClient.update_agent",
+            "ToolSet",
+            "AsyncToolSet"
+          ],
+          "evidence": [
+            {
+              "id": "bf4962d36e90af09a37ceb54d8c1a28d88d1c4b48fa2a87c5b2264dcf5f15c1a",
+              "startLine": 409,
+              "endLine": 453
+            },
+            {
+              "id": "75d4ae38704d8ae90ea35f559f897b0467079de3245dcda9b829dce6221f43b4",
+              "startLine": 409,
+              "endLine": 452
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "_patch.py files were truncated at lines 453 (sync) and 452 (aio); the update_agent implementation and any later customizations (e.g. runs/operations patches, tool classes) were not visible.",
+      "Overload docstrings and signatures were counted as part of the toolset behavior, not separate findings.",
+      "Only the first ~453 lines of the sync and aio root _patch.py were supplied; models/_patch.py, operations/_patch.py and aio/operations/_patch.py were not sent, so customizations there (FunctionTool, ToolSet, run polling, _has_errors_in_toolcalls_output, the __all__ export list) were not reviewed.",
+      "_validate_tools_and_tool_resources and the update_agent implementation are referenced but not defined in the supplied excerpts."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/_patch.py",
+      "startLine": 1,
+      "endLine": 1035,
+      "provenance": "Python patch",
+      "contentHash": "2f1ed340f5571f8cef5597950f9b57d63ce71ede578bb9435fa86edef7186ed8"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 1035,
+      "provenance": "Python patch",
+      "contentHash": "b6f6a624701f34420647990458ddd0955618d245ab30791919dd2829904c1a67"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/aio/operations/_patch.py",
+      "startLine": 1,
+      "endLine": 2330,
+      "provenance": "Python patch",
+      "contentHash": "6eb49bd9751f811a433c0ec9b6b62b03158cbc2b2c5e5dca197a31ca7588bd8c"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/models/_patch.py",
+      "startLine": 1,
+      "endLine": 2822,
+      "provenance": "Python patch",
+      "contentHash": "1fb8983165153d360198944f6aa4563b3c28803241d1313e07a873d38249d9b3"
+    },
+    {
+      "path": "sdk/ai/azure-ai-agents/azure/ai/agents/operations/_patch.py",
+      "startLine": 1,
+      "endLine": 2329,
+      "provenance": "Python patch",
+      "contentHash": "68a14d1f98d681cb8b75465ebe3d1169c6bcffc6674947736b589cb1188ab2e5"
+    }
+  ]
+}

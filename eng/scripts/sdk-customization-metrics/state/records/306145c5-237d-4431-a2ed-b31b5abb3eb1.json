@@ -1,0 +1,988 @@
+{
+  "schemaVersion": 1,
+  "id": "306145c5-237d-4431-a2ed-b31b5abb3eb1",
+  "observedAt": "2026-10-23T18:25:16.419Z",
+  "identity": "dotnet:azure.communication.identity:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Communication.Identity",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/communication/Azure.Communication.Identity"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "614a3d12837dde6f586aa2a347dd0ac5ac1380f6"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 96,
+    "eligibleFiles": 76,
+    "capturedFiles": 14,
+    "skipped": [
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClient.cs",
+        "reason": "Review budget; only lines 1-405 sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityOperations.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionAssignmentCreateOrUpdateRequest.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionAssignmentResponse.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionExchangeTokenRequest.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionOperations.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionPrincipalType.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsUserExchangeTokenRequest.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsUserOperations.cs",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/AcceptJsonPolicy.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Communication.Identity\n{\n    /// <summary>\n    /// Restores the <c>Accept: application/json</c> request header on the operations that return\n    /// 204 No Content.\n    ///\n    /// The AutoRest-generated client sent this header on every operation. The TypeSpec DPG emitter\n    /// omits it where the response has no content, which is a wire difference observable by any\n    /// proxy, gateway or log that keys on Accept, even though the service itself is indifferent.\n    ///\n    /// The header is only added when absent, so a value supplied by a caller-registered pipeline\n    /// policy is never overwritten. Restoring a default must not remove the ability to override it.\n    /// </summary>\n    internal sealed class AcceptJsonPolicy : HttpPipelineSynchronousPolicy\n    {\n        internal static readonly AcceptJsonPolicy Shared = new AcceptJsonPolicy();\n\n        private AcceptJsonPolicy()\n        {\n        }\n\n        public override void OnSendingRequest(HttpMessage message)\n        {\n            if (!message.Request.Headers.TryGetValue(\"Accept\", out _))\n            {\n                message.Request.Headers.Add(\"Accept\", \"application/json\");\n            }\n        }\n    }\n}\n",
+      "contentHash": "49efbf20196fe3c8c8a51c5aa1340d453877ac8025e2881d5517fbe09541a9c7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/AcceptJsonPolicy.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "f3f1a9e2591159edd7a86b3db89031abaed868462dfb9ecba94947f0f371ddbe"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Communication.Pipeline;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Communication.Identity\n{\n    /// <summary>\n    /// The Azure Communication Services Identity client.\n    /// </summary>\n    public class CommunicationIdentityClient\n    {\n        private readonly ClientDiagnostics _clientDiagnostics;\n\n        internal IdentityOperations RestClient { get; }\n\n        internal TeamsUserOperations TeamsUserRestClient { get; }\n\n        #region public constructors - all argument need null check\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityClient\"/>.</summary>\n        /// <param name=\"connectionString\">Connection string acquired from the Azure Communication Services resource.</param>\n        public CommunicationIdentityClient(string connectionString)\n            : this(\n                ConnectionString.Parse(Argument.CheckNotNullOrEmpty(connectionString, nameof(connectionString))),\n                new CommunicationIdentityClientOptions())\n        { }\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityClient\"/>.</summary>\n        /// <param name=\"connectionString\">Connection string acquired from the Azure Communication Services resource.</param>\n        /// <param name=\"options\">Client option exposing <see cref=\"ClientOptions.Diagnostics\"/>, <see cref=\"ClientOptions.Retry\"/>, <see cref=\"ClientOptions.Transport\"/>, etc.</param>\n        public CommunicationIdentityClient(string connectionString, CommunicationIdentityClientOptions options)\n            : this(\n                ConnectionString.Parse(Argument.CheckNotNullOrEmpty(connectionString, nameof(connectionString))),\n                options ?? new CommunicationIdentityClientOptions())\n        { }\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityClient\"/>.</summary>\n        /// <param name=\"endpoint\">The URI of the Azure Communication Services resource.</param>\n        /// <param name=\"keyCredential\">The <see cref=\"AzureKeyCredential\"/> used to authenticate requests.</param>\n        /// <param name=\"options\">Client option exposing <see cref=\"ClientOptions.Diagnostics\"/>, <see cref=\"ClientOptions.Retry\"/>, <see cref=\"ClientOptions.Transport\"/>, etc.</param>\n        public CommunicationIdentityClient(Uri endpoint, AzureKeyCredential keyCredential, CommunicationIdentityClientOptions options = default)\n            : this(\n                CheckNotNull(endpoint, nameof(endpoint)).AbsoluteUri,\n                CheckNotNull(keyCredential, nameof(keyCredential)),\n                options ?? new CommunicationIdentityClientOptions())\n        { }\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityClient\"/>.</summary>\n        /// <param name=\"endpoint\">The URI of the Azure Communication Services resource.</param>\n        /// <param name=\"tokenCredential\">The <see cref=\"TokenCredential\"/> used to authenticate requests, such as DefaultAzureCredential.</param>\n        /// <param name=\"options\">Client option exposing <see cref=\"ClientOptions.Diagnostics\"/>, <see cref=\"ClientOptions.Retry\"/>, <see cref=\"ClientOptions.Transport\"/>, etc.</param>\n        public CommunicationIdentityClient(Uri endpoint, TokenCredential tokenCredential, CommunicationIdentityClientOptions options = default)\n            : this(\n                CheckNotNull(endpoint, nameof(endpoint)).AbsoluteUri,\n                CheckNotNull(tokenCredential, nameof(tokenCredential)),\n                options ?? new CommunicationIdentityClientOptions())\n        { }\n\n        #endregion\n\n        #region private constructors\n\n        private CommunicationIdentityClient(ConnectionString connectionString, CommunicationIdentityClientOptions options)\n            : this(connectionString.GetRequired(\"endpoint\"), options.BuildHttpPipeline(connectionString), options)\n        { }\n\n        private CommunicationIdentityClient(string endpoint, AzureKeyCredential keyCredential, CommunicationIdentityClientOptions options)\n            : this(endpoint, options.BuildHttpPipeline(keyCredential), options)\n        { }\n\n        private CommunicationIdentityClient(string endpoint, TokenCredential tokenCredential, CommunicationIdentityClientOptions options)\n            : this(endpoint, options.BuildHttpPipeline(tokenCredential), options)\n        { }\n\n        private CommunicationIdentityClient(string endpoint, HttpPipeline httpPipeline, CommunicationIdentityClientOptions options)\n        {\n            _clientDiagnostics = new ClientDiagnostics(options);\n            RestClient = new IdentityOperations(_clientDiagnostics, httpPipeline, new Uri(endpoint), options.ApiVersion);\n            TeamsUserRestClient = new TeamsUserOperations(_clientDiagnostics, httpPipeline, new Uri(endpoint), options.ApiVersion);\n        }\n\n        // The generated Argument helper only exposes a void-returning AssertNotNull, but the\n        // constructor chain above needs to validate and forward in a single expression.\n        private static T CheckNotNull<T>(T value, string name)\n        {\n            Argument.AssertNotNull(value, name);\n            return value;\n        }\n\n        #endregion\n\n        /// <summary>Initializes a new instance of <see cref=\"CommunicationIdentityClient\"/> for mocking.</summary>\n        protected CommunicationIdentityClient()\n        {\n            _clientDiagnostics = null;\n            RestClient = null;\n            TeamsUserRestClient = null;\n        }\n\n        /// <summary>Creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual Response<CommunicationUserIdentifier> CreateUser(CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(CreateUser)}\");\n            scope.Start();\n            try\n            {\n                Response<CommunicationUserIdentifierAndToken> response = RestClient.Create(new CommunicationIdentityCreateRequest(), cancellationToken);\n                var id = response.Value.Identity.Id;\n                return Response.FromValue(new CommunicationUserIdentifier(id), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<CommunicationUserIdentifier>> CreateUserAsync(CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(CreateUser)}\");\n            scope.Start();\n            try\n            {\n                Response<CommunicationUserIdentifierAndToken> response = await RestClient.CreateAsync(new CommunicationIdentityCreateRequest(), cancellationToken).ConfigureAwait(false);\n                var id = response.Value.Identity.Id;\n                return Response.FromValue(new CommunicationUserIdentifier(id), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"tokenExpiresIn\">Custom validity period of the token within [1,24] hours range.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual Response<CommunicationUserIdentifierAndToken> CreateUserAndToken(IEnumerable<CommunicationTokenScope> scopes, TimeSpan tokenExpiresIn, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(CreateUserAndToken)}\");\n            scope.Start();\n            try\n            {\n                int? expiresIn = GetTokenExpirationInMinutes(tokenExpiresIn, nameof(tokenExpiresIn));\n\n                return RestClient.Create(BuildCreateRequest(scopes, expiresIn), cancellationToken);\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"scopes\">The scopes that the token should have.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual Response<CommunicationUserIdentifierAndToken> CreateUserAndToken(IEnumerable<CommunicationTokenScope> scopes, CancellationToken cancellationToken = default)\n            => CreateUserAndToken(scopes, default, cancellationToken);\n\n        /// <summary>Asynchronously creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"tokenExpiresIn\">Custom validity period of the token within [1,24] hours range.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<CommunicationUserIdentifierAndToken>> CreateUserAndTokenAsync(IEnumerable<CommunicationTokenScope> scopes, TimeSpan tokenExpiresIn, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(CreateUserAndToken)}\");\n            scope.Start();\n            try\n            {\n                int? expiresIn = GetTokenExpirationInMinutes(tokenExpiresIn, nameof(tokenExpiresIn));\n\n                return await RestClient.CreateAsync(BuildCreateRequest(scopes, expiresIn), cancellationToken).ConfigureAwait(false);\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously creates a new <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"scopes\">The scopes that the token should have.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<CommunicationUserIdentifierAndToken>> CreateUserAndTokenAsync(IEnumerable<CommunicationTokenScope> scopes, CancellationToken cancellationToken = default)\n            => await CreateUserAndTokenAsync(scopes, default, cancellationToken).ConfigureAwait(false);\n\n        /// <summary>Asynchronously deletes a <see cref=\"CommunicationUserIdentifier\"/>, revokes its tokens and deletes its data.</summary>\n        /// <param name=\"communicationUser\"> The user to be deleted.</param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error.</exception>\n        public virtual Response DeleteUser(CommunicationUserIdentifier communicationUser, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(DeleteUser)}\");\n            scope.Start();\n            try\n            {\n                return RestClient.Delete(communicationUser.Id, AcceptJson(cancellationToken));\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously deletes a <see cref=\"CommunicationUserIdentifier\"/>, revokes its tokens and deletes its data.</summary>\n        /// <param name=\"communicationUser\"> The user to be deleted.</param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use.</param>\n        public virtual async Task<Response> DeleteUserAsync(CommunicationUserIdentifier communicationUser, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(DeleteUser)}\");\n            scope.Start();\n            try\n            {\n                return await RestClient.DeleteAsync(communicationUser.Id, AcceptJson(cancellationToken)).ConfigureAwait(false);\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Gets a Communication Identity access token for a <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> for whom to get a Communication Identity access token.</param>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"tokenExpiresIn\">Custom validity period of the token within [1,24] hours range.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error.</exception>\n        public virtual Response<AccessToken> GetToken(CommunicationUserIdentifier communicationUser, IEnumerable<CommunicationTokenScope> scopes, TimeSpan tokenExpiresIn, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(GetToken)}\");\n            scope.Start();\n            try\n            {\n                int? expiresIn = GetTokenExpirationInMinutes(tokenExpiresIn, nameof(tokenExpiresIn));\n\n                Response<CommunicationIdentityAccessToken> response = RestClient.IssueAccessToken(communicationUser.Id, BuildAccessTokenRequest(scopes, expiresIn), cancellationToken);\n\n                return Response.FromValue(new AccessToken(response.Value.Token, response.Value.ExpiresOn), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Gets a Communication Identity access token for a <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> for whom to get a Communication Identity access token.</param>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error.</exception>\n        public virtual Response<AccessToken> GetToken(CommunicationUserIdentifier communicationUser, IEnumerable<CommunicationTokenScope> scopes, CancellationToken cancellationToken = default)\n        {\n            return GetToken(communicationUser, scopes, default, cancellationToken);\n        }\n\n        /// <summary>Asynchronously gets a Communication Identity access token for a <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> for whom to get a Communication Identity access token.</param>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"tokenExpiresIn\">Custom validity period of the token within [1,24] hours range.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<AccessToken>> GetTokenAsync(CommunicationUserIdentifier communicationUser, IEnumerable<CommunicationTokenScope> scopes, TimeSpan tokenExpiresIn, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(GetToken)}\");\n            scope.Start();\n            try\n            {\n                int? expiresIn = GetTokenExpirationInMinutes(tokenExpiresIn, nameof(tokenExpiresIn));\n\n                Response<CommunicationIdentityAccessToken> response = await RestClient.IssueAccessTokenAsync(communicationUser.Id, BuildAccessTokenRequest(scopes, expiresIn), cancellationToken).ConfigureAwait(false);\n\n                return Response.FromValue(new AccessToken(response.Value.Token, response.Value.ExpiresOn), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously gets a Communication Identity access token for a <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> for whom to get a Communication Identity access token.</param>\n        /// <param name=\"scopes\">List of <see cref=\"CommunicationTokenScope\"/> scopes for the token.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<AccessToken>> GetTokenAsync(CommunicationUserIdentifier communicationUser, IEnumerable<CommunicationTokenScope> scopes, CancellationToken cancellationToken = default)\n        {\n            return await GetTokenAsync(communicationUser, scopes, default, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>Revokes all the tokens created for a user.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> whose tokens will be revoked.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error.</exception>\n        public virtual Response RevokeTokens(CommunicationUserIdentifier communicationUser, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(RevokeTokens)}\");\n            scope.Start();\n            try\n            {\n                return RestClient.RevokeAccessTokens(communicationUser.Id, AcceptJson(cancellationToken));\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously revokes all the tokens created for a <see cref=\"CommunicationUserIdentifier\"/>.</summary>\n        /// <param name=\"communicationUser\">The <see cref=\"CommunicationUserIdentifier\"/> whose tokens should get revoked.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response> RevokeTokensAsync(CommunicationUserIdentifier communicationUser, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(RevokeTokens)}\");\n            scope.Start();\n            try\n            {\n                return await RestClient.RevokeAccessTokensAsync(communicationUser.Id, AcceptJson(cancellationToken)).ConfigureAwait(false);\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Exchange an Azure AD access token of a Teams User for a Communication Identity access token.</summary>\n        /// <param name=\"options\"> <see cref=\"GetTokenForTeamsUserOptions\"/> request options used to exchange an Azure AD access token of a Teams User for a new Communication Identity access token.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error.</exception>\n        public virtual Response<AccessToken> GetTokenForTeamsUser(GetTokenForTeamsUserOptions options, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(GetTokenForTeamsUser)}\");\n            scope.Start();\n            try\n            {\n                Response<CommunicationIdentityAccessToken> response = TeamsUserRestClient.ExchangeTeamsUserAccessToken(BuildTeamsUserExchangeTokenRequest(options), cancellationToken);\n                return Response.FromValue(new AccessToken(response.Value.Token, response.Value.ExpiresOn), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        /// <summary>Asynchronously exchange an Azure AD access token of a Teams User for a Communication Identity access token.</summary>\n        /// <param name=\"options\"> <see cref=\"GetTokenForTeamsUserOptions\"/> request options used to exchange an Azure AD access token of a Teams User for a new Communication Identity access token.</param>\n        /// <param name=\"cancellationToken\">The cancellation token to use.</param>\n        public virtual async Task<Response<AccessToken>> GetTokenForTeamsUserAsync(GetTokenForTeamsUserOptions options, CancellationToken cancellationToken = default)\n        {\n            using DiagnosticScope scope = _clientDiagnostics.CreateScope($\"{nameof(CommunicationIdentityClient)}.{nameof(GetTokenForTeamsUser)}\");\n            scope.Start();\n            try\n            {\n                Response<CommunicationIdentityAccessToken> response = await TeamsUserRestClient.ExchangeTeamsUserAccessTokenAsync(BuildTeamsUserExchangeTokenRequest(options), cancellationToken).ConfigureAwait(false);\n                return Response.FromValue(new AccessToken(response.Value.Token, response.Value.ExpiresOn), response.GetRawResponse());\n            }\n            catch (Exception ex)\n            {\n                scope.Failed(ex);\n                throw;\n            }\n        }\n\n        // The two no-content operations lose Accept: application/json under the DPG emitter.\n        // Restore it per-operation rather than with a pipeline-wide policy, so only the affected\n        // requests are touched.\n        private static RequestContext AcceptJson(CancellationToken cancellationToken)\n        {\n            var context = new RequestContext { CancellationToken = cancellationToken };\n            context.AddPolicy(AcceptJsonPolicy.Shared, HttpPipelinePosition.PerCall);\n            return context;\n        }\n\n        private static CommunicationIdentityCreateRequest BuildCreateRequest(IEnumerable<CommunicationTokenScope> scopes, int? expiresInMinutes)\n        {\n            var request = new CommunicationIdentityCreateRequest { ExpiresInMinutes = expiresInMinutes };\n            foreach (CommunicationTokenScope scope in scopes ?? Enumerable.Empty<CommunicationTokenScope>())\n            {\n                request.CreateTokenWithScopes.Add(scope);\n            }\n\n            return request;\n        }\n\n        // AutoRest emitted null guards on operation parameters; the DPG emitter does not.\n        // Validate here so a null argument still fails fast with ArgumentNullException instead\n        // of reaching the service and coming back as a 400. The parameter names match the ones\n        // the AutoRest client reported, so callers catching these see no change.",
+      "contentHash": "48d356d0da91df4807605d2a7ca522325fcbe7a2ea92232ee9c04c6c6487fbe6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClient.cs",
+      "startLine": 1,
+      "endLine": 405,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClientOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure.Core;\n\nnamespace Azure.Communication.Identity\n{\n    /// <summary>\n    /// The options for communication <see cref=\"CommunicationIdentityClientOptions\"/>.\n    /// </summary>\n    public class CommunicationIdentityClientOptions : ClientOptions\n    {\n        /// <summary>\n        /// The latest version of the identity service.\n        /// </summary>\n        internal const ServiceVersion LatestVersion = ServiceVersion.V2026_09_23;\n\n        internal string ApiVersion { get; }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"CommunicationIdentityClientOptions\"/>.\n        /// </summary>\n        public CommunicationIdentityClientOptions(ServiceVersion version = LatestVersion)\n        {\n            ApiVersion = version switch\n            {\n                ServiceVersion.V2021_03_07 => \"2021-03-07\",\n                ServiceVersion.V2022_06_01 => \"2022-06-01\",\n                ServiceVersion.V2022_10_01 => \"2022-10-01\",\n                ServiceVersion.V2023_10_01 => \"2023-10-01\",\n                ServiceVersion.V2026_09_23 => \"2026-09-23\",\n                _ => throw new ArgumentOutOfRangeException(nameof(version))\n            };\n        }\n\n        /// <summary>\n        /// The token service version.\n        /// </summary>\n        public enum ServiceVersion\n        {\n            /// <summary>\n            /// The V2021_03_07 of the identity service.\n            /// </summary>\n#pragma warning disable CA1707 // Identifiers should not contain underscores\n            V2021_03_07 = 1,\n            /// <summary>\n            /// The V2022_06_01 of the identity service.\n            /// </summary>\n            V2022_06_01 = 2,\n            /// <summary>\n            /// The V2022_10_01 of the identity service.\n            /// </summary>\n            V2022_10_01 = 3,\n            /// <summary>\n            /// The V2023_10_01 of the identity service.\n            /// </summary>\n            V2023_10_01 = 4,\n            /// <summary>\n            /// The V2026_09_23 of the identity service.\n            /// </summary>\n            V2026_09_23 = 5,\n#pragma warning restore CA1707 // Identifiers should not contain underscores\n        }\n    }\n}\n",
+      "contentHash": "0215d2be0d69e11a1d36db22fecb53f04687eed656bccc3f3c0dd0ec0b0a330f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClientOptions.cs",
+      "startLine": 1,
+      "endLine": 66,
+      "kind": "unknown",
+      "id": "de3e721f1cebe9594810eab522d9613f4489e2d3b1ddd481f2eb9f5cf01ae2b3"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/AzureCommunicationIdentityContext.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: the ModelReaderWriter context is generated scaffolding, not part of the\n    // shipped contract. Keeping it internal makes the public type list identical to 1.3.1.\n    // Belongs in a spec-repo client.tsp via @access(Access.internal).\n    internal partial class AzureCommunicationIdentityContext\n    {\n    }\n}\n",
+      "contentHash": "597bc79ae4e7ca33d009c08dc4b8a662bbff30daee71ccb0ca89a8f41e0c7c53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/AzureCommunicationIdentityContext.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "fe81ff3ceef0d89fd976d46502ae4323ba0c059a43f3aa913e6595bca3a50689"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentity.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: wire model, not part of the public contract. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    [CodeGenSuppress(\"CommunicationIdentity\", typeof(string))]\n    [CodeGenSuppress(\"CommunicationIdentity\", typeof(string), typeof(IDictionary<string, BinaryData>))]\n    [CodeGenSuppress(\"CommunicationIdentity\")]\n    internal partial class CommunicationIdentity\n    {\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentity\"/>. </summary>\n        /// <param name=\"id\"> Identifier of the identity. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"id\"/> is null. </exception>\n        internal CommunicationIdentity(string id)\n        {\n            if (id == null)\n                throw new ArgumentNullException(nameof(id));\n\n            Id = id;\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentity\"/>. </summary>\n        /// <param name=\"id\"> Identifier of the identity. </param>\n        /// <param name=\"additionalBinaryDataProperties\"> Keeps track of any properties unknown to the library. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"id\"/> is null. </exception>\n        internal CommunicationIdentity(string id, IDictionary<string, BinaryData> additionalBinaryDataProperties)\n        {\n            if (id == null)\n                throw new ArgumentNullException(nameof(id));\n\n            Id = id;\n            _additionalBinaryDataProperties = additionalBinaryDataProperties;\n        }\n    }\n}\n",
+      "contentHash": "d142cada7ab228c6daac3fd5fe23439f052dfe5d4deae4b0d4764fd2a3bfb302",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentity.cs",
+      "startLine": 1,
+      "endLine": 40,
+      "kind": "unknown",
+      "id": "7e7cda67397f7b5d942c8ce60f82061c32e5b6cc58842023b8a17e9c775068bd"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessToken.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: wire model, not part of the public contract. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    [CodeGenSuppress(\"CommunicationIdentityAccessToken\", typeof(string), typeof(DateTimeOffset))]\n    [CodeGenSuppress(\"CommunicationIdentityAccessToken\", typeof(string), typeof(DateTimeOffset), typeof(IDictionary<string, BinaryData>))]\n    [CodeGenSuppress(\"CommunicationIdentityAccessToken\")]\n    internal partial class CommunicationIdentityAccessToken\n    {\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityAccessToken\"/>. </summary>\n        /// <param name=\"token\"> The access token issued for the identity. </param>\n        /// <param name=\"expiresOn\"> The expiry time of the token. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"token\"/> is null. </exception>\n        internal CommunicationIdentityAccessToken(string token, DateTimeOffset expiresOn)\n        {\n            if (token == null)\n                throw new ArgumentNullException(nameof(token));\n\n            Token = token;\n            ExpiresOn = expiresOn;\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"CommunicationIdentityAccessToken\"/>. </summary>\n        /// <param name=\"token\"> The access token issued for the identity. </param>\n        /// <param name=\"expiresOn\"> The expiry time of the token. </param>\n        /// <param name=\"additionalBinaryDataProperties\"> Keeps track of any properties unknown to the library. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"token\"/> is null. </exception>\n        internal CommunicationIdentityAccessToken(string token, DateTimeOffset expiresOn, IDictionary<string, BinaryData> additionalBinaryDataProperties)\n        {\n            if (token == null)\n                throw new ArgumentNullException(nameof(token));\n\n            Token = token;\n            ExpiresOn = expiresOn;\n            _additionalBinaryDataProperties = additionalBinaryDataProperties;\n        }\n    }\n}\n",
+      "contentHash": "a0e408bcf32a7d8dfaab67005c605464558bef4fccce719ded13240c23c972b4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessToken.cs",
+      "startLine": 1,
+      "endLine": 44,
+      "kind": "unknown",
+      "id": "0f4e082eb342709cc901c3d09b38ad66f1f6d03d8e96fd4dadd4730060a4f14c"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessTokenRequest.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: wire model, not part of the public contract. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    internal partial class CommunicationIdentityAccessTokenRequest\n    {\n    }\n}\n",
+      "contentHash": "d40d5866fb2893bc86511ea7df5e4c2d9a6931188cd69ee406a54d4743faa654",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessTokenRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "7525f9906a6e8d94d9bf552ab5ce75f414d7c856ca7157838b47170f50841e94"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityCreateRequest.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: wire model, not part of the public contract. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    internal partial class CommunicationIdentityCreateRequest\n    {\n    }\n}\n",
+      "contentHash": "9164570529620e84e043abcac828a669aaa5effb4a413ff02834eb18d7c2a4db",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityCreateRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "cb8d873f31a1d7c44c27ef083dc5bebf960623cd01baa85f792eda695e41841a"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityModelFactory.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Azure.Core;\n\nnamespace Azure.Communication.Identity.Models\n{\n    /// <summary>\n    /// Model factory that enables mocking for the Identity library.\n    /// </summary>\n    public static partial class CommunicationIdentityModelFactory\n    {\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"Azure.Communication.Identity.CommunicationUserIdentifierAndToken\"/> class.\n        /// </summary>\n        /// <param name=\"user\"> The user stored in the instance. </param>\n        /// <param name=\"accessToken\"> The access token stored in the instance. </param>\n        /// <returns>A new <see cref=\"Azure.Communication.Identity.CommunicationUserIdentifierAndToken\"/> instance for mocking.</returns>\n        public static CommunicationUserIdentifierAndToken CommunicationUserIdentifierAndToken(CommunicationUserIdentifier user, AccessToken accessToken)\n            => new CommunicationUserIdentifierAndToken(new CommunicationIdentity(user.Id), new CommunicationIdentityAccessToken(accessToken.Token, accessToken.ExpiresOn));\n    }\n}\n",
+      "contentHash": "69026f25dae9c140f9b1af29cab0782488bde87ce27b31c4beb35619634545cc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityModelFactory.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "7cf1f60e5c4f2a6bde0810d500982ec21e270d73534b4396f51a6945bc6dd537"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationTokenScope.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Azure.Core;\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Communication.Identity\n{\n    public readonly partial struct CommunicationTokenScope\n    {\n        /// <summary> Use this for full access to Calling APIs. </summary>\n        [CodeGenMember(\"Voip\")]\n        public static CommunicationTokenScope VoIP { get; } = new CommunicationTokenScope(VoipValue);\n\n        /// <summary> Access to Calling APIs but without the authorization to start new calls. </summary>\n        [CodeGenMember(\"VoipJoin\")]\n        public static CommunicationTokenScope VoIPJoin { get; } = new CommunicationTokenScope(VoipJoinValue);\n    }\n}\n",
+      "contentHash": "47b3fb3a82385b68e1d686f965c1300a33f2e6844ec83b32c9e4c0d70c39bdea",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationTokenScope.cs",
+      "startLine": 1,
+      "endLine": 20,
+      "kind": "unknown",
+      "id": "35e83cec713776922e772a2c713c22016c1efcef9e687ee2d2f24e41ad797ac9"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationUserIdentifierAndToken.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.ComponentModel;\nusing Azure.Core;\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Communication.Identity\n{\n    [CodeGenSuppress(\"CommunicationUserIdentifierAndToken\", typeof(CommunicationIdentity))]\n    [CodeGenSuppress(\"CommunicationUserIdentifierAndToken\", typeof(CommunicationIdentity), typeof(CommunicationIdentityAccessToken), typeof(IDictionary<string, BinaryData>))]\n    [CodeGenSuppress(\"CommunicationUserIdentifierAndToken\")]\n    public partial class CommunicationUserIdentifierAndToken\n    {\n        internal CommunicationUserIdentifierAndToken(CommunicationIdentity identity, CommunicationIdentityAccessToken accessToken)\n        {\n            if (identity == null)\n                throw new ArgumentNullException(nameof(identity));\n\n            Identity = identity;\n            InternalAccessToken = accessToken;\n        }\n\n        internal CommunicationUserIdentifierAndToken(\n            CommunicationIdentity identity,\n            CommunicationIdentityAccessToken accessToken,\n            IDictionary<string, BinaryData> additionalBinaryDataProperties)\n            : this(identity, accessToken)\n        {\n            _additionalBinaryDataProperties = additionalBinaryDataProperties;\n        }\n\n        /// <summary>Deconstructs the <see cref=\"CommunicationUserIdentifierAndToken\"/> into a user and token.</summary>\n        /// <param name=\"user\">The value of the <see cref=\"User\"/> property.</param>\n        /// <param name=\"accessToken\">The value of the <see cref=\"AccessToken\"/> property.</param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public void Deconstruct(out CommunicationUserIdentifier user, out AccessToken accessToken)\n        {\n            user = User;\n            accessToken = AccessToken;\n        }\n\n        internal CommunicationIdentity Identity { get; }\n\n        [CodeGenMember(\"AccessToken\")]\n        internal CommunicationIdentityAccessToken InternalAccessToken { get; }\n\n        // User and AccessToken are computed rather than assigned in the constructor. The generated\n        // deserializer builds this type through the generator's own constructor, which only knows\n        // about Identity and InternalAccessToken, so anything assigned in a hand-written constructor\n        // would stay null on every deserialized instance.\n        private AccessToken? AccessTokenCore\n            => InternalAccessToken is null ? null : new AccessToken(InternalAccessToken.Token, InternalAccessToken.ExpiresOn);\n\n        /// <summary>A communication user.</summary>\n        public CommunicationUserIdentifier User => new CommunicationUserIdentifier(Identity.Id);\n\n        /// <summary>The token created for <see cref=\"User\"/>.</summary>\n        public AccessToken AccessToken => AccessTokenCore.Value;\n    }\n}\n",
+      "contentHash": "58c111c79bae7f58278722df585f47021caa2de11a8893b23f5f7c4832dd30f4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/CommunicationUserIdentifierAndToken.cs",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "unknown",
+      "id": "742643135cace7e07e722bb08a3526d68a531035fac37e2e0e182cd568fca0ab"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/GetTokenForTeamsUserOptions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\nusing System;\nusing System.Collections.Generic;\nusing System.Text;\n\nnamespace Azure.Communication.Identity\n{\n    /// <summary>\n    /// Options used to exchange an AAD access token of a Teams user for a new Communication Identity access token.\n    /// </summary>\n    public class GetTokenForTeamsUserOptions\n    {\n        /// <summary>\n        /// Azure AD access token of a Teams user.\n        /// </summary>\n        public string TeamsUserAadToken { get; }\n\n        /// <summary>\n        /// Client ID of an Azure AD application to be verified against the appId claim in the Azure AD access token.\n        /// </summary>\n        public string ClientId { get; }\n\n        /// <summary>\n        /// Object ID of an Azure AD user (Teams User) to be verified against the OID claim in the Azure AD access token.\n        /// </summary>\n        public string UserObjectId { get; }\n\n        /// <summary>\n        /// Initializes a new instance of <see cref=\"GetTokenForTeamsUserOptions\"/>.\n        /// </summary>\n        /// <param name=\"teamsUserAadToken\">Azure AD access token of a Teams User.</param>\n        /// <param name=\"clientId\">Client ID of an Azure AD application to be verified against the appId claim in the Azure AD access token.</param>\n        /// <param name=\"userObjectId\">Object ID of an Azure AD user (Teams User) to be verified against the OID claim in the Azure AD access token.</param>\n        public GetTokenForTeamsUserOptions(\n            string teamsUserAadToken,\n            string clientId,\n            string userObjectId)\n        {\n            TeamsUserAadToken = teamsUserAadToken;\n            ClientId = clientId;\n            UserObjectId = userObjectId;\n        }\n    }\n}\n",
+      "contentHash": "280ed35f5012c5875be5498e591968ca96fe90983f7806dcee5ce1fc93808e85",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/GetTokenForTeamsUserOptions.cs",
+      "startLine": 1,
+      "endLine": 45,
+      "kind": "unknown",
+      "id": "2268470769413b027f199d1252f7d9a81dad53dd1f66478591fe275a034690df"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: the public entry point is the hand-written CommunicationIdentityClient. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    internal partial class IdentityClient\n    {\n    }\n}\n",
+      "contentHash": "cdcc3781af852c2c89ad0affd1c267479d6667e3b4e01eff8cc91c66782ed6d9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/IdentityClient.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "d775b5147b41be447901dc66ac01be6d155bf2aadf2f7fd115344cda26437372"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityClientOptions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Communication.Identity\n{\n    // Reduced to internal: the public entry point is the hand-written CommunicationIdentityClient. Belongs in a spec-repo client.tsp via @access(Access.internal).\n    internal partial class IdentityClientOptions\n    {\n    }\n}\n",
+      "contentHash": "d10c4ba616efcea5b0624bf194ce795833ea5e7319034e969158a6f27c4a0fce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Models/IdentityClientOptions.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "002688477ac5d207e439d4e552e4022ebbe5ec1ed6030c8a47acff28293dfc6c"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/README.md",
+      "text": "# Azure Communication Identity client library for .NET\n\nAzure Communication Identity is managing tokens for Azure Communication Services.\n\n[Source code][source] <!--| [Package (NuGet)][package]--> | [Product documentation][product_docs] | [Samples][source_samples]\n\n## Getting started\n\n### Install the package\n\nInstall the Azure Communication Identity client library for .NET with [NuGet][nuget]:\n\n```dotnetcli\ndotnet add package Azure.Communication.Identity\n```\n\n### Prerequisites\n\nYou need an [Azure subscription][azure_sub] and a [Communication Service Resource][communication_resource_docs] to use this package.\n\nTo create a new Communication Service, you can use the [Azure Portal][communication_resource_create_portal], the [Azure PowerShell][communication_resource_create_power_shell], or the [.NET management client library][communication_resource_create_net].\n\n<!--\nHere's an example using the Azure CLI:\n\n```Powershell\n[To be ADDED]\n```\n-->\n\n### Authenticate the client\n\nThe identity client can be authenticated using a connection string acquired from an Azure Communication Resources in the [Azure Portal][azure_portal].\n\n```C# Snippet:CreateCommunicationIdentityClient\n// Get a connection string to our Azure Communication resource.\nvar connectionString = \"<connection_string>\";\nvar client = new CommunicationIdentityClient(connectionString);\n```\n\nOr alternatively using the endpoint and access key acquired from an Azure Communication Resources in the [Azure Portal][azure_portal].\n\n```C# Snippet:CreateCommunicationIdentityFromAccessKey\nvar endpoint = new Uri(\"https://my-resource.communication.azure.com\");\nvar accessKey = \"<access_key>\";\nendpoint = TestEnvironment.LiveTestDynamicEndpoint;\naccessKey = TestEnvironment.LiveTestDynamicAccessKey;\nvar client = new CommunicationIdentityClient(endpoint, new AzureKeyCredential(accessKey));\n```\n\nClients also have the option to authenticate using a valid Active Directory token.\n\n```C# Snippet:CreateCommunicationIdentityFromToken\nvar endpoint = new Uri(\"https://my-resource.communication.azure.com\");\nendpoint = TestEnvironment.LiveTestDynamicEndpoint;\nTokenCredential tokenCredential = TestEnvironment.Credential;\nvar client = new CommunicationIdentityClient(endpoint, tokenCredential);\n```\n\n### Key concepts\n\n`CommunicationIdentityClient` provides the functionalities to manage user access tokens: creating new ones and revoking them.\n\n### Thread safety\nWe guarantee that all client instance methods are thread-safe and independent of each other ([guideline](https://azure.github.io/azure-sdk/dotnet_introduction.html#dotnet-service-methods-thread-safety)). This ensures that the recommendation of reusing client instances is always safe, even across threads.\n\n### Additional concepts\n<!-- CLIENT COMMON BAR -->\n[Client options](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#configuring-service-clients-using-clientoptions) |\n[Accessing the response](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#accessing-http-response-details-using-responset) |\n[Long-running operations](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#consuming-long-running-operations-using-operationt) |\n[Handling failures](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/README.md#reporting-errors-requestfailedexception) |\n[Diagnostics](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/core/Azure.Core/samples/Diagnostics.md) |\n[Mocking](https://learn.microsoft.com/dotnet/azure/sdk/unit-testing-mocking) |\n[Client lifetime](https://devblogs.microsoft.com/azure-sdk/lifetime-management-and-thread-safety-guarantees-of-azure-sdk-net-clients/)\n<!-- CLIENT COMMON BAR -->\n\n## Examples\n\n### Creating a new user\n\n```C# Snippet:CreateCommunicationUserAsync\nResponse<CommunicationUserIdentifier> userResponse = await client.CreateUserAsync();\nCommunicationUserIdentifier user = userResponse.Value;\nConsole.WriteLine($\"User id: {user.Id}\");\n```\n\n### Getting a token for an existing user\n\n```C# Snippet:CreateCommunicationTokenAsync\nResponse<AccessToken> tokenResponse = await client.GetTokenAsync(user, scopes: new[] { CommunicationTokenScope.Chat });\nstring token = tokenResponse.Value.Token;\nDateTimeOffset expiresOn = tokenResponse.Value.ExpiresOn;\nConsole.WriteLine($\"Token: {token}\");\nConsole.WriteLine($\"Expires On: {expiresOn}\");\n```\n\nThe `GetToken` function takes in a list of `CommunicationTokenScope`. Scope options include:\n- `Chat` (Use this for full access to Chat APIs)\n- `VoIP` (Use this for full access to Calling APIs)\n- `ChatJoin` (Access to Chat APIs but without the authorization to create, delete or update chat threads)\n- `ChatJoinLimited` (A more limited version of ChatJoin that doesn't allow to add or remove participants)\n- `VoIPJoin` (Access to Calling APIs but without the authorization to start new calls)\n\n\nIt's also possible to create a Communication Identity access token by customizing the expiration time. Validity period of the token must be within [1,24] hours range. If not provided, the default value of 24 hours will be used.\n\n```C# Snippet:CreateCommunicationTokenAsyncWithCustomExpiration\nTimeSpan tokenExpiresIn = TimeSpan.FromHours(1);\nResponse<AccessToken> tokenResponse = await client.GetTokenAsync(user, scopes: new[] { CommunicationTokenScope.Chat }, tokenExpiresIn);\nstring token = tokenResponse.Value.Token;\nDateTimeOffset expiresOn = tokenResponse.Value.ExpiresOn;\nConsole.WriteLine($\"Token: {token}\");\nConsole.WriteLine($\"Expires On: {expiresOn}\");\n```\n\n### Creating a user and a token in the same request\n```C# Snippet:CreateCommunicationUserAndToken\nResponse<CommunicationUserIdentifierAndToken> response = await client.CreateUserAndTokenAsync(scopes: new[] { CommunicationTokenScope.Chat });\nvar (user, token) = response.Value;\nConsole.WriteLine($\"User id: {user.Id}\");\nConsole.WriteLine($\"Token: {token.Token}\");\n```\n\nIt's also possible to create a Communication Identity access token by customizing the expiration time. Validity period of the token must be within [1,24] hours range. If not provided, the default value of 24 hours will be used.\n\n```C# Snippet:CreateCommunicationUserAndTokenWithCustomExpirationAsync\nTimeSpan tokenExpiresIn = TimeSpan.FromHours(1);\nResponse<CommunicationUserIdentifierAndToken> response = await client.CreateUserAndTokenAsync(scopes: new[] { CommunicationTokenScope.Chat }, tokenExpiresIn);\nvar (user, token) = response.Value;\nConsole.WriteLine($\"User id: {user.Id}\");\nConsole.WriteLine($\"Token: {token.Token}\");\n```\n\n### Revoking a user's tokens\n\nIn case a user's tokens are compromised or need to be revoked:\n\n```C# Snippet:RevokeCommunicationUserTokenAsync\nResponse revokeResponse = await client.RevokeTokensAsync(user);\n```\n\n### Deleting a user\n\n```C# Snippet:DeleteACommunicationUserAsync\nResponse deleteResponse = await client.DeleteUserAsync(user);\n```\n\n### Exchanging Azure AD access token of a Teams User for a Communication Identity access token\nThe `CommunicationIdentityClient` can be used to exchange an Azure AD access token of a Teams user for a new Communication Identity access token with a matching expiration time.\n\nThe `GetTokenForTeamsUser` function accepts the following parameters wrapped into the `GetTokenForTeamsUserOptions` option bag:\n- `teamsUserAadToken` Azure Active Directory access token of a Teams user\n- `clientId` Client ID of an Azure AD application to be verified against the appId claim in the Azure AD access token\n- `userObjectId` Object ID of an Azure AD user (Teams User) to be verified against the OID claim in the Azure AD access token\n\n```C# Snippet:GetTokenForTeamsUserAsync\nResponse<AccessToken> tokenResponse = await client.GetTokenForTeamsUserAsync(new GetTokenForTeamsUserOptions(teamsUserAadToken, clientId, userObjectId));\nstring token = tokenResponse.Value.Token;\nConsole.WriteLine($\"Token: {token}\");\n```\n\n## Troubleshooting\n\nAll User token service operations will throw a RequestFailedException on failure.\n\n```C# Snippet:CommunicationIdentityClient_Troubleshooting\n// Get a connection string to our Azure Communication resource.\nvar connectionString = \"<connection_string>\";\nvar client = new CommunicationIdentityClient(connectionString);\nclient = CreateClient();\n\ntry\n{\n    Response<CommunicationUserIdentifier> response = await client.CreateUserAsync();\n}\ncatch (RequestFailedException ex)\n{\n    Console.WriteLine(ex.Message);\n}\n```\n\n\n## Next steps\n\n[Read more about Communication user access tokens][user_access_token]\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit [cla.microsoft.com][cla].\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or comments.\n\n<!-- LINKS -->\n\n[azure_sub]: https://azure.microsoft.com/free/dotnet/\n[azure_portal]: https://portal.azure.com\n[source]: https://github.com/Azure/azure-sdk-for-net/tree/main/sdk/communication/Azure.Communication.Identity/src\n[source_samples]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/communication/Azure.Communication.Identity/samples\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n<!--[package]: https://www.nuget.org/packages/Azure.Communication.Identity-->\n[product_docs]: https://learn.microsoft.com/azure/communication-services/overview\n[nuget]: https://www.nuget.org/\n[user_access_token]: https://learn.microsoft.com/azure/communication-services/quickstarts/access-tokens?pivots=programming-language-csharp\n[communication_resource_docs]: https://learn.microsoft.com/azure/communication-services/quickstarts/create-communication-resource?tabs=windows&pivots=platform-azp\n[communication_resource_create_portal]: https://learn.microsoft.com/azure/communication-services/quickstarts/create-communication-resource?tabs=windows&pivots=platform-azp\n[communication_resource_create_power_shell]: https://learn.microsoft.com/powershell/module/az.communication/new-azcommunicationservice\n[communication_resource_create_net]: https://learn.microsoft.com/azure/communication-services/quickstarts/create-communication-resource?tabs=windows&pivots=platform-net\n",
+      "contentHash": "c1dae53261d377521fa7e751351ea67c985ff7636896d927f3957405a6a009f2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/README.md"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Azure.Communication.Identity.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>\n      This client library enables working with the Microsoft Azure Communication Identity service.\n      For this release, see notes - https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/communication/Azure.Communication.Identity/README.md and https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/communication/Azure.Communication.Identity/CHANGELOG.md.\n      Microsoft Azure Communication Identity quickstart - https://docs.microsoft.com/azure/communication-services/quickstarts/access-tokens?pivots=programming-language-csharp\n    </Description>\n    <AssemblyTitle>Azure Communication Identity Service</AssemblyTitle>\n    <Version>2.1.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>2.0.0</ApiCompatVersion>\n    <PackageTags>Microsoft Azure Communication Identity Service;Microsoft;Azure;Azure Communication Service;Azure Communication Identity Service;Identity;Communication;$(PackageCommonTags)</PackageTags>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <None Include=\"..\\README.md\" Link=\"README.md\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n  <!-- Shared source from Azure.Core -->\n  <ItemGroup>\n    <Compile Include=\"..\\..\\Shared\\src\\ClientOptionsExtensions.cs\" LinkBase=\"Shared\\Communication\" />\n    <Compile Include=\"..\\..\\Shared\\src\\HMACAuthenticationPolicy.cs\" LinkBase=\"Shared\\Communication\" />\n    <Compile Include=\"..\\..\\Shared\\Properties\\CommunicationAssembyInfo.cs\" LinkBase=\"Shared\\Communication\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ConnectionString.cs\" LinkBase=\"Shared\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Communication.Common\" />\n  </ItemGroup>\n\n</Project>\n",
+      "contentHash": "40f0ed9ca7b5c87d15358fefa5559bf26a5443d889fd227e333fb8cc4b78c1fd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/src/Azure.Communication.Identity.csproj"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/tsp-location.yaml",
+      "text": "commit: 1893171028aed5a757fc78c2d4aa439c14df4afc\ndirectory: specification/communication/data-plane/Identity\nadditionalDirectories: []\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-emitter-package.json\"\n",
+      "contentHash": "243291040fccfeefe5cb43a32100b8bea186d525e81f7fbc6ceca6b109b530e5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/communication/Azure.Communication.Identity/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "1b573b4c17e0a8a9a3a0109fdf55d4584feb268e856284d337feacb330446a2a",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "5eaefe3a2dbc0d8db669ae3653bba807a992fa2136164290b3e9f6876c2d3565",
+        "category": "Other",
+        "subtype": "per-operation-default-json-accept-header",
+        "pattern": "request-default-header-policy",
+        "generatorAddressable": "yes",
+        "explanation": "AcceptJson creates a cancellation-aware RequestContext with a per-call policy that adds Accept: application/json only if no Accept header exists. DeleteUser and RevokeTokens use this context.",
+        "handwrittenRationale": "The standalone policy and its explicit operation-level registration are outside Generated, in a public facade with direct calls into operation clients.",
+        "symbols": [
+          "AcceptJsonPolicy.OnSendingRequest",
+          "CommunicationIdentityClient.AcceptJson"
+        ],
+        "evidence": [
+          {
+            "id": "f3f1a9e2591159edd7a86b3db89031abaed868462dfb9ecba94947f0f371ddbe",
+            "startLine": 20,
+            "endLine": 34
+          },
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 384,
+            "endLine": 389
+          }
+        ]
+      },
+      {
+        "key": "406ad4a985d23233a8f81c9410a4717f39a9b1727edd32abd83432f381bc6c7f",
+        "category": "Hand-written client",
+        "subtype": "connection-string-and-credential-facade-over-operation-clients",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "yes",
+        "explanation": "The public client accepts connection strings, keys or token credentials, supplies default options, delegates pipeline construction to options helpers and creates IdentityOperations and TeamsUserOperations with a shared pipeline/diagnostics/version.",
+        "handwrittenRationale": "The non-generated facade explicitly assembles two operation clients rather than exposing the internal operation types directly; customized wire model types are also supplied.",
+        "symbols": [
+          "CommunicationIdentityClient.CommunicationIdentityClient",
+          "CommunicationIdentityClient.CheckNotNull"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 28,
+            "endLine": 65
+          },
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 72,
+            "endLine": 96
+          }
+        ]
+      },
+      {
+        "key": "a4b5ca1711c93845fd106b0492b767474b165bb4eba7cc5668c2981d5ba4ab5c",
+        "category": "Convenience methods",
+        "subtype": "create-result-to-shared-user-identifier",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "CreateUser and CreateUserAsync send a fresh create request, extract Identity.Id and return CommunicationUserIdentifier with the underlying raw response; their diagnostic scopes record and rethrow failures.",
+        "handwrittenRationale": "The non-generated public facade explicitly reshapes the operation result into a shared SDK identifier type.",
+        "symbols": [
+          "CommunicationIdentityClient.CreateUser",
+          "CommunicationIdentityClient.CreateUserAsync"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 110,
+            "endLine": 144
+          }
+        ]
+      },
+      {
+        "key": "8ea98cdf6de3d745c104cf55ac1adb2fb83729a3717f62b96802f7b7149d2ae5",
+        "category": "Convenience methods",
+        "subtype": "scope-enumeration-and-expiration-create-request",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "explanation": "CreateUserAndToken overloads obtain expiration minutes via a helper and build a request with the requested scopes, treating a null scope collection as empty. Sync/async wrappers add diagnostic scopes and preserve default-expiration overloads.",
+        "handwrittenRationale": "The facade contains explicit request construction and wrapper bodies outside Generated.",
+        "symbols": [
+          "CommunicationIdentityClient.CreateUserAndToken",
+          "CommunicationIdentityClient.CreateUserAndTokenAsync",
+          "CommunicationIdentityClient.BuildCreateRequest"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 150,
+            "endLine": 198
+          },
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 391,
+            "endLine": 400
+          }
+        ]
+      },
+      {
+        "key": "1ff32e99fdb4040474d44e5a83e235c53ecb03974734dcc612561367979d8d5f",
+        "category": "Convenience methods",
+        "subtype": "shared-user-identifier-to-delete-operation",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "DeleteUser sync/async overloads unwrap CommunicationUserIdentifier.Id, supply the per-operation Accept context and call the underlying delete operation inside a failure-recording diagnostic scope.",
+        "handwrittenRationale": "The non-generated facade adds a shared identifier-shaped public API over the operation client.",
+        "symbols": [
+          "CommunicationIdentityClient.DeleteUser",
+          "CommunicationIdentityClient.DeleteUserAsync"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 204,
+            "endLine": 235
+          }
+        ]
+      },
+      {
+        "key": "d9a5edefd077886f7dae205b676420f06748406afb7f86bb619da1bd7f29aba3",
+        "category": "Convenience methods",
+        "subtype": "issue-token-to-shared-access-token",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "GetToken overloads unwrap a shared user id, delegate request building and expiration conversion to helpers, then project token text/expiry into Azure.Core.AccessToken while retaining the raw response and recording diagnostic failures.",
+        "handwrittenRationale": "Explicit shared-type conversions are implemented in the public facade outside Generated.",
+        "symbols": [
+          "CommunicationIdentityClient.GetToken",
+          "CommunicationIdentityClient.GetTokenAsync"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 243,
+            "endLine": 303
+          }
+        ]
+      },
+      {
+        "key": "42fbca14b38f5dee9af7a9e7e8bbc31094c0f0100eac2ccd68620ec0a5ab76dd",
+        "category": "Convenience methods",
+        "subtype": "shared-user-identifier-to-token-revocation",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "RevokeTokens sync/async methods extract a shared identifier's Id, pass an Accept context and invoke RevokeAccessTokens inside failure-recording diagnostic scopes.",
+        "handwrittenRationale": "The public non-generated facade explicitly wraps the internal operation with shared SDK inputs.",
+        "symbols": [
+          "CommunicationIdentityClient.RevokeTokens",
+          "CommunicationIdentityClient.RevokeTokensAsync"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 309,
+            "endLine": 340
+          }
+        ]
+      },
+      {
+        "key": "5052921bb6f68c57299661137332aa393e9132dc11aca04c55666d2c3f96c65a",
+        "category": "Convenience methods",
+        "subtype": "teams-options-to-shared-access-token",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "GetTokenForTeamsUser sync/async methods pass their options through a request-building helper to TeamsUserOperations, then return a shared AccessToken and the original raw response inside diagnostic scopes.",
+        "handwrittenRationale": "The facade explicitly projects the operation result and supplies a public options-shaped method outside Generated.",
+        "symbols": [
+          "CommunicationIdentityClient.GetTokenForTeamsUser",
+          "CommunicationIdentityClient.GetTokenForTeamsUserAsync"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 346,
+            "endLine": 379
+          }
+        ]
+      },
+      {
+        "key": "27d138eebedcd5a87faace94fd5154927c2bda19d49bceb5641bd5699af8f271",
+        "category": "Other",
+        "subtype": "service-version-enum-to-wire-string-validation",
+        "pattern": "api-version-validation",
+        "generatorAddressable": "yes",
+        "explanation": "Options default to V2026_09_23, map five declared service versions to API-version strings and throw ArgumentOutOfRangeException for other values.",
+        "handwrittenRationale": "The implemented options type is directly under src outside Generated, following the supplied .NET source-location rule; no generated counterpart is supplied.",
+        "symbols": [
+          "CommunicationIdentityClientOptions.CommunicationIdentityClientOptions",
+          "CommunicationIdentityClientOptions.ServiceVersion"
+        ],
+        "evidence": [
+          {
+            "id": "de3e721f1cebe9594810eab522d9613f4489e2d3b1ddd481f2eb9f5cf01ae2b3",
+            "startLine": 17,
+            "endLine": 63
+          }
+        ]
+      },
+      {
+        "key": "fa67eaac52f5afb4557bfb1f20935ac39b65feee8c114d6c395470b54c0d0d84",
+        "category": "Model overrides",
+        "subtype": "internal-identity-constructors-with-required-id-check",
+        "pattern": "model-constructor-null-validation",
+        "generatorAddressable": "yes",
+        "explanation": "CommunicationIdentity suppresses three generated constructor signatures and defines internal id-taking constructors that reject a null id and optionally retain unknown binary-data properties.",
+        "handwrittenRationale": "Explicit CodeGenSuppress attributes accompany implemented partial-model constructors outside Generated.",
+        "symbols": [
+          "CommunicationIdentity.CommunicationIdentity"
+        ],
+        "evidence": [
+          {
+            "id": "7e7cda67397f7b5d942c8ce60f82061c32e5b6cc58842023b8a17e9c775068bd",
+            "startLine": 11,
+            "endLine": 38
+          }
+        ]
+      },
+      {
+        "key": "bd6712315cdb30a6216c82ce611221507b0b703d21db365ab0f50c8e90d600a0",
+        "category": "Model overrides",
+        "subtype": "internal-token-constructors-with-required-token-check",
+        "pattern": "model-constructor-null-validation",
+        "generatorAddressable": "yes",
+        "explanation": "CommunicationIdentityAccessToken suppresses generated constructors and supplies internal token/expiry constructors that reject null token values and optionally retain unknown binary-data properties.",
+        "handwrittenRationale": "Explicit generator suppressions and replacement partial-model bodies establish customization.",
+        "symbols": [
+          "CommunicationIdentityAccessToken.CommunicationIdentityAccessToken"
+        ],
+        "evidence": [
+          {
+            "id": "0f4e082eb342709cc901c3d09b38ad66f1f6d03d8e96fd4dadd4730060a4f14c",
+            "startLine": 11,
+            "endLine": 42
+          }
+        ]
+      },
+      {
+        "key": "d06992fd4e74dd89fc6dc594e57b42e09c2525c10f16fb7b8c932b0bd632d4d4",
+        "category": "Convenience methods",
+        "subtype": "mock-factory-from-shared-user-and-access-token",
+        "pattern": "model-factory-method",
+        "generatorAddressable": "yes",
+        "explanation": "The public model factory accepts CommunicationUserIdentifier and AccessToken, constructs internal wire identity/token models and returns CommunicationUserIdentifierAndToken.",
+        "handwrittenRationale": "The factory partial outside Generated contains an explicit conversion between shared SDK types and customized internal models.",
+        "symbols": [
+          "CommunicationIdentityModelFactory.CommunicationUserIdentifierAndToken"
+        ],
+        "evidence": [
+          {
+            "id": "7cf1f60e5c4f2a6bde0810d500982ec21e270d73534b4396f51a6945bc6dd537",
+            "startLine": 19,
+            "endLine": 20
+          }
+        ]
+      },
+      {
+        "key": "76ef7ac18f70420224c396d1087066c2960030b6c136b49738045b12d94fa96d",
+        "category": "Model overrides",
+        "subtype": "generated-voip-member-renamed-voip-acronym",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "explanation": "CodeGenMember maps the generated Voip member to the public static VoIP scope value.",
+        "handwrittenRationale": "The explicit CodeGenMember mapping is in a non-generated partial struct.",
+        "symbols": [
+          "CommunicationTokenScope.VoIP"
+        ],
+        "evidence": [
+          {
+            "id": "35e83cec713776922e772a2c713c22016c1efcef9e687ee2d2f24e41ad797ac9",
+            "startLine": 13,
+            "endLine": 14
+          }
+        ]
+      },
+      {
+        "key": "bf0244cb9f3e09ce30c04510184b0239c7ba60219df552b6784686a54e2cd6a0",
+        "category": "Model overrides",
+        "subtype": "generated-voipjoin-member-renamed-voip-acronym",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "explanation": "CodeGenMember maps the generated VoipJoin member to the public static VoIPJoin scope value.",
+        "handwrittenRationale": "The partial struct contains an explicit generator member mapping.",
+        "symbols": [
+          "CommunicationTokenScope.VoIPJoin"
+        ],
+        "evidence": [
+          {
+            "id": "35e83cec713776922e772a2c713c22016c1efcef9e687ee2d2f24e41ad797ac9",
+            "startLine": 17,
+            "endLine": 18
+          }
+        ]
+      },
+      {
+        "key": "80b80524b03a6a7c622a9905a94b8dce80057ec9aeb1d01e7a78d5e84fe8d816",
+        "category": "Model overrides",
+        "subtype": "internal-result-construction-with-identity-null-check",
+        "pattern": "model-constructor-null-validation",
+        "generatorAddressable": "yes",
+        "explanation": "The result model suppresses generated constructors, retains wire identity/token inputs through internal constructors, rejects null identity and supports unknown binary-data properties.",
+        "handwrittenRationale": "CodeGenSuppress attributes and handwritten constructor bodies explicitly extend the generated partial model.",
+        "symbols": [
+          "CommunicationUserIdentifierAndToken.CommunicationUserIdentifierAndToken"
+        ],
+        "evidence": [
+          {
+            "id": "742643135cace7e07e722bb08a3526d68a531035fac37e2e0e182cd568fca0ab",
+            "startLine": 13,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "85f9523a0e87381267166b5ecce387b9c8ace44ce74818311be76ad325139cce",
+        "category": "Model overrides",
+        "subtype": "internal-wire-members-to-computed-shared-user-and-token",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "explanation": "The result retains internal wire Identity and a CodeGenMember-mapped InternalAccessToken, while public User and AccessToken are computed as shared SDK types from those wire values.",
+        "handwrittenRationale": "An explicit generated AccessToken mapping and executable computed properties are present in the partial customization model.",
+        "symbols": [
+          "CommunicationUserIdentifierAndToken.Identity",
+          "CommunicationUserIdentifierAndToken.InternalAccessToken",
+          "CommunicationUserIdentifierAndToken.User",
+          "CommunicationUserIdentifierAndToken.AccessToken",
+          "CommunicationUserIdentifierAndToken.AccessTokenCore"
+        ],
+        "evidence": [
+          {
+            "id": "742643135cace7e07e722bb08a3526d68a531035fac37e2e0e182cd568fca0ab",
+            "startLine": 46,
+            "endLine": 62
+          }
+        ]
+      },
+      {
+        "key": "beb2efdb6dfa01aa693d940c9d56a18f474f2167a2a20d6c6889bd1a33fc3172",
+        "category": "Convenience methods",
+        "subtype": "tuple-deconstruction-into-shared-user-and-token",
+        "pattern": "model-deconstruction",
+        "generatorAddressable": "yes",
+        "explanation": "Deconstruct exposes the result's User and AccessToken through out parameters and hides the method from normal editor browsing.",
+        "handwrittenRationale": "The partial customization model explicitly adds this executable convenience method.",
+        "symbols": [
+          "CommunicationUserIdentifierAndToken.Deconstruct"
+        ],
+        "evidence": [
+          {
+            "id": "742643135cace7e07e722bb08a3526d68a531035fac37e2e0e182cd568fca0ab",
+            "startLine": 39,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "315ee1826cf790a3cd69a0411031124773d59a3dba01bac19d335d759c1681ec",
+        "category": "Model overrides",
+        "subtype": "read-only-teams-token-exchange-options",
+        "pattern": "operation-options-model",
+        "generatorAddressable": "yes",
+        "explanation": "GetTokenForTeamsUserOptions groups the Teams AAD token, client id and user object id into read-only properties populated by a public constructor; the facade accepts this options object.",
+        "handwrittenRationale": "This implemented options model lives under src/Models outside Generated and is used by the non-generated facade, following the supplied .NET source-location rule. A pre-customization counterpart is not supplied.",
+        "symbols": [
+          "GetTokenForTeamsUserOptions.GetTokenForTeamsUserOptions",
+          "GetTokenForTeamsUserOptions.TeamsUserAadToken",
+          "GetTokenForTeamsUserOptions.ClientId",
+          "GetTokenForTeamsUserOptions.UserObjectId"
+        ],
+        "evidence": [
+          {
+            "id": "2268470769413b027f199d1252f7d9a81dad53dd1f66478591fe275a034690df",
+            "startLine": 12,
+            "endLine": 43
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "5eaefe3a2dbc0d8db669ae3653bba807a992fa2136164290b3e9f6876c2d3565",
+        "status": "revised",
+        "reason": "The policy and per-call registration are implemented as described, but the cited ranges do not show which operations use it; add the DeleteUser and RevokeTokens call sites.",
+        "finding": {
+          "key": "5eaefe3a2dbc0d8db669ae3653bba807a992fa2136164290b3e9f6876c2d3565",
+          "category": "Other",
+          "subtype": "per-operation-default-json-accept-header",
+          "explanation": "A per-call policy supplies Accept: application/json only when the header is absent; the public delete-user and revoke-tokens methods register it through a cancellation-aware RequestContext.",
+          "rootCauseHypothesis": "The source comments attribute this to a changed default for no-content operations under the TypeSpec emitter; no generated request implementation or wire trace was supplied to verify that comparison.",
+          "pattern": "request-default-header-policy",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The executable policy and its registration in the public facade reside outside src/Generated.",
+          "symbols": [
+            "AcceptJsonPolicy.OnSendingRequest",
+            "CommunicationIdentityClient.AcceptJson"
+          ],
+          "evidence": [
+            {
+              "id": "f3f1a9e2591159edd7a86b3db89031abaed868462dfb9ecba94947f0f371ddbe",
+              "startLine": 18,
+              "endLine": 34
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 204,
+              "endLine": 210
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 222,
+              "endLine": 228
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 309,
+              "endLine": 315
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 327,
+              "endLine": 333
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 384,
+              "endLine": 389
+            }
+          ]
+        }
+      },
+      {
+        "key": "406ad4a985d23233a8f81c9410a4717f39a9b1727edd32abd83432f381bc6c7f",
+        "status": "revised",
+        "reason": "The constructor assembly is handwritten, but the proposed claim about customized wire models is outside this instance, and generator addressability of the whole multi-operation facade is not established by its constructor source.",
+        "finding": {
+          "key": "406ad4a985d23233a8f81c9410a4717f39a9b1727edd32abd83432f381bc6c7f",
+          "category": "Hand-written client",
+          "subtype": "connection-string-and-credential-facade-over-operation-clients",
+          "explanation": "Public constructors accept connection strings, key credentials or token credentials; private constructors build a pipeline and instantiate IdentityOperations and TeamsUserOperations with common diagnostics, endpoint and API version.",
+          "pattern": "handwritten-client-over-generated",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The implemented public client outside src/Generated explicitly constructs internal operation clients and forwards into their operations; the separate operation-wrapper findings cover individual methods.",
+          "symbols": [
+            "CommunicationIdentityClient.CommunicationIdentityClient",
+            "CommunicationIdentityClient.CheckNotNull"
+          ],
+          "evidence": [
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 28,
+              "endLine": 96
+            }
+          ]
+        }
+      },
+      {
+        "key": "a4b5ca1711c93845fd106b0492b767474b165bb4eba7cc5668c2981d5ba4ab5c",
+        "status": "accepted",
+        "reason": "Both handwritten CreateUser methods construct a request, transform the operation result into a shared identifier, retain its raw response and instrument failures; the cited range contains both implementations."
+      },
+      {
+        "key": "8ea98cdf6de3d745c104cf55ac1adb2fb83729a3717f62b96802f7b7149d2ae5",
+        "status": "accepted",
+        "reason": "The handwritten overloads and BuildCreateRequest explicitly construct the scoped request, default null scopes to an empty enumeration and forward a nullable expiration value. The expiration conversion helper is not in the excerpt, so its details are not independently assessed."
+      },
+      {
+        "key": "1ff32e99fdb4040474d44e5a83e235c53ecb03974734dcc612561367979d8d5f",
+        "status": "accepted",
+        "reason": "The two non-generated public methods extract the shared identifier, register the per-call context and delegate to Delete/ DeleteAsync within diagnostic scopes."
+      },
+      {
+        "key": "d9a5edefd077886f7dae205b676420f06748406afb7f86bb619da1bd7f29aba3",
+        "status": "accepted",
+        "reason": "The sync and async methods visibly build an operation request and convert the wire token into Azure.Core.AccessToken while retaining the raw response; the cited range covers the overloads. Helper internals after the excerpt are not independently verified."
+      },
+      {
+        "key": "42fbca14b38f5dee9af7a9e7e8bbc31094c0f0100eac2ccd68620ec0a5ab76dd",
+        "status": "accepted",
+        "reason": "Both handwritten revoke methods unwrap the shared identifier, pass the per-call Accept context and delegate to the internal operations within diagnostic scopes."
+      },
+      {
+        "key": "5052921bb6f68c57299661137332aa393e9132dc11aca04c55666d2c3f96c65a",
+        "status": "accepted",
+        "reason": "The two public methods call TeamsUserRestClient with an options-to-request helper and project the wire result into a shared AccessToken with the raw response. The helper's implementation is outside the supplied excerpt."
+      },
+      {
+        "key": "27d138eebedcd5a87faace94fd5154927c2bda19d49bceb5641bd5699af8f271",
+        "status": "accepted",
+        "reason": "The handwritten options class selects a default service version, switches over its declared enum members and throws for unrecognized values; the category and reusable API-version-validation pattern describe that code."
+      },
+      {
+        "key": "fa67eaac52f5afb4557bfb1f20935ac39b65feee8c114d6c395470b54c0d0d84",
+        "status": "accepted",
+        "reason": "CodeGenSuppress annotations and both implemented constructors outside Generated directly support the replacement and required-id null check; the second constructor also stores unknown binary properties."
+      },
+      {
+        "key": "bd6712315cdb30a6216c82ce611221507b0b703d21db365ab0f50c8e90d600a0",
+        "status": "accepted",
+        "reason": "The partial wire model explicitly suppresses generated constructor signatures and implements two internal constructors that validate token and optionally retain additional binary properties."
+      },
+      {
+        "key": "d06992fd4e74dd89fc6dc594e57b42e09c2525c10f16fb7b8c932b0bd632d4d4",
+        "status": "accepted",
+        "reason": "The model-factory method is implemented outside Generated and builds customized internal wire models from shared SDK types; its public signature and conversion are present at the cited lines."
+      },
+      {
+        "key": "76ef7ac18f70420224c396d1087066c2960030b6c136b49738045b12d94fa96d",
+        "status": "accepted",
+        "reason": "The non-generated partial struct explicitly maps the generated Voip member to the handwritten VoIP member; the model-property-alias catalog includes renames."
+      },
+      {
+        "key": "bf0244cb9f3e09ce30c04510184b0239c7ba60219df552b6784686a54e2cd6a0",
+        "status": "accepted",
+        "reason": "The non-generated partial struct explicitly maps the generated VoipJoin member to the handwritten VoIPJoin member; this is a separate affected symbol and rename."
+      },
+      {
+        "key": "80b80524b03a6a7c622a9905a94b8dce80057ec9aeb1d01e7a78d5e84fe8d816",
+        "status": "accepted",
+        "reason": "Suppression annotations and two implemented constructors establish a replacement constructor behavior; the first rejects null identity and the second retains unknown binary properties."
+      },
+      {
+        "key": "85f9523a0e87381267166b5ecce387b9c8ace44ce74818311be76ad325139cce",
+        "status": "accepted",
+        "reason": "The partial model retains internal wire members, maps the generated AccessToken member and computes public User and AccessToken as shared SDK types. The cited source supports this model-type replacement."
+      },
+      {
+        "key": "beb2efdb6dfa01aa693d940c9d56a18f474f2167a2a20d6c6889bd1a33fc3172",
+        "status": "accepted",
+        "reason": "The separate Deconstruct method in the handwritten partial model passes the computed shared User and AccessToken through out parameters and is marked EditorBrowsable(Never)."
+      },
+      {
+        "key": "315ee1826cf790a3cd69a0411031124773d59a3dba01bac19d335d759c1681ec",
+        "status": "revised",
+        "reason": "This is an implemented public options bag used by the handwritten method, but no generated counterpart is supplied to support the Model overrides category. Its exact generator provenance and whether this API shape can be generated remain uncertain.",
+        "finding": {
+          "key": "315ee1826cf790a3cd69a0411031124773d59a3dba01bac19d335d759c1681ec",
+          "category": "Other",
+          "subtype": "read-only-operation-options-bag",
+          "explanation": "A handwritten public options type packages the Teams user AAD token, client ID and user object ID into constructor-initialized read-only properties accepted by GetTokenForTeamsUser.",
+          "pattern": "operation-options-model",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The complete implemented options type resides under src/Models outside src/Generated, and the public client uses it as an operation argument; no generated counterpart is supplied.",
+          "symbols": [
+            "GetTokenForTeamsUserOptions.GetTokenForTeamsUserOptions",
+            "GetTokenForTeamsUserOptions.TeamsUserAadToken",
+            "GetTokenForTeamsUserOptions.ClientId",
+            "GetTokenForTeamsUserOptions.UserObjectId"
+          ],
+          "evidence": [
+            {
+              "id": "2268470769413b027f199d1252f7d9a81dad53dd1f66478591fe275a034690df",
+              "startLine": 12,
+              "endLine": 43
+            },
+            {
+              "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+              "startLine": 346,
+              "endLine": 357
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [
+      {
+        "key": "83d88dd7ce7efa167bb51452862bd4277fd8f27385a182ae945f46dfe1336593",
+        "category": "Other",
+        "subtype": "protected-mocking-constructor",
+        "explanation": "A protected constructor initializes the client without live diagnostics or operation clients, providing a separate subclass/mocking construction path.",
+        "pattern": "mocking-client-constructor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A protected implemented constructor with explicit field initialization occurs in the public client outside src/Generated; unlike the proposed credential constructors it supports constructing without a live pipeline.",
+        "symbols": [
+          "CommunicationIdentityClient.CommunicationIdentityClient"
+        ],
+        "evidence": [
+          {
+            "id": "fe9e42d007aa6500fc785fefa4b5d36200552668fd6ba614bb28e38c9f207ebf",
+            "startLine": 100,
+            "endLine": 106
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only 14 of 76 eligible source files were sent; CommunicationIdentityClient ends at line 405 in comments preceding a missing helper implementation. IdentityOperations, TeamsUserOperations and Teams extension customizations are omitted.",
+      "The bodies of GetTokenExpirationInMinutes, BuildAccessTokenRequest, BuildTeamsUserExchangeTokenRequest and BuildHttpPipeline are not supplied. No finding claims exact token-duration validation, option null guards, bearer scopes, HMAC signing or request-helper implementation.",
+      "Source comments describe migration motivations and public-surface compatibility, but generated counterparts and a baseline API comparison are absent. No claim that the prior shipped contract is exactly preserved is measured here.",
+      "Several empty internal partial declarations have comments asserting accessibility reduction, but no explicit generator mapping or generated counterpart in this request. They are not counted independently as proven hiding customizations.",
+      "Standalone options and version types follow the supplied .NET non-generated-source rule, which is labeled proposed. Explicit CodeGen attributes on model changes provide stronger attribution than location alone.",
+      "Diagnostic scopes are included with their affected wrapper findings, not counted again on identical symbols and files. No LRO or paging behavior is inferred from the README's generic links.",
+      "Partial coverage: 14 of 76 eligible files were captured and CommunicationIdentityClient.cs stops at line 405. Unseen methods, helper implementations and skipped operation files cannot be assessed, and no absence of other customizations follows.",
+      "Generated counterparts, the pre-customization API surface and execution traces were not supplied. Comments describing emitter regressions, previous public visibility, or prior null-guard behavior are hypotheses rather than independently established comparisons.",
+      "Several supplied model and client stubs contain only internal partial declarations. Under the explicit empty-partial exclusion, those declarations alone are not reported as separate omissions; generated declarations would be needed to determine whether they alter emitted accessibility.",
+      "The mocking constructor omission shares a constructor symbol with the credential-facade proposal but has a distinct symbol-set identity and behavior; it remains inconclusive pending independent assessment."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/AcceptJsonPolicy.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "49efbf20196fe3c8c8a51c5aa1340d453877ac8025e2881d5517fbe09541a9c7"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClient.cs",
+      "startLine": 1,
+      "endLine": 451,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a94c6c12a24884a573d655af5a4a4c18099b74db75924c079b99941ca08d880d"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/CommunicationIdentityClientOptions.cs",
+      "startLine": 1,
+      "endLine": 66,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0215d2be0d69e11a1d36db22fecb53f04687eed656bccc3f3c0dd0ec0b0a330f"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/AzureCommunicationIdentityContext.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "597bc79ae4e7ca33d009c08dc4b8a662bbff30daee71ccb0ca89a8f41e0c7c53"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentity.cs",
+      "startLine": 1,
+      "endLine": 40,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d142cada7ab228c6daac3fd5fe23439f052dfe5d4deae4b0d4764fd2a3bfb302"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessToken.cs",
+      "startLine": 1,
+      "endLine": 44,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a0e408bcf32a7d8dfaab67005c605464558bef4fccce719ded13240c23c972b4"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityAccessTokenRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d40d5866fb2893bc86511ea7df5e4c2d9a6931188cd69ee406a54d4743faa654"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityCreateRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "9164570529620e84e043abcac828a669aaa5effb4a413ff02834eb18d7c2a4db"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationIdentityModelFactory.cs",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "69026f25dae9c140f9b1af29cab0782488bde87ce27b31c4beb35619634545cc"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationTokenScope.cs",
+      "startLine": 1,
+      "endLine": 20,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "47b3fb3a82385b68e1d686f965c1300a33f2e6844ec83b32c9e4c0d70c39bdea"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/CommunicationUserIdentifierAndToken.cs",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "58c111c79bae7f58278722df585f47021caa2de11a8893b23f5f7c4832dd30f4"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/GetTokenForTeamsUserOptions.cs",
+      "startLine": 1,
+      "endLine": 45,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "280ed35f5012c5875be5498e591968ca96fe90983f7806dcee5ce1fc93808e85"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityClient.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "cdcc3781af852c2c89ad0affd1c267479d6667e3b4e01eff8cc91c66782ed6d9"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityClientOptions.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d10c4ba616efcea5b0624bf194ce795833ea5e7319034e969158a6f27c4a0fce"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/IdentityOperations.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "716946e29fbc61df408838c42f4e894be5f422bf1da295ec41b009986ce474ed"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionAssignmentCreateOrUpdateRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7774aaa772efbde0c73b17c043f12373f289858a0753aceaeedc315b3b04cae1"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionAssignmentResponse.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c48da6ecba4ace61b80ad4d3c9f475256a11f3fe25c9033db11581e08a2523be"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionExchangeTokenRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "21e586ea96e6c4d12c62e35feeac5561a7668fd23370e1b5f00a785f70808e3d"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionOperations.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "47cc3ba6eee46aaf4cc6bac0a5f098141214df09073e3d7151231e3d49efb57b"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsExtensionPrincipalType.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "818db2cf87ec474f5e3e18ca0c3805a8058e926e415c4fda3760d5ee6a8e0a17"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsUserExchangeTokenRequest.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "fa21786d780791ad7c15d863b84b20e813af748a03e99143071711e81e9d5bcc"
+    },
+    {
+      "path": "sdk/communication/Azure.Communication.Identity/src/Models/TeamsUserOperations.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "cc3276ac8b59315132d2b06f465b078a063ff6e1687af08f67d7f721fccbfd2c"
+    }
+  ]
+}

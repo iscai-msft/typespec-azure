@@ -1,0 +1,1101 @@
+{
+  "schemaVersion": 1,
+  "id": "9662d427-3250-44e2-af8c-a7321865d2ac",
+  "observedAt": "2026-10-27T14:54:53.569Z",
+  "identity": "java:azure-resourcemanager-containerinstance:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-resourcemanager-containerinstance",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/containerinstance/azure-resourcemanager-containerinstance"
+  },
+  "commit": "8d1fdf438a7a3d946191020dbaa8a3720abff39a",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "c20748ebaf7f1d2139e22f104712da4e62ca58d9"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 189,
+    "eligibleFiles": 150,
+    "capturedFiles": 6,
+    "skipped": [
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupImpl.java",
+        "reason": "Review budget; only lines 1-550 sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerImpl.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/VolumeImpl.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerAttachResult.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerExecResponse.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerGroup.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerGroups.java",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/ContainerInstanceManager.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance;\n\nimport com.azure.core.credential.TokenCredential;\nimport com.azure.core.http.HttpPipeline;\nimport com.azure.resourcemanager.authorization.AuthorizationManager;\nimport com.azure.resourcemanager.containerinstance.fluent.ContainerInstanceManagementClient;\nimport com.azure.resourcemanager.containerinstance.implementation.ContainerInstanceManagementClientBuilder;\nimport com.azure.resourcemanager.containerinstance.implementation.ContainerGroupsImpl;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroups;\nimport com.azure.resourcemanager.network.NetworkManager;\nimport com.azure.resourcemanager.resources.fluentcore.arm.AzureConfigurable;\nimport com.azure.resourcemanager.resources.fluentcore.arm.Manager;\nimport com.azure.core.management.profile.AzureProfile;\nimport com.azure.resourcemanager.resources.fluentcore.arm.implementation.AzureConfigurableImpl;\nimport com.azure.resourcemanager.resources.fluentcore.utils.HttpPipelineProvider;\nimport com.azure.resourcemanager.storage.StorageManager;\n\nimport java.util.Objects;\n\n/** Entry point to Azure container instance management. */\npublic final class ContainerInstanceManager extends Manager<ContainerInstanceManagementClient> {\n\n    // The service managers\n    private ContainerGroupsImpl containerGroups;\n    private final StorageManager storageManager;\n    private final AuthorizationManager authorizationManager;\n    private final NetworkManager networkManager;\n\n    /**\n     * Get a Configurable instance that can be used to create ContainerInstanceManager with optional configuration.\n     *\n     * @return Configurable\n     */\n    public static Configurable configure() {\n        return new ContainerInstanceManager.ConfigurableImpl();\n    }\n\n    /**\n     * Creates an instance of ContainerInstanceManager that exposes resource management API entry points.\n     *\n     * @param credential the credential to use\n     * @param profile the profile to use\n     * @return the ContainerInstanceManager\n     */\n    public static ContainerInstanceManager authenticate(TokenCredential credential, AzureProfile profile) {\n        Objects.requireNonNull(credential, \"'credential' cannot be null.\");\n        Objects.requireNonNull(profile, \"'profile' cannot be null.\");\n        return authenticate(HttpPipelineProvider.buildHttpPipeline(credential, profile), profile);\n    }\n\n    /**\n     * Creates an instance of ContainerInstanceManager that exposes resource management API entry points.\n     *\n     * @param httpPipeline the {@link HttpPipeline} configured with Azure authentication credential.\n     * @param profile the profile to use\n     * @return the ContainerInstanceManager\n     */\n    public static ContainerInstanceManager authenticate(HttpPipeline httpPipeline, AzureProfile profile) {\n        Objects.requireNonNull(httpPipeline, \"'httpPipeline' cannot be null.\");\n        Objects.requireNonNull(profile, \"'profile' cannot be null.\");\n        return new ContainerInstanceManager(httpPipeline, profile);\n    }\n\n    /** The interface allowing configurations to be set. */\n    public interface Configurable extends AzureConfigurable<Configurable> {\n        /**\n         * Creates an instance of ContainerInstanceManager that exposes resource management API entry points.\n         *\n         * @param credential the credential to use\n         * @param profile the profile to use\n         * @return the ContainerInstanceManager\n         */\n        ContainerInstanceManager authenticate(TokenCredential credential, AzureProfile profile);\n    }\n\n    /** The implementation for Configurable interface. */\n    private static final class ConfigurableImpl extends AzureConfigurableImpl<Configurable> implements Configurable {\n        @Override\n        public ContainerInstanceManager authenticate(TokenCredential credential, AzureProfile profile) {\n            return ContainerInstanceManager.authenticate(buildHttpPipeline(credential, profile), profile);\n        }\n    }\n\n    private ContainerInstanceManager(HttpPipeline httpPipeline, AzureProfile profile) {\n        super(httpPipeline, profile,\n            new ContainerInstanceManagementClientBuilder().pipeline(httpPipeline)\n                .endpoint(profile.getEnvironment().getResourceManagerEndpoint())\n                .subscriptionId(profile.getSubscriptionId())\n                .buildClient());\n\n        this.storageManager = StorageManager.authenticate(httpPipeline, profile);\n        this.authorizationManager = AuthorizationManager.authenticate(httpPipeline, profile);\n        this.networkManager = NetworkManager.authenticate(httpPipeline, profile);\n    }\n\n    /**\n     * Gets the storage manager in container instance manager.\n     *\n     * @return the storage manager in container instance manager\n     */\n    public StorageManager storageManager() {\n        return storageManager;\n    }\n\n    /**\n     * Gets the authorization manager in container instance manager.\n     *\n     * @return the authorization manager in container instance manager\n     */\n    public AuthorizationManager authorizationManager() {\n        return authorizationManager;\n    }\n\n    /**\n     * Gets the network manager in container instance manager.\n     *\n     * @return the network manager in container instance manager\n     */\n    public NetworkManager networkManager() {\n        return networkManager;\n    }\n\n    /**\n     * Gets the resource management API entry point.\n     *\n     * @return the resource management API entry point\n     */\n    public ContainerGroups containerGroups() {\n        if (this.containerGroups == null) {\n            this.containerGroups = new ContainerGroupsImpl(this);\n        }\n\n        return this.containerGroups;\n    }\n}\n",
+      "contentHash": "bde60e4c00a73c713bec05ea19e83d0e68f2f2ce57458c2cd85b8f68df27376f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/ContainerInstanceManager.java",
+      "startLine": 1,
+      "endLine": 138,
+      "kind": "unknown",
+      "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerAttachResultImpl.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance.implementation;\n\nimport com.azure.resourcemanager.containerinstance.fluent.models.ContainerAttachResponseInner;\nimport com.azure.resourcemanager.containerinstance.models.ContainerAttachResult;\nimport com.azure.resourcemanager.resources.fluentcore.model.HasInnerModel;\n\nclass ContainerAttachResultImpl implements ContainerAttachResult, HasInnerModel<ContainerAttachResponseInner> {\n\n    private final ContainerAttachResponseInner innerModel;\n\n    ContainerAttachResultImpl(ContainerAttachResponseInner innerModel) {\n        this.innerModel = innerModel;\n    }\n\n    @Override\n    public String webSocketUri() {\n        return innerModel().webSocketUri();\n    }\n\n    @Override\n    public String password() {\n        return innerModel().password();\n    }\n\n    @Override\n    public ContainerAttachResponseInner innerModel() {\n        return this.innerModel;\n    }\n}\n",
+      "contentHash": "2a4b6087a9a249a168b9fe86360e1b4b45ce75e0126e4520d57423da185a32ba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerAttachResultImpl.java",
+      "startLine": 1,
+      "endLine": 32,
+      "kind": "unknown",
+      "id": "a6cb10820659d841f3672e6bb8dc6c01e0b73f0f0427004cd8f4ad3d894ea684"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerExecResponseImpl.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance.implementation;\n\nimport com.azure.resourcemanager.containerinstance.fluent.models.ContainerExecResponseInner;\nimport com.azure.resourcemanager.containerinstance.models.ContainerExecResponse;\nimport com.azure.resourcemanager.resources.fluentcore.model.implementation.WrapperImpl;\n\n/** Implementation for RegistryCredentials. */\npublic class ContainerExecResponseImpl extends WrapperImpl<ContainerExecResponseInner>\n    implements ContainerExecResponse {\n    protected ContainerExecResponseImpl(ContainerExecResponseInner innerObject) {\n        super(innerObject);\n    }\n\n    @Override\n    public String webSocketUri() {\n        return this.innerModel().webSocketUri();\n    }\n\n    @Override\n    public String password() {\n        return this.innerModel().password();\n    }\n}\n",
+      "contentHash": "fb4f6441ce532ba897f50400641e949b3c30f98e75aa37554b747cdf6d542b06",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerExecResponseImpl.java",
+      "startLine": 1,
+      "endLine": 26,
+      "kind": "unknown",
+      "id": "6cca52ff5f016d886c59faf3755baa0a7465a76f11baaf7d978695008be8a4f4"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupImpl.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance.implementation;\n\nimport com.azure.core.management.Resource;\nimport com.azure.core.util.Context;\nimport com.azure.core.util.CoreUtils;\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.resourcemanager.authorization.utils.RoleAssignmentHelper;\nimport com.azure.resourcemanager.authorization.models.BuiltInRole;\nimport com.azure.resourcemanager.containerinstance.ContainerInstanceManager;\nimport com.azure.resourcemanager.containerinstance.fluent.models.ContainerGroupInner;\nimport com.azure.resourcemanager.containerinstance.models.Container;\nimport com.azure.resourcemanager.containerinstance.models.ContainerAttachResult;\nimport com.azure.resourcemanager.containerinstance.models.ContainerExecRequest;\nimport com.azure.resourcemanager.containerinstance.models.ContainerExecRequestTerminalSize;\nimport com.azure.resourcemanager.containerinstance.models.ContainerExecResponse;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroup;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupDiagnostics;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupIpAddressType;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupNetworkProtocol;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupRestartPolicy;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupSubnetId;\nimport com.azure.resourcemanager.containerinstance.models.ContainerNetworkProtocol;\nimport com.azure.resourcemanager.containerinstance.models.ContainerPort;\nimport com.azure.resourcemanager.containerinstance.models.DnsConfiguration;\nimport com.azure.resourcemanager.containerinstance.models.DnsNameLabelReusePolicy;\nimport com.azure.resourcemanager.containerinstance.models.Event;\nimport com.azure.resourcemanager.containerinstance.models.ImageRegistryCredential;\nimport com.azure.resourcemanager.containerinstance.models.IpAddress;\nimport com.azure.resourcemanager.containerinstance.models.LogAnalytics;\nimport com.azure.resourcemanager.containerinstance.models.LogAnalyticsLogType;\nimport com.azure.resourcemanager.containerinstance.models.OperatingSystemTypes;\nimport com.azure.resourcemanager.containerinstance.models.Port;\nimport com.azure.resourcemanager.containerinstance.models.ResourceIdentityType;\nimport com.azure.resourcemanager.containerinstance.models.Volume;\nimport com.azure.resourcemanager.msi.models.Identity;\nimport com.azure.resourcemanager.network.models.Network;\nimport com.azure.resourcemanager.network.models.Subnet;\nimport com.azure.resourcemanager.resources.fluentcore.arm.ResourceUtils;\nimport com.azure.resourcemanager.resources.fluentcore.arm.models.implementation.GroupableParentResourceImpl;\nimport com.azure.resourcemanager.resources.fluentcore.model.Accepted;\nimport com.azure.resourcemanager.resources.fluentcore.model.Creatable;\nimport com.azure.resourcemanager.resources.fluentcore.model.Indexable;\nimport com.azure.resourcemanager.resources.fluentcore.model.implementation.AcceptedImpl;\nimport com.azure.resourcemanager.resources.fluentcore.utils.ResourceManagerUtils;\nimport com.azure.resourcemanager.storage.models.StorageAccount;\nimport com.azure.storage.file.share.ShareServiceAsyncClient;\nimport com.azure.storage.file.share.ShareServiceClientBuilder;\nimport reactor.core.publisher.Flux;\nimport reactor.core.publisher.Mono;\n\nimport java.util.ArrayList;\nimport java.util.Collection;\nimport java.util.Collections;\nimport java.util.HashMap;\nimport java.util.HashSet;\nimport java.util.List;\nimport java.util.Map;\nimport java.util.Objects;\nimport java.util.Set;\n\n/** Implementation for ContainerGroup and its create interfaces. */\npublic class ContainerGroupImpl extends\n    GroupableParentResourceImpl<ContainerGroup, ContainerGroupInner, ContainerGroupImpl, ContainerInstanceManager>\n    implements ContainerGroup, ContainerGroup.Definition, ContainerGroup.Update {\n\n    private final ClientLogger logger = new ClientLogger(ContainerGroupImpl.class);\n\n    private String creatableStorageAccountKey;\n    private Creatable<Network> creatableVirtualNetwork;\n    private Map<String, String> newFileShares;\n\n    private Map<String, Container> containers;\n    private Map<String, Volume> volumes;\n    private List<String> imageRegistryServers;\n    private int[] externalTcpPorts;\n    private int[] externalUdpPorts;\n    private ContainerGroupMsiHandler containerGroupMsiHandler;\n\n    protected ContainerGroupImpl(String name, ContainerGroupInner innerObject, ContainerInstanceManager manager) {\n        super(name, innerObject, manager);\n        this.containerGroupMsiHandler = new ContainerGroupMsiHandler(this);\n        initializeChildrenFromInner();\n    }\n\n    private Mono<Void> beforeCreation() {\n        Mono<Void> mono = Mono.empty();\n        if (creatableVirtualNetwork != null) {\n            mono = mono.then(creatableVirtualNetwork.createAsync()).flatMap(network -> {\n                creatableVirtualNetwork = null;\n                return Mono.empty();\n            });\n        }\n        return mono;\n    }\n\n    @Override\n    protected Mono<ContainerGroupInner> createInner() {\n        this.containerGroupMsiHandler.processCreatedExternalIdentities();\n        this.containerGroupMsiHandler.handleExternalIdentities();\n        final ContainerGroupImpl self = this;\n\n        if (!isInCreateMode()) {\n            Resource resource = new Resource();\n            resource.withLocation(self.regionName());\n            resource.withTags(self.tags());\n            return beforeCreation().then(manager().serviceClient()\n                .getContainerGroups()\n                .updateAsync(self.resourceGroupName(), self.name(), resource));\n        } else if (newFileShares == null || creatableStorageAccountKey == null) {\n            return beforeCreation().then(manager().serviceClient()\n                .getContainerGroups()\n                .createOrUpdateAsync(resourceGroupName(), name(), innerModel()));\n        } else {\n            final StorageAccount storageAccount = this.taskResult(this.creatableStorageAccountKey);\n            return beforeCreation().thenMany(createFileShareAsync(storageAccount))\n                .map(volumeParameters -> this.defineVolume(volumeParameters.volumeName)\n                    .withExistingReadWriteAzureFileShare(volumeParameters.fileShareName)\n                    .withStorageAccountName(storageAccount.name())\n                    .withStorageAccountKey(volumeParameters.storageAccountKey)\n                    .attach())\n                .then(this.manager()\n                    .serviceClient()\n                    .getContainerGroups()\n                    .createOrUpdateAsync(resourceGroupName(), name(), innerModel()));\n        }\n    }\n\n    @Override\n    public Accepted<ContainerGroup> beginCreate() {\n        return AcceptedImpl.<ContainerGroup, ContainerGroupInner>newAccepted(logger,\n            this.manager().serviceClient().getHttpPipeline(), this.manager().serviceClient().getDefaultPollInterval(),\n            () -> this.manager()\n                .serviceClient()\n                .getContainerGroups()\n                .createOrUpdateWithResponseAsync(resourceGroupName(), name(), innerModel())\n                .block(),\n            inner -> new ContainerGroupImpl(inner.name(), inner, this.manager()), ContainerGroupInner.class, () -> {\n                Flux<Indexable> dependencyTasksAsync\n                    = taskGroup().invokeDependencyAsync(taskGroup().newInvocationContext());\n                dependencyTasksAsync.blockLast();\n\n                // same as createInner\n                beforeCreation().block();\n                // msi\n                this.containerGroupMsiHandler.processCreatedExternalIdentities();\n                this.containerGroupMsiHandler.handleExternalIdentities();\n                // storage account\n                if (!(newFileShares == null || creatableStorageAccountKey == null)) {\n                    final StorageAccount storageAccount = this.taskResult(this.creatableStorageAccountKey);\n                    List<VolumeParameters> volumeParametersList\n                        = createFileShareAsync(storageAccount).collectList().block();\n                    if (!CoreUtils.isNullOrEmpty(volumeParametersList)) {\n                        for (VolumeParameters volumeParameters : volumeParametersList) {\n                            this.defineVolume(volumeParameters.volumeName)\n                                .withExistingReadWriteAzureFileShare(volumeParameters.fileShareName)\n                                .withStorageAccountName(storageAccount.name())\n                                .withStorageAccountKey(volumeParameters.storageAccountKey)\n                                .attach();\n                        }\n                    }\n                }\n            }, Context.NONE);\n    }\n\n    private static final class VolumeParameters {\n        private final String volumeName;\n        private final String fileShareName;\n        private final String storageAccountKey;\n\n        VolumeParameters(String volumeName, String fileShareName, String storageAccountKey) {\n            this.volumeName = volumeName;\n            this.fileShareName = fileShareName;\n            this.storageAccountKey = storageAccountKey;\n        }\n    }\n\n    private Flux<VolumeParameters> createFileShareAsync(final StorageAccount storageAccount) {\n        return storageAccount.getKeysAsync()\n            .map(storageAccountKeys -> storageAccountKeys.get(0).value())\n            .flatMapMany(key -> {\n                ShareServiceAsyncClient shareServiceAsyncClient = new ShareServiceClientBuilder()\n                    .connectionString(ResourceManagerUtils.getStorageConnectionString(storageAccount.name(), key,\n                        manager().environment()))\n                    .httpClient(manager().httpPipeline().getHttpClient())\n                    .buildAsyncClient();\n\n                Objects.requireNonNull(newFileShares);\n                return Flux.fromIterable(newFileShares.entrySet())\n                    .flatMap(fileShareEntry -> createSingleFileShareAsync(shareServiceAsyncClient,\n                        fileShareEntry.getKey(), fileShareEntry.getValue(), key));\n            });\n    }\n\n    private Mono<VolumeParameters> createSingleFileShareAsync(final ShareServiceAsyncClient client,\n        final String volumeName, final String fileShareName, final String storageAccountKey) {\n        return client.createShare(fileShareName)\n            .then(Mono.just(new VolumeParameters(volumeName, fileShareName, storageAccountKey)));\n    }\n\n    @Override\n    protected void afterCreating() {\n        initializeChildrenFromInner();\n    }\n\n    @Override\n    protected void initializeChildrenFromInner() {\n        // Getting the container instances\n        this.containers = new HashMap<>();\n        if (this.innerModel().containers() != null && this.innerModel().containers().size() > 0) {\n            for (Container containerInstance : this.innerModel().containers()) {\n                this.containers.put(containerInstance.name(), containerInstance);\n                if (containerInstance.ports() != null) {\n                    for (ContainerPort port : containerInstance.ports()) {\n                        if (port.protocol() == null) {\n                            port.withProtocol(ContainerNetworkProtocol.TCP);\n                        }\n                    }\n                }\n            }\n        }\n\n        // Getting the volumes\n        this.volumes = new HashMap<>();\n        if (this.innerModel().volumes() != null && this.innerModel().volumes().size() > 0) {\n            for (Volume volume : this.innerModel().volumes()) {\n                this.volumes.put(volume.name(), volume);\n            }\n        }\n\n        // Getting the private image registry servers\n        this.imageRegistryServers = new ArrayList<>();\n        if (this.innerModel().imageRegistryCredentials() != null\n            && this.innerModel().imageRegistryCredentials().size() > 0) {\n            for (ImageRegistryCredential imageRegistry : this.innerModel().imageRegistryCredentials()) {\n                this.imageRegistryServers.add(imageRegistry.server());\n            }\n        }\n\n        // Splitting ports between TCP and UDP ports\n        if (this.innerModel().ipAddress() != null && this.innerModel().ipAddress().ports() != null) {\n            List<Port> tcpPorts = new ArrayList<>();\n            List<Port> udpPorts = new ArrayList<>();\n            for (Port port : this.innerModel().ipAddress().ports()) {\n                if (port.protocol() == null) {\n                    port.withProtocol(ContainerGroupNetworkProtocol.TCP);\n                }\n                if (port.protocol().equals(ContainerGroupNetworkProtocol.TCP)) {\n                    tcpPorts.add(port);\n                } else if (port.protocol().equals(ContainerGroupNetworkProtocol.UDP)) {\n                    udpPorts.add(port);\n                }\n            }\n            this.externalTcpPorts = new int[tcpPorts.size()];\n            for (int i = 0; i < this.externalTcpPorts.length; i++) {\n                this.externalTcpPorts[i] = tcpPorts.get(i).port();\n            }\n            this.externalUdpPorts = new int[udpPorts.size()];\n            for (int i = 0; i < this.externalTcpPorts.length; i++) {\n                this.externalTcpPorts[i] = tcpPorts.get(i).port();\n            }\n        } else {\n            this.externalTcpPorts = new int[0];\n            this.externalUdpPorts = new int[0];\n        }\n    }\n\n    // Verbs\n\n    @Override\n    public Mono<ContainerGroup> refreshAsync() {\n        return super.refreshAsync().map(containerGroup -> {\n            ContainerGroupImpl impl = (ContainerGroupImpl) containerGroup;\n            impl.initializeChildrenFromInner();\n            return impl;\n        });\n    }\n\n    @Override\n    protected Mono<ContainerGroupInner> getInnerAsync() {\n        return this.manager()\n            .serviceClient()\n            .getContainerGroups()\n            .getByResourceGroupAsync(this.resourceGroupName(), this.name());\n    }\n\n    @Override\n    public ContainerGroupImpl withLinux() {\n        this.innerModel().withOsType(OperatingSystemTypes.LINUX);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withWindows() {\n        this.innerModel().withOsType(OperatingSystemTypes.WINDOWS);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withSystemAssignedManagedServiceIdentity() {\n        this.containerGroupMsiHandler.withLocalManagedServiceIdentity();\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withSystemAssignedIdentityBasedAccessTo(String resourceId, BuiltInRole role) {\n        this.containerGroupMsiHandler.withAccessTo(resourceId, role);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withSystemAssignedIdentityBasedAccessToCurrentResourceGroup(BuiltInRole role) {\n        this.containerGroupMsiHandler.withAccessToCurrentResourceGroup(role);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withSystemAssignedIdentityBasedAccessTo(String resourceId, String roleDefinitionId) {\n        this.containerGroupMsiHandler.withAccessTo(resourceId, roleDefinitionId);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withSystemAssignedIdentityBasedAccessToCurrentResourceGroup(String roleDefinitionId) {\n        this.containerGroupMsiHandler.withAccessToCurrentResourceGroup(roleDefinitionId);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withNewUserAssignedManagedServiceIdentity(Creatable<Identity> creatableIdentity) {\n        this.containerGroupMsiHandler.withNewExternalManagedServiceIdentity(creatableIdentity);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withExistingUserAssignedManagedServiceIdentity(Identity identity) {\n        this.containerGroupMsiHandler.withExistingExternalManagedServiceIdentity(identity);\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withPublicImageRegistryOnly() {\n        this.innerModel().withImageRegistryCredentials(null);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withPrivateImageRegistry(String server, String username, String password) {\n        if (this.innerModel().imageRegistryCredentials() == null) {\n            this.innerModel().withImageRegistryCredentials(new ArrayList<ImageRegistryCredential>());\n        }\n        this.innerModel()\n            .imageRegistryCredentials()\n            .add(new ImageRegistryCredential().withServer(server).withUsername(username).withPassword(password));\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withPrivateImageRegistry(String server, Identity identity) {\n        return withPrivateImageRegistry(server, Objects.requireNonNull(identity).id());\n    }\n\n    private ContainerGroupImpl withPrivateImageRegistry(String server, String managedIdentityResourceId) {\n        if (this.innerModel().imageRegistryCredentials() == null) {\n            this.innerModel().withImageRegistryCredentials(new ArrayList<ImageRegistryCredential>());\n        }\n        this.innerModel()\n            .imageRegistryCredentials()\n            .add(new ImageRegistryCredential().withServer(server).withIdentity(managedIdentityResourceId));\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withNewAzureFileShareVolume(String volumeName, String shareName) {\n        if (this.newFileShares == null || this.creatableStorageAccountKey == null) {\n            StorageAccount.DefinitionStages.WithGroup definitionWithGroup = manager().storageManager()\n                .storageAccounts()\n                .define(manager().resourceManager().internalContext().randomResourceName(\"fs\", 24))\n                .withRegion(this.regionName());\n            Creatable<StorageAccount> creatable;\n            if (this.creatableGroup != null) {\n                creatable = definitionWithGroup.withNewResourceGroup(this.creatableGroup);\n            } else {\n                creatable = definitionWithGroup.withExistingResourceGroup(this.resourceGroupName());\n            }\n            this.creatableStorageAccountKey = this.addDependency(creatable);\n            this.newFileShares = new HashMap<>();\n        }\n        this.newFileShares.put(volumeName, shareName);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withEmptyDirectoryVolume(String volumeName) {\n        if (this.innerModel().volumes() == null) {\n            this.innerModel().withVolumes(new ArrayList<Volume>());\n        }\n        this.innerModel().volumes().add(new Volume().withName(volumeName).withEmptyDir(new Object()));\n\n        return this;\n    }\n\n    @Override\n    public VolumeImpl defineVolume(String name) {\n        return new VolumeImpl(this, name);\n    }\n\n    @Override\n    public ContainerGroupImpl withoutVolume() {\n        this.innerModel().withVolumes(null);\n\n        return this;\n    }\n\n    @Override\n    public ContainerImpl defineContainerInstance(String name) {\n        return new ContainerImpl(this, name);\n    }\n\n    @Override\n    public ContainerGroupImpl withContainerInstance(String imageName) {\n        return this.defineContainerInstance(this.name())\n            .withImage(imageName)\n            .withoutPorts()\n            .withCpuCoreCount(1)\n            .withMemorySizeInGB(1.5)\n            .attach();\n    }\n\n    @Override\n    public ContainerGroupImpl withContainerInstance(String imageName, int port) {\n        return this.defineContainerInstance(this.name())\n            .withImage(imageName)\n            .withExternalTcpPort(port)\n            .withCpuCoreCount(1)\n            .withMemorySizeInGB(1.5)\n            .attach();\n    }\n\n    @Override\n    public ContainerGroupImpl withRestartPolicy(ContainerGroupRestartPolicy restartPolicy) {\n        this.innerModel().withRestartPolicy(restartPolicy);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withDnsPrefix(String dnsPrefix) {\n        if (this.innerModel().ipAddress() == null) {\n            this.innerModel().withIpAddress(new IpAddress());\n        }\n        this.innerModel().ipAddress().withDnsNameLabel(dnsPrefix).withType(ContainerGroupIpAddressType.PUBLIC);\n\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withAutoGeneratedDomainNameLabelScope(DnsNameLabelReusePolicy reusePolicy) {\n        if (this.innerModel().ipAddress() == null) {\n            this.innerModel().withIpAddress(new IpAddress());\n        }\n        if (reusePolicy != null) {\n            this.innerModel().ipAddress().withAutoGeneratedDomainNameLabelScope(reusePolicy);\n        }\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withExistingSubnet(Subnet subnet) {\n        return withExistingSubnet(subnet.id());\n    }\n\n    @Override\n    public ContainerGroupImpl withExistingSubnet(String subnetId) {\n        if (innerModel().subnetIds() == null) {\n            innerModel().withSubnetIds(new ArrayList<>());\n        }\n        String name = ResourceUtils.nameFromResourceId(subnetId);\n        innerModel().subnetIds().add(new ContainerGroupSubnetId().withName(name).withId(subnetId));\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withNewNetworkProfileOnExistingVirtualNetwork(String virtualNetworkId,\n        String subnetName) {\n        String subnetId = String.format(\"%s/subnets/%s\", virtualNetworkId, subnetName);\n        return this.withExistingSubnet(subnetId);\n    }\n\n    @Override\n    public ContainerGroupImpl withNewVirtualNetwork(String addressSpace) {\n        String virtualNetworkName = manager().resourceManager().internalContext().randomResourceName(\"net\", 20);\n        String subnetName = \"subnet0\";\n\n        creatableVirtualNetwork = manager().networkManager()\n            .networks()\n            .define(virtualNetworkName)\n            .withRegion(region())\n            .withExistingResourceGroup(resourceGroupName())\n            .withAddressSpace(addressSpace)\n            .defineSubnet(subnetName)\n            .withAddressPrefix(addressSpace)\n            .withDelegation(\"Microsoft.ContainerInstance/containerGroups\")\n            .attach();\n\n        String virtualNetworkId\n            = String.format(\"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s\",\n                manager().subscriptionId(), resourceGroupName(), virtualNetworkName);\n        return withNewNetworkProfileOnExistingVirtualNetwork(virtualNetworkId, subnetName);\n    }\n\n    @Override\n    public ContainerGroupImpl withDnsServerNames(List<String> dnsServerNames) {\n        this.innerModel().withDnsConfig(new DnsConfiguration().withNameServers(dnsServerNames));\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withDnsConfiguration(List<String> dnsServerNames, String dnsSearchDomains,\n        String dnsOptions) {\n        this.innerModel()\n            .withDnsConfig(new DnsConfiguration().withNameServers(dnsServerNames)\n                .withSearchDomains(dnsSearchDomains)\n                .withOptions(dnsOptions));\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withLogAnalytics(String workspaceId, String workspaceKey) {\n        this.innerModel()\n            .withDiagnostics(new ContainerGroupDiagnostics()\n                .withLogAnalytics(new LogAnalytics().withWorkspaceId(workspaceId).withWorkspaceKey(workspaceKey)));\n        return this;\n    }\n\n    @Override\n    public ContainerGroupImpl withLogAnalytics(String workspaceId, String workspaceKey, LogAnalyticsLogType logType,\n        Map<String, String> metadata) {\n        this.innerModel()\n            .withDiagnostics(\n                new ContainerGroupDiagnostics().withLogAnalytics(new LogAnalytics().withWorkspaceId(workspaceId)\n                    .withWorkspaceKey(workspaceKey)",
+      "contentHash": "901a39bb53ad95e18609b3d6e682e1d5340eb94db776799d344975851e9c65d5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupImpl.java",
+      "startLine": 1,
+      "endLine": 550,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupMsiHandler.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance.implementation;\n\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.resourcemanager.authorization.utils.RoleAssignmentHelper;\nimport com.azure.resourcemanager.containerinstance.fluent.models.ContainerGroupInner;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupIdentity;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroupIdentityUserAssignedIdentities;\nimport com.azure.resourcemanager.containerinstance.models.ResourceIdentityType;\nimport com.azure.resourcemanager.msi.models.Identity;\nimport com.azure.resourcemanager.resources.fluentcore.dag.TaskGroup;\nimport com.azure.resourcemanager.resources.fluentcore.model.Creatable;\nimport java.util.ArrayList;\nimport java.util.HashMap;\nimport java.util.List;\nimport java.util.Map;\nimport java.util.Objects;\n\nclass ContainerGroupMsiHandler extends RoleAssignmentHelper {\n    private final ContainerGroupImpl containerGroup;\n    private final ClientLogger logger = new ClientLogger(getClass());\n\n    private List<String> creatableIdentityKeys;\n    private Map<String, ContainerGroupIdentityUserAssignedIdentities> userAssignedIdentities;\n\n    ContainerGroupMsiHandler(ContainerGroupImpl containerGroup) {\n        super(containerGroup.manager().authorizationManager(), containerGroup.taskGroup(), containerGroup.idProvider());\n        this.containerGroup = containerGroup;\n        this.creatableIdentityKeys = new ArrayList<>();\n        this.userAssignedIdentities = new HashMap<>();\n    }\n\n    void processCreatedExternalIdentities() {\n        for (String key : this.creatableIdentityKeys) {\n            Identity identity = (Identity) this.containerGroup.taskGroup().taskResult(key);\n            Objects.requireNonNull(identity);\n            this.userAssignedIdentities.put(identity.id(), new ContainerGroupIdentityUserAssignedIdentities());\n        }\n        this.creatableIdentityKeys.clear();\n    }\n\n    void handleExternalIdentities() {\n        if (!this.userAssignedIdentities.isEmpty()) {\n            this.containerGroup.innerModel().identity().withUserAssignedIdentities(this.userAssignedIdentities);\n        }\n    }\n\n    /**\n     * Specifies that Local Managed Service Identity needs to be enabled in the virtual machine. If MSI extension is not\n     * already installed then it will be installed with access token port as 50342.\n     *\n     * @return ContainerGroupMsiHandler\n     */\n    ContainerGroupMsiHandler withLocalManagedServiceIdentity() {\n        this.initContainerInstanceIdentity(ResourceIdentityType.SYSTEM_ASSIGNED);\n        return this;\n    }\n\n    /**\n     * Specifies that given identity should be set as one of the External Managed Service Identity of the container\n     * instance.\n     *\n     * @param creatableIdentity yet-to-be-created identity to be associated with the container instance\n     * @return ContainerGroupMsiHandler\n     */\n    ContainerGroupMsiHandler withNewExternalManagedServiceIdentity(Creatable<Identity> creatableIdentity) {\n        this.initContainerInstanceIdentity(ResourceIdentityType.USER_ASSIGNED);\n\n        TaskGroup.HasTaskGroup dependency = (TaskGroup.HasTaskGroup) creatableIdentity;\n        Objects.requireNonNull(dependency);\n\n        this.containerGroup.taskGroup().addDependency(dependency);\n        this.creatableIdentityKeys.add(creatableIdentity.key());\n\n        return this;\n    }\n\n    /**\n     * Specifies that given identity should be set as one of the External Managed Service Identity of the container\n     * instance.\n     *\n     * @param identity an identity to associate\n     * @return ContainerGroupMsiHandler\n     */\n    ContainerGroupMsiHandler withExistingExternalManagedServiceIdentity(Identity identity) {\n        this.initContainerInstanceIdentity(ResourceIdentityType.USER_ASSIGNED);\n        this.userAssignedIdentities.put(identity.id(), new ContainerGroupIdentityUserAssignedIdentities());\n        return this;\n    }\n\n    /**\n     * Initialize Container Instance's identity property.\n     *\n     * @param identityType the identity type to set\n     */\n    private void initContainerInstanceIdentity(ResourceIdentityType identityType) {\n        if (!identityType.equals(ResourceIdentityType.USER_ASSIGNED)\n            && !identityType.equals(ResourceIdentityType.SYSTEM_ASSIGNED)) {\n            throw logger.logExceptionAsError(new IllegalArgumentException(\"Invalid argument: \" + identityType));\n        }\n\n        ContainerGroupInner containerGroupInner = this.containerGroup.innerModel();\n        if (containerGroupInner.identity() == null) {\n            containerGroupInner.withIdentity(new ContainerGroupIdentity());\n        }\n        if (containerGroupInner.identity().type() == null\n            || containerGroupInner.identity().type().equals(ResourceIdentityType.NONE)\n            || containerGroupInner.identity().type().equals(identityType)) {\n            containerGroupInner.identity().withType(identityType);\n        } else {\n            containerGroupInner.identity().withType(ResourceIdentityType.SYSTEM_ASSIGNED_USER_ASSIGNED);\n        }\n    }\n}\n",
+      "contentHash": "e28f6573a266b73cccafed119c63e84862dfc91f8232b37d397727b9b666869b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupMsiHandler.java",
+      "startLine": 1,
+      "endLine": 116,
+      "kind": "unknown",
+      "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupsImpl.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.resourcemanager.containerinstance.implementation;\n\nimport com.azure.core.http.rest.PagedFlux;\nimport com.azure.core.http.rest.PagedIterable;\nimport com.azure.core.http.rest.Response;\nimport com.azure.core.util.Context;\nimport com.azure.core.util.CoreUtils;\nimport com.azure.resourcemanager.containerinstance.ContainerInstanceManager;\nimport com.azure.resourcemanager.containerinstance.fluent.ContainerGroupsClient;\nimport com.azure.resourcemanager.containerinstance.fluent.models.ContainerGroupInner;\nimport com.azure.resourcemanager.containerinstance.fluent.models.LogsInner;\nimport com.azure.resourcemanager.containerinstance.models.CachedImages;\nimport com.azure.resourcemanager.containerinstance.models.Capabilities;\nimport com.azure.resourcemanager.containerinstance.models.ContainerAttachResult;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroup;\nimport com.azure.resourcemanager.containerinstance.models.ContainerGroups;\nimport com.azure.resourcemanager.containerinstance.models.Operation;\nimport com.azure.resourcemanager.resources.fluentcore.arm.collection.implementation.TopLevelModifiableResourcesImpl;\nimport reactor.core.publisher.Mono;\n\n/** Implementation for ContainerGroups. */\npublic class ContainerGroupsImpl extends\n    TopLevelModifiableResourcesImpl<ContainerGroup, ContainerGroupImpl, ContainerGroupInner, ContainerGroupsClient, ContainerInstanceManager>\n    implements ContainerGroups {\n\n    public ContainerGroupsImpl(final ContainerInstanceManager manager) {\n        super(manager.serviceClient().getContainerGroups(), manager);\n    }\n\n    @Override\n    protected ContainerGroupImpl wrapModel(String name) {\n        return new ContainerGroupImpl(name, new ContainerGroupInner(), this.manager());\n    }\n\n    @Override\n    protected ContainerGroupImpl wrapModel(ContainerGroupInner inner) {\n        if (inner == null) {\n            return null;\n        }\n        return new ContainerGroupImpl(inner.name(), inner, this.manager());\n    }\n\n    @Override\n    protected Mono<Void> deleteInnerAsync(String resourceGroupName, String name) {\n        return this.manager().serviceClient().getContainerGroups().deleteAsync(resourceGroupName, name).then();\n    }\n\n    @Override\n    public ContainerGroup.DefinitionStages.Blank define(String name) {\n        return wrapModel(name);\n    }\n\n    @Override\n    public String getLogContent(String resourceGroupName, String containerGroupName, String containerName) {\n        LogsInner logsInner = this.manager()\n            .serviceClient()\n            .getContainers()\n            .listLogs(resourceGroupName, containerGroupName, containerName);\n\n        return logsInner != null ? logsInner.content() : null;\n    }\n\n    @Override\n    public String getLogContent(String resourceGroupName, String containerGroupName, String containerName,\n        int tailLineCount) {\n        LogsInner logsInner = this.manager()\n            .serviceClient()\n            .getContainers()\n            .listLogsWithResponse(resourceGroupName, containerGroupName, containerName, tailLineCount, null,\n                Context.NONE)\n            .getValue();\n\n        return logsInner != null ? logsInner.content() : null;\n    }\n\n    @Override\n    public Mono<String> getLogContentAsync(String resourceGroupName, String containerGroupName, String containerName) {\n        return this.manager()\n            .serviceClient()\n            .getContainers()\n            .listLogsAsync(resourceGroupName, containerGroupName, containerName)\n            .map(LogsInner::content);\n    }\n\n    @Override\n    public Mono<String> getLogContentAsync(String resourceGroupName, String containerGroupName, String containerName,\n        int tailLineCount) {\n        return this.manager()\n            .serviceClient()\n            .getContainers()\n            .listLogsWithResponseAsync(resourceGroupName, containerGroupName, containerName, tailLineCount, null)\n            .map(Response::getValue)\n            .map(LogsInner::content);\n    }\n\n    @Override\n    public PagedIterable<Operation> listOperations() {\n        return new PagedIterable<>(listOperationsAsync());\n    }\n\n    @Override\n    public PagedFlux<Operation> listOperationsAsync() {\n        return this.manager().serviceClient().getOperations().listAsync();\n    }\n\n    @Override\n    public PagedIterable<CachedImages> listCachedImages(String location) {\n        return new PagedIterable<>(listCachedImagesAsync(location));\n    }\n\n    @Override\n    public PagedFlux<CachedImages> listCachedImagesAsync(String location) {\n        return this.manager().serviceClient().getLocations().listCachedImagesAsync(location);\n    }\n\n    @Override\n    public PagedIterable<Capabilities> listCapabilities(String location) {\n        return new PagedIterable<>(listCapabilitiesAsync(location));\n    }\n\n    @Override\n    public PagedFlux<Capabilities> listCapabilitiesAsync(String location) {\n        return this.manager().serviceClient().getLocations().listCapabilitiesAsync(location);\n    }\n\n    @Override\n    public void start(String resourceGroupName, String containerGroupName) {\n        this.manager().serviceClient().getContainerGroups().start(resourceGroupName, containerGroupName);\n    }\n\n    @Override\n    public Mono<Void> startAsync(String resourceGroupName, String containerGroupName) {\n        return this.manager().serviceClient().getContainerGroups().startAsync(resourceGroupName, containerGroupName);\n    }\n\n    @Override\n    public ContainerAttachResult attachOutputStream(String resourceGroupName, String containerGroupName,\n        String containerName) {\n        return this.attachOutputStreamAsync(resourceGroupName, containerGroupName, containerName).block();\n    }\n\n    @Override\n    public Mono<ContainerAttachResult> attachOutputStreamAsync(String resourceGroupName, String containerGroupName,\n        String containerName) {\n        return this.manager()\n            .serviceClient()\n            .getContainers()\n            .attachAsync(resourceGroupName, containerGroupName, containerName)\n            .map(ContainerAttachResultImpl::new);\n    }\n\n    @Override\n    public PagedFlux<ContainerGroup> listAsync() {\n        return wrapPageAsync(inner().listAsync());\n    }\n\n    @Override\n    public PagedFlux<ContainerGroup> listByResourceGroupAsync(String resourceGroupName) {\n        if (CoreUtils.isNullOrEmpty(resourceGroupName)) {\n            return new PagedFlux<>(() -> Mono\n                .error(new IllegalArgumentException(\"Parameter 'resourceGroupName' is required and cannot be null.\")));\n        }\n        return wrapPageAsync(inner().listByResourceGroupAsync(resourceGroupName));\n    }\n\n    @Override\n    public final PagedIterable<ContainerGroup> list() {\n        return new PagedIterable<>(listAsync());\n    }\n\n    @Override\n    public PagedIterable<ContainerGroup> listByResourceGroup(String resourceGroupName) {\n        return new PagedIterable<>(listByResourceGroupAsync(resourceGroupName));\n    }\n}\n",
+      "contentHash": "fbb2bac03feb662248008969d9b9f3b78baed8a6a20b19181c708b0fc84f9ddb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupsImpl.java",
+      "startLine": 1,
+      "endLine": 178,
+      "kind": "unknown",
+      "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure.resourcemanager</groupId>\n  <artifactId>azure-resourcemanager-containerinstance</artifactId>\n  <version>2.54.0-beta.1</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-containerinstance;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for Container Instance Management</name>\n  <description>This package contains Microsoft Azure Container Instance SDK. For documentation on how to use this package, please see https://aka.ms/azsdk/java/mgmt</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <tag>HEAD</tag>\n  </scm>\n\n  <properties>\n    <!-- RMJacoco -->\n    <jacoco.min.linecoverage>0.10</jacoco.min.linecoverage>\n    <jacoco.min.branchcoverage>0.10</jacoco.min.branchcoverage>\n    <!-- Configures the Java 9+ run to perform the required module exports, opens, and reads that are necessary for testing but shouldn't be part of the module-info. -->\n    <javaModulesSurefireArgLine>\n      --add-opens com.azure.resourcemanager.authorization/com.azure.resourcemanager.authorization=ALL-UNNAMED\n      --add-opens com.azure.resourcemanager.containerinstance/com.azure.resourcemanager.containerinstance=ALL-UNNAMED\n      --add-opens com.azure.resourcemanager.resources/com.azure.resourcemanager.resources=ALL-UNNAMED\n      --add-opens com.azure.resourcemanager.resources/com.azure.resourcemanager.resources.fluentcore.arm=ALL-UNNAMED\n\n      --add-opens com.azure.resourcemanager.storage/com.azure.resourcemanager.storage=ALL-UNNAMED\n      --add-opens com.azure.resourcemanager.authorization/com.azure.resourcemanager.authorization=ALL-UNNAMED\n      --add-opens com.azure.resourcemanager.msi/com.azure.resourcemanager.msi=ALL-UNNAMED\n      --add-opens com.azure.core/com.azure.core.implementation.util=ALL-UNNAMED\n    </javaModulesSurefireArgLine>\n  </properties>\n\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n\n  <dependencies>\n    <dependency>\n      <groupId>com.azure.resourcemanager</groupId>\n      <artifactId>azure-resourcemanager-resources</artifactId>\n      <version>2.55.0</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-resources;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure.resourcemanager</groupId>\n      <artifactId>azure-resourcemanager-storage</artifactId>\n      <version>2.59.0</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-storage;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure.resourcemanager</groupId>\n      <artifactId>azure-resourcemanager-authorization</artifactId>\n      <version>2.53.14</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-authorization;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure.resourcemanager</groupId>\n      <artifactId>azure-resourcemanager-msi</artifactId>\n      <version>2.54.3</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-msi;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure.resourcemanager</groupId>\n      <artifactId>azure-resourcemanager-network</artifactId>\n      <version>2.62.0</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-network;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-storage-file-share</artifactId>\n      <version>12.32.0</version> <!-- {x-version-update;com.azure:azure-storage-file-share;dependency} -->\n      <exclusions>\n        <exclusion>\n          <groupId>com.azure</groupId>\n          <artifactId>azure-core-http-netty</artifactId>\n        </exclusion>\n      </exclusions>\n    </dependency>\n    <dependency>\n      <groupId>org.slf4j</groupId>\n      <artifactId>slf4j-simple</artifactId>\n      <version>1.7.36</version> <!-- {x-version-update;org.slf4j:slf4j-simple;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>org.junit.jupiter</groupId>\n      <artifactId>junit-jupiter-engine</artifactId>\n      <version>5.13.4</version> <!-- {x-version-update;org.junit.jupiter:junit-jupiter-engine;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>org.junit.jupiter</groupId>\n      <artifactId>junit-jupiter-api</artifactId>\n      <version>5.13.4</version> <!-- {x-version-update;org.junit.jupiter:junit-jupiter-api;external_dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n  <profiles>\n    <profile>\n      <id>azure-mgmt-sdk-test-jar</id>\n      <activation>\n        <property>\n          <name>!maven.test.skip</name>\n        </property>\n      </activation>\n      <dependencies>\n        <dependency>\n          <groupId>com.azure.resourcemanager</groupId>\n          <artifactId>azure-resourcemanager-test</artifactId>\n          <version>2.0.0-beta.4</version> <!-- {x-version-update;com.azure.resourcemanager:azure-resourcemanager-test;dependency} -->\n          <scope>test</scope>\n        </dependency>\n      </dependencies>\n    </profile>\n  </profiles>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.apache.maven.plugins</groupId>\n        <artifactId>maven-jar-plugin</artifactId>\n        <version>3.5.0</version> <!-- {x-version-update;org.apache.maven.plugins:maven-jar-plugin;external_dependency} -->\n        <configuration>\n          <archive>\n            <manifest>\n              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>\n              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>\n            </manifest>\n          </archive>\n        </configuration>\n      </plugin>\n\n      <plugin>\n        <groupId>org.jacoco</groupId>\n        <artifactId>jacoco-maven-plugin</artifactId>\n        <version>0.8.15</version> <!-- {x-version-update;org.jacoco:jacoco-maven-plugin;external_dependency} -->\n        <configuration>\n          <excludes>\n            <exclude>com/azure/resourcemanager/**/fluent/**/*</exclude>\n            <exclude>com/azure/resourcemanager/**/models/**/*</exclude>\n            <exclude>com/azure/resourcemanager/**/implementation/*ClientImpl*</exclude>\n            <exclude>com/azure/resourcemanager/**/implementation/*ClientBuilder*</exclude>\n          </excludes>\n        </configuration>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+      "contentHash": "f35e1e325c6775ba0e1a6772922fc3a957d29c657fb69997b5245f822b7cd841",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/pom.xml"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/README.md",
+      "text": "# Azure Resource Manager Container Instance client library for Java\n\nAzure Resource Manager Container Instance client library for Java\n\nFor documentation on how to use this package, please see [Azure Management Libraries for Java](https://aka.ms/azsdk/java/mgmt).\n\n## Getting started\n\n### Prerequisites\n\n- [Java Development Kit (JDK)][jdk] with version 8 or above\n- [Azure Subscription][azure_subscription]\n\n### Adding the package to your product\n\n[//]: # ({x-version-update-start;com.azure.resourcemanager:azure-resourcemanager-containerinstance;current})\n```xml\n<dependency>\n    <groupId>com.azure.resourcemanager</groupId>\n    <artifactId>azure-resourcemanager-containerinstance</artifactId>\n    <version>2.54.0-beta.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### Include the recommended packages\n\nAzure Management Libraries require a `TokenCredential` implementation for authentication and an `HttpClient` implementation for HTTP client.\n\n[Azure Identity][azure_identity] package and [Azure Core Netty HTTP][azure_core_http_netty] package provide the default implementation.\n\n### Authentication\n\nMicrosoft Entra ID token authentication relies on the [credential class][azure_identity_credentials] from [Azure Identity][azure_identity] package.\n\nAzure subscription ID can be configured via `AZURE_SUBSCRIPTION_ID` environment variable.\nAzure tenant ID can be configured via `AZURE_TENANT_ID` environment variable.\n\nAssuming the use of the `DefaultAzureCredential` credential class, the client can be authenticated using the following code:\n\n```java readme-sample-authenticate\nAzureProfile profile = new AzureProfile(AzureCloud.AZURE_PUBLIC_CLOUD);\nTokenCredential credential = new DefaultAzureCredentialBuilder()\n    .authorityHost(profile.getEnvironment().getActiveDirectoryEndpoint())\n    .build();\nContainerInstanceManager manager = ContainerInstanceManager\n    .authenticate(credential, profile);\n```\n\nThe sample code assumes global Azure. Please change `AzureEnvironment.AZURE` variable if otherwise.\n\nSee [Authentication][authenticate] for more options.\n\n## Key concepts\n\nSee [API design][design] for general introduction on design and key concepts on Azure Management Libraries.\n\n## Examples\n\nSee [Samples][sample] for code snippets and samples.\n\n## Troubleshooting\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide](https://github.com/Azure/azure-sdk-for-java/blob/main/CONTRIBUTING.md).\n\n1. Fork it\n1. Create your feature branch (`git checkout -b my-new-feature`)\n1. Commit your changes (`git commit -am 'Add some feature'`)\n1. Push to the branch (`git push origin my-new-feature`)\n1. Create new Pull Request\n\n<!-- LINKS -->\n[jdk]: https://learn.microsoft.com/azure/developer/java/fundamentals/\n[azure_subscription]: https://azure.microsoft.com/free/\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity\n[azure_identity_credentials]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/identity/azure-identity#credentials\n[azure_core_http_netty]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/core/azure-core-http-netty\n[authenticate]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/resourcemanager/docs/AUTH.md\n[sample]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/resourcemanager/docs/SAMPLE.md\n[design]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/resourcemanager/docs/DESIGN.md\n",
+      "contentHash": "44ebc803b11bce631a63f2aa36140f18fcaa553a8f579cd1a0ea907ade07f3d1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/README.md"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/tsp-location.yaml",
+      "text": "directory: specification/containerinstance/resource-manager/Microsoft.ContainerInstance/ContainerInstance\ncommit: c20c198ed29fb0b4b8f5022ef8a07cca22905656\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "57e96b0ac7e9b8e53dc00cad985d521c04292baf979339ff2536a52cc025f42a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/8d1fdf438a7a3d946191020dbaa8a3720abff39a/sdk/containerinstance/azure-resourcemanager-containerinstance/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "6ab46158c8cd2a7006d9c274e04b94925cd556b0d2dfce3716f55da30ce574a0",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "114e276a4e641e4b85cfafa0b3a569332fc1fe16373c2cf3a0cb2b3d40937345",
+        "category": "Convenience methods",
+        "subtype": "credential-profile-and-pipeline-manager-factories",
+        "explanation": "The credential/profile authenticate factory null-checks its inputs and delegates through HttpPipelineProvider to the pipeline/profile factory, which null-checks and constructs the manager. ConfigurableImpl.authenticate delegates with its inherited buildHttpPipeline result.",
+        "pattern": "credential-profile-client-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Concrete high-level factory bodies supply pipeline/profile delegation. Reusable factory metadata is plausible; exact regeneration ownership and underlying auth policies are unknown.",
+        "symbols": [
+          "ContainerInstanceManager.authenticate(TokenCredential,AzureProfile)",
+          "ContainerInstanceManager.authenticate(HttpPipeline,AzureProfile)",
+          "ContainerInstanceManager.ConfigurableImpl.authenticate"
+        ],
+        "evidence": [
+          {
+            "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9",
+            "startLine": 48,
+            "endLine": 65
+          },
+          {
+            "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9",
+            "startLine": 80,
+            "endLine": 85
+          }
+        ]
+      },
+      {
+        "key": "d5962167e522d4e9093e89738101ef442ee8d15baaeeb923f279cffe1003277d",
+        "category": "Hand-written client",
+        "subtype": "profile-routed-client-and-dependent-manager-composition",
+        "explanation": "The constructor builds the service client with pipeline, profile resource-manager endpoint and subscription for the superclass, then stores StorageManager, AuthorizationManager and NetworkManager authenticate results using that pipeline/profile pair.",
+        "pattern": "multi-client-manager-composition",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The concrete facade assembles a service client and three cross-service managers. Generation would need a composition/dependency contract absent here; unknown source kind leaves ownership qualified.",
+        "symbols": ["ContainerInstanceManager.ContainerInstanceManager"],
+        "evidence": [
+          {
+            "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9",
+            "startLine": 87,
+            "endLine": 97
+          }
+        ]
+      },
+      {
+        "key": "1eedea546b0f2eb73097866a2ae8486424e1e78b9fd8307805f72e818bdaed15",
+        "category": "Convenience methods",
+        "subtype": "lazy-cached-management-collection",
+        "explanation": "containerGroups() constructs ContainerGroupsImpl(this) when its field is null and returns the cached ContainerGroups collection.",
+        "pattern": "lazy-management-collection-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The high-level facade selects and caches its collection implementation. Generic lazy collection metadata is plausible, with regeneration ownership unverified.",
+        "symbols": ["ContainerInstanceManager.containerGroups"],
+        "evidence": [
+          {
+            "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9",
+            "startLine": 131,
+            "endLine": 137
+          }
+        ]
+      },
+      {
+        "key": "b15fb2c4fb5daecad872fa6a72723d550c1a22850e5ff515f94c8ba8bc66c324",
+        "category": "Convenience methods",
+        "subtype": "mode-dependent-request-shape-and-operation-dispatch",
+        "explanation": "createInner first calls both external-identity processing helpers. Outside create mode it builds Resource with location/tags and chains beforeCreation to updateAsync. In create mode it uses createOrUpdateAsync with the full inner model; when both staged file-share state fields exist it first creates shares and attaches their volume definitions.",
+        "pattern": "conditional-operation-dispatch",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The complete resource facade switches operation and payload shape and coordinates prerequisites. Mode/dependency contracts needed for general generation are not supplied.",
+        "symbols": ["ContainerGroupImpl.createInner"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 100,
+            "endLine": 129
+          }
+        ]
+      },
+      {
+        "key": "c66d15153812f27122cb8360f9c39c84b676037ccaf48c7c538378b8e1552792",
+        "category": "Convenience methods",
+        "subtype": "staged-delegated-subnet-network-and-precreation-hook",
+        "explanation": "withNewVirtualNetwork builds a creatable network using randomResourceName(\"net\",20), the current region/group, addressSpace and subnet0 with a ContainerInstance delegation, then constructs its resource/subnet ID and binds it. beforeCreation calls the stored creatable's createAsync when present and clears the field in its emitted-network continuation.",
+        "pattern": "multi-call-composition",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The resource stages another service's network definition and exposes a precreation continuation. Missing network/framework contracts prevent claiming full execution ordering or a complete generation recipe.",
+        "symbols": [
+          "ContainerGroupImpl.withNewVirtualNetwork",
+          "ContainerGroupImpl.beforeCreation"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 88,
+            "endLine": 97
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 499,
+            "endLine": 518
+          }
+        ]
+      },
+      {
+        "key": "8fea43fa01d4746c75676eac097c15c9fd059a20e55c2351fe65455eef470f12",
+        "category": "Convenience methods",
+        "subtype": "staged-storage-account-and-volume-share-name-map",
+        "explanation": "withNewAzureFileShareVolume initializes a storage-account creatable when either staging field is null. It uses randomResourceName(\"fs\",24), the group region and either the creatable new group or existing group, records addDependency's key, initializes a map and stores volumeName to shareName.",
+        "pattern": "dependent-resource-definition-staging",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The facade composes a storage resource definition with its own dependency and volume staging state. Generic dependency metadata may help, but the framework's execution contract is absent.",
+        "symbols": ["ContainerGroupImpl.withNewAzureFileShareVolume"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 381,
+            "endLine": 399
+          }
+        ]
+      },
+      {
+        "key": "bd843cf05cbfa7ed59cb9eb86c4155da60102cd35e400f4c91e23363819a6242",
+        "category": "Convenience methods",
+        "subtype": "storage-key-to-share-client-and-volume-parameters",
+        "explanation": "createFileShareAsync takes the first returned storage key, builds ShareServiceAsyncClient using a connection string from account name/key/environment and the manager pipeline's HTTP client, then creates each staged share. createSingleFileShareAsync emits volume name, share name and key parameters after createShare completes. This reuses the HTTP client, not the entire manager pipeline.",
+        "pattern": "multi-call-composition",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Concrete management-to-data-plane composition obtains a key and constructs another SDK client for share creation. Cross-service credential and lifecycle contracts are not supplied for general generation.",
+        "symbols": [
+          "ContainerGroupImpl.createFileShareAsync",
+          "ContainerGroupImpl.createSingleFileShareAsync"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 180,
+            "endLine": 201
+          }
+        ]
+      },
+      {
+        "key": "78f51c2015ba59b900d4649cd3f2ebb928aeeb837cdf49d2f6c8deffda831592",
+        "category": "LRO / polling",
+        "subtype": "accepted-operation-submission-result-and-preparation-callbacks",
+        "explanation": "beginCreate passes AcceptedImpl.newAccepted the service pipeline/default poll interval, a blocking createOrUpdateWithResponseAsync submission lambda, an inner-to-ContainerGroupImpl result adapter and a preparation lambda. That lambda blocks dependency tasks and beforeCreation, processes identities and creates/attaches staged file-share volumes. Context.NONE is supplied. AcceptedImpl's execution order and polling algorithm are not captured.",
+        "pattern": "accepted-operation-preparation-adapter",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The concrete facade supplies substantive preparation and typed result callbacks to an accepted-operation helper. This is not proof of a handwritten public operation type or custom polling algorithm; generic support needs missing helper contracts.",
+        "symbols": ["ContainerGroupImpl.beginCreate"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 132,
+            "endLine": 166
+          }
+        ]
+      },
+      {
+        "key": "6cd580450932554764717d1c1d2a95aad8bea90117beeaac93e80bf92cdc58fa",
+        "category": "Model overrides",
+        "subtype": "inner-child-indexes-and-registry-server-projection",
+        "explanation": "initializeChildrenFromInner replaces the container/volume maps and indexes existing inner objects by name, and rebuilds a registry-server list. The constructor and afterCreating call it; refreshAsync invokes it on the resource emitted by superclass refresh. These outer collections do not clone contained models.",
+        "pattern": "model-collection-helpers",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The resource facade explicitly maintains derived child indexes across construction/create/refresh hooks. Collection projection and lifecycle metadata is plausible; public accessor and superclass behavior remain unverified.",
+        "symbols": [
+          "ContainerGroupImpl.initializeChildrenFromInner",
+          "ContainerGroupImpl.ContainerGroupImpl",
+          "ContainerGroupImpl.afterCreating",
+          "ContainerGroupImpl.refreshAsync"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 82,
+            "endLine": 86
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 204,
+            "endLine": 240
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 273,
+            "endLine": 279
+          }
+        ]
+      },
+      {
+        "key": "5f390348edd03cb354485412bf884b14f87a1a31177ad8a8276c76538c89fe01",
+        "category": "Model overrides",
+        "subtype": "null-protocol-defaulting-and-observed-port-array-projection",
+        "explanation": "Initialization sets null container-port protocols to TCP and null group-IP-port protocols to TCP, collects group ports by TCP/UDP and allocates integer arrays. The captured code fills externalTcpPorts, then allocates externalUdpPorts but repeats the TCP loop and writes externalTcpPorts again instead of filling UDP. With no IP/ports it sets both arrays empty. This reports source behavior, not a correct UDP split or a demonstrated public runtime symptom.",
+        "pattern": "protocol-port-cache-projection",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The facade implements explicit protocol defaults and derived port caches rather than plain field forwarding. The visible repeated-TCP-loop anomaly and absent public accessors leave intended projection/generalization uncertain.",
+        "symbols": [
+          "ContainerGroupImpl.initializeChildrenFromInner",
+          "ContainerGroupImpl.externalTcpPorts",
+          "ContainerGroupImpl.externalUdpPorts"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 78,
+            "endLine": 79
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 215,
+            "endLine": 220
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 242,
+            "endLine": 267
+          }
+        ]
+      },
+      {
+        "key": "faca9f14c7ac4bbcf5e671368f882c7303fa036d39395e11d5fac703828d461c",
+        "category": "Convenience methods",
+        "subtype": "named-fixed-operating-system-options",
+        "explanation": "withLinux and withWindows set inner osType to OperatingSystemTypes.LINUX and WINDOWS respectively and return this. They do not perform operating-system detection.",
+        "pattern": "named-model-value-setters",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete fluent facade exposes named fixed-value options over a general model property. Such overload/value metadata is plausible, without proving exact regeneration ownership.",
+        "symbols": ["ContainerGroupImpl.withLinux", "ContainerGroupImpl.withWindows"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 290,
+            "endLine": 301
+          }
+        ]
+      },
+      {
+        "key": "54b136a7354f10dff4912bb364089d35059fc9dbd4fc7e0076e251b3d10dfb02",
+        "category": "Model overrides",
+        "subtype": "system-user-assigned-identity-type-merge",
+        "explanation": "The handler's local-identity method requests SYSTEM_ASSIGNED. initContainerInstanceIdentity compares its argument against USER_ASSIGNED/SYSTEM_ASSIGNED and logs/throws for the explicit invalid-value branch, creates an identity model when absent, sets the requested type for null/NONE/same current type, otherwise sets SYSTEM_ASSIGNED_USER_ASSIGNED. There is no explicit null-argument guard.",
+        "pattern": "resource-identity-type-composition",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete resource helper contains a specific identity-model merge rule and validation branch, not a bearer-token policy. Declarative resource-identity model metadata is plausible; regeneration ownership is unverified.",
+        "symbols": [
+          "ContainerGroupMsiHandler.withLocalManagedServiceIdentity",
+          "ContainerGroupMsiHandler.initContainerInstanceIdentity",
+          "ContainerGroupImpl.withSystemAssignedManagedServiceIdentity"
+        ],
+        "evidence": [
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 56,
+            "endLine": 59
+          },
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 98,
+            "endLine": 115
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 304,
+            "endLine": 307
+          }
+        ]
+      },
+      {
+        "key": "5bcec522f15c4840c7b35c70cccc79a48f2306b66915722553ec06bc9d9830a0",
+        "category": "Convenience methods",
+        "subtype": "identity-task-results-to-user-assigned-model-map",
+        "explanation": "New external identities initialize USER_ASSIGNED, cast the creatable to HasTaskGroup, null-check that dependency, add it to the group task graph and record its key. Existing identities add their ID to a map. Processing resolves recorded task results as Identity, null-checks them, populates that map and clears keys; handling applies a nonempty map to the inner identity. createInner calls both processing methods.",
+        "pattern": "managed-identity-dependency-binding",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The concrete helper bridges resource dependencies, task results and nested identity state. Missing task/identity framework contracts prevent a confident complete generation mechanism.",
+        "symbols": [
+          "ContainerGroupMsiHandler.withNewExternalManagedServiceIdentity",
+          "ContainerGroupMsiHandler.withExistingExternalManagedServiceIdentity",
+          "ContainerGroupMsiHandler.processCreatedExternalIdentities",
+          "ContainerGroupMsiHandler.handleExternalIdentities",
+          "ContainerGroupImpl.withNewUserAssignedManagedServiceIdentity",
+          "ContainerGroupImpl.withExistingUserAssignedManagedServiceIdentity",
+          "ContainerGroupImpl.createInner"
+        ],
+        "evidence": [
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 35,
+            "endLine": 48
+          },
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 68,
+            "endLine": 78
+          },
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 87,
+            "endLine": 91
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 100,
+            "endLine": 102
+          },
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 334,
+            "endLine": 343
+          }
+        ]
+      },
+      {
+        "key": "0d14983f03bf870c019ced633f07cf82b1d3351ee8271178d26adb630d4e9e4a",
+        "category": "Convenience methods",
+        "subtype": "resource-and-current-group-role-helper-overloads",
+        "explanation": "System-assigned-identity access methods forward resource IDs/current-resource-group scope and either BuiltInRole or role-definition IDs to handler methods. The handler extends RoleAssignmentHelper and passes authorizationManager, taskGroup and idProvider to its superclass. The inherited role-assignment method bodies and service effects are not supplied.",
+        "pattern": "resource-role-assignment-helper-bridge",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The high-level resource exposes permission-helper conveniences wired to resource/task context. This is not evidence of SDK bearer authentication customization; generation needs the absent helper contract.",
+        "symbols": [
+          "ContainerGroupImpl.withSystemAssignedIdentityBasedAccessTo",
+          "ContainerGroupImpl.withSystemAssignedIdentityBasedAccessToCurrentResourceGroup",
+          "ContainerGroupMsiHandler.ContainerGroupMsiHandler"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 310,
+            "endLine": 331
+          },
+          {
+            "id": "37d40fc86e82ce27d66b4c401a4fd4de4f9e8b22078baa949180fb1178b9e09e",
+            "startLine": 21,
+            "endLine": 33
+          }
+        ]
+      },
+      {
+        "key": "2b4e0f0b79fc96665f1f77087f2a0315d699422a98ff34984059a85d5e1405ee",
+        "category": "Model overrides",
+        "subtype": "password-or-managed-identity-registry-credential-models",
+        "explanation": "withPublicImageRegistryOnly clears imageRegistryCredentials to null. The password overload allocates the list if needed and appends server/username/password. The Identity overload null-checks identity and delegates with its ID to a private overload that appends server/identity. These methods shape resource credential models; no token or registry-login exchange is shown.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete facade offers alternative input forms for nested registry model construction and clearing. Declarative nested-model overloads are plausible; this does not establish a custom HTTP auth policy.",
+        "symbols": [
+          "ContainerGroupImpl.withPublicImageRegistryOnly",
+          "ContainerGroupImpl.withPrivateImageRegistry"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 346,
+            "endLine": 378
+          }
+        ]
+      },
+      {
+        "key": "cb0fffa87e910aa213434fde3b8f16241c9bde24284ad4282ad16be714fe5cd9",
+        "category": "Model overrides",
+        "subtype": "named-empty-dir-volume-model-builder",
+        "explanation": "withEmptyDirectoryVolume allocates the inner volumes list if null and appends a Volume with the supplied name and emptyDir set to new Object(), then returns this. No local directory creation is performed by this body.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete facade constructs a nested model and supplies an empty-object marker. Nested model/default metadata is plausible; wire serialization and regeneration ownership are not established.",
+        "symbols": ["ContainerGroupImpl.withEmptyDirectoryVolume"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 402,
+            "endLine": 409
+          }
+        ]
+      },
+      {
+        "key": "52154a9481cd5f26ad4022621b310ba0c4fddfac42ea6633acaa4239f98500b0",
+        "category": "Convenience methods",
+        "subtype": "parent-bound-named-child-model-definition",
+        "explanation": "defineVolume(name) returns new VolumeImpl(this,name). The child's fluent implementation and attachment behavior are not captured.",
+        "pattern": "named-child-model-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete resource exposes a parent-bound named child-definition factory. Generic child-factory metadata is plausible without assuming downstream service calls.",
+        "symbols": ["ContainerGroupImpl.defineVolume"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 412,
+            "endLine": 414
+          }
+        ]
+      },
+      {
+        "key": "01c8d46cef278663807cdc1520bce2e1e0c1e1347fe1bdc8ad66f44224ebc7ee",
+        "category": "Convenience methods",
+        "subtype": "named-container-definition-with-cpu-memory-and-port-defaults",
+        "explanation": "defineContainerInstance creates ContainerImpl(this,name). Both withContainerInstance overloads define a child with the group name and supplied image, set CPU count 1 and memory 1.5 GB, and call attach. One calls withoutPorts; the other calls withExternalTcpPort(port). The child's implementation is absent.",
+        "pattern": "defaulted-child-resource-definition",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete facade supplies a concrete child-definition recipe with fixed defaults and two port variants. Declarative fluent recipes are plausible; no child implementation or deployment guarantees are inferred.",
+        "symbols": [
+          "ContainerGroupImpl.defineContainerInstance",
+          "ContainerGroupImpl.withContainerInstance"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 424,
+            "endLine": 446
+          }
+        ]
+      },
+      {
+        "key": "1533b481fe1a06856ed84098d0bc29e5416433ac55e12af3477d56dbd4e59cc7",
+        "category": "Model overrides",
+        "subtype": "public-dns-label-and-conditional-reuse-policy",
+        "explanation": "withDnsPrefix ensures IpAddress exists, sets dnsNameLabel and forces type PUBLIC. withAutoGeneratedDomainNameLabelScope also ensures IpAddress exists, but sets the reuse-policy property only when the argument is nonnull; a null argument does not clear an existing policy.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The facade supplies nested model initialization, a coupled fixed public-address type and a conditional policy write. Declarative nested-field rules are plausible; no network/DNS service behavior is proved.",
+        "symbols": [
+          "ContainerGroupImpl.withDnsPrefix",
+          "ContainerGroupImpl.withAutoGeneratedDomainNameLabelScope"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 456,
+            "endLine": 474
+          }
+        ]
+      },
+      {
+        "key": "130e015853d2d8840af63a8faf36310174f30dd3caeee76f7135615a244f244d",
+        "category": "Model overrides",
+        "subtype": "subnet-object-or-id-to-named-reference",
+        "explanation": "The Subnet overload delegates with subnet.id(). The String overload ensures subnetIds exists, calls ResourceUtils.nameFromResourceId and appends ContainerGroupSubnetId with that name and the original ID. withNewNetworkProfileOnExistingVirtualNetwork only formats virtualNetworkId + /subnets/ + subnetName and delegates to that binding; no network-profile creation is shown.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete facade converts resource objects/IDs into nested reference models, including a scoped-ID convenience. Declarative reference construction is plausible; the name parser's validation and unseen network behavior are not inferred.",
+        "symbols": [
+          "ContainerGroupImpl.withExistingSubnet",
+          "ContainerGroupImpl.withNewNetworkProfileOnExistingVirtualNetwork"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 477,
+            "endLine": 496
+          }
+        ]
+      },
+      {
+        "key": "de606c86efdb0864d8af2cd5b015b18e4ead107519a9353120556df556a469b2",
+        "category": "Model overrides",
+        "subtype": "dns-arguments-to-nested-configuration-model",
+        "explanation": "withDnsServerNames assigns a new DnsConfiguration with the supplied names. withDnsConfiguration assigns a new one with names, search domains and options. Both replace the dnsConfig property; the nested setters' copying/validation behavior is not supplied.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The facade unpacks convenient argument lists into a nested request model. Such model-construction metadata is plausible without claiming list copying or wire behavior.",
+        "symbols": [
+          "ContainerGroupImpl.withDnsServerNames",
+          "ContainerGroupImpl.withDnsConfiguration"
+        ],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 521,
+            "endLine": 534
+          }
+        ]
+      },
+      {
+        "key": "3e95d1bbe6c4a2cc0ee0263877c38ea3a33b1491ed4ccae61b4d12dba28b46df",
+        "category": "Model overrides",
+        "subtype": "workspace-arguments-to-nested-diagnostics",
+        "explanation": "The complete two-argument withLogAnalytics overload assigns new ContainerGroupDiagnostics containing LogAnalytics with workspaceId and workspaceKey and returns this. The four-argument overload is cut mid-expression at line 550 and is not assessed as a complete customization.",
+        "pattern": "model-wire-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete facade constructs two levels of request model from convenience arguments. Nested model metadata is plausible; no telemetry pipeline or workspace authentication implementation is shown.",
+        "symbols": ["ContainerGroupImpl.withLogAnalytics(String,String)"],
+        "evidence": [
+          {
+            "id": "bb9e5a0e940eac04dcb3e26016e4398d20cd864adb10158147867ed435b9871c",
+            "startLine": 537,
+            "endLine": 542
+          }
+        ]
+      },
+      {
+        "key": "7ec11a3467780124354564ad73e85f77c0bbd99fd880a0e496c52760473b8a67",
+        "category": "Convenience methods",
+        "subtype": "attach-operation-to-public-connection-result",
+        "explanation": "attachOutputStream blocks on its asynchronous form, which calls the lower-level attachAsync and maps ContainerAttachResultImpl::new. That wrapper stores ContainerAttachResponseInner and delegates webSocketUri/password accessors plus innerModel. No WebSocket connection, stream transfer or password handling protocol is implemented in these bodies.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The collection explicitly adapts an operation result to a separate public result facade. Typed-wrapper generation is plausible; an attach method name alone does not establish streaming customization.",
+        "symbols": [
+          "ContainerGroupsImpl.attachOutputStream",
+          "ContainerGroupsImpl.attachOutputStreamAsync",
+          "ContainerAttachResultImpl"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 140,
+            "endLine": 153
+          },
+          {
+            "id": "a6cb10820659d841f3672e6bb8dc6c01e0b73f0f0427004cd8f4ad3d894ea684",
+            "startLine": 10,
+            "endLine": 31
+          }
+        ]
+      },
+      {
+        "key": "5d6143766317d2ad14cd302bbb86f594661958b43d3a432f33a945f03af3f74f",
+        "category": "Convenience methods",
+        "subtype": "named-empty-and-null-preserving-inner-resource-adapters",
+        "explanation": "wrapModel(name) constructs ContainerGroupImpl with a new inner model and the manager; wrapModel(inner) returns null for null, otherwise wraps inner.name()/inner/manager. define(name) delegates to the named wrapper as a fluent definition entry point.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The higher-level collection supplies concrete public resource adaptation and definition factory bodies. Generic model-wrapper metadata is plausible; regeneration ownership remains qualified.",
+        "symbols": [
+          "ContainerGroupsImpl.wrapModel(String)",
+          "ContainerGroupsImpl.wrapModel(ContainerGroupInner)",
+          "ContainerGroupsImpl.define"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 34,
+            "endLine": 44
+          },
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 52,
+            "endLine": 54
+          }
+        ]
+      },
+      {
+        "key": "a9c8f6091fbf545c2528179ad03b2b69298a1a9398d130bdabf3888b40b2a5b0",
+        "category": "Convenience methods",
+        "subtype": "log-result-content-and-tail-overloads",
+        "explanation": "Synchronous getLogContent overloads return logsInner.content() or null when the log model is null; the tail form unwraps a response and supplies tailLineCount, null and Context.NONE. Async forms map the model's content, with the tail form first mapping Response::getValue and passing a null final argument. No explicit async null-to-empty translation is supplied.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete collection narrows log responses to content strings and supplies tail/default overloads. Result-projection metadata is plausible; equivalent sync/async null semantics are not established.",
+        "symbols": ["ContainerGroupsImpl.getLogContent", "ContainerGroupsImpl.getLogContentAsync"],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 57,
+            "endLine": 97
+          }
+        ]
+      },
+      {
+        "key": "d506ff7294462aa539887a60b6b3005538fb169b0fd4654c34a31057f5f6e627",
+        "category": "Pagination",
+        "subtype": "reactive-operations-to-blocking-pager",
+        "explanation": "listOperationsAsync returns the service operations listAsync result as PagedFlux<Operation>. listOperations constructs PagedIterable from that asynchronous facade method. No custom next-link logic is present.",
+        "pattern": "reactive-blocking-pager-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete collection adds a blocking pager adapter over its reactive listing facade. Standard pager-adapter metadata is plausible; generated paging internals are not counted.",
+        "symbols": [
+          "ContainerGroupsImpl.listOperations",
+          "ContainerGroupsImpl.listOperationsAsync"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 100,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "e08dc67ae2f06b8659ebad4add8a7b8b6fdbd3f60eb5b8fb0b5be23fd974f402",
+        "category": "Pagination",
+        "subtype": "location-scoped-cached-images-blocking-pager",
+        "explanation": "listCachedImagesAsync forwards location to the service locations group's listCachedImagesAsync and returns PagedFlux<CachedImages>. Its synchronous counterpart constructs PagedIterable from that facade result, without manual continuation code.",
+        "pattern": "reactive-blocking-pager-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The higher-level collection implements a named location-scoped blocking/reactive pager pair. Generic pager-adapter generation is plausible; no cache implementation or custom paging algorithm is inferred.",
+        "symbols": [
+          "ContainerGroupsImpl.listCachedImages",
+          "ContainerGroupsImpl.listCachedImagesAsync"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 110,
+            "endLine": 117
+          }
+        ]
+      },
+      {
+        "key": "0dfd75e3dbd19f5164db129b0c39bdb758e9d4e6f4e040d21b095dae633bc3e6",
+        "category": "Pagination",
+        "subtype": "location-scoped-capabilities-blocking-pager",
+        "explanation": "listCapabilitiesAsync delegates location to the service locations group's listCapabilitiesAsync as PagedFlux<Capabilities>; listCapabilities constructs PagedIterable from it. The bodies add no manual continuation handling.",
+        "pattern": "reactive-blocking-pager-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete collection supplies this distinct location-scoped pager adapter. Generic blocking/reactive listing metadata is plausible without claiming handwritten server pagination.",
+        "symbols": [
+          "ContainerGroupsImpl.listCapabilities",
+          "ContainerGroupsImpl.listCapabilitiesAsync"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 120,
+            "endLine": 127
+          }
+        ]
+      },
+      {
+        "key": "eba138632fb0085cac7b10ba92c4ee68df3c8fed8c7b4a7811b9be2ac6a5e2f4",
+        "category": "Pagination",
+        "subtype": "public-resource-page-helper-and-blocking-adapters",
+        "explanation": "listAsync passes inner().listAsync() to inherited wrapPageAsync; the valid-resource-group path does the same for listByResourceGroupAsync. list and listByResourceGroup construct PagedIterable from their facade async methods. wrapPageAsync's implementation and continuation behavior are not supplied.",
+        "pattern": "public-resource-pager-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The collection explicitly chooses a public-resource page adaptation helper and blocking pager wrappers. Generic resource-page adapter metadata is plausible, without claiming details of the absent helper.",
+        "symbols": [
+          "ContainerGroupsImpl.listAsync",
+          "ContainerGroupsImpl.listByResourceGroupAsync",
+          "ContainerGroupsImpl.list",
+          "ContainerGroupsImpl.listByResourceGroup"
+        ],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 156,
+            "endLine": 177
+          }
+        ]
+      },
+      {
+        "key": "561ec3252a2cdd3278e393a65df88188939a69dcf43b9195ace1b9d431befff3",
+        "category": "Convenience methods",
+        "subtype": "invalid-group-to-pager-error-supplier",
+        "explanation": "When CoreUtils.isNullOrEmpty(resourceGroupName) is true, listByResourceGroupAsync returns new PagedFlux with a supplier producing Mono.error(new IllegalArgumentException(...)) instead of taking the lower-level listing path. No whitespace-specific validation or immediate synchronous throw is expressed in this branch.",
+        "pattern": "request-precondition-validation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete facade supplies explicit validation and a pager-shaped error path before lower-level listing. Declarative precondition/error-shape metadata is plausible; source ownership remains unverified.",
+        "symbols": ["ContainerGroupsImpl.listByResourceGroupAsync"],
+        "evidence": [
+          {
+            "id": "3c70c138a48bfaf334e90b335f0a4aa6f4ecc10d0dfd36486222869378c54014",
+            "startLine": 161,
+            "endLine": 167
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "114e276a4e641e4b85cfafa0b3a569332fc1fe16373c2cf3a0cb2b3d40937345",
+        "status": "inconclusive",
+        "reason": "The two authenticate overloads and configurable delegate are visible, but this whole class has no generated/unannotated contrast or customization-script provenance. Conventional manager factory and null-check code alone cannot establish handwritten ownership."
+      },
+      {
+        "key": "d5962167e522d4e9093e89738101ef442ee8d15baaeeb923f279cffe1003277d",
+        "status": "accepted",
+        "reason": "The concrete manager assembles the lower-level client and three other service managers using a shared pipeline/profile, a substantive cross-service facade over fluent generated operations rather than an emitted client method. The proposal describes that construction without asserting an unseen dependency contract; its composition pattern is service-independent and general generation remains unclear."
+      },
+      {
+        "key": "1eedea546b0f2eb73097866a2ae8486424e1e78b9fd8307805f72e818bdaed15",
+        "status": "inconclusive",
+        "reason": "The lazy cached accessor is present, but neither a generated marker comparison nor a customization operation establishes that this standard collection accessor was handwritten."
+      },
+      {
+        "key": "b15fb2c4fb5daecad872fa6a72723d550c1a22850e5ff515f94c8ba8bc66c324",
+        "status": "accepted",
+        "reason": "The resource implementation explicitly switches update versus create request payloads and stages external identity and share dependencies; this is concrete high-level orchestration, not a generated LRO or simple forwarding method. The proposed conditional-dispatch pattern is reusable; its generator feasibility is appropriately unclear."
+      },
+      {
+        "key": "c66d15153812f27122cb8360f9c39c84b676037ccaf48c7c538378b8e1552792",
+        "status": "accepted",
+        "reason": "The cited methods construct a separate network/subnet resource, bind its identifier, and invoke the stored creatable before the group operation. Cross-service fluent composition is substantive customization; the proposal correctly leaves framework ordering and generator feasibility unresolved."
+      },
+      {
+        "key": "8fea43fa01d4746c75676eac097c15c9fd059a20e55c2351fe65455eef470f12",
+        "status": "accepted",
+        "reason": "The implementation stages a new or existing-group storage account as a resource dependency and records pending volume/share names. This distinct dependent-resource recipe is visible in the handwritten-style facade, and the proposed generic pattern does not assume unobserved dependency execution."
+      },
+      {
+        "key": "bd843cf05cbfa7ed59cb9eb86c4155da60102cd35e400f4c91e23363819a6242",
+        "status": "accepted",
+        "reason": "The supplied body gets a storage key, constructs a separate file-share SDK client using the manager's HTTP client, creates shares, and projects volume parameters. This cross-SDK composition is substantive and distinct from merely staging a storage account; the proposed caveat about not sharing the entire pipeline is correct."
+      },
+      {
+        "key": "78f51c2015ba59b900d4649cd3f2ebb928aeeb837cdf49d2f6c8deffda831592",
+        "status": "accepted",
+        "reason": "The custom preparation callback blocks dependency tasks, prepares identities and file shares, and attaches volumes before supplying a typed resource adapter to AcceptedImpl. Those supplied callbacks are additional resource behavior, not a claim that the unseen AcceptedImpl poller itself is handwritten; the proposal expressly limits that claim."
+      },
+      {
+        "key": "6cd580450932554764717d1c1d2a95aad8bea90117beeaac93e80bf92cdc58fa",
+        "status": "accepted",
+        "reason": "The resource reconstructs named child maps and registry-server projections from its inner model at construction, after creation, and after refresh. That lifecycle-aware derived state is a substantive facade customization rather than generated model serialization; the proposal does not claim deep copies or unshown accessor behavior."
+      },
+      {
+        "key": "5f390348edd03cb354485412bf884b14f87a1a31177ad8a8276c76538c89fe01",
+        "status": "accepted",
+        "reason": "The implementation sets absent protocols to TCP and derives port arrays in the resource facade. The proposal accurately records that the second fill loop mistakenly writes TCP values into externalTcpPorts rather than populating externalUdpPorts, without claiming a proven public symptom or intended correction; generator feasibility remains unclear."
+      },
+      {
+        "key": "faca9f14c7ac4bbcf5e671368f882c7303fa036d39395e11d5fac703828d461c",
+        "status": "inconclusive",
+        "reason": "The fixed Linux/Windows setters are present, but the absence of a generation marker throughout the file does not establish that these conventional fluent methods were hand-added rather than emitted."
+      },
+      {
+        "key": "54b136a7354f10dff4912bb364089d35059fc9dbd4fc7e0076e251b3d10dfb02",
+        "status": "accepted",
+        "reason": "The resource-specific MSI handler implements nontrivial type combination and initialization of an inner identity model, beyond an authentication policy or generated property setter. The cited invalid-value branch and lack of an explicit null guard are faithfully distinguished; the proposed service-independent identity-composition pattern is plausible."
+      },
+      {
+        "key": "5bcec522f15c4840c7b35c70cccc79a48f2306b66915722553ec06bc9d9830a0",
+        "status": "accepted",
+        "reason": "The helper adds creatable identities to the task graph, resolves their keys to identity IDs, and writes a user-assigned-identity model map. This cross-resource dependency binding is substantive facade behavior; the proposal confines execution claims to the visible methods and leaves generator feasibility unclear."
+      },
+      {
+        "key": "0d14983f03bf870c019ced633f07cf82b1d3351ee8271178d26adb630d4e9e4a",
+        "status": "accepted",
+        "reason": "The resource explicitly exposes role/scope overloads routed through an authorization-manager-backed helper with its task group and ID provider. The cited bodies support this handwritten-style cross-service bridge, but not the inherited role-assignment implementation or any bearer-token customization; the proposal says so."
+      },
+      {
+        "key": "2b4e0f0b79fc96665f1f77087f2a0315d699422a98ff34984059a85d5e1405ee",
+        "status": "inconclusive",
+        "reason": "The registry-credential overloads and model mutation are visible, but no per-member generated contrast or script establishes their provenance. The broad model-wire-adapter label also obscures the specific alternative-credential construction shape, so acceptance as written is unwarranted."
+      },
+      {
+        "key": "cb0fffa87e910aa213434fde3b8f16241c9bde24284ad4282ad16be714fe5cd9",
+        "status": "inconclusive",
+        "reason": "The method appends a named empty-directory model with an empty-object marker, but the supplied source cannot distinguish a generated fluent builder from a handwritten model-construction override."
+      },
+      {
+        "key": "52154a9481cd5f26ad4022621b310ba0c4fddfac42ea6633acaa4239f98500b0",
+        "status": "inconclusive",
+        "reason": "Returning a parent-bound VolumeImpl is established; neither its unseen implementation nor an inline annotation/script signal establishes that this ordinary fluent child factory is handwritten."
+      },
+      {
+        "key": "01c8d46cef278663807cdc1520bce2e1e0c1e1347fe1bdc8ad66f44224ebc7ee",
+        "status": "accepted",
+        "reason": "The two overloads compose a child definition with fixed CPU and memory defaults and different port modes, a concrete convenience recipe beyond simply forwarding a generated operation. The proposal appropriately avoids assuming how the absent child implementation attaches or deploys."
+      },
+      {
+        "key": "1533b481fe1a06856ed84098d0bc29e5416433ac55e12af3477d56dbd4e59cc7",
+        "status": "inconclusive",
+        "reason": "Nested IpAddress allocation, public type and conditional reuse-policy assignment are accurately observed, but there is no generated/unannotated contrast or customization script proving this fluent model-builder code was handwritten."
+      },
+      {
+        "key": "130e015853d2d8840af63a8faf36310174f30dd3caeee76f7135615a244f244d",
+        "status": "inconclusive",
+        "reason": "The object-to-ID overload and subnet reference construction are visible; without provenance or the referenced parser body they cannot confidently be counted as handwritten rather than a conventional generated fluent conversion."
+      },
+      {
+        "key": "de606c86efdb0864d8af2cd5b015b18e4ead107519a9353120556df556a469b2",
+        "status": "inconclusive",
+        "reason": "Both complete methods assign a nested DNS model, but simple flattened-argument fluent builders with no generation signal do not prove handwritten customization."
+      },
+      {
+        "key": "3e95d1bbe6c4a2cc0ee0263877c38ea3a33b1491ed4ccae61b4d12dba28b46df",
+        "status": "inconclusive",
+        "reason": "The two-argument nested diagnostics model assignment is visible, but there is no reliable handwritten provenance. The four-argument overload is cut mid-expression and cannot support an additional complete claim."
+      },
+      {
+        "key": "7ec11a3467780124354564ad73e85f77c0bbd99fd880a0e496c52760473b8a67",
+        "status": "inconclusive",
+        "reason": "The attach operation wraps an inner result and exposes URI/password accessors, not a WebSocket transfer. However, the wrapper and facade lack a demonstrated generation contrast; the adapter could be generated, so the claimed handwritten instance remains unproven."
+      },
+      {
+        "key": "5d6143766317d2ad14cd302bbb86f594661958b43d3a432f33a945f03af3f74f",
+        "status": "inconclusive",
+        "reason": "The public-resource wrappers and definition entry point exist, but these conventional higher-level model adapters have no direct marker or script proving handwritten origin."
+      },
+      {
+        "key": "a9c8f6091fbf545c2528179ad03b2b69298a1a9398d130bdabf3888b40b2a5b0",
+        "status": "inconclusive",
+        "reason": "The log-response content projection is visible and sync null handling differs from the async map forms as described. No source-level generation signal establishes that these convenience overloads were handwritten."
+      },
+      {
+        "key": "d506ff7294462aa539887a60b6b3005538fb169b0fd4654c34a31057f5f6e627",
+        "status": "inconclusive",
+        "reason": "The PagedIterable wrapper and delegated PagedFlux are visible, but standard blocking/reactive pager signatures alone do not prove a handwritten customization, and no custom continuation behavior is shown."
+      },
+      {
+        "key": "e08dc67ae2f06b8659ebad4add8a7b8b6fdbd3f60eb5b8fb0b5be23fd974f402",
+        "status": "inconclusive",
+        "reason": "The location-scoped PagedIterable adapter is present, but ordinary generated paging wrappers must not be counted without handwritten provenance or additional custom paging logic."
+      },
+      {
+        "key": "0dfd75e3dbd19f5164db129b0c39bdb758e9d4e6f4e040d21b095dae633bc3e6",
+        "status": "inconclusive",
+        "reason": "The capabilities list delegates to PagedFlux and wraps it as PagedIterable; generated paging shape is not itself customization, and no marker/script supports handwritten ownership."
+      },
+      {
+        "key": "eba138632fb0085cac7b10ba92c4ee68df3c8fed8c7b4a7811b9be2ac6a5e2f4",
+        "status": "inconclusive",
+        "reason": "The public-resource list methods call an inherited wrapPageAsync and build blocking adapters, but the helper implementation and generation provenance are absent. No custom next-link behavior can be inferred."
+      },
+      {
+        "key": "561ec3252a2cdd3278e393a65df88188939a69dcf43b9195ace1b9d431befff3",
+        "status": "inconclusive",
+        "reason": "The null-or-empty group-name guard returns a pager with an error-producing supplier, rather than synchronously throwing. That behavior is visible, but explicit generated parameter validation is also possible and no handwritten marker is supplied."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "a358cd3378db9df6ba837bea39481cafc692521d169b0f79f8d61525cfe2a6da",
+        "category": "Convenience methods",
+        "subtype": "dependent-manager-accessors",
+        "explanation": "Three public methods expose the separately constructed storage, authorization and network managers; their accessor behavior is distinct from the constructor's assembly of those dependencies.",
+        "pattern": "manager-dependency-accessors",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Concrete cross-service facade methods expose stored managers, but neither a generated/unannotated member contrast nor a customization script is supplied, so handwritten ownership remains unverified.",
+        "symbols": [
+          "ContainerInstanceManager.authorizationManager",
+          "ContainerInstanceManager.networkManager",
+          "ContainerInstanceManager.storageManager"
+        ],
+        "evidence": [
+          {
+            "id": "245b65df5e8a6f3643e8ceab2d529defd78192d7e3861323c49fcdb0584ddbe9",
+            "startLine": 104,
+            "endLine": 124
+          }
+        ]
+      },
+      {
+        "key": "005d0a6f1594ccbd370188c635d57509d2766044a326566c3f8380a7608f961d",
+        "category": "Model overrides",
+        "subtype": "inner-exec-result-public-wrapper",
+        "explanation": "ContainerExecResponseImpl subclasses a wrapper over ContainerExecResponseInner and delegates webSocketUri and password getters to that inner model; unlike the attach-result wrapper, no invocation of this exec wrapper is captured.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "A concrete public-result wrapper is supplied, but its class has no generation marker contrast or customization-script provenance, and its construction path is outside captured evidence.",
+        "symbols": ["ContainerExecResponseImpl"],
+        "evidence": [
+          {
+            "id": "6cca52ff5f016d886c59faf3755baa0a7465a76f11baaf7d978695008be8a4f4",
+            "startLine": 11,
+            "endLine": 25
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Coverage is partial: six files among 150 eligible and 189 discovered. All seven skipped entries were read: the group excerpt and six unsent child/public-interface files. ContainerGroupImpl ends at line 550 mid-expression in the four-argument withLogAnalytics overload; its remainder and other later methods are not assessed.",
+      "All source kinds are unknown. Concrete high-level orchestration, state projection and fluent facade bodies support qualified handwritten interpretations, not proof of regeneration ownership. Exact generated counterparts, generation configuration and history are absent. Plain stored-value getters, direct setters and bare service forwarding are not exhaustively itemized.",
+      "ContainerExecResponseImpl is fully captured but only shows a protected superclass-delegating constructor and URI/password getter forwarding. No complete exec operation/result-conversion path is supplied, so these alone are not asserted as a separate streaming customization. The attach result path is separately tied to its captured operation. No WebSocket connection, SSE or stream transfer implementation is shown.",
+      "AcceptedImpl, RoleAssignmentHelper, task-group/superclass helpers, external SDK clients and ContainerImpl/VolumeImpl are absent. Observed callback arguments/helper calls do not prove their invocation order, custom polling algorithm, role assignment effects, attachment semantics, thread safety or complete error/cancellation cleanup.",
+      "Source anomaly: after allocating externalUdpPorts, initializeChildrenFromInner repeats a loop that fills externalTcpPorts from tcpPorts. It does not populate UDP in that captured method. No runtime reproduction or public getter contract is supplied, and no source fix or inferred correct behavior is substituted into this assessment.",
+      "Managed-identity comments mention a virtual-machine extension and port 50342, but the captured methods implement resource identity model/task bookkeeping, not extension installation or a demonstrated token endpoint. Resource registry/identity model shaping is not counted as evidence of a custom SDK bearer-token policy.",
+      "File-share construction reuses manager().httpPipeline().getHttpClient(), not the entire pipeline. It takes the first storage key without an explicit empty-list guard, then stages model attachment. No key-management safety, rollback, account/share idempotency, remote consistency or guaranteed dependency ordering is inferred.",
+      "POM and README use 2.54.0-beta.1 while frozen latestRelease is 2.53.15 and moduleMajor remains 1. TypeSpec location points to Azure/azure-rest-api-specs commit c20c198ed29fb0b4b8f5022ef8a07cca22905656. These metadata are not release-history proof. Addressability expresses plausible features or unresolved contracts, not verified support or measured reduction.",
+      "Coverage is partial: 6 of 150 eligible files were captured from 189 discovered files; ContainerGroupImpl is limited to lines 1-550 and its four-argument withLogAnalytics overload ends mid-expression. The other six explicitly skipped files were not supplied; no absence conclusion follows.",
+      "Every captured Java source has kind unknown. No @Generated-neighbor contrast, customization script, regeneration history or generator output is supplied. Accepted complex facade behaviors are assessed from their concrete cross-resource implementations; simple fluent wrappers and paging adapters remain inconclusive without provenance.",
+      "The inherited RoleAssignmentHelper, AcceptedImpl, resource/model wrapper implementations, task graph contract and unshown child/resource methods are unavailable. Claims about polling algorithms, role-assignment effects, deployment order, serialization, or public impact of the port-array anomaly are not established.",
+      "The source comment on ContainerExecResponseImpl calls it RegistryCredentials although its class implements ContainerExecResponse; treat the comment as inconsistent data, not proof of behavior or provenance. Omissions are candidates for later independent review, not accepted findings."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/ContainerInstanceManager.java",
+      "startLine": 1,
+      "endLine": 138,
+      "provenance": "Java handwritten source",
+      "contentHash": "bde60e4c00a73c713bec05ea19e83d0e68f2f2ce57458c2cd85b8f68df27376f"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerAttachResultImpl.java",
+      "startLine": 1,
+      "endLine": 32,
+      "provenance": "Java handwritten source",
+      "contentHash": "2a4b6087a9a249a168b9fe86360e1b4b45ce75e0126e4520d57423da185a32ba"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerExecResponseImpl.java",
+      "startLine": 1,
+      "endLine": 26,
+      "provenance": "Java handwritten source",
+      "contentHash": "fb4f6441ce532ba897f50400641e949b3c30f98e75aa37554b747cdf6d542b06"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupImpl.java",
+      "startLine": 1,
+      "endLine": 834,
+      "provenance": "Java handwritten source",
+      "contentHash": "6252f869ec59b0f3d90f2f8251677d5b08a9efc139d2f033891abec96c638cd5"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupMsiHandler.java",
+      "startLine": 1,
+      "endLine": 116,
+      "provenance": "Java handwritten source",
+      "contentHash": "e28f6573a266b73cccafed119c63e84862dfc91f8232b37d397727b9b666869b"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerGroupsImpl.java",
+      "startLine": 1,
+      "endLine": 178,
+      "provenance": "Java handwritten source",
+      "contentHash": "fbb2bac03feb662248008969d9b9f3b78baed8a6a20b19181c708b0fc84f9ddb"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/ContainerImpl.java",
+      "startLine": 1,
+      "endLine": 347,
+      "provenance": "Java handwritten source",
+      "contentHash": "c268213c3243c46c08cd5ae312cdee9e63578292d6eac82523f7b2ddd9c041c3"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/implementation/VolumeImpl.java",
+      "startLine": 1,
+      "endLine": 104,
+      "provenance": "Java handwritten source",
+      "contentHash": "1e83af4ec13079f3f68c54fbe77d4e493f895c5ab1eaa5afd138d2042de68250"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerAttachResult.java",
+      "startLine": 1,
+      "endLine": 25,
+      "provenance": "Java handwritten source",
+      "contentHash": "c4249e06c64f5b669f79c83813d9e9df53aef84c60908b9cc8b2cc36c888a0b3"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerExecResponse.java",
+      "startLine": 1,
+      "endLine": 26,
+      "provenance": "Java handwritten source",
+      "contentHash": "c33d1709043d50104a7aaf3aa5a004f01f280d34dad7df041d824e8dacfd0e2a"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerGroup.java",
+      "startLine": 1,
+      "endLine": 1430,
+      "provenance": "Java handwritten source",
+      "contentHash": "40f54b18f2971f9989dfc88db096f55feacafd3823d819568c6657bb36b0583c"
+    },
+    {
+      "path": "sdk/containerinstance/azure-resourcemanager-containerinstance/src/main/java/com/azure/resourcemanager/containerinstance/models/ContainerGroups.java",
+      "startLine": 1,
+      "endLine": 160,
+      "provenance": "Java handwritten source",
+      "contentHash": "157116b40ff0d6ed184cab4305ec1087b6971ac11b4f83d059e4c1de171323da"
+    }
+  ]
+}

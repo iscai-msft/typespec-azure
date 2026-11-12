@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 1,
+  "id": "c3ec2beb-3d82-488f-b792-31baee066a04",
+  "observedAt": "2026-10-23T18:25:16.413Z",
+  "identity": "java:azure-monitor-query-metrics:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-monitor-query-metrics",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/monitor/azure-monitor-query-metrics"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "1d7dec2112f5d11a6a94574ae51912bc5eb24097"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 52,
+    "eligibleFiles": 32,
+    "capturedFiles": 9,
+    "skipped": [
+      {
+        "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResourcesResult.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResult.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryTimeInterval.java",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/TimeSeriesElement.java",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/customization/src/main/java/MetricsQueryCustomization.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nimport org.slf4j.Logger;\n\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.github.javaparser.StaticJavaParser;\nimport com.github.javaparser.ast.stmt.BlockStmt;\nimport com.github.javaparser.javadoc.Javadoc;\nimport com.github.javaparser.javadoc.description.JavadocDescription;\n\npublic class MetricsQueryCustomization extends Customization {\n\n    /**\n     * Customizes the MonitorQueryMetricsClientBuilder by adding audience support for authorization scopes.\n     * This customization adds a MetricsQueryAudience field and setter to the builder, and modifies\n     * the HTTP pipeline creation to use the audience when configuring bearer token authentication.\n     * This customization also updates the module-info.java file to export the metrics models package.\n     *\n     * @param libraryCustomization The library customization object for modifying generated code.\n     * @param logger The logger for recording customization activities.\n     */\n    @Override\n    public void customize(LibraryCustomization libraryCustomization, Logger logger) {\n        String original = libraryCustomization.getRawEditor().getFileContent(\"src/main/java/module-info.java\");\n        String replace = original.replace(\"exports com.azure.monitor.query.metrics.implementation;\", \"\");\n\n        libraryCustomization.getRawEditor().replaceFile(\"src/main/java/module-info.java\", replace);\n\n        libraryCustomization.getClass(\"com.azure.monitor.query.metrics.implementation\", \"MonitorQueryMetricsClientBuilder\")\n            .customizeAst(ast -> {\n                ast.addImport(\"com.azure.monitor.query.metrics.models.MetricsAudience\");\n\n                ast.getClassByName(\"MonitorQueryMetricsClientBuilder\").ifPresent(clazz -> {\n                    clazz.addPrivateField(\"MetricsAudience\", \"audience\")\n                        .addMarkerAnnotation(\"Generated\")\n                        .setJavadocComment(\"The audience indicating the authorization scope of metrics clients.\")\n                        .createSetter()\n                        .setName(\"audience\")\n                        .setType(\"MonitorQueryMetricsClientBuilder\")\n                        .setBody(new BlockStmt().addStatement(\"this.audience = audience;\").addStatement(\"return this;\"))\n                        .addMarkerAnnotation(\"Generated\")\n                        .setJavadocComment(\n                            new Javadoc(JavadocDescription.parseText(\"Sets the audience.\")).addBlockTag(\"param\",\n                                    \"audience\", \"the audience indicating the authorization scope of metrics clients.\")\n                                .addBlockTag(\"return\", \"the MonitorQueryMetricsClientBuilder.\"));\n\n                    clazz.getMethodsByName(\"createHttpPipeline\")\n                        .forEach(method -> method.setBody(StaticJavaParser.parseBlock(\n                            \"{ Configuration buildConfiguration  = (configuration == null) ? Configuration.getGlobalConfiguration() : configuration;\"\n                                + \"HttpLogOptions localHttpLogOptions = this.httpLogOptions == null ? new HttpLogOptions() : this.httpLogOptions;\"\n                                + \"ClientOptions localClientOptions = this.clientOptions == null ? new ClientOptions() : this.clientOptions;\"\n                                + \"List<HttpPipelinePolicy> policies = new ArrayList<>();\"\n                                + \"String clientName = PROPERTIES.getOrDefault(SDK_NAME, \\\"UnknownName\\\");\"\n                                + \"String clientVersion = PROPERTIES.getOrDefault(SDK_VERSION, \\\"UnknownVersion\\\");\"\n                                + \"String applicationId = CoreUtils.getApplicationId(localClientOptions, localHttpLogOptions);\"\n                                + \"policies.add(new UserAgentPolicy(applicationId, clientName, clientVersion, buildConfiguration));\"\n                                + \"policies.add(new RequestIdPolicy());\"\n                                + \"policies.add(new AddHeadersFromContextPolicy());\"\n                                + \"HttpHeaders headers = new HttpHeaders();\"\n                                + \"localClientOptions.getHeaders()\"\n                                + \"    .forEach(header -> headers.set(HttpHeaderName.fromString(header.getName()), header.getValue()));\"\n                                + \"if (headers.getSize() > 0) { policies.add(new AddHeadersPolicy(headers)); }\"\n                                + \"this.pipelinePolicies.stream().filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_CALL)\"\n                                + \"    .forEach(p -> policies.add(p));\"\n                                + \"HttpPolicyProviders.addBeforeRetryPolicies(policies);\"\n                                + \"policies.add(ClientBuilderUtil.validateAndGetRetryPolicy(retryPolicy, retryOptions, new RetryPolicy()));\"\n                                + \"policies.add(new AddDatePolicy());\"\n                                + \"if (tokenCredential != null) {\"\n                                + \"    policies.add(new BearerTokenAuthenticationPolicy(tokenCredential, audience == null ? MetricsAudience.AZURE_PUBLIC_CLOUD.toString() + \\\"/.default\\\" : audience.toString() + \\\"/.default\\\"));\"\n                                + \"}\"\n                                + \"this.pipelinePolicies.stream().filter(p -> p.getPipelinePosition() == HttpPipelinePosition.PER_RETRY)\"\n                                + \"    .forEach(p -> policies.add(p));\"\n                                + \"HttpPolicyProviders.addAfterRetryPolicies(policies);\"\n                                + \"policies.add(new HttpLoggingPolicy(localHttpLogOptions));\"\n                                + \"return new HttpPipelineBuilder().policies(policies.toArray(new HttpPipelinePolicy[0]))\"\n                                + \"    .httpClient(httpClient).clientOptions(localClientOptions).build(); }\")));\n                });\n            });\n    }\n}\n",
+      "contentHash": "1760c77e6da42aa27e31cf23037eb65554aff8e1c1c3fd5f2b285996bf009c24",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/customization/src/main/java/MetricsQueryCustomization.java",
+      "startLine": 1,
+      "endLine": 82,
+      "kind": "handwritten-marker",
+      "id": "8ac2933a4468a305e5545e866340478d6339611887044895900821b3e9325e43"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/implementation/MonitorQueryMetricsUtils.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics.implementation;\n\nimport java.time.Duration;\nimport java.util.List;\nimport java.util.Map;\nimport java.util.stream.Collectors;\n\nimport com.azure.core.http.HttpPipeline;\nimport com.azure.core.http.rest.RequestOptions;\nimport com.azure.core.models.ResponseError;\nimport com.azure.core.util.serializer.SerializerAdapter;\nimport com.azure.monitor.query.metrics.MetricsServiceVersion;\nimport com.azure.monitor.query.metrics.implementation.models.MetadataValue;\nimport com.azure.monitor.query.metrics.implementation.models.Metric;\nimport com.azure.monitor.query.metrics.implementation.models.MetricResultsResponseValuesItem;\nimport com.azure.monitor.query.metrics.models.MetricResult;\nimport com.azure.monitor.query.metrics.models.MetricUnit;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResourcesOptions;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResult;\nimport com.azure.monitor.query.metrics.models.MetricsQueryTimeInterval;\n\npublic final class MonitorQueryMetricsUtils {\n\n    private static MetricsQueryResultResourceIdAccessor metricsQueryResultResourceIdAccessor;\n\n    /**\n     * Private constructor to prevent instantiation.\n     */\n    private MonitorQueryMetricsUtils() {\n    }\n\n    /**\n     * Accessor interface\n     */\n    public interface MetricsQueryResultResourceIdAccessor {\n        void setMetricsQueryResultResourceIdProperty(MetricsQueryResult metricsQueryResult, String resourceId);\n    }\n\n    public static void setMetricsQueryResultAccessor(final MetricsQueryResultResourceIdAccessor accessor) {\n        MonitorQueryMetricsUtils.metricsQueryResultResourceIdAccessor = accessor;\n    }\n\n    public static void setMetricsQueryResultResourceIdProperty(MetricsQueryResult metricsQueryResult,\n        String resourceId) {\n        metricsQueryResultResourceIdAccessor.setMetricsQueryResultResourceIdProperty(metricsQueryResult, resourceId);\n    }\n\n    public static MonitorQueryMetricsClientImpl getMetricsClientImpl(HttpPipeline httpPipeline,\n        SerializerAdapter serializerAdapter, String endpoint, MetricsServiceVersion serviceVersion) {\n        return new MonitorQueryMetricsClientImpl(httpPipeline, serializerAdapter, endpoint, serviceVersion);\n    }\n\n    public static String getSubscriptionFromResourceId(String s) {\n        int i = s.indexOf(\"subscriptions/\") + 14;\n        int subscriptionIdEndIndex = s.indexOf(\"/\", i);\n        String subscriptionId = s.substring(i, subscriptionIdEndIndex == -1 ? s.length() : subscriptionIdEndIndex);\n        return subscriptionId;\n    }\n\n    public static MetricsQueryResult mapToMetricsQueryResult(MetricResultsResponseValuesItem item) {\n        List<MetricResult> metrics\n            = item.getValue().stream().map(metric -> mapToMetrics(metric)).collect(Collectors.toList());\n\n        MetricsQueryResult metricsQueryResult = new MetricsQueryResult(null,\n            MetricsQueryTimeInterval.parse(item.getStarttime() + \"/\" + item.getEndtime()),\n            Duration.parse(item.getInterval()), item.getNamespace(), item.getResourceregion(), metrics);\n        setMetricsQueryResultResourceIdProperty(metricsQueryResult, item.getResourceid());\n        return metricsQueryResult;\n    }\n\n    public static MetricResult mapToMetrics(Metric metric) {\n        List<com.azure.monitor.query.metrics.models.TimeSeriesElement> timeSeries\n            = mapTimeSeries(metric.getTimeSeries());\n        MetricResult metricResult = new MetricResult(metric.getId(), metric.getType(),\n            MetricUnit.fromString(metric.getUnit().toString()), metric.getName().getValue(), timeSeries,\n            metric.getDisplayDescription(), new ResponseError(metric.getErrorCode(), metric.getErrorMessage()));\n        return metricResult;\n    }\n\n    public static List<com.azure.monitor.query.metrics.models.TimeSeriesElement>\n        mapTimeSeries(List<com.azure.monitor.query.metrics.implementation.models.TimeSeriesElement> timeseries) {\n        return timeseries.stream()\n            .map(timeSeriesElement -> new com.azure.monitor.query.metrics.models.TimeSeriesElement(\n                timeSeriesElement.getData(), mapMetricsMetadata(timeSeriesElement.getMetadatavalues())))\n            .collect(Collectors.toList());\n    }\n\n    public static Map<String, String> mapMetricsMetadata(List<MetadataValue> metadataValues) {\n        if (metadataValues == null) {\n            return null;\n        }\n        return metadataValues.stream()\n            .collect(Collectors.toMap(value -> value.getName().getValue(), MetadataValue::getValue));\n    }\n\n    public static RequestOptions mapToRequestOptions(MetricsQueryResourcesOptions options) {\n        RequestOptions requestOptions = new RequestOptions();\n        if (options != null) {\n            if (options.getFilter() != null) {\n                requestOptions.addQueryParam(\"filter\", options.getFilter(), false);\n            }\n\n            if (options.getGranularity() != null) {\n                requestOptions.addQueryParam(\"interval\", options.getGranularity().toString(), false);\n            }\n\n            if (options.getAggregations() != null && !options.getAggregations().isEmpty()) {\n                String aggregations = options.getAggregations()\n                    .stream()\n                    .map(aggregationType -> aggregationType.toString())\n                    .collect(Collectors.joining(\",\"));\n                requestOptions.addQueryParam(\"aggregation\", aggregations, false);\n            }\n\n            if (options.getTop() != null) {\n                requestOptions.addQueryParam(\"top\", options.getTop().toString(), false);\n            }\n\n            if (options.getOrderBy() != null) {\n                requestOptions.addQueryParam(\"orderby\", options.getOrderBy(), false);\n            }\n\n            if (options.getRollupBy() != null) {\n                requestOptions.addQueryParam(\"rollupBy\", options.getRollupBy(), false);\n            }\n\n            if (options.getTimeInterval() != null) {\n                if (options.getTimeInterval().getStartTime() != null) {\n                    requestOptions.addQueryParam(\"starttime\", options.getTimeInterval().getStartTime().toString(),\n                        false);\n                }\n                if (options.getTimeInterval().getEndTime() != null) {\n                    requestOptions.addQueryParam(\"endtime\", options.getTimeInterval().getEndTime().toString(), false);\n                }\n            }\n        }\n        return requestOptions;\n    }\n}\n",
+      "contentHash": "255ee9ee43eb29785b02caf18d2aa1caec351da993e91c759d46e6449fac97f7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/implementation/MonitorQueryMetricsUtils.java",
+      "startLine": 1,
+      "endLine": 142,
+      "kind": "unknown",
+      "id": "b29fd8edaacfafe61e17a8b101cb6022d01e9298a2ab4cbd573ec47401b6dc16"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsAsyncClient.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics;\n\nimport java.util.List;\nimport java.util.Objects;\nimport java.util.function.Function;\nimport java.util.stream.Collectors;\n\nimport com.azure.core.annotation.ReturnType;\nimport com.azure.core.annotation.ServiceMethod;\nimport com.azure.core.http.rest.RequestOptions;\nimport com.azure.core.http.rest.Response;\nimport com.azure.core.http.rest.SimpleResponse;\nimport com.azure.core.util.BinaryData;\nimport com.azure.core.util.CoreUtils;\nimport static com.azure.core.util.FluxUtil.monoError;\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils;\nimport static com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils.getSubscriptionFromResourceId;\nimport static com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils.mapToMetricsQueryResult;\nimport com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsAsyncClient;\nimport com.azure.monitor.query.metrics.implementation.models.MetricResultsResponse;\nimport com.azure.monitor.query.metrics.implementation.models.MetricResultsResponseValuesItem;\nimport com.azure.monitor.query.metrics.implementation.models.ResourceIdList;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResourcesOptions;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResourcesResult;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResult;\n\nimport reactor.core.publisher.Mono;\n\n/**\n * This class provides an asynchronous client that contains all the query operations that use batch requests to retrieve\n * metrics for multiple resources.\n */\npublic final class MetricsAsyncClient {\n    private static final ClientLogger LOGGER = new ClientLogger(MetricsAsyncClient.class);\n\n    private final MonitorQueryMetricsAsyncClient serviceClient;\n\n    MetricsAsyncClient(MonitorQueryMetricsAsyncClient serviceClient) {\n        this.serviceClient = serviceClient;\n    }\n\n    /**\n     * Returns all the Azure Monitor metrics requested for the batch of resources.\n     *\n     * @param resourceIds The resource ids for which the metrics is requested.\n     * @param metricsNames The names of the metrics to query.\n     * @param metricsNamespace The namespace of the metrics to query.\n     * @return A time-series metrics result for the requested metric names.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<MetricsQueryResourcesResult> queryResources(List<String> resourceIds, List<String> metricsNames,\n        String metricsNamespace) {\n        return this\n            .queryResourcesWithResponse(resourceIds, metricsNames, metricsNamespace, new MetricsQueryResourcesOptions())\n            .map(Response::getValue);\n    }\n\n    /**\n     * Returns all the Azure Monitor metrics requested for the batch of resources.\n     *\n     * @param resourceIds The resource ids for which the metrics is requested.\n     * @param metricsNames The names of the metrics to query.\n     * @param metricsNamespace The namespace of the metrics to query.\n     * @param options The {@link MetricsQueryResourcesOptions} to include for the request.\n     * @return A time-series metrics result for the requested metric names.\n     * @throws IllegalArgumentException thrown if {@code resourceIds}, {@code metricsNames} or {@code metricsNamespace} are empty.\n     * @throws NullPointerException thrown if {@code resourceIds}, {@code metricsNames} or {@code metricsNamespace} are null.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Response<MetricsQueryResourcesResult>> queryResourcesWithResponse(List<String> resourceIds,\n        List<String> metricsNames, String metricsNamespace, MetricsQueryResourcesOptions options) {\n\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(resourceIds, \"'resourceIds cannot be null.\"))) {\n            return monoError(LOGGER, new IllegalArgumentException(\"resourceIds cannot be empty\"));\n        }\n\n        ResourceIdList resourceIdList = new ResourceIdList();\n        resourceIdList.setResourceids(resourceIds);\n\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(metricsNames, \"metricsNames cannot be null\"))) {\n            return monoError(LOGGER, new IllegalArgumentException(\"metricsNames cannot be empty\"));\n        }\n\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(metricsNamespace, \"metricsNamespace cannot be null\"))) {\n            return monoError(LOGGER, new IllegalArgumentException(\"metricsNamespace cannot be empty\"));\n        }\n\n        RequestOptions requestOptions = MonitorQueryMetricsUtils.mapToRequestOptions(options);\n\n        String subscriptionId;\n        subscriptionId = getSubscriptionFromResourceId(resourceIds.get(0));\n\n        Mono<Response<BinaryData>> responseMono;\n        responseMono = this.serviceClient.queryResourcesWithResponse(subscriptionId, metricsNamespace, metricsNames,\n            BinaryData.fromObject(resourceIdList), requestOptions);\n\n        return responseMono.map(new Function<Response<BinaryData>, Response<MetricsQueryResourcesResult>>() {\n            @Override\n            public Response<MetricsQueryResourcesResult> apply(Response<BinaryData> response) {\n                MetricResultsResponse valueResponse = response.getValue().toObject(MetricResultsResponse.class);\n                List<MetricResultsResponseValuesItem> values = valueResponse.getValues();\n                List<MetricsQueryResult> metricsQueryResults\n                    = values.stream().map(result -> mapToMetricsQueryResult(result)).collect(Collectors.toList());\n                MetricsQueryResourcesResult metricsQueryResourcesResult\n                    = new MetricsQueryResourcesResult(metricsQueryResults);\n                return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n                    metricsQueryResourcesResult);\n            }\n        });\n    }\n}\n",
+      "contentHash": "9df537b70ea0be5edd122a59395e2b21e60ad9ace9e1a7b0b5c0599c9521dab9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsAsyncClient.java",
+      "startLine": 1,
+      "endLine": 115,
+      "kind": "unknown",
+      "id": "53762d6ad5a7d1c092636d873a6a54ab0bc2a36d4d91fc92aba4cf0ae188b2ea"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClient.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics;\n\nimport java.util.List;\nimport java.util.Objects;\nimport java.util.stream.Collectors;\n\nimport com.azure.core.annotation.ReturnType;\nimport com.azure.core.annotation.ServiceMethod;\nimport com.azure.core.http.rest.Response;\nimport com.azure.core.http.rest.SimpleResponse;\nimport com.azure.core.util.BinaryData;\nimport com.azure.core.util.Context;\nimport com.azure.core.util.CoreUtils;\nimport com.azure.core.util.logging.ClientLogger;\nimport com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsClient;\nimport static com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils.getSubscriptionFromResourceId;\nimport static com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils.mapToMetricsQueryResult;\nimport static com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsUtils.mapToRequestOptions;\nimport com.azure.monitor.query.metrics.implementation.models.MetricResultsResponse;\nimport com.azure.monitor.query.metrics.implementation.models.MetricResultsResponseValuesItem;\nimport com.azure.monitor.query.metrics.implementation.models.ResourceIdList;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResourcesOptions;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResourcesResult;\nimport com.azure.monitor.query.metrics.models.MetricsQueryResult;\n\n/**\n * This class provides synchronous client that contains all the query operations that use batch requests to retrieve\n * metrics for multiple resources.\n */\npublic final class MetricsClient {\n    private static final ClientLogger LOGGER = new ClientLogger(MetricsClient.class);\n\n    private final MonitorQueryMetricsClient serviceClient;\n\n    MetricsClient(MonitorQueryMetricsClient serviceClient) {\n        this.serviceClient = serviceClient;\n    }\n\n    /**\n     * Returns all the Azure Monitor metrics requested for the batch of resources.\n     *\n     * @param resourceIds The resource ids for which the metrics is requested.\n     * @param metricsNames The names of the metrics to query.\n     * @param metricsNamespace The namespace of the metrics to query.\n     * @return A time-series metrics result for the requested metric names.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public MetricsQueryResourcesResult queryResources(List<String> resourceIds, List<String> metricsNames,\n        String metricsNamespace) {\n        return this\n            .queryResourcesWithResponse(resourceIds, metricsNames, metricsNamespace, new MetricsQueryResourcesOptions(),\n                Context.NONE)\n            .getValue();\n    }\n\n    /**\n     * Returns all the Azure Monitor metrics requested for the batch of resources.\n     *\n     * @param resourceIds The resource ids for which the metrics is requested.\n     * @param metricsNames The names of the metrics to query.\n     * @param metricsNamespace The namespace of the metrics to query.\n     * @param options The {@link MetricsQueryResourcesOptions} to include for the request.\n     * @param context The context to associate with this operation.\n     * @return A time-series metrics result for the requested metric names.\n     * @throws IllegalArgumentException thrown if {@code resourceIds}, {@code metricsNames} or {@code metricsNamespace} are empty.\n     * @throws NullPointerException thrown if {@code resourceIds}, {@code metricsNames} or {@code metricsNamespace} are null.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Response<MetricsQueryResourcesResult> queryResourcesWithResponse(List<String> resourceIds,\n        List<String> metricsNames, String metricsNamespace, MetricsQueryResourcesOptions options, Context context) {\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(resourceIds, \"'resourceIds cannot be null.\"))) {\n            throw LOGGER.logExceptionAsError(new IllegalArgumentException(\"resourceIds cannot be empty\"));\n        }\n\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(metricsNames, \"metricsNames cannot be null\"))) {\n            throw LOGGER.logExceptionAsError(new IllegalArgumentException(\"metricsNames cannot be empty\"));\n        }\n\n        if (CoreUtils.isNullOrEmpty(Objects.requireNonNull(metricsNamespace, \"metricsNamespace cannot be null\"))) {\n            throw LOGGER.logExceptionAsError(new IllegalArgumentException(\"metricsNamespace cannot be empty\"));\n        }\n\n        String subscriptionId = getSubscriptionFromResourceId(resourceIds.get(0));\n        ResourceIdList resourceIdList = new ResourceIdList();\n        resourceIdList.setResourceids(resourceIds);\n        Response<BinaryData> response = this.serviceClient.queryResourcesWithResponse(subscriptionId, metricsNamespace,\n            metricsNames, BinaryData.fromObject(resourceIdList), mapToRequestOptions(options));\n        MetricResultsResponse valueResponse = response.getValue().toObject(MetricResultsResponse.class);\n        List<MetricResultsResponseValuesItem> values = valueResponse.getValues();\n        List<MetricsQueryResult> metricsQueryResults\n            = values.stream().map(result -> mapToMetricsQueryResult(result)).collect(Collectors.toList());\n        MetricsQueryResourcesResult metricsQueryResourcesResult = new MetricsQueryResourcesResult(metricsQueryResults);\n\n        return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n            metricsQueryResourcesResult);\n\n    }\n\n}\n",
+      "contentHash": "a7645fd79033e5dad00c85887dafca6e67caeaaa0b095aa9a75f5af5c7481323",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClient.java",
+      "startLine": 1,
+      "endLine": 102,
+      "kind": "unknown",
+      "id": "caa1a46e3e5e1d8d0ad420971116d32c7ba28a3cf4f6aabc1076bd57981d3167"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClientBuilder.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics;\n\nimport com.azure.core.annotation.ServiceClientBuilder;\nimport com.azure.core.client.traits.ConfigurationTrait;\nimport com.azure.core.client.traits.EndpointTrait;\nimport com.azure.core.client.traits.HttpTrait;\nimport com.azure.core.client.traits.TokenCredentialTrait;\nimport com.azure.core.credential.TokenCredential;\nimport com.azure.core.http.HttpClient;\nimport com.azure.core.http.HttpPipeline;\nimport com.azure.core.http.policy.HttpLogOptions;\nimport com.azure.core.http.policy.HttpPipelinePolicy;\nimport com.azure.core.http.policy.RetryOptions;\nimport com.azure.core.http.policy.RetryPolicy;\nimport com.azure.core.util.ClientOptions;\nimport com.azure.core.util.Configuration;\nimport com.azure.monitor.query.metrics.models.MetricsAudience;\nimport com.azure.monitor.query.metrics.implementation.MonitorQueryMetricsClientBuilder;\n\n/**\n * Fluent builder for creating instances of {@link MetricsClient} and {@link MetricsAsyncClient}.\n */\n@ServiceClientBuilder(serviceClients = { MetricsClient.class, MetricsAsyncClient.class })\npublic final class MetricsClientBuilder implements EndpointTrait<MetricsClientBuilder>, HttpTrait<MetricsClientBuilder>,\n    ConfigurationTrait<MetricsClientBuilder>, TokenCredentialTrait<MetricsClientBuilder> {\n\n    private final MonitorQueryMetricsClientBuilder innerBuilder = new MonitorQueryMetricsClientBuilder();\n\n    /**\n     * Creates an instance of MetricsClientBuilder.\n     */\n    public MetricsClientBuilder() {\n    }\n\n    /**\n     * Sets the metrics endpoint.\n     * @param endpoint the endpoint.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder endpoint(String endpoint) {\n        innerBuilder.endpoint(endpoint);\n        return this;\n    }\n\n    /**\n     * Sets the metrics audience.\n     * @param audience the audience.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    public MetricsClientBuilder audience(MetricsAudience audience) {\n        innerBuilder.audience(audience);\n        return this;\n    }\n\n    /**\n     * Sets The HTTP pipeline to send requests through.\n     * @param pipeline the pipeline value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder pipeline(HttpPipeline pipeline) {\n        innerBuilder.pipeline(pipeline);\n        return this;\n    }\n\n    /**\n     * Sets The HTTP client used to send the request.\n     * @param httpClient the httpClient value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder httpClient(HttpClient httpClient) {\n        innerBuilder.httpClient(httpClient);\n        return this;\n    }\n\n    /**\n     * Sets The configuration store that is used during construction of the service client.\n     * @param configuration the configuration value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder configuration(Configuration configuration) {\n        innerBuilder.configuration(configuration);\n        return this;\n    }\n\n    /**\n     * Sets The logging configuration for HTTP requests and responses.\n     * @param httpLogOptions the httpLogOptions value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder httpLogOptions(HttpLogOptions httpLogOptions) {\n        innerBuilder.httpLogOptions(httpLogOptions);\n        return this;\n    }\n\n    /**\n     * Sets The retry policy that will attempt to retry failed requests, if applicable.\n     * @param retryPolicy the retryPolicy value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    public MetricsClientBuilder retryPolicy(RetryPolicy retryPolicy) {\n        innerBuilder.retryPolicy(retryPolicy);\n        return this;\n    }\n\n    /**\n     * Sets the {@link RetryOptions} used for creating the client.\n     * @param retryOptions The {@link RetryOptions}.\n     * @return the updated {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder retryOptions(RetryOptions retryOptions) {\n        innerBuilder.retryOptions(retryOptions);\n        return this;\n    }\n\n    /**\n     * Adds a custom Http pipeline policy.\n     * @param customPolicy The custom Http pipeline policy to add.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder addPolicy(HttpPipelinePolicy customPolicy) {\n        innerBuilder.addPolicy(customPolicy);\n        return this;\n    }\n\n    /**\n     * Sets The TokenCredential used for authentication.\n     * @param tokenCredential the tokenCredential value.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder credential(TokenCredential tokenCredential) {\n        innerBuilder.credential(tokenCredential);\n        return this;\n    }\n\n    /**\n     * Set the {@link ClientOptions} used for creating the client.\n     * @param clientOptions The {@link ClientOptions}.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    @Override\n    public MetricsClientBuilder clientOptions(ClientOptions clientOptions) {\n        innerBuilder.clientOptions(clientOptions);\n        return this;\n    }\n\n    /**\n     * The service version to use when creating the client.\n     * @param serviceVersion The {@link MetricsServiceVersion}.\n     * @return the {@link MetricsClientBuilder}.\n     */\n    public MetricsClientBuilder serviceVersion(MetricsServiceVersion serviceVersion) {\n        innerBuilder.serviceVersion(serviceVersion);\n        return this;\n    }\n\n    /**\n     * Creates a synchronous client with the configured options in this builder.\n     * @return A synchronous {@link MetricsClient}.\n     */\n    public MetricsClient buildClient() {\n        return new MetricsClient(innerBuilder.buildClient());\n    }\n\n    /**\n     * Creates an asynchronous client with the configured options in this builder.\n     * @return An asynchronous {@link MetricsAsyncClient}.\n     */\n    public MetricsAsyncClient buildAsyncClient() {\n        return new MetricsAsyncClient(innerBuilder.buildAsyncClient());\n    }\n}\n",
+      "contentHash": "9b3b697f1d2721dc7c8661ac7a768c4a02edc94aa36ed497abadab6a082b1c78",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClientBuilder.java",
+      "startLine": 1,
+      "endLine": 182,
+      "kind": "unknown",
+      "id": "4a07a282cb2769a11905857e85b997a0b75502d240925e4a401dd5ba08508a18"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/AggregationType.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics.models;\n\n/** Defines values for AggregationType. */\npublic enum AggregationType {\n    /** Enum value None. */\n    NONE(\"None\"),\n\n    /** Enum value Average. */\n    AVERAGE(\"Average\"),\n\n    /** Enum value Count. */\n    COUNT(\"Count\"),\n\n    /** Enum value Minimum. */\n    MINIMUM(\"Minimum\"),\n\n    /** Enum value Maximum. */\n    MAXIMUM(\"Maximum\"),\n\n    /** Enum value Total. */\n    TOTAL(\"Total\");\n\n    /** The actual serialized value for a AggregationType instance. */\n    private final String name;\n\n    AggregationType(String name) {\n        this.name = name;\n    }\n\n    /**\n     * Parses a serialized value to a AggregationType instance.\n     *\n     * @param value the serialized value to parse.\n     * @return the parsed AggregationType object, or null if unable to parse.\n     */\n    public static AggregationType fromString(String value) {\n        AggregationType[] items = AggregationType.values();\n        for (AggregationType item : items) {\n            if (item.toString().equalsIgnoreCase(value)) {\n                return item;\n            }\n        }\n        return null;\n    }\n\n    @Override\n    public String toString() {\n        return this.name;\n    }\n}\n",
+      "contentHash": "5a3232f5124ee493c84f93c6eb1f848fa6858ffd4c72d8d239d91e948dff7da0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/AggregationType.java",
+      "startLine": 1,
+      "endLine": 53,
+      "kind": "unknown",
+      "id": "178b630b8337e02bb6d996ab205bb7512e6b1f323f915a93f68723d369e05791"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricResult.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics.models;\n\nimport java.util.List;\n\nimport com.azure.core.annotation.Immutable;\nimport com.azure.core.models.ResponseError;\n\n/**\n * The metrics result of a query.\n */\n@Immutable\npublic final class MetricResult {\n    private final String id;\n    private final String resourceType;\n    private final MetricUnit unit;\n    private final String metricName;\n    private final List<TimeSeriesElement> timeSeries;\n    private final String description;\n    private final ResponseError error;\n\n    /**\n     * Creates an instance of the result data of a query.\n     * @param id The metrics id.\n     * @param resourceType The resource type of the metrics resource.\n     * @param unit The metrics unit.\n     * @param metricName The name of the metrics.\n     * @param timeSeries The time series returned when the query is performed.\n     * @param description The display description of the metric.\n     * @param httpResponseError The error information if the request failed to fetch the queried metric.\n     */\n    public MetricResult(String id, String resourceType, MetricUnit unit, String metricName,\n        List<TimeSeriesElement> timeSeries, String description, ResponseError httpResponseError) {\n        this.id = id;\n        this.resourceType = resourceType;\n        this.unit = unit;\n        this.metricName = metricName;\n        this.timeSeries = timeSeries;\n        this.description = description;\n        this.error = httpResponseError;\n    }\n\n    /**\n     * Returns the name of the metrics.\n     * @return the name of the metrics.\n     */\n    public String getMetricName() {\n        return metricName;\n    }\n\n    /**\n     * Returns the metrics id.\n     * @return the metrics id.\n     */\n    public String getId() {\n        return id;\n    }\n\n    /**\n     * Returns the resource type of the metric resource.\n     * @return the resource type of the metric resource.\n     */\n    public String getResourceType() {\n        return resourceType;\n    }\n\n    /**\n     * Returns the metrics unit of the metrics.\n     * @return the unit of the metrics.\n     */\n    public MetricUnit getUnit() {\n        return unit;\n    }\n\n    /**\n     * Returns the time series returned when a data query is performed.\n     * @return the time series returned when a data query is performed.\n     */\n    public List<TimeSeriesElement> getTimeSeries() {\n        return timeSeries;\n    }\n\n    /**\n     * Returns the description of the metric.\n     * @return the description of the metric.\n     */\n    public String getDescription() {\n        return description;\n    }\n\n    /**\n     * Returns the error message encountered querying this specific metric.\n     * @return the error message encountered querying this specific metric.\n     */\n    public ResponseError getError() {\n        return error;\n    }\n}\n",
+      "contentHash": "2765afcbe7766bc7e9f101dcef6b3646f0aa94fdd445771c78bf7f060ee5ed4e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricResult.java",
+      "startLine": 1,
+      "endLine": 100,
+      "kind": "unknown",
+      "id": "f12dd63131dcb60d75f245baff7c8f5ee45f416233db6512fda48e48ecc25d73"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsAudience.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics.models;\n\nimport java.util.Collection;\n\nimport com.azure.core.util.ExpandableStringEnum;\n\n/**\n * The audience indicating the authorization scope of metrics query clients.\n */\npublic class MetricsAudience extends ExpandableStringEnum<MetricsAudience> {\n    /**\n     * Static value for Azure Public Cloud.\n     */\n    public static final MetricsAudience AZURE_PUBLIC_CLOUD = fromString(\"https://metrics.monitor.azure.com\");\n\n    /**\n     * Static value for Azure US Government.\n     */\n    public static final MetricsAudience AZURE_US_GOVERNMENT = fromString(\"https://metrics.monitor.azure.us\");\n\n    /**\n     * Static value for Azure China.\n     */\n    public static final MetricsAudience AZURE_CHINA = fromString(\"https://metrics.monitor.azure.cn\");\n\n    /**\n     * @deprecated Creates an instance of MetricsAudience.\n     */\n    @Deprecated\n    public MetricsAudience() {\n    }\n\n    /**\n     * Creates an instance of MetricsAudience.\n     *\n     * @param name the string value.\n     * @return the MetricsAudience.\n     */\n    public static MetricsAudience fromString(String name) {\n        return fromString(name, MetricsAudience.class);\n    }\n\n    /**\n     * Get the collection of MetricsAudience values.\n     *\n     * @return the collection of MetricsAudience values.\n     */\n    public static Collection<MetricsAudience> values() {\n        return values(MetricsAudience.class);\n    }\n}\n",
+      "contentHash": "a71924bb1d78acee1a6841c96a263e38adae7c4137ea8596d6428d38506eb3b9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsAudience.java",
+      "startLine": 1,
+      "endLine": 54,
+      "kind": "unknown",
+      "id": "658c8e8d6278289e47763ddbe70759ea33bcc559966b7cf291743b2aa9e0ade7"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResourcesOptions.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.monitor.query.metrics.models;\n\nimport java.time.Duration;\nimport java.util.List;\n\nimport com.azure.core.annotation.Fluent;\n\n/**\n * The model class to configure the metrics query options.\n */\n@Fluent\npublic final class MetricsQueryResourcesOptions {\n    private MetricsQueryTimeInterval timeInterval;\n    private Duration granularity;\n    private List<AggregationType> aggregations;\n    private Integer top;\n    private String orderBy;\n    private String filter;\n\n    /**\n     * Creates an instance of MetricsQueryResourcesOptions.\n     */\n    public MetricsQueryResourcesOptions() {\n    }\n\n    private String rollupBy;\n\n    /**\n     * Returns the time span for which the metrics data is queried.\n     * @return the time span for which the metrics data is queried.\n     */\n    public MetricsQueryTimeInterval getTimeInterval() {\n        return timeInterval;\n    }\n\n    /**\n     * Sets the time span for which the metrics data is queried.\n     * @param timeInterval the time span for which the metrics data is queried.\n     *\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setTimeInterval(MetricsQueryTimeInterval timeInterval) {\n        this.timeInterval = timeInterval;\n        return this;\n    }\n\n    /**\n     * Returns the interval (window size) for which the metric data was returned in.\n     * @return The interval (window size) for which the metric data was returned in.\n     */\n    public Duration getGranularity() {\n        return granularity;\n    }\n\n    /**\n     * Sets the interval (window size) for which the metric data was returned in.\n     * @param granularity The interval (window size) for which the metric data was returned in.\n     *\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setGranularity(Duration granularity) {\n        this.granularity = granularity;\n        return this;\n    }\n\n    /**\n     * Returns the list of aggregations that should be applied to the metrics data.\n     * @return the list of aggregations that should be applied to the metrics data.\n     */\n    public List<AggregationType> getAggregations() {\n        return aggregations;\n    }\n\n    /**\n     * Sets the list of aggregations that should be applied to the metrics data.\n     * @param aggregations the list of aggregations that should be applied to the metrics data.\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setAggregations(List<AggregationType> aggregations) {\n        this.aggregations = aggregations;\n        return this;\n    }\n\n    /**\n     * Returns the number of top metrics values to query.\n     * @return the number of top metrics values to query.\n     */\n    public Integer getTop() {\n        return top;\n    }\n\n    /**\n     * Sets the number of top metrics values to query.\n     * @param top the number of top metrics values to query.\n     *\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setTop(Integer top) {\n        this.top = top;\n        return this;\n    }\n\n    /**\n     * Returns the order in which the query results should be ordered.\n     * @return the order in which the query results should be ordered.\n     */\n    public String getOrderBy() {\n        return orderBy;\n    }\n\n    /**\n     * Sets the order in which the query results should be ordered.\n     * @param orderBy the order in which the query results should be ordered.\n     *\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setOrderBy(String orderBy) {\n        this.orderBy = orderBy;\n        return this;\n    }\n\n    /**\n     * Returns the filter to be applied to the query. The filter uses OData format.\n     * @return the filter to be applied to the query. The filter uses OData format.\n     */\n    public String getFilter() {\n        return filter;\n    }\n\n    /**\n     * Sets the filter to be applied to the query. The filter uses OData format.\n     * @param filter the filter to be applied to the query. The filter uses OData format.\n     *\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setFilter(String filter) {\n        this.filter = filter;\n        return this;\n    }\n\n    /**\n     * Gets the dimension name(s) to rollup results by. For example if you only want to see metric values with a\n     * filter like 'City eq Seattle or City eq Tacoma' but don't want to see separate values for each city, you can\n     * specify 'RollUpBy=City' to see the results for Seattle and Tacoma rolled up into one timeseries.\n     *\n     * @return the dimension name(s) to rollup results by. For example if you only want to see metric values with a\n     * filter like 'City eq Seattle or City eq Tacoma' but don't want to see separate values for each city, you can\n     * specify 'RollUpBy=City' to see the results for Seattle and Tacoma rolled up into one timeseries.\n     */\n    public String getRollupBy() {\n        return rollupBy;\n    }\n\n    /**\n     * Sets the dimension name(s) to rollup results by. For example if you only want to see metric values with a\n     * filter like 'City eq Seattle or City eq Tacoma' but don't want to see separate values for each city, you can\n     * specify 'RollUpBy=City' to see the results for Seattle and Tacoma rolled up into one timeseries.\n     *\n     * @param rollupBy the dimension name(s) to rollup results by. For example if you only want to see metric values with a\n     * filter like 'City eq Seattle or City eq Tacoma' but don't want to see separate values for each city, you can\n     * specify 'RollUpBy=City' to see the results for Seattle and Tacoma rolled up into one timeseries.\n     * @return The updated options instance\n     */\n    public MetricsQueryResourcesOptions setRollupBy(String rollupBy) {\n        this.rollupBy = rollupBy;\n        return this;\n    }\n}\n",
+      "contentHash": "874fa9429efe4d19885a2d2388e5bc854cfa3cd997844d55a277229716e99c64",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResourcesOptions.java",
+      "startLine": 1,
+      "endLine": 171,
+      "kind": "unknown",
+      "id": "3cc9fa1156222f5c11d4ca73e797ba4892c80cb0099843264e6db1610c0b218a"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <name>Azure Monitor Metrics Query customization</name>\n  <description>This package contains client customization for Azure Monitor Metrics Query</description>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-monitor-query-metrics-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "6db9027a67a6cc9d8917b81b84e2283276bd8754debe07ca60094717ecbf48a4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/customization/pom.xml"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\nLicensed under the MIT License.\nCode generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-monitor-query-metrics</artifactId>\n  <version>1.1.0-beta.1</version> <!-- {x-version-update;com.azure:azure-monitor-query-metrics;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for Monitor Metrics Query</name>\n  <description>This package contains Microsoft Azure Metrics Query client library.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-data-appconfiguration</artifactId>\n      <version>1.10.2</version> <!-- {x-version-update;com.azure:azure-data-appconfiguration;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "c0b6cfbb820a6c3bb855c994d2aa7e77b5ff02cda4534c94de350a4d8c88d640",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/pom.xml"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/README.md",
+      "text": "# Azure Monitor Metrics Query client library for Java\n\nThe Azure Monitor Metrics Query client library is used to execute read-only queries against [Azure Monitor][azure_monitor_overview]'s metrics data platform:\n\n- [Metrics](https://learn.microsoft.com/azure/azure-monitor/essentials/data-platform-metrics) - Collects numeric data from monitored resources into a time series database. Metrics are numerical values that are collected at regular intervals and describe some aspect of a system at a particular time. Metrics are lightweight and capable of supporting near real-time scenarios, making them useful for alerting and fast detection of issues.\n\n**Resources:**\n\n- [Source code][source]\n- [Package (Maven)][package]\n- [API reference documentation][msdocs_apiref]\n- [Service documentation][azure_monitor_overview]\n- [Samples][samples]\n- [Change log][changelog]\n\n## Getting started\n\n### Prerequisites\n\n- A [Java Development Kit (JDK)][jdk_link], version 8 or later\n    - Here are details about [Java 8 client compatibility with Azure Certificate Authority](https://learn.microsoft.com/azure/security/fundamentals/azure-ca-details?tabs=root-and-subordinate-cas-list#client-compatibility-for-public-pkis).\n- An [Azure subscription][azure_subscription]\n- A [TokenCredential](https://learn.microsoft.com/java/api/com.azure.core.credential.tokencredential?view=azure-java-stable) implementation, such as an [Azure Identity library credential type](https://learn.microsoft.com/java/api/overview/azure/identity-readme?view=azure-java-stable#credential-classes).\n- To query Metrics, you need an Azure resource of any kind (Storage Account, Key Vault, Cosmos DB, etc.).\n\n### Include the package\n\n#### Include the BOM file\n\nInclude the `azure-sdk-bom` to your project to take a dependency on the stable version of the library. In the following snippet, replace the `{bom_version_to_target}` placeholder with the version number. To learn more about the BOM, see the [AZURE SDK BOM README](https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/boms/azure-sdk-bom/README.md).\n\n```xml\n<dependencyManagement>\n    <dependencies>\n        <dependency>\n            <groupId>com.azure</groupId>\n            <artifactId>azure-sdk-bom</artifactId>\n            <version>{bom_version_to_target}</version>\n            <type>pom</type>\n            <scope>import</scope>\n        </dependency>\n    </dependencies>\n</dependencyManagement>\n```\n\nThen include the direct dependency in the `dependencies` section without the version tag:\n\n```xml\n<dependencies>\n  <dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-monitor-query-metrics</artifactId>\n  </dependency>\n</dependencies>\n```\n\n#### Include direct dependency\n\nIf you want to take dependency on a particular version of the library that isn't present in the BOM, add the direct dependency to your project as follows.\n\n[//]: # ({x-version-update-start;com.azure:azure-monitor-query-metrics;current})\n\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-monitor-query-metrics</artifactId>\n    <version>1.0.0</version>\n</dependency>\n```\n\n[//]: # ({x-version-update-end})\n\n### Authenticate using Microsoft Entra ID\n\nYou can authenticate with Microsoft Entra ID using the [Azure Identity library][azure_identity]. Regional endpoints don't support Microsoft Entra authentication. Create a [custom subdomain][custom_subdomain] for your resource to use this type of authentication.\n\nTo use the [DefaultAzureCredential][DefaultAzureCredential] provider shown below, or other credential providers provided with the Azure Identity library, include the `azure-identity` package:\n\n[//]: # ({x-version-update-start;com.azure:azure-identity;dependency})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-identity</artifactId>\n    <version>1.18.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\nSet the values of the client ID, tenant ID, and client secret of the Microsoft Entra application as environment variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`.\n\n#### Synchronous clients\n\n```java readme-sample-createMetricsClient\nMetricsClient metricsClient = new MetricsClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildClient();\n```\n\n#### Asynchronous clients\n\n```java readme-sample-createMetricsAsyncClient\nMetricsAsyncClient metricsAsyncClient = new MetricsClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildAsyncClient();\n```\n\n#### Configure client for Azure sovereign cloud\n\nBy default, `MetricsClient` is configured to connect to the Azure Public Cloud. To use a sovereign cloud instead, set the correct endpoint in the client builders.\n\n- Creating a `MetricsClient` for Azure China Cloud:\n\n    ```java readme-sample-createSovereignMetricsClient\n    MetricsClient metricsClient = new MetricsClientBuilder()\n        .credential(new DefaultAzureCredentialBuilder().build())\n        .endpoint(\"{china_cloud_endpoint}\")\n        .audience(MetricsAudience.AZURE_CHINA)\n        .buildClient();\n    ```\n\n### Execute the query\n\nFor examples of Metrics queries, see the [Examples](#examples) section.\n\n## Key concepts\n\n### Metrics data structure\n\nEach set of metric values is a time series with the following characteristics:\n\n- The time the value was collected\n- The resource associated with the value\n- A namespace that acts like a category for the metric\n- A metric name\n- The value itself\n- Some metrics have multiple dimensions as described in multi-dimensional metrics. Custom metrics can have up to 10 dimensions.\n\n## Examples\n\n### Metrics query\n\nA resource ID, as denoted by the `{resource-uri}` placeholder in the following sample, is required to query metrics. To find the resource ID:\n\n1. Navigate to your resource's page in the Azure portal.\n2. From the **Overview** blade, select the **JSON View** link.\n3. In the resulting JSON, copy the value of the `id` property.\n\n### Metrics query resources\n\n```java readme-sample-metricsqueryresource\nMetricsClient metricsClient = new MetricsClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildClient();\n\nMetricsQueryResourcesResult metricsQueryResult = metricsClient.queryResources(\n    Arrays.asList(\"{resourceId}\", \"{resourceId2}\"),\n    Arrays.asList(\"{metric1}\", \"{metric2}\"),\n    \"{metricNamespace}\");\n\nfor (MetricsQueryResult queryResult : metricsQueryResult.getMetricsQueryResults()) {\n    System.out.println(\"Resource ID: \" + queryResult.getResourceId());\n    System.out.println(\"Metrics: \" + queryResult.getMetrics().size() + \"\\n\");\n    // print out the metrics for each query result\n    for (MetricResult metric : queryResult.getMetrics()) {\n        System.out.println(\"Metric Name: \" + metric.getMetricName());\n        System.out.println(\"Unit: \" + metric.getUnit());\n        System.out.println(\"Time Series Count: \" + metric.getTimeSeries().size());\n\n        metric.getTimeSeries().forEach(timeSeries -> {\n            timeSeries.getValues().forEach(value -> {\n                System.out.println(\"Timestamp: \" + value.getTimeStamp()\n                    + \", Total: \" + value.getTotal()\n                    + \", Average: \" + value.getAverage()\n                    + \", Count: \" + value.getCount());\n            });\n        });\n    }\n}\n```\n\n#### Handle metrics query response\n\nThe metrics query API returns a `MetricsQueryResult` object. The `MetricsQueryResult` object contains properties such as a list of `MetricResult`-typed objects, `granularity`, `namespace`, and `timeInterval`. The `MetricResult` objects list can be accessed using the `metrics` param. Each `MetricResult` object in this list contains a list of `TimeSeriesElement` objects. Each `TimeSeriesElement` contains `data` and `metadata_values` properties. In visual form, the object hierarchy of the response resembles the following structure:\n\n```\nMetricsQueryResult\n|---granularity\n|---timeInterval\n|---cost\n|---namespace\n|---resourceRegion\n|---metrics (list of `MetricResult` objects)\n    |---id\n    |---type\n    |---name\n    |---unit\n    |---timeSeries (list of `TimeSeriesElement` objects)\n        |---metadata (dimensions)\n        |---metricValues (list of data points represented by `MetricValue` objects)\n             |--- timeStamp\n             |--- count\n             |--- average\n             |--- total\n             |--- maximum\n             |--- minimum\n```\n\n#### Get average and count metrics\n\n```java readme-sample-metricsqueryaggregation\nMetricsClient metricsClient = new MetricsClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .buildClient();\n\nResponse<MetricsQueryResourcesResult> metricsResponse = metricsClient.queryResourcesWithResponse(\n    Arrays.asList(\"{resourceId}\", \"{resourceId2}\"),\n    Arrays.asList(\"{metric1}\", \"{metric2}\"),\n    \"{metricNamespace}\",\n    new MetricsQueryResourcesOptions()\n        .setGranularity(Duration.ofHours(1))\n        .setAggregations(Arrays.asList(AggregationType.AVERAGE, AggregationType.COUNT)),\n    Context.NONE);\n\nMetricsQueryResourcesResult metricsQueryResult = metricsResponse.getValue();\n\nfor (MetricsQueryResult queryResult : metricsQueryResult.getMetricsQueryResults()) {\n    System.out.println(\"Resource ID: \" + queryResult.getResourceId());\n    System.out.println(\"Metrics: \" + queryResult.getMetrics().size() + \"\\n\");\n    // print out the metrics for each query result\n    for (MetricResult metric : queryResult.getMetrics()) {\n        System.out.println(\"Metric Name: \" + metric.getMetricName());\n        System.out.println(\"Unit: \" + metric.getUnit());\n        System.out.println(\"Time Series Count: \" + metric.getTimeSeries().size());\n\n        metric.getTimeSeries().forEach(timeSeries -> {\n            timeSeries.getValues().forEach(value -> {\n                System.out.println(\"Timestamp: \" + value.getTimeStamp()\n                    + \", Average: \" + value.getAverage()\n                    + \", Count: \" + value.getCount());\n            });\n        });\n    }\n}\n```\n\n## Troubleshooting\n\nSee our [troubleshooting guide](https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/monitor/azure-monitor-query-metrics/TROUBLESHOOTING.md)\nfor details on how to diagnose various failure scenarios.\n\n## Next steps\n\nTo learn more about Azure Monitor, see the [Azure Monitor service documentation][azure_monitor_overview].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a [Contributor License Agreement (CLA)][cla] declaring that you have the right to, and actually do, grant us the rights to use your contribution.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate\nthe PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to\ndo this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see\nthe [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or\ncomments.\n\n\n<!-- LINKS -->\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity/README.md\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[azure_subscription]: https://azure.microsoft.com/free/java\n[changelog]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/monitor/azure-monitor-query-metrics/CHANGELOG.md\n[custom_subdomain]: https://learn.microsoft.com/azure/cognitive-services/authentication?tabs=powershell#create-a-resource-with-a-custom-subdomain\n[DefaultAzureCredential]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity/README.md#defaultazurecredential\n[jdk_link]: https://learn.microsoft.com/java/azure/jdk/?view=azure-java-stable\n[msdocs_apiref]: https://learn.microsoft.com/java/api/com.azure.monitor.query?view=azure-java-stable\n[package]: https://central.sonatype.com/artifact/com.azure/azure-monitor-query-metrics\n[samples]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/monitor/azure-monitor-query-metrics/src/samples/java/README.md\n[source]: https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/monitor/azure-monitor-query-metrics/src\n\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com\n\n",
+      "contentHash": "4b7125f0e307df577f283d65b42a3dfd8a38018043b4bb305dd2a52ea94c7944",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/README.md"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Query.Metrics\ncommit: 6267b64842af3d744c5b092a3f3beef49729ad6d\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "a17c6a1b4eef42b7ff5854970d13c90d8b8949d24059def4b506c59eaa338a54",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/monitor/azure-monitor-query-metrics/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "df36588e644342b4c12015aa0b72b5ef0c1878f6d04ca1715c771290977e9776",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "83d06c2aac33bde30fb73d2c4e5380fdb1f0af8d0f7394c7dc3267592810e4b2",
+        "category": "Other",
+        "subtype": "remove-implementation-package-module-export",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "explanation": "The customization script reads module-info.java and removes the exports com.azure.monitor.query.metrics.implementation declaration before replacing the file.",
+        "handwrittenRationale": "This is an explicit raw-editor transformation performed by a class extending the customization framework, not a finding inferred from an ordinary module-info file.",
+        "symbols": [
+          "module-info.exports com.azure.monitor.query.metrics.implementation"
+        ],
+        "evidence": [
+          {
+            "id": "8ac2933a4468a305e5545e866340478d6339611887044895900821b3e9325e43",
+            "startLine": 24,
+            "endLine": 29
+          }
+        ]
+      },
+      {
+        "key": "2f39b9d25859f943c123903c9aea25379355be0c59e88484314ec0179fcd9bc4",
+        "category": "Auth",
+        "subtype": "script-added-audience-option-and-bearer-scope-pipeline",
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes",
+        "explanation": "The script adds a MetricsAudience field/fluent setter to the internal builder and replaces createHttpPipeline so a token credential uses the selected audience plus /.default, falling back to the public-cloud audience when null.",
+        "handwrittenRationale": "The customization class explicitly adds the field/setter and rewrites the pipeline body. It also stamps its added members with Generated annotations, so those annotations do not negate the directly visible handwritten AST changes.",
+        "symbols": [
+          "MonitorQueryMetricsClientBuilder.audience",
+          "MonitorQueryMetricsClientBuilder.createHttpPipeline"
+        ],
+        "evidence": [
+          {
+            "id": "8ac2933a4468a305e5545e866340478d6339611887044895900821b3e9325e43",
+            "startLine": 31,
+            "endLine": 78
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "83d06c2aac33bde30fb73d2c4e5380fdb1f0af8d0f7394c7dc3267592810e4b2",
+        "status": "accepted",
+        "reason": "The handwritten Customization class explicitly removes the implementation-package export from module-info.java and replaces that file (lines 25-29). This is a script edit hiding an implementation package, not a finding based on the generated module-info file alone; the hide-generated-surface pattern describes the reusable change."
+      },
+      {
+        "key": "2f39b9d25859f943c123903c9aea25379355be0c59e88484314ec0179fcd9bc4",
+        "status": "accepted",
+        "reason": "The customization script adds the audience field and setter to the internal builder (lines 33-47) and rewrites createHttpPipeline to select its bearer-token scope, defaulting to the public-cloud audience (lines 49-78). The Generated markers are themselves added by the handwritten script. Auth and auth-audience-option describe this one audience-wiring behavior; the change is plausibly generator-addressable."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "ae15f9190ebe77abcb51d51232b85fd593aa69fdec94c0807aa9694f1cf63b95",
+        "category": "Hand-written client",
+        "subtype": "public-builder-delegates-to-internal-builder",
+        "explanation": "The public builder delegates configuration to an internal builder and wraps its synchronous and asynchronous clients in public client types.",
+        "rootCauseHypothesis": "A public convenience client layer may have been needed over generated protocol clients; the supplied source does not establish why.",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The supplied public builder has no generated header or @Generated members and explicitly constructs an internal builder and wraps its build results, but its origin is not independently documented; treat this as an inconclusive candidate.",
+        "symbols": [
+          "MetricsClientBuilder.buildClient",
+          "MetricsClientBuilder.buildAsyncClient"
+        ],
+        "evidence": [
+          {
+            "id": "4a07a282cb2769a11905857e85b997a0b75502d240925e4a401dd5ba08508a18",
+            "startLine": 25,
+            "endLine": 30
+          },
+          {
+            "id": "4a07a282cb2769a11905857e85b997a0b75502d240925e4a401dd5ba08508a18",
+            "startLine": 167,
+            "endLine": 181
+          }
+        ]
+      },
+      {
+        "key": "487cdef709f8d63376b59e0cff943461f092632113f4b6669a1a47b2934608ad",
+        "category": "Hand-written client",
+        "subtype": "sync-and-async-typed-query-wrappers",
+        "explanation": "The public synchronous and asynchronous clients expose typed queryResources overloads, invoke internal raw-response operations, and wrap converted metric results in typed responses.",
+        "rootCauseHypothesis": "Typed public query methods may bridge a lower-level generated operation; whether generation could provide this API shape is not shown.",
+        "pattern": "handwritten-client-over-generated",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Both full public-client excerpts lack generated headers and @Generated members and visibly delegate to implementation clients, but their supplied provenance is unknown, so this is an inconclusive candidate rather than confirmed handwritten code.",
+        "symbols": [
+          "MetricsAsyncClient.queryResources",
+          "MetricsAsyncClient.queryResourcesWithResponse",
+          "MetricsClient.queryResources",
+          "MetricsClient.queryResourcesWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "53762d6ad5a7d1c092636d873a6a54ab0bc2a36d4d91fc92aba4cf0ae188b2ea",
+            "startLine": 37,
+            "endLine": 41
+          },
+          {
+            "id": "53762d6ad5a7d1c092636d873a6a54ab0bc2a36d4d91fc92aba4cf0ae188b2ea",
+            "startLine": 53,
+            "endLine": 113
+          },
+          {
+            "id": "caa1a46e3e5e1d8d0ad420971116d32c7ba28a3cf4f6aabc1076bd57981d3167",
+            "startLine": 33,
+            "endLine": 37
+          },
+          {
+            "id": "caa1a46e3e5e1d8d0ad420971116d32c7ba28a3cf4f6aabc1076bd57981d3167",
+            "startLine": 49,
+            "endLine": 100
+          }
+        ]
+      },
+      {
+        "key": "aceb6ae55bed86171b8897676feb79747193391022fcd078e69ccd344956fae3",
+        "category": "Convenience methods",
+        "subtype": "derive-protocol-subscription-from-resource-id",
+        "explanation": "A utility extracts a subscription ID from the first resource ID for the internal metrics query operation used by both public clients.",
+        "rootCauseHypothesis": "The public API accepts resource IDs while the underlying operation requires a subscription ID; the reason for this API difference is not established.",
+        "pattern": "resource-id-to-subscription-parameter",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The unannotated helper performs explicit string parsing, and both public query implementations call it; its provenance is unknown, so this is only an inconclusive handwritten candidate.",
+        "symbols": [
+          "MonitorQueryMetricsUtils.getSubscriptionFromResourceId"
+        ],
+        "evidence": [
+          {
+            "id": "b29fd8edaacfafe61e17a8b101cb6022d01e9298a2ab4cbd573ec47401b6dc16",
+            "startLine": 56,
+            "endLine": 61
+          },
+          {
+            "id": "53762d6ad5a7d1c092636d873a6a54ab0bc2a36d4d91fc92aba4cf0ae188b2ea",
+            "startLine": 92,
+            "endLine": 99
+          },
+          {
+            "id": "caa1a46e3e5e1d8d0ad420971116d32c7ba28a3cf4f6aabc1076bd57981d3167",
+            "startLine": 86,
+            "endLine": 90
+          }
+        ]
+      },
+      {
+        "key": "ebcdef34ae88982522a25cf900509775839d44ced64f452041519239c25d73d1",
+        "category": "Serialization",
+        "subtype": "internal-response-to-public-model-conversion",
+        "explanation": "Utility methods convert internal metric response items into public result and time-series models, flattening metadata to a string map and assigning the result resource ID through an accessor.",
+        "rootCauseHypothesis": "The internal wire-response and public model shapes may differ; the supplied excerpts do not identify the generator or specification limitation, if any.",
+        "pattern": "protocol-response-to-public-model",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The utility contains explicit conversion and accessor calls without a generated marker, but its origin is unknown, making this an inconclusive candidate.",
+        "symbols": [
+          "MonitorQueryMetricsUtils.mapToMetricsQueryResult",
+          "MonitorQueryMetricsUtils.mapToMetrics",
+          "MonitorQueryMetricsUtils.mapTimeSeries",
+          "MonitorQueryMetricsUtils.mapMetricsMetadata",
+          "MonitorQueryMetricsUtils.setMetricsQueryResultResourceIdProperty"
+        ],
+        "evidence": [
+          {
+            "id": "b29fd8edaacfafe61e17a8b101cb6022d01e9298a2ab4cbd573ec47401b6dc16",
+            "startLine": 27,
+            "endLine": 49
+          },
+          {
+            "id": "b29fd8edaacfafe61e17a8b101cb6022d01e9298a2ab4cbd573ec47401b6dc16",
+            "startLine": 63,
+            "endLine": 97
+          }
+        ]
+      },
+      {
+        "key": "c79bbc4cac0c9a205202e1e869f2efd68caf92ef4a5f5c3c6c490e08c8f0bd74",
+        "category": "Convenience methods",
+        "subtype": "typed-options-to-request-query-parameters",
+        "explanation": "A utility converts typed query options, including aggregation lists and interval endpoints, into query parameters on RequestOptions for the lower-level operation.",
+        "rootCauseHypothesis": "A typed public options model may need manual adaptation to the generated request-options surface; the supplied evidence does not prove the cause.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The unannotated utility explicitly maps options fields to protocol query parameters, and the public clients call it, but its origin is unknown, so this remains an inconclusive candidate.",
+        "symbols": [
+          "MonitorQueryMetricsUtils.mapToRequestOptions"
+        ],
+        "evidence": [
+          {
+            "id": "b29fd8edaacfafe61e17a8b101cb6022d01e9298a2ab4cbd573ec47401b6dc16",
+            "startLine": 99,
+            "endLine": 142
+          },
+          {
+            "id": "3cc9fa1156222f5c11d4ca73e797ba4892c80cb0099843264e6db1610c0b218a",
+            "startLine": 14,
+            "endLine": 28
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Nine of 32 eligible files are supplied. Result/time interval/time series model implementations and the internal generated client/builder bodies are absent, so this is not exhaustive discovery or execution verification.",
+      "Public MetricsClient/MetricsAsyncClient visibly validate inputs, derive a subscription from the first resource id, wrap internal operation calls and reshape binary responses; MonitorQueryMetricsUtils maps models/options. These files have unknown provenance without neighboring Generated members, a baseline or script edits establishing their origin, so their visible behavior is not independently counted as proven handwritten customization.",
+      "MetricsClientBuilder visibly forwards audience and other options to the inner builder; the explicit customization finding is confined to the script-added inner audience/pipeline behavior rather than assuming every outer forwarding method is handwritten.",
+      "AggregationType, MetricResult, MetricsAudience and MetricsQueryResourcesOptions have no supplied generation provenance beyond their unannotated source. Ordinary enum parsing, constructors, getters and setters alone do not establish customization.",
+      "The customization method's comment mentions exporting models, but its actual module edit removes the implementation export. The finding follows the executable string replacement.",
+      "The script gives its added field/setter Generated annotations. Conversely, absence of Generated elsewhere is not sufficient proof of handwritten origin. No extra custom paging, LRO, retry or telemetry behavior is inferred from ordinary client/pipeline boilerplate.",
+      "Coverage is partial: 9 of 32 eligible source files were captured; four skipped model paths are identified, and other eligible files are not supplied. No package-wide absence conclusion follows.",
+      "The captured public builder, clients, utilities, enums and model files have unknown provenance. Missing @Generated annotations or a generated header alone cannot prove those classes are handwritten; the proposed additional behaviors therefore remain inconclusive.",
+      "The actual module-info.java, generated internal builder, other generated protocol classes, customization-run output and complete model definitions were not supplied. The script shows the intended edits, not an independently verified resulting build or execution.",
+      "The public audience setter and MetricsAudience model belong to the same audience behavior as the accepted script proposal; no duplicate omission was created for that behavior. Other unannotated model/enum declarations are not sufficient by themselves to establish separate customization instances."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/customization/src/main/java/MetricsQueryCustomization.java",
+      "startLine": 1,
+      "endLine": 82,
+      "provenance": "Java customization script",
+      "contentHash": "1760c77e6da42aa27e31cf23037eb65554aff8e1c1c3fd5f2b285996bf009c24"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsAsyncClient.java",
+      "startLine": 1,
+      "endLine": 115,
+      "provenance": "Java handwritten source",
+      "contentHash": "9df537b70ea0be5edd122a59395e2b21e60ad9ace9e1a7b0b5c0599c9521dab9"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClient.java",
+      "startLine": 1,
+      "endLine": 102,
+      "provenance": "Java handwritten source",
+      "contentHash": "a7645fd79033e5dad00c85887dafca6e67caeaaa0b095aa9a75f5af5c7481323"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/MetricsClientBuilder.java",
+      "startLine": 1,
+      "endLine": 182,
+      "provenance": "Java handwritten source",
+      "contentHash": "9b3b697f1d2721dc7c8661ac7a768c4a02edc94aa36ed497abadab6a082b1c78"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/implementation/MonitorQueryMetricsUtils.java",
+      "startLine": 1,
+      "endLine": 142,
+      "provenance": "Java handwritten source",
+      "contentHash": "255ee9ee43eb29785b02caf18d2aa1caec351da993e91c759d46e6449fac97f7"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/AggregationType.java",
+      "startLine": 1,
+      "endLine": 53,
+      "provenance": "Java handwritten source",
+      "contentHash": "5a3232f5124ee493c84f93c6eb1f848fa6858ffd4c72d8d239d91e948dff7da0"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricResult.java",
+      "startLine": 1,
+      "endLine": 100,
+      "provenance": "Java handwritten source",
+      "contentHash": "2765afcbe7766bc7e9f101dcef6b3646f0aa94fdd445771c78bf7f060ee5ed4e"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsAudience.java",
+      "startLine": 1,
+      "endLine": 54,
+      "provenance": "Java handwritten source",
+      "contentHash": "a71924bb1d78acee1a6841c96a263e38adae7c4137ea8596d6428d38506eb3b9"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResourcesOptions.java",
+      "startLine": 1,
+      "endLine": 171,
+      "provenance": "Java handwritten source",
+      "contentHash": "874fa9429efe4d19885a2d2388e5bc854cfa3cd997844d55a277229716e99c64"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResourcesResult.java",
+      "startLine": 1,
+      "endLine": 32,
+      "provenance": "Java handwritten source",
+      "contentHash": "88198ce52f4945284744754b940167cffed7e0d4a8dc9cd9bbcda7bb9d5751c7"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryResult.java",
+      "startLine": 1,
+      "endLine": 130,
+      "provenance": "Java handwritten source",
+      "contentHash": "4e7542b491549f3ac4df88699d5a52304a77958bbb3f483ae1cfa6d0780f87cb"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/MetricsQueryTimeInterval.java",
+      "startLine": 1,
+      "endLine": 123,
+      "provenance": "Java handwritten source",
+      "contentHash": "d90b3fdba4e2625a4e8963b71978ec27a9d2f06e29aeecc0095c0c6a96629f01"
+    },
+    {
+      "path": "sdk/monitor/azure-monitor-query-metrics/src/main/java/com/azure/monitor/query/metrics/models/TimeSeriesElement.java",
+      "startLine": 1,
+      "endLine": 44,
+      "provenance": "Java handwritten source",
+      "contentHash": "54d92a6abc8800c756c0055c119a6f29826cfd767867e9e0cf8fe4bbb3fa4b2a"
+    }
+  ]
+}

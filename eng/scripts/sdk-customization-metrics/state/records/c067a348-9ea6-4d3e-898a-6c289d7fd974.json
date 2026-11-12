@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "c067a348-9ea6-4d3e-898a-6c289d7fd974",
+  "observedAt": "2026-10-22T20:42:57.628Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/security/keyvault/azcertificates"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "b11d14f96378b33c8b67e80c22f76c88c9360be5"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 36,
+    "eligibleFiles": 12,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/security/keyvault/azcertificates/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azcertificates\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewPlatformManaged creates a PlatformManaged certificate policy configuration.\n//\n// PlatformManaged is in preview as of API version 2026-03-01-preview and is currently\n// intended for first-party Microsoft Azure Key Vault internal usage only. Calls using\n// this property will fail for external customers and the shape may change before GA.\n// It is not recommended for use at this point.\nfunc NewPlatformManaged(certificateUsage string, metadata map[string]any) *PlatformManaged {\n\treturn &PlatformManaged{\n\t\tCertificateUsage: &certificateUsage,\n\t\tMetadata:         metadata,\n\t}\n}\n\n// NewClient creates a client that accesses a Key Vault's certificates. You should validate that\n// vaultURL references a valid Key Vault. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(moduleName, version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n\n// ID is a certificate's unique ID, containing its name and version.\ntype ID string\n\n// Name of the certificate.\nfunc (i *ID) Name() string {\n\t_, name, _ := internal.ParseID((*string)(i))\n\treturn *name\n}\n\n// Version of the certificate. Returns an empty string when the ID contains no version.\nfunc (i *ID) Version() string {\n\t_, _, version := internal.ParseID((*string)(i))\n\tif version == nil {\n\t\treturn \"\"\n\t}\n\treturn *version\n}\n\n// ErrorInfo - Internal error from Azure Key Vault server.\ntype ErrorInfo struct {\n\t// REQUIRED; A machine readable error code.\n\tCode string\n\n\t// full error message detailing why the operation failed.\n\tdata []byte\n}\n\n// UnmarshalJSON implements the json.Unmarshaller interface for type ErrorInfo.\nfunc (e *ErrorInfo) UnmarshalJSON(data []byte) error {\n\te.data = data\n\tei := struct{ Code string }{}\n\tif err := json.Unmarshal(data, &ei); err != nil {\n\t\treturn fmt.Errorf(\"unmarshalling type %T: %v\", e, err)\n\t}\n\te.Code = ei.Code\n\n\treturn nil\n}\n\n// Error implements a custom error for type ErrorInfo.\n// Returns full error message\nfunc (e *ErrorInfo) Error() string {\n\treturn string(e.data)\n}\n",
+      "contentHash": "a106f3935a79be47358bddfe6b6ec9bc6a097a6e000ade5c95c378d89099b1c3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azcertificates/custom_client.go",
+      "startLine": 1,
+      "endLine": 112,
+      "kind": "unknown",
+      "id": "db734a923ad491d5b1a0645cefded4861a2c6be9052bd657885920f824a27195"
+    },
+    {
+      "path": "sdk/security/keyvault/azcertificates/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\nfunc init() {\n\tserverTransportInterceptor = &internal.FakeChallenge{}\n}\n",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azcertificates/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "86d78fcfc8e84c9a260b3c37e2fd6a6b2a370774f78eebe22f03641d9ea2a62d"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/security/keyvault/azcertificates/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal v1.2.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "e94cc2668062eec626d85a603f366b25f2294d84a53394b9222e2ae310b8e64f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azcertificates/go.mod"
+    },
+    {
+      "path": "sdk/security/keyvault/azcertificates/README.md",
+      "text": "# Azure Key Vault Certificates client module for Go\n\n* Certificate management (this module) - create, manage, and deploy public and private SSL/TLS certificates\n* Managed HSM administration ([azadmin](https://aka.ms/azsdk/go/keyvault-admin/docs)) - role-based access control (RBAC), settings, and vault-level backup and restore options\n* Cryptographic key management ([azkeys](https://aka.ms/azsdk/go/keyvault-keys/docs)) - create, store, and control access to the keys used to encrypt your data\n* Secrets management ([azsecrets](https://aka.ms/azsdk/go/keyvault-secrets/docs)) - securely store and control access to tokens, passwords, certificates, API keys, and other secrets\n\n[Source code][certificates_client_src] | [Package (pkg.go.dev)][reference_docs] |  [Product documentation][keyvault_docs] | [Samples][certificates_samples]\n\n## Getting started\n\n### Install the package\n\nInstall `azcertificates` and `azidentity` with `go get`:\n```Bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n[azidentity][azure_identity] is used for Azure Active Directory authentication as demonstrated below.\n\n### Prerequisites\n\n* An [Azure subscription][azure_sub]\n* A supported Go version (the Azure SDK supports the two most recent Go releases)\n* A key vault. If you need to create one, see the Key Vault documentation for instructions on doing so in the [Azure Portal][azure_keyvault_portal] or with the [Azure CLI][azure_keyvault_cli].\n\n### Authentication\n\nThis document demonstrates using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate. This credential type works in both local development and production environments. We recommend using a [managed identity][managed_identity] in production.\n\n[Client][client_docs] accepts any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\n#### Create a client\n\nConstructing the client also requires your vault's URL, which you can get from the Azure CLI or the Azure Portal.\n\n```go\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azidentity\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates\"\n)\n\nfunc main() {\n\tcredential, err := azidentity.NewDefaultAzureCredential(nil)\n\tif err != nil {\n\t\t// TODO: handle error\n\t}\n\n\tclient, err := azcertificates.NewClient(\"https://<TODO: your vault name>.vault.azure.net\", credential, nil)\n\tif err != nil {\n\t\t// TODO: handle error\n\t}\n}\n```\n\n## Key concepts\n\n### Client\n\nWith a [Client][client_docs], you can get certificates from the vault, create new certificates and\nnew versions of existing certificates, update certificate metadata, and delete certificates. You\ncan also manage certificate issuers, contacts, and management policies of certificates. This is\nillustrated in the [examples](#examples) below.\n\n## Examples\n\nGet started with our [examples][certificates_samples].\n\n## Troubleshooting\n\n### Error Handling\n\nAll methods which send HTTP requests return `*azcore.ResponseError` when these requests fail. `ResponseError` has error details and the raw response from Key Vault.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\nresp, err := client.GetCertificate(context.Background(), \"certificateName\", nil)\nif err != nil {\n    var httpErr *azcore.ResponseError\n    if errors.As(err, &httpErr) {\n        // TODO: investigate httpErr\n    } else {\n        // TODO: not an HTTP error\n    }\n}\n```\n\n### Logging\n\nThis module uses the logging implementation in `azcore`. To turn on logging for all Azure SDK modules, set `AZURE_SDK_GO_LOGGING` to `all`. By default the logger writes to stderr. Use the `azcore/log` package to control log output. For example, logging only HTTP request and response events, and printing them to stdout:\n\n```go\nimport azlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n\n// Print log events to stdout\nazlog.SetListener(func(cls azlog.Event, msg string) {\n\tfmt.Println(msg)\n})\n\n// Includes only requests and responses in logs\nazlog.SetEvents(azlog.EventRequest, azlog.EventResponse)\n```\n\n### Accessing `http.Response`\n\nYou can access the raw `*http.Response` returned by Key Vault using the `runtime.WithCaptureResponse` method and a context passed to any client method.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\nvar response *http.Response\nctx := runtime.WithCaptureResponse(context.TODO(), &response)\n_, err = client.GetCertificate(ctx, \"certificateName\", nil)\nif err != nil {\n    // TODO: handle error\n}\n// TODO: do something with response\n```\n\n###  Additional Documentation\n\nFor more extensive documentation on Azure Key Vault, see the [API reference documentation][reference_docs].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact opencode@microsoft.com with any additional questions or comments.\n\n[default_cred_ref]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity#defaultazurecredential\n[azure_identity]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity\n[azure_keyvault_cli]: https://learn.microsoft.com/azure/key-vault/general/quick-create-cli\n[azure_keyvault_portal]: https://learn.microsoft.com/azure/key-vault/general/quick-create-portal\n[azure_sub]: https://azure.microsoft.com/free/\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[keyvault_docs]: https://learn.microsoft.com/azure/key-vault/\n[client_docs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates#Client\n[reference_docs]: https://aka.ms/azsdk/go/keyvault-certificates/docs\n[certificates_client_src]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/security/keyvault/azcertificates\n[certificates_samples]: https://aka.ms/azsdk/go/keyvault-certificates/docs#pkg-examples\n[managed_identity]: https://learn.microsoft.com/azure/active-directory/managed-identities-azure-resources/overview\n\n\n",
+      "contentHash": "1be0f6117b203ea3cd65c0c10e1a1f3f66b3f24d7a430ba66af4aa8b223e2bf4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azcertificates/README.md"
+    },
+    {
+      "path": "sdk/security/keyvault/azcertificates/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Certificates\ncommit: ea20c467080ed3d3875c8b5aeff28ce52f6a55ca\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n- specification/keyvault/data-plane/Certificates/common\n",
+      "contentHash": "7aee18e8bbce20459adfbbe416d3ce58318e176c709948d1d5ed5d35971cc6a9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azcertificates/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/security/keyvault/azcertificates/custom_client.go",
+      "startLine": 1,
+      "endLine": 112,
+      "provenance": "Go custom source",
+      "contentHash": "a106f3935a79be47358bddfe6b6ec9bc6a097a6e000ade5c95c378d89099b1c3"
+    },
+    {
+      "path": "sdk/security/keyvault/azcertificates/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Go custom source",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465"
+    }
+  ]
+}

@@ -1,0 +1,623 @@
+{
+  "schemaVersion": 1,
+  "id": "a5ddf2a6-152d-48b4-9621-e55a55cb5b36",
+  "observedAt": "2026-10-22T20:42:41.448Z",
+  "identity": "java:azure-ai-documentintelligence:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-ai-documentintelligence",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/documentintelligence/azure-ai-documentintelligence"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "4e8bca187ab8801677e57adc176bd138d485c81e"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 234,
+    "eligibleFiles": 93,
+    "capturedFiles": 47,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/customization/src/main/java/DocumentIntelligenceCustomizations.java",
+      "text": "import com.azure.autorest.customization.ClassCustomization;\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.azure.autorest.customization.PackageCustomization;\nimport com.github.javaparser.StaticJavaParser;\nimport com.github.javaparser.ast.Modifier;\nimport com.github.javaparser.ast.Node;\nimport com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;\nimport com.github.javaparser.ast.body.InitializerDeclaration;\nimport com.github.javaparser.ast.nodeTypes.NodeWithModifiers;\nimport com.github.javaparser.javadoc.Javadoc;\nimport com.github.javaparser.javadoc.description.JavadocDescription;\nimport org.slf4j.Logger;\n\n\n/**\n * This class contains the customization code to customize the AutoRest generated code for OpenAI.\n */\npublic class DocumentIntelligenceCustomizations extends Customization {\n    private static final String MODELS_PACKAGE = \"com.azure.ai.documentintelligence.models\";\n\n    @Override\n    public void customize(LibraryCustomization customization, Logger logger) {\n        customizeAnalyzeOperation(customization, logger);\n        customizePollingStrategy(customization, logger);\n        customizePollingUtils(customization, logger);\n        customizeMethodImplForOverload(customization, logger);\n        customizeAnalyzeDocumentOptions(customization);\n        customizeAnalyzeBatchDocumentOptions(customization);\n        customizeClassifyDocumentOptions(customization);\n        customizeSamplesForOverload(customization, logger);\n        addStaticAccessorForOperationId(customization, logger);\n    }\n\n    private void addStaticAccessorForOperationId(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing to add static operationnId accessor setter methods\");\n        customization.getClass(MODELS_PACKAGE, \"AnalyzeOperationDetails\").customizeAst(ast -> {\n            ast.addImport(\"com.azure.ai.documentintelligence.implementation.AnalyzeOperationDetailsHelper\");\n            ast.getClassByName(\"AnalyzeOperationDetails\").ifPresent(clazz -> clazz.getMembers()\n                .add(0, new InitializerDeclaration(true, StaticJavaParser.parseBlock(\"{\"\n                    + \"AnalyzeOperationDetailsHelper.setAccessor(new AnalyzeOperationDetailsHelper.AnalyzeOperationDetailsAccessor() {\"\n                    + \"    @Override\"\n                    + \"    public void setOperationId(AnalyzeOperationDetails analyzeOperation, String operationId) {\"\n                    + \"        analyzeOperation.setOperationId(operationId);\"\n                    + \"    }\"\n                    + \"}); }\"))));\n        });\n    }\n\n    private void customizeSamplesForOverload(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Removing samples using old overloads\");\n        customization.getRawEditor().removeFile(\"src/samples/java/com/azure/ai/documentintelligence/generated/AnalyzeBatchDocuments.java\");\n        customization.getRawEditor().removeFile(\"src/samples/java/com/azure/ai/documentintelligence/generated/AnalyzeDocumentFromBase64.java\");\n        customization.getRawEditor().removeFile(\"src/samples/java/com/azure/ai/documentintelligence/generated/AnalyzeDocumentFromUrl.java\");\n        customization.getRawEditor().removeFile(\"src/samples/java/com/azure/ai/documentintelligence/generated/ClassifyDocumentFromUrl.java\");\n    }\n\n    private void customizeMethodImplForOverload(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing to call internal method implementation\");\n        customizeImpl(customization.getClass(\"com.azure.ai.documentintelligence\", \"DocumentIntelligenceClient\"));\n        customizeImpl(customization.getClass(\"com.azure.ai.documentintelligence\", \"DocumentIntelligenceAsyncClient\"));\n    }\n\n    private static void customizeImpl(ClassCustomization customization) {\n        customization.customizeAst(ast -> ast.getClassByName(customization.getClassName()).ifPresent(clazz -> {\n            clazz.getMethodsByName(\"beginAnalyzeDocument\").forEach(methodDeclaration -> {\n                if (methodDeclaration.getParameters().size() == 2) {\n                    methodDeclaration.getParameterByName(\"analyzeRequest\").ifPresent(param -> param.setName(\"analyzeDocumentOptions\"));\n                    methodDeclaration.setBody(StaticJavaParser.parseBlock(\"{ Objects.requireNonNull(analyzeDocumentOptions, \\\"'analyzeDocumentOptions' cannot be null.\\\");\"\n                            + \"return this.beginAnalyzeDocument(modelId, analyzeDocumentOptions, analyzeDocumentOptions.getPages() != null ?\"\n                            + \"CoreUtils.stringJoin(\\\",\\\", analyzeDocumentOptions.getPages()) : null, analyzeDocumentOptions.getLocale(), \"\n                            + \"analyzeDocumentOptions.getStringIndexType(), analyzeDocumentOptions.getDocumentAnalysisFeatures(), \"\n                            + \"analyzeDocumentOptions.getQueryFields(), analyzeDocumentOptions.getOutputContentFormat(), \"\n                            + \"analyzeDocumentOptions.getOutput()); }\"))\n                        .setJavadocComment(new Javadoc(JavadocDescription.parseText(\"Analyzes document with document model.\"))\n                            .addBlockTag(\"param\", \"modelId\", \"Unique document model name.\")\n                            .addBlockTag(\"param\", \"analyzeDocumentOptions\", \"Analyze request parameters.\")\n                            .addBlockTag(\"throws\", \"IllegalArgumentException\", \"thrown if parameters fail the validation.\")\n                            .addBlockTag(\"throws\", \"HttpResponseException\", \"thrown if the request is rejected by server.\")\n                            .addBlockTag(\"throws\", \"ClientAuthenticationException\", \"thrown if the request is rejected by server on status code 401.\")\n                            .addBlockTag(\"throws\", \"ResourceNotFoundException\", \"thrown if the request is rejected by server on status code 404.\")\n                            .addBlockTag(\"throws\", \"ResourceModifiedException\", \"thrown if the request is rejected by server on status code 409.\")\n                            .addBlockTag(\"throws\", \"RuntimeException\", \"all other wrapped checked exceptions if the request fails to be sent.\")\n                            .addBlockTag(\"return\", \"the {@link SyncPoller} for polling of long-running operation.\"));\n                }\n\n                if (methodDeclaration.getParameterByName(\"outputContentFormat\").isPresent()) {\n                    methodDeclaration.removeModifier(Modifier.Keyword.PUBLIC);\n                }\n            });\n\n            clazz.getMethodsByName(\"beginAnalyzeBatchDocuments\").forEach(methodDeclaration -> {\n                if (methodDeclaration.getParameters().size() == 2) {\n                    methodDeclaration.getParameterByName(\"analyzeBatchRequest\").ifPresent(param -> param.setName(\"analyzeBatchDocumentOptions\"));\n                    methodDeclaration.setBody(StaticJavaParser.parseBlock(\"{ Objects.requireNonNull(analyzeBatchDocumentOptions, \\\"'analyzeBatchDocumentOptions' cannot be null.\\\");\"\n                        + \"return this.beginAnalyzeBatchDocuments(modelId, analyzeBatchDocumentOptions, analyzeBatchDocumentOptions.getPages() != null ?\"\n                        + \" CoreUtils.stringJoin(\\\",\\\", analyzeBatchDocumentOptions.getPages()) : null, analyzeBatchDocumentOptions.getLocale(), \"\n                        + \"analyzeBatchDocumentOptions.getStringIndexType(), analyzeBatchDocumentOptions.getDocumentAnalysisFeatures(), \"\n                        + \"analyzeBatchDocumentOptions.getQueryFields(), analyzeBatchDocumentOptions.getOutputContentFormat(), \"\n                        + \"analyzeBatchDocumentOptions.getOutput()); }\"))\n                        .setJavadocComment(new Javadoc(JavadocDescription.parseText(\"Analyzes batch documents with document model.\"))\n                            .addBlockTag(\"param\", \"modelId\", \"Unique document model name.\")\n                            .addBlockTag(\"param\", \"analyzeBatchDocumentOptions\", \"Analyze batch request parameters.\")\n                            .addBlockTag(\"throws\", \"IllegalArgumentException\", \"thrown if parameters fail the validation.\")\n                            .addBlockTag(\"throws\", \"HttpResponseException\", \"thrown if the request is rejected by server.\")\n                            .addBlockTag(\"throws\", \"ClientAuthenticationException\", \"thrown if the request is rejected by server on status code 401.\")\n                            .addBlockTag(\"throws\", \"ResourceNotFoundException\", \"thrown if the request is rejected by server on status code 404.\")\n                            .addBlockTag(\"throws\", \"ResourceModifiedException\", \"thrown if the request is rejected by server on status code 409.\")\n                            .addBlockTag(\"throws\", \"RuntimeException\", \"all other wrapped checked exceptions if the request fails to be sent.\")\n                            .addBlockTag(\"return\", \"the {@link SyncPoller} for polling of long-running operation.\"));\n\n                }\n\n                if (methodDeclaration.getParameterByName(\"outputContentFormat\").isPresent()) {\n                    methodDeclaration.removeModifier(Modifier.Keyword.PUBLIC);\n                }\n            });\n\n            clazz.getMethodsByName(\"beginClassifyDocument\").forEach(methodDeclaration -> {\n                if (methodDeclaration.getParameters().size() == 2) {\n                    methodDeclaration.getParameterByName(\"classifyRequest\").ifPresent(param -> param.setName(\"classifyDocumentOptions\"));\n                    methodDeclaration.setBody(StaticJavaParser.parseBlock(\"{ Objects.requireNonNull(classifyDocumentOptions, \\\"'classifyDocumentOptions' cannot be null.\\\");\"\n                        + \"return this.beginClassifyDocument(classifierId, classifyDocumentOptions, classifyDocumentOptions.getStringIndexType(), \"\n                        + \"classifyDocumentOptions.getSplit(), classifyDocumentOptions.getPages() != null ? CoreUtils.stringJoin(\\\",\\\", classifyDocumentOptions.getPages()) : null); }\"))\n                        .setJavadocComment(new Javadoc(JavadocDescription.parseText(\"Classifies document with document classifier.\"))\n                            .addBlockTag(\"param\", \"classifierId\", \"Unique document classifier name.\")\n                            .addBlockTag(\"param\", \"classifyDocumentOptions\", \"Classify request parameters.\")\n                            .addBlockTag(\"throws\", \"IllegalArgumentException\", \"thrown if parameters fail the validation.\")\n                            .addBlockTag(\"throws\", \"HttpResponseException\", \"thrown if the request is rejected by server.\")\n                            .addBlockTag(\"throws\", \"ClientAuthenticationException\", \"thrown if the request is rejected by server on status code 401.\")\n                            .addBlockTag(\"throws\", \"ResourceNotFoundException\", \"thrown if the request is rejected by server on status code 404.\")\n                            .addBlockTag(\"throws\", \"ResourceModifiedException\", \"thrown if the request is rejected by server on status code 409.\")\n                            .addBlockTag(\"throws\", \"RuntimeException\", \"all other wrapped checked exceptions if the request fails to be sent.\")\n                            .addBlockTag(\"return\", \"the {@link SyncPoller} for polling of long-running operation.\"));\n                }\n\n                if (methodDeclaration.getParameterByName(\"split\").isPresent()) {\n                    methodDeclaration.removeModifier(Modifier.Keyword.PUBLIC);\n                }\n            });\n        }));\n    }\n\n    private void customizeAnalyzeDocumentOptions(LibraryCustomization customization) {\n        customization.getClass(MODELS_PACKAGE, \"AnalyzeDocumentOptions\").customizeAst(ast ->\n            ast.getClassByName(\"AnalyzeDocumentOptions\").ifPresent(clazz -> {\n                clazz.getDefaultConstructor().ifPresent(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setUrlSource\").forEach(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setBytesSource\").forEach(NodeWithModifiers::setModifiers);\n            }));\n    }\n\n    private void customizeAnalyzeBatchDocumentOptions(LibraryCustomization customization) {\n        customization.getClass(MODELS_PACKAGE, \"AnalyzeBatchDocumentsOptions\").customizeAst(ast ->\n            ast.getClassByName(\"AnalyzeBatchDocumentsOptions\").ifPresent(clazz -> {\n                clazz.getConstructorByParameterTypes(String.class).ifPresent(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setAzureBlobSource\").forEach(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setAzureBlobFileListSource\").forEach(NodeWithModifiers::setModifiers);\n            }));\n    }\n\n    private void customizeClassifyDocumentOptions(LibraryCustomization customization) {\n        customization.getClass(MODELS_PACKAGE, \"ClassifyDocumentOptions\").customizeAst(ast ->\n            ast.getClassByName(\"ClassifyDocumentOptions\").ifPresent(clazz -> {\n                clazz.getDefaultConstructor().ifPresent(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setUrlSource\").forEach(NodeWithModifiers::setModifiers);\n                clazz.getMethodsByName(\"setBytesSource\").forEach(NodeWithModifiers::setModifiers);\n            }));\n    }\n\n    private void customizeAnalyzeOperation(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing the AnalyzeOperationDetails class\");\n        customization.getClass(\"com.azure.ai.documentintelligence.models\", \"AnalyzeOperationDetails\")\n            .customizeAst(ast -> ast.getClassByName(\"AnalyzeOperationDetails\").ifPresent(clazz -> {\n                clazz.getAnnotationByName(\"Immutable\").ifPresent(Node::remove);\n\n                clazz.addField(\"String\", \"operationId\", Modifier.Keyword.PRIVATE);\n\n                clazz.addMethod(\"getResultId\", Modifier.Keyword.PUBLIC)\n                    .setType(\"String\")\n                    .setJavadocComment(new Javadoc(JavadocDescription.parseText(\"Gets the operationId property: Operation ID.\"))\n                        .addBlockTag(\"return\", \"the operationId value.\"))\n                    .setBody(StaticJavaParser.parseBlock(\"{ return operationId; }\"));\n\n                clazz.addMethod(\"setOperationId\", Modifier.Keyword.PRIVATE)\n                    .setType(\"void\")\n                    .addParameter(\"String\", \"operationId\")\n                    .setJavadocComment(new Javadoc(JavadocDescription.parseText(\"Sets the operationId property: Operation ID.\"))\n                        .addBlockTag(\"param\", \"operationId the operationId value to set.\"))\n                    .setBody(StaticJavaParser.parseBlock(\"{ this.operationId = operationId; }\"));\n            }));\n    }\n\n    private void customizePollingUtils(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing the PollingUtils class\");\n        customization.getClass(\"com.azure.ai.documentintelligence.implementation\", \"PollingUtils\").customizeAst(ast -> {\n            ast.addImport(\"java.util.regex.Matcher\");\n            ast.addImport(\"java.util.regex.Pattern\");\n            ast.getClassByName(\"PollingUtils\").ifPresent(clazz -> {\n                clazz.addFieldWithInitializer(\"Pattern\", \"PATTERN\",\n                    StaticJavaParser.parseExpression(\"Pattern.compile(\\\"[^:]+://[^/]+/documentintelligence/.+/([^?/]+)\\\")\"),\n                    Modifier.Keyword.PRIVATE, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL);\n\n                clazz.addMethod(\"parseOperationId\", Modifier.Keyword.PRIVATE)\n                    .setType(\"String\")\n                    .setModifiers(Modifier.Keyword.STATIC)\n                    .addParameter(\"String\", \"operationLocationHeader\")\n                    .setBody(StaticJavaParser.parseBlock(\"{ \"\n                        + \"if (CoreUtils.isNullOrEmpty(operationLocationHeader)) { return null; }\"\n                        + \"Matcher matcher = PATTERN.matcher(operationLocationHeader);\"\n                        + \"if (matcher.find() && matcher.group(1) != null) { return matcher.group(1); }\"\n                        + \"return null; }\"));\n            });\n        });\n    }\n\n    private void customizePollingStrategy(LibraryCustomization customization, Logger logger) {\n        logger.info(\"Customizing the SyncOperationLocationPollingStrategy class\");\n        PackageCustomization packageCustomization = customization.getPackage(\"com.azure.ai.documentintelligence.implementation\");\n        packageCustomization.getClass(\"SyncOperationLocationPollingStrategy\").customizeAst(ast ->\n            ast.addImport(\"com.azure.ai.documentintelligence.models.AnalyzeOperationDetails\")\n                .getClassByName(\"SyncOperationLocationPollingStrategy\").ifPresent(this::addSyncPollOverrideMethod));\n\n        logger.info(\"Customizing the OperationLocationPollingStrategy class\");\n        packageCustomization.getClass(\"OperationLocationPollingStrategy\").customizeAst(ast ->\n            ast.addImport(\"com.azure.ai.documentintelligence.models.AnalyzeOperationDetails\")\n                .getClassByName(\"OperationLocationPollingStrategy\").ifPresent(this::addAsyncPollOverrideMethod));\n    }\n\n    private void addAsyncPollOverrideMethod(ClassOrInterfaceDeclaration clazz) {\n        clazz.addMethod(\"poll\", Modifier.Keyword.PUBLIC)\n            .setType(\"Mono<PollResponse<T>>\")\n            .addParameter(\"PollingContext<T>\", \"pollingContext\")\n            .addParameter(\"TypeReference<T>\", \"pollResponseType\")\n            .addMarkerAnnotation(Override.class)\n            .setBody(StaticJavaParser.parseBlock(\"{ return super.poll(pollingContext, pollResponseType)\"\n                + \".map(pollResponse -> {\"\n                + \"    String operationLocationHeader = pollingContext.getData(String.valueOf(PollingUtils.OPERATION_LOCATION_HEADER));\"\n                + \"    String operationId = null;\"\n                + \"    if (operationLocationHeader != null) {\"\n                + \"        operationId = PollingUtils.parseOperationId(operationLocationHeader);\"\n                + \"    }\"\n                + \"    if (pollResponse.getValue() instanceof AnalyzeOperationDetails) {\"\n                + \"        AnalyzeOperationDetails operation = (AnalyzeOperationDetails) pollResponse.getValue();\"\n                + \"        AnalyzeOperationDetailsHelper.setOperationId(operation, operationId);\"\n                + \"    }\"\n                + \"    return pollResponse;\"\n                + \"}); }\"));\n    }\n\n    private void addSyncPollOverrideMethod(ClassOrInterfaceDeclaration clazz) {\n        clazz.addMethod(\"poll\", Modifier.Keyword.PUBLIC)\n            .setType(\"PollResponse<T>\")\n            .addParameter(\"PollingContext<T>\", \"pollingContext\")\n            .addParameter(\"TypeReference<T>\", \"pollResponseType\")\n            .addMarkerAnnotation(Override.class)\n            .setBody(StaticJavaParser.parseBlock(\"{ PollResponse<T> pollResponse = super.poll(pollingContext, pollResponseType);\"\n                + \"String operationLocationHeader = pollingContext.getData(String.valueOf(PollingUtils.OPERATION_LOCATION_HEADER));\"\n                + \"String operationId = null;\"\n                + \"if (operationLocationHeader != null) {\"\n                + \"    operationId = PollingUtils.parseOperationId(operationLocationHeader);\"\n                + \"}\"\n                + \"if (pollResponse.getValue() instanceof AnalyzeOperationDetails) {\"\n                + \"    AnalyzeOperationDetails operation = (AnalyzeOperationDetails) pollResponse.getValue();\"\n                + \"    AnalyzeOperationDetailsHelper.setOperationId(operation, operationId);\"\n                + \"}\"\n                + \"return pollResponse; }\"));\n    }\n}\n",
+      "contentHash": "407a012d34f2781ef7012f7cf5c02371b03ec815268087b5030e02076d5a31f4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/customization/src/main/java/DocumentIntelligenceCustomizations.java",
+      "startLine": 1,
+      "endLine": 269,
+      "kind": "handwritten-marker",
+      "id": "e516bcf7b5546475b0b9e27626aade908a436c5c339576c5913872ea35f78f6e"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Creates an instance of AnalyzeBatchDocumentsOptions with the specified Azure Blob source and result container\n     * URL.\n     *\n     * @param azureBlobSource the Azure Blob Storage location containing the batch documents. Cannot be null.\n     * @param resultContainerUrl the Azure Blob Storage container URL where analyze result files will be stored. Cannot\n     * be null.\n     */\n    public AnalyzeBatchDocumentsOptions(AzureBlobContentSource azureBlobSource, String resultContainerUrl) {\n        Objects.requireNonNull(azureBlobSource, \"'azureBlobSource' cannot be null\");\n        Objects.requireNonNull(resultContainerUrl, \"'resultContainerUrl' cannot be null\");\n        this.azureBlobSource = azureBlobSource;\n        this.resultContainerUrl = resultContainerUrl;\n    }",
+      "contentHash": "3270077c808b0d56657909f76faa4d9df63d48df898cc26465a5cec1a514311b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 69,
+      "endLine": 82,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4dfa296d84f69f3ca3d15609cc28cca06d7d386092e5f79fc06c24902333ed0c"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Creates an instance of AnalyzeBatchDocumentsOptions with the specified result container URL and Azure Blob file\n     * list source.\n     *\n     * @param azureBlobFileListSource the Azure Blob Storage file list specifying the batch documents. Cannot be null.\n     * @param resultContainerUrl the Azure Blob Storage container URL where analyze result files will be stored. Cannot\n     * be null.\n     */\n    public AnalyzeBatchDocumentsOptions(AzureBlobFileListContentSource azureBlobFileListSource,\n        String resultContainerUrl) {\n        Objects.requireNonNull(azureBlobFileListSource, \"'azureBlobFileListSource' cannot be null\");\n        Objects.requireNonNull(resultContainerUrl, \"'resultContainerUrl' cannot be null\");\n        this.resultContainerUrl = resultContainerUrl;\n        this.azureBlobFileListSource = azureBlobFileListSource;\n    }",
+      "contentHash": "72bc15c97acb27e94de60ba9b07f84e35cdfd2e176db2060f21f8d44c07a653b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 84,
+      "endLine": 98,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c036db7f771be9163e3502881e60aefaa5ad30e721dd3d1dcb648b86d8062ab7"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Gets the list of additional fields to include in the result.\n     *\n     * @return the list of additional fields to include in the result.\n     */\n    public List<String> getQueryFields() {\n        return queryFields;\n    }",
+      "contentHash": "b5472893e3956c7df01a877e5eb48118ddec6a380b2ff9b7b3502aa15e6cf576",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 245,
+      "endLine": 252,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b63831186493c9147121c28e375edfaadad987d5b199a0c338c9f2169745ed24"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Sets the list of additional fields to include in the result.\n     *\n     * @param queryFields the list of additional fields to include in the result.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setQueryFields(List<String> queryFields) {\n        this.queryFields = queryFields;\n        return this;\n    }",
+      "contentHash": "ac575b0154ac4fa4181926816764dc7a5ca0d434970471166acdc072b6cf62fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 254,
+      "endLine": 263,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "17d8a64716541edbd49dd40f80a4efb1ede39bc07f63ab0ce51941c0c403b330"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Gets the output content format.\n     *\n     * @return the output content format.\n     */\n    public DocumentContentFormat getOutputContentFormat() {\n        return outputContentFormat;\n    }",
+      "contentHash": "dc2bdd92b5f4d934d372b775cb7aa9d12a1139f21d97ba9fb4c89aaa055f73d0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 265,
+      "endLine": 272,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "58a75fb4074518bafce64213bb82b45cfc5c250469d70d11a29bebf73ad06e1c"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Sets the output content format.\n     *\n     * @param outputContentFormat the output content format to set.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setOutputContentFormat(DocumentContentFormat outputContentFormat) {\n        this.outputContentFormat = outputContentFormat;\n        return this;\n    }",
+      "contentHash": "274a9487df35a467d7f6de9464a3b03b229b7116b553545c69917e0bd8fd048c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 274,
+      "endLine": 283,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9a86102cf5fb00a5f3c1f13ba160e42b252291ca00ecd56f5810476a68c13ed0"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Gets the list of output formats.\n     *\n     * @return the list of output formats.\n     */\n    public List<AnalyzeOutputFormat> getOutput() {\n        return output;\n    }",
+      "contentHash": "819e7619174546e8de65b6bb3302a4ea72f48a6cbc2146f8284aa235b2b53071",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 285,
+      "endLine": 292,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "10e4133c0e53f573060c6977a920cf95270d3ef3285ce3b72243dbd74c84a710"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Sets the list of output formats.\n     *\n     * @param output the list of output formats to set.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setOutput(List<AnalyzeOutputFormat> output) {\n        this.output = output;\n        return this;\n    }",
+      "contentHash": "0ebad255618dfc6936356ee715b5e0076f710eda2c915e4246e391e133fcf287",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 294,
+      "endLine": 303,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d91625bfa94729e2f0280d9fe8d7845f315b63789dc549b00255cb8a37eceafb"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Gets the string index type.\n     *\n     * @return the string index type.\n     */\n    public StringIndexType getStringIndexType() {\n        return stringIndexType;\n    }",
+      "contentHash": "4f34bfbedfcbeb300c35ab1d9b23445cce725fef2d93caf0ab0403451622e84d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 305,
+      "endLine": 312,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "dfa0f7f7bb315bf748e058c8a44adda9aefbbfac24e6ac1a326de39746024bc9"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Sets the string index type.\n     *\n     * @param stringIndexType the string index type to set.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setStringIndexType(StringIndexType stringIndexType) {\n        this.stringIndexType = stringIndexType;\n        return this;\n    }",
+      "contentHash": "ebe01e308f0f48f9607c218ceb78ee86796263d14892d05666346a1ec7733145",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 314,
+      "endLine": 323,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "736eacb284b372e21250f760a9d8f3e2bde116596f2295945434979453a209e2"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Get the custom page numbers for multipage documents(PDF/TIFF). Input the number of the\n     * pages you want to get the recognized result for.\n     * <p>For a range of pages, use a hyphen, ex - [\"1-3\"]. Separate each page or a page\n     * range with a comma, ex - [\"1-3\", 4].</p>\n     *\n     * @return the list of custom page numbers for a multipage document.\n     */\n    public List<String> getPages() {\n        return pages;\n    }",
+      "contentHash": "3423235ca9d43b20aebbf3b463157df081c1180b73c4003fa45e7768d037dfbd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 325,
+      "endLine": 335,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "db85c061c82b2f9addf1e85cc76ddb476bf1ec0a2888add8a938b5556616e6da"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Set the custom page numbers for multipage documents(PDF/TIFF). Input the number of the\n     * pages you want to get the recognized result for.\n     * <p>For a range of pages, use a hyphen, ex - [\"1-3\"]. Separate each page or a page\n     * range with a comma, ex - [\"1-3\", 4].</p>\n     *\n     * @param pages the custom page numbers value to set.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setPages(List<String> pages) {\n        this.pages = pages;\n        return this;\n    }",
+      "contentHash": "fad5ac81cb6b3881de26dc04764a647206ee9a14a808a3d89e05f6be474bbd51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 337,
+      "endLine": 349,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ab21cb215a84226ccbfb092b1ff289bcba8a859dd6581369baacca9603ba1b41"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Get the locale hint for text recognition and document analysis.\n     * Value may contain only the language code (ex. \\\"en\\\", \\\"fr\\\") or BCP 47 language tag (ex. \\\"en-US\\\").\n     *\n     * @return the locale value.\n     */\n    public String getLocale() {\n        return locale;\n    }",
+      "contentHash": "5d4f7193f615d14753f24c424df72f378cac9ae7a5315bacfd67e5dd5b2291e6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 351,
+      "endLine": 359,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "49849c389bcdc2dc49f9621571398dc642abe4cb878b2d00134ae4313ece12a6"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Set the locale value.\n     * Supported locales include: en-AU, en-CA, en-GB, en-IN, en-US.\n     *\n     * @param locale the locale value to set.\n     * @return the updated {@code AnalyzeBatchDocumentsOptions} value.\n     */\n    public AnalyzeBatchDocumentsOptions setLocale(String locale) {\n        this.locale = locale;\n        return this;\n    }",
+      "contentHash": "1e35af2b20cc2d0e97451fc818a9ce897d2a8e1c765b2c28793f442494bec0e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 361,
+      "endLine": 371,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ac9577c60eb122e321b9590a7ca36abb456d974268b8fc09a59cff869d310655"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "text": "    /**\n     * Get the list of optional analysis features.\n     *\n     * @return List of optional analysis features.\n     */\n    public List<DocumentAnalysisFeature> getDocumentAnalysisFeatures() {\n        return documentAnalysisFeatures;\n    }",
+      "contentHash": "29fa7752973e72ac0e2530b36695642cdaf04b831501cb93ff935ff82dccbee5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 373,
+      "endLine": 380,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8e3fd0ec595eb3b977f878664dad7baf7f0f6633002489690009719c26365e74"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of AnalyzeDocumentOptions with the specified URL source.\n     *\n     * @param urlSource the URL of the document to analyze.\n     */\n    public AnalyzeDocumentOptions(String urlSource) {\n        this.urlSource = urlSource;\n    }",
+      "contentHash": "da08d3a4d78b56551a9a1a0e094b7777ed46ff6a976a0c5f7f191c39a52602f7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 58,
+      "endLine": 65,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7a8be9202d6c3abed52fd2f106be9df9f6c9233e629862c9c113b58665baa8a6"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of AnalyzeDocumentOptions with the specified bytes of the document.\n     *\n     * @param bytesSource the bytes of the document to analyze.\n     */\n    public AnalyzeDocumentOptions(byte[] bytesSource) {\n        this.bytesSource = bytesSource;\n    }",
+      "contentHash": "4e46d039942228c3a8cea47dbe0e0b997c3b01d73be32ed5b515135378bb5be0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 67,
+      "endLine": 74,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8081c34c08a48d53a0258c9c4cc77bf6e1eafddc950702002b7d965a0b888f28"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of AnalyzeDocumentOptions with the specified BinaryData source.\n     *\n     * @param binaryData the document to analyze.\n     */\n    public AnalyzeDocumentOptions(BinaryData binaryData) {\n        if (binaryData != null) {\n            this.bytesSource = binaryData.toBytes();\n        }\n    }",
+      "contentHash": "5832ad7dd53bad142dd5eb99aa26d62da095fa2c71b951af2e11c1ed7db96d43",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 76,
+      "endLine": 85,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "29ef54936d6aa6e858cdfc46c6cc872a44c23b72508d2a065b9fdec1474488c8"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Gets the list of additional fields to include in the result.\n     *\n     * @return the list of additional fields to include in the result.\n     */\n    public List<String> getQueryFields() {\n        return queryFields;\n    }",
+      "contentHash": "b5472893e3956c7df01a877e5eb48118ddec6a380b2ff9b7b3502aa15e6cf576",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 172,
+      "endLine": 179,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "72502d5730b4f7561bf5416f70728125bcbe91f711fceaef7cd93ff5788c7ed8"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Sets the list of additional fields to include in the result.\n     *\n     * @param queryFields the list of additional fields to include in the result.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setQueryFields(List<String> queryFields) {\n        this.queryFields = queryFields;\n        return this;\n    }",
+      "contentHash": "5ab80542609d51a9535db7e7988566917bd1ac838eaec04975b19930b75ceae7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 181,
+      "endLine": 190,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7043d3519d1a329aeb1faaad372da58d77ce05cc6b64c8f0219e47fc5141dbb6"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Gets the output content format.\n     *\n     * @return the output content format.\n     */\n    public DocumentContentFormat getOutputContentFormat() {\n        return outputContentFormat;\n    }",
+      "contentHash": "dc2bdd92b5f4d934d372b775cb7aa9d12a1139f21d97ba9fb4c89aaa055f73d0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 192,
+      "endLine": 199,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bba5710b1f47df5a0076f06d4a17f5a713dedb7468609c2f97193403899089af"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Sets the output content format.\n     *\n     * @param outputContentFormat the output content format to set.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setOutputContentFormat(DocumentContentFormat outputContentFormat) {\n        this.outputContentFormat = outputContentFormat;\n        return this;\n    }",
+      "contentHash": "083206407cb98d86c4f04a095a4fd2d9ed764b45b8465f701a87a37df70ed53d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 201,
+      "endLine": 210,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cbf2270e051d501b72dd386d2638b7bc610696d3a72afba4cf4028ea10042111"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Gets the list of output formats.\n     *\n     * @return the list of output formats.\n     */\n    public List<AnalyzeOutputFormat> getOutput() {\n        return output;\n    }",
+      "contentHash": "819e7619174546e8de65b6bb3302a4ea72f48a6cbc2146f8284aa235b2b53071",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 212,
+      "endLine": 219,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "85dc4258392541685a9d0eaea59d188d9e40ace1d6554d5db3664e3c0bf1bb13"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Sets the list of output formats.\n     *\n     * @param output the list of output formats to set.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setOutput(List<AnalyzeOutputFormat> output) {\n        this.output = output;\n        return this;\n    }",
+      "contentHash": "898782edff5aff9309c954cec37acb60f7067e1bf07ea749fba28e5aecbb181c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 221,
+      "endLine": 230,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0c938bf3737f9314652e1cb4d0dce620219f7bc746611a82905178a53741dfaf"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Gets the string index type.\n     *\n     * @return the string index type.\n     */\n    public StringIndexType getStringIndexType() {\n        return stringIndexType;\n    }",
+      "contentHash": "4f34bfbedfcbeb300c35ab1d9b23445cce725fef2d93caf0ab0403451622e84d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 232,
+      "endLine": 239,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "6fbba9e2e92665312a315a135704cf69815fd5d25736d84085aa9feef00ae561"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Sets the string index type.\n     *\n     * @param stringIndexType the string index type to set.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setStringIndexType(StringIndexType stringIndexType) {\n        this.stringIndexType = stringIndexType;\n        return this;\n    }",
+      "contentHash": "1527dcb882c4bfc66a3931c5e19eec624ec90e5c300958f171e2421444b45139",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 241,
+      "endLine": 250,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "64db87898878c929d0e63984cf460f6a471d90b82dce4a9ed06e8a41ab1c2487"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Get the custom page numbers for multipage documents(PDF/TIFF). Input the number of the\n     * pages you want to get the recognized result for.\n     * <p>For a range of pages, use a hyphen, ex - [\"1-3\"]. Separate each page or a page\n     * range with a comma, ex - [\"1-3\", 4].</p>\n     *\n     * @return the list of custom page numbers for a multipage document.\n     */\n    public List<String> getPages() {\n        return pages;\n    }",
+      "contentHash": "3423235ca9d43b20aebbf3b463157df081c1180b73c4003fa45e7768d037dfbd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 252,
+      "endLine": 262,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0ccf6afc4a5dde62c20de424129ad214cd8be17350fb6cfad9a30c7ce0f3054c"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Set the custom page numbers for multipage documents(PDF/TIFF). Input the number of the\n     * pages you want to get the recognized result for.\n     * <p>For a range of pages, use a hyphen, ex - [\"1-3\"]. Separate each page or a page\n     * range with a comma, ex - [\"1-3\", 4].</p>\n     *\n     * @param pages the custom page numbers value to set.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setPages(List<String> pages) {\n        this.pages = pages;\n        return this;\n    }",
+      "contentHash": "7f9e7d420329e8f4aca10ec91eda326bd510a31706665a43baaaf165718aed42",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 264,
+      "endLine": 276,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "69a360f95dea8b019c8e1b6c1a49cfdf4816ebbe6feec3c61e901e56e26039ff"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Get the locale hint for text recognition and document analysis.\n     * Value may contain only the language code (ex. \\\"en\\\", \\\"fr\\\") or BCP 47 language tag (ex. \\\"en-US\\\").\n     *\n     * @return the locale value.\n     */\n    public String getLocale() {\n        return locale;\n    }",
+      "contentHash": "5d4f7193f615d14753f24c424df72f378cac9ae7a5315bacfd67e5dd5b2291e6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 278,
+      "endLine": 286,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d7d5920ffab989d90f1936239182d0aaca0d1e78b1b95395e2df9b6b9c7a3f2a"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Set the locale value.\n     * Supported locales include: en-AU, en-CA, en-GB, en-IN, en-US.\n     *\n     * @param locale the locale value to set.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setLocale(String locale) {\n        this.locale = locale;\n        return this;\n    }",
+      "contentHash": "fbb563c49863b39e8c55a23f631304b52d7445870b5eda2f853a13502607795a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 288,
+      "endLine": 298,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "61dcd2ec8a30c5bc91ddbf972092f2caf2b8995717230760ce3c664241eec94a"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Get the list of optional analysis features.\n     *\n     * @return List of optional analysis features.\n     */\n    public List<DocumentAnalysisFeature> getDocumentAnalysisFeatures() {\n        return documentAnalysisFeatures;\n    }",
+      "contentHash": "29fa7752973e72ac0e2530b36695642cdaf04b831501cb93ff935ff82dccbee5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 300,
+      "endLine": 307,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "caa1fd3dc2e504bd64aa1862081c3ebcbcdd673d573bfc5102ea155e2ffbb355"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Set the list of optional analysis features.\n     *\n     * @param documentAnalysisFeatures List of optional analysis features.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setDocumentAnalysisFeatures(List<DocumentAnalysisFeature> documentAnalysisFeatures) {\n        this.documentAnalysisFeatures = documentAnalysisFeatures;\n        return this;\n    }",
+      "contentHash": "b0a55ba40847c61cc61dc6a7672d74b2a3a61780292aca52c1873e02ffebd1d6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 309,
+      "endLine": 318,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7e33a244e90a17ff3a10e604a25641bafe0a3cc27a8196d8495878cbf3a00d6f"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "text": "    /**\n     * Set optional analysis features.\n     *\n     * @param documentAnalysisFeatures List of optional analysis features.\n     * @return the updated {@code AnalyzeDocumentOptions} value.\n     */\n    public AnalyzeDocumentOptions setDocumentAnalysisFeatures(DocumentAnalysisFeature... documentAnalysisFeatures) {\n        if (documentAnalysisFeatures != null) {\n            this.documentAnalysisFeatures = Arrays.asList(documentAnalysisFeatures);\n        }\n        return this;\n    }",
+      "contentHash": "aa23992558dc7c017aafa9d4072b249cc917f6591cb18b830662a35eacc628d1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 320,
+      "endLine": 331,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a23fe61f91973636dcf60e19e6f59d1f9a5ea6cd2effe9d6d97dc53a5e072e54"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "text": "            @Override\n            public void setOperationId(AnalyzeOperationDetails analyzeOperation, String operationId) {\n                analyzeOperation.setOperationId(operationId);\n            }",
+      "contentHash": "a625950edf32c33955af929bf27e800fb1544bc94ca974c84fea5d50dc8fa22d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "startLine": 183,
+      "endLine": 186,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "82d704de4598d7d87f8538d59be5c44edb7ed1bbe156d3e83ae4c454bde2a617"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "text": "    /**\n     * Gets the operationId property: Operation ID.\n     *\n     * @return the operationId value.\n     */\n    public String getResultId() {\n        return operationId;\n    }",
+      "contentHash": "2f27543c9e8599fa31090f7decc0aaf967255dbbcc65bec2482e122733462cdd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "startLine": 190,
+      "endLine": 197,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cde236fd4703be01adf07a8d1bee7994a8c32bde5a371a1e972b11bf9f43a151"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "text": "    /**\n     * Sets the operationId property: Operation ID.\n     *\n     * @param operationId the operationId value to set.\n     */\n    private void setOperationId(String operationId) {\n        this.operationId = operationId;\n    }",
+      "contentHash": "0ee9474684454258ecdf34a885a6dd1e2dff9522c97f46617c8a820e898c2462",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "startLine": 199,
+      "endLine": 206,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "43506b9512a114a0e32c5ae092f378633fcc13a98075cf9e88b913ef889445a4"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of ClassifyDocumentOptions with the specified URL source.\n     *\n     * @param urlSource the URL of the document to classify.\n     */\n    public ClassifyDocumentOptions(String urlSource) {\n        this.urlSource = urlSource;\n    }",
+      "contentHash": "d489a9154db1026a3fbcbe5f3dad0316db982919995b4932c8696425404d7c7f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 49,
+      "endLine": 56,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2bf65c9ac17b94516f2ef58c26332c6e344f36a77e5a72cf610ddb39c6f13d22"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of ClassifyDocumentOptions with the specified bytes of the document.\n     *\n     * @param bytesSource the encoded bytes of the document to classify.\n     */\n    public ClassifyDocumentOptions(byte[] bytesSource) {\n        this.bytesSource = bytesSource;\n    }",
+      "contentHash": "f126fadcb35bc67ba1de57cf7f972eb33999da4d138205dd64ba363c734cf748",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 58,
+      "endLine": 65,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4ca03daf8972ec0f4dae623ad4a3d56423ee936ffc3133443204cfc178824551"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Creates an instance of ClassifyDocumentOptions with the specified BinaryData source.\n     *\n     * @param binaryData the document to analyze.\n     */\n    public ClassifyDocumentOptions(BinaryData binaryData) {\n        if (binaryData != null) {\n            this.bytesSource = binaryData.toBytes();\n        }\n    }",
+      "contentHash": "ebd9f6ccf965cc4152f93d9c86fa8d7bb162a75fc804d2d371940360b18f6785",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 67,
+      "endLine": 76,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c705105165e6fe32e3c92387f2ffaaaebd291f0a0e81158da970c66ac52b6bd5"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Gets the string index type.\n     *\n     * @return the string index type.\n     */\n    public StringIndexType getStringIndexType() {\n        return stringIndexType;\n    }",
+      "contentHash": "4f34bfbedfcbeb300c35ab1d9b23445cce725fef2d93caf0ab0403451622e84d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 138,
+      "endLine": 145,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ac0e7710aade92c6f9e7c297cb3742090d321378da585649b751196670da4882"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Sets the string index type.\n     *\n     * @param stringIndexType the string index type to set.\n     * @return the updated {@code ClassifyDocumentOptions} value.\n     */\n    public ClassifyDocumentOptions setStringIndexType(StringIndexType stringIndexType) {\n        this.stringIndexType = stringIndexType;\n        return this;\n    }",
+      "contentHash": "fcbe052412163ff5cefb41d8d4413f52fd2b06d4b228998dc91ff6038d9b6082",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 147,
+      "endLine": 156,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "87b390c012acc8b9d3ad0a42d0527f2c3d375582feb6a68197a6f68cdb691725"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Gets the split mode.\n     *\n     * @return the split mode.\n     */\n    public SplitMode getSplit() {\n        return split;\n    }",
+      "contentHash": "4038c28e0e548b5e89f22e28081076b3907f7c112c6aa55017a616a8d49cfc2a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 158,
+      "endLine": 165,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "de9a4361f50528975ab952a79fb2192c91077e38b33dd84b9c20229ecef6e4ec"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Sets the split mode.\n     *\n     * @param split the split mode to set.\n     * @return the updated {@code ClassifyDocumentOptions} value.\n     */\n    public ClassifyDocumentOptions setSplit(SplitMode split) {\n        this.split = split;\n        return this;\n    }",
+      "contentHash": "49a4ccac556b8dabcf13a182c4a290960c36ba6415b35c6d11e710f08aa41cb1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 167,
+      "endLine": 176,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "11b25e97fdb8c65e6687411bd84b6d268c14bebca79a49ace72086315729de96"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Gets the pages.\n     *\n     * @return the pages.\n     */\n    public List<String> getPages() {\n        return pages;\n    }",
+      "contentHash": "d8d4c943e0338d2656d9c43b5b6dd5703742ac82403e4d4cfaa496c8a233b88c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 178,
+      "endLine": 185,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0f627fd7af8e84752fdd8fc1d76922639839bd1ee6a69f8a6f7e978ffd21ccfa"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "text": "    /**\n     * Sets the pages.\n     *\n     * @param pages the pages to set.\n     * @return the updated {@code ClassifyDocumentOptions} value.\n     */\n    public ClassifyDocumentOptions setPages(List<String> pages) {\n        this.pages = pages;\n        return this;\n    }",
+      "contentHash": "2fab9e7bf03cc3fd868c4ba495e518a7987d1d7980ba958806cc783b4acb69c1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 187,
+      "endLine": 196,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b888573a388811d38117e36f780b9ebb6186ce19ba2b2c56c2d56a1e5f8bfcbb"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/implementation/AnalyzeOperationDetailsHelper.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage com.azure.ai.documentintelligence.implementation;\n\nimport com.azure.ai.documentintelligence.models.AnalyzeOperationDetails;\n\n/**\n * The helper class to set the non-public properties of an {@link AnalyzeOperationDetails} instance.\n */\npublic final class AnalyzeOperationDetailsHelper {\n\n    private static AnalyzeOperationDetailsAccessor accessor;\n\n    private AnalyzeOperationDetailsHelper() {\n    }\n\n    /**\n     * Type defining the methods to set the non-public properties of an {@link AnalyzeOperationDetails} instance.\n     */\n    public interface AnalyzeOperationDetailsAccessor {\n        /**\n         * Sets the operationId property of an {@link AnalyzeOperationDetails} instance.\n         * @param analyzeOperation The AnalyzeOperationDetails instance.\n         * @param operationId The operationId value to set.\n         */\n        void setOperationId(AnalyzeOperationDetails analyzeOperation, String operationId);\n    }\n\n    /**\n     * The method called from {@link AnalyzeOperationDetails} to set it's accessor.\n     *\n     * @param analyzeOperationAccessor The accessor.\n     */\n    public static void setAccessor(final AnalyzeOperationDetailsAccessor analyzeOperationAccessor) {\n        accessor = analyzeOperationAccessor;\n    }\n\n    /**\n     * Sets the operationId property of an {@link AnalyzeOperationDetails} instance.\n     * @param analyzeOperation The AnalyzeOperationDetails instance.\n     * @param operationId The operationId value to set.\n     */\n    public static void setOperationId(AnalyzeOperationDetails analyzeOperation, String operationId) {\n        accessor.setOperationId(analyzeOperation, operationId);\n    }\n}\n",
+      "contentHash": "0b64a55d244284de7e09b0cb669d52eeed216a0f0493fc984d63de24ae806e72",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/implementation/AnalyzeOperationDetailsHelper.java",
+      "startLine": 1,
+      "endLine": 47,
+      "kind": "unknown",
+      "id": "661d176e45e78ce0ece7f85e2627c7303014888f88a0e761186dd32ab2a48d25"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <name>Microsoft Azure Document Intelligence client for Java</name>\n  <description>This package contains client customization for Microsoft Azure Document Intelligence</description>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-documentintelligence-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "3d2d51311f942a228d4d9430f01688caa0360e8a6353b00889e9d1084c865250",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/customization/pom.xml"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/pom.xml",
+      "text": "<!-- Copyright (c) Microsoft Corporation. All rights reserved.\n     Licensed under the MIT License. -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-ai-documentintelligence</artifactId>\n  <version>1.1.0-beta.1</version> <!-- {x-version-update;com.azure:azure-ai-documentintelligence;current} -->\n\n  <name>Microsoft Azure client library for Document Intelligence</name>\n  <description>This package contains the Microsoft Azure AI Document Intelligence SDK.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <distributionManagement>\n    <site>\n      <id>azure-java-build-docs</id>\n      <url>${site.url}/site/${project.artifactId}</url>\n    </site>\n  </distributionManagement>\n\n  <scm>\n    <url>scm:git:https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <tag>HEAD</tag>\n  </scm>\n\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <!-- Configures the Java 9+ run to perform the required module exports, opens, and reads that are necessary for testing but shouldn't be part of the module-info. -->\n    <javaModulesSurefireArgLine>\n      --add-opens com.azure.core/com.azure.core.implementation.util=ALL-UNNAMED\n      --add-opens com.azure.ai.documentintelligence/com.azure.ai.documentintelligence=ALL-UNNAMED\n    </javaModulesSurefireArgLine>\n    <graalvm.disable>false</graalvm.disable>\n\n    <spotbugs.skip>false</spotbugs.skip>\n  </properties>\n\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n\n    <!-- Test Dependencies -->\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-storage-blob</artifactId>\n      <version>12.36.0</version> <!-- {x-version-update;com.azure:azure-storage-blob;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "5f200f42a4f137bc01185899d5c7582098f3affb171557bf8dbb00fdff6fa968",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/pom.xml"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/tsp-location.yaml",
+      "text": "directory: specification/ai/DocumentIntelligence\ncommit: 6267b64842af3d744c5b092a3f3beef49729ad6d\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "d32b289fa2b8874619a6fe79bc9fb6f2e1a3b66f9194b9a0c9b822889f9e05af",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/documentintelligence/azure-ai-documentintelligence/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/customization/src/main/java/DocumentIntelligenceCustomizations.java",
+      "startLine": 1,
+      "endLine": 269,
+      "provenance": "Java customization script",
+      "contentHash": "407a012d34f2781ef7012f7cf5c02371b03ec815268087b5030e02076d5a31f4"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/implementation/AnalyzeOperationDetailsHelper.java",
+      "startLine": 1,
+      "endLine": 47,
+      "provenance": "Java handwritten source",
+      "contentHash": "0b64a55d244284de7e09b0cb669d52eeed216a0f0493fc984d63de24ae806e72"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeBatchDocumentsOptions.java",
+      "startLine": 77,
+      "endLine": 378,
+      "provenance": "Java members without @Generated: AnalyzeBatchDocumentsOptions, getQueryFields, setQueryFields, getOutputContentFormat, setOutputContentFormat, getOutput, +8 more",
+      "contentHash": "77dfcbf1e0dc12a0d6c0b015382a1b193f09223218d0dd25bddcef176f9fc27f"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeDocumentOptions.java",
+      "startLine": 63,
+      "endLine": 326,
+      "provenance": "Java members without @Generated: AnalyzeDocumentOptions, getQueryFields, setQueryFields, getOutputContentFormat, setOutputContentFormat, getOutput, +9 more",
+      "contentHash": "00e80565fed46e09a7023523ec28cfd6b81dd4a7fdb80bb1b9a23cc3b372f528"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/AnalyzeOperationDetails.java",
+      "startLine": 184,
+      "endLine": 204,
+      "provenance": "Java members without @Generated: setOperationId, getResultId",
+      "contentHash": "7c0d15c1b52099e6866e947527dc08e82e26fe390caaf80476f4fd6b0e6eb9e8"
+    },
+    {
+      "path": "sdk/documentintelligence/azure-ai-documentintelligence/src/main/java/com/azure/ai/documentintelligence/models/ClassifyDocumentOptions.java",
+      "startLine": 54,
+      "endLine": 193,
+      "provenance": "Java members without @Generated: ClassifyDocumentOptions, getStringIndexType, setStringIndexType, getSplit, setSplit, getPages, +1 more",
+      "contentHash": "1ee9e60b7af5135aff8d0516b8a373b2100feadc8c72e98bedd04bdd44f70079"
+    }
+  ]
+}

@@ -1,0 +1,652 @@
+{
+  "schemaVersion": 1,
+  "id": "cf7e3138-9446-43af-9c76-850303db564e",
+  "observedAt": "2026-10-24T01:30:08.443Z",
+  "identity": "python:azure-ai-voicelive:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-voicelive",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/voicelive/azure-ai-voicelive"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "04bba39c78adac3548cb2be688aa03a084d86b83"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 94,
+    "eligibleFiles": 28,
+    "capturedFiles": 2,
+    "skipped": [
+      {
+        "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/aio/_patch.py",
+        "reason": "Review budget; only lines 1-617 sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/aio/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression,too-many-lines\n# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nimport sys\nimport json\nimport logging\nfrom contextlib import AbstractAsyncContextManager\nfrom urllib.parse import urlparse, urlunparse, urlencode, parse_qs\nfrom typing import Any, Mapping, Optional, Sequence, Union, AsyncIterator, cast, overload\n\n# === Third-party ===\nfrom typing_extensions import TypedDict\n\ntry:\n    import aiohttp\nexcept ImportError as exc:\n    raise ImportError(\n        \"aiohttp is required for azure-ai-voicelive. Install it with: pip install azure-ai-voicelive[aiohttp]\"\n    ) from exc\nfrom azure.ai.voicelive.models._models import (\n    ClientEventConversationItemCreate,\n    ClientEventConversationItemDelete,\n    ClientEventConversationItemRetrieve,\n    ClientEventConversationItemTruncate,\n    ClientEventInputAudioBufferAppend,\n    ClientEventInputAudioBufferClear,\n    ClientEventInputAudioBufferCommit,\n    ClientEventResponseCancel,\n    ClientEventResponseCreate,\n    ClientEventSessionUpdate,\n    ConversationRequestItem,\n    ResponseCreateParams,\n)\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.core.credentials_async import AsyncTokenCredential\nfrom azure.core.exceptions import AzureError\nfrom azure.core.pipeline.policies import UserAgentPolicy\nfrom azure.ai.voicelive.models import ClientEvent, ServerEvent, RequestSession\nfrom azure.ai.voicelive._version import VERSION\n\n# === Local ===\n\nif sys.version_info >= (3, 11):\n    from typing import NotRequired  # noqa: F401\nelse:\n    from typing_extensions import NotRequired  # noqa: F401\n\n__all__: list[str] = [\n    \"connect\",\n    \"WebsocketConnectionOptions\",\n    \"VoiceLiveConnection\",\n    \"SessionResource\",\n    \"ResponseResource\",\n    \"InputAudioBufferResource\",\n    \"OutputAudioBufferResource\",\n    \"ConnectionError\",\n    \"ConnectionClosed\",\n    \"ConversationResource\",\n    \"ConversationItemResource\",\n    \"TranscriptionSessionResource\",\n]\n\nlog = logging.getLogger(__name__)\n_USER_AGENT = UserAgentPolicy(sdk_moniker=f\"ai-voicelive/{VERSION}\").user_agent\n\n\ndef _json_default(o: Any) -> Any:\n    \"\"\"\n    Fallback JSON serializer for SDK models and other non-JSON-native objects.\n\n    :param o: The object to convert to a JSON-compatible form.\n    :type o: Any\n    :return: A JSON-serializable representation (e.g., ``dict``, ``list``, ``str``, etc.).\n    :rtype: Any\n    :raises TypeError: If *o* cannot be converted into a JSON-serializable form.\n    \"\"\"\n    for attr in (\"as_dict\", \"to_dict\"):\n        fn = getattr(o, attr, None)\n        if callable(fn):\n            try:\n                return fn()\n            except TypeError:\n                # Some generators expose class/static serialize(obj)\n                return getattr(o.__class__, attr)(o)\n    if hasattr(o, \"__dict__\"):\n        # Strip private attributes\n        return {k: v for k, v in vars(o).items() if not k.startswith(\"_\")}\n    raise TypeError(f\"{type(o).__name__} is not JSON serializable\")\n\n\ndef _build_foundry_agent_config(\n    *,\n    agent_name: Optional[str],\n    project_name: Optional[str],\n    agent_version: Optional[str],\n    conversation_id: Optional[str],\n    authentication_identity_client_id: Optional[str],\n    foundry_resource_override: Optional[str],\n) -> Optional[dict[str, str]]:\n    agent_config = {\n        \"agent_name\": agent_name,\n        \"project_name\": project_name,\n        \"agent_version\": agent_version,\n        \"conversation_id\": conversation_id,\n        \"authentication_identity_client_id\": authentication_identity_client_id,\n        \"foundry_resource_override\": foundry_resource_override,\n    }\n\n    if not any(value is not None for value in agent_config.values()):\n        return None\n\n    if agent_name is None or project_name is None:\n        raise ValueError(\n            \"Both 'agent_name' and 'project_name' are required when connecting to an Azure AI Foundry agent.\"\n        )\n\n    return {key: value for key, value in agent_config.items() if value is not None}\n\n\nclass ConnectionError(AzureError):\n    \"\"\"Base exception for Voice Live WebSocket connection errors.\"\"\"\n\n\nclass ConnectionClosed(ConnectionError):\n    \"\"\"Raised when a WebSocket connection is closed.\"\"\"\n\n    def __init__(self, code: int, reason: str) -> None:\n        self.code = code\n        self.reason = reason\n        super().__init__(f\"WebSocket connection closed with code {code}: {reason}\")\n\n\nclass SessionResource:\n    \"\"\"Resource for session management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize a session resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def update(\n        self,\n        *,\n        session: Union[Mapping[str, Any], \"RequestSession\"],\n        event_id: Optional[str] = None,\n    ) -> None:\n        \"\"\"\n        Update the session configuration.\n\n        :keyword Mapping[str, Any] or ~azure.ai.voicelive.models.RequestSession session:\n            Session configuration parameters.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        if isinstance(session, RequestSession):\n            # overload: keyword form requires a typed RequestSession\n            event = ClientEventSessionUpdate(session=session)\n        else:\n            # overload: mapping form takes a single Mapping argument\n            event = ClientEventSessionUpdate({\"session\": dict(session)})\n        if event_id:\n            event[\"event_id\"] = event_id\n\n        await self._connection.send(event)\n\n\nclass ResponseResource:\n    \"\"\"Resource for response management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize a response resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def create(\n        self,\n        *,\n        response: Optional[Union[ResponseCreateParams, Mapping[str, Any]]] = None,\n        event_id: Optional[str] = None,\n        additional_instructions: Optional[str] = None,\n    ) -> None:\n        \"\"\"Create a response from the model.\n\n        This event instructs the server to create a Response (triggering model inference).\n        When in Server VAD mode, the server may create responses automatically.\n\n        :keyword response: Optional response configuration to send.\n        :keyword type response: ~azure.ai.voicelive.models.ResponseCreateParams or Mapping[str, Any] or None\n        :keyword event_id: Optional ID for the event.\n        :keyword type event_id: str or None\n        :keyword additional_instructions: Extra system prompt appended to the session's default, for this response only.\n        :keyword type additional_instructions: str or None\n        :rtype: None\n        \"\"\"\n        if response is not None and not isinstance(response, ResponseCreateParams):\n            response = ResponseCreateParams(**dict(response))\n\n        event = ClientEventResponseCreate(\n            event_id=event_id,\n            response=response,\n            additional_instructions=additional_instructions,\n        )\n\n        await self._connection.send(event)\n\n    async def cancel(self, *, response_id: Optional[str] = None, event_id: Optional[str] = None) -> None:\n        \"\"\"Cancel an in-progress response.\n\n        The server will respond with a `response.cancelled` event or an error if\n        there is no response to cancel.\n\n        :keyword str response_id: Optional ID of the response to cancel.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventResponseCancel()\n        if response_id:\n            event[\"response_id\"] = response_id\n        if event_id:\n            event[\"event_id\"] = event_id\n\n        await self._connection.send(event)\n\n\nclass InputAudioBufferResource:\n    \"\"\"Resource for input audio buffer management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize an input audio buffer resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def append(self, *, audio: str, event_id: Optional[str] = None) -> None:\n        \"\"\"Append audio to the input buffer.\n\n        :keyword str audio: Base64-encoded audio data in the format declared by the session config.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventInputAudioBufferAppend(audio=audio)\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n    async def commit(self, *, event_id: Optional[str] = None) -> None:\n        \"\"\"Commit the input audio buffer.\n\n        Creates a new user message item in the conversation.\n\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventInputAudioBufferCommit()\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n    async def clear(self, *, event_id: Optional[str] = None) -> None:\n        \"\"\"Clear the input audio buffer.\n\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventInputAudioBufferClear()\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n\nclass OutputAudioBufferResource:\n    \"\"\"Resource for output audio buffer management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize an output audio buffer resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def clear(self, *, event_id: Optional[str] = None) -> None:\n        \"\"\"Clear the output audio buffer.\n\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event: dict[str, Any] = {\"type\": \"output_audio_buffer.clear\"}\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n\nclass ConversationItemResource:\n    \"\"\"Resource for conversation item management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize a conversation item resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def create(\n        self,\n        *,\n        item: Union[ConversationRequestItem, Mapping[str, Any]],\n        previous_item_id: Optional[str] = None,\n        event_id: Optional[str] = None,\n    ) -> None:\n        \"\"\"Create a new conversation item.\n\n        :keyword ConversationRequestItem | Mapping[str, Any] item: The item to create (message/functions/etc.).\n        :keyword str previous_item_id: Optional ID of the item after which to insert this item.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        if not isinstance(item, ConversationRequestItem):\n            item = ConversationRequestItem(**dict(item))\n\n        event = ClientEventConversationItemCreate(\n            event_id=event_id,\n            previous_item_id=previous_item_id,\n            item=item,\n        )\n        await self._connection.send(event)\n\n    async def delete(self, *, item_id: str, event_id: Optional[str] = None) -> None:\n        \"\"\"Delete a conversation item.\n\n        :keyword str item_id: ID of the item to delete.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventConversationItemDelete(item_id=item_id)\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n    async def retrieve(self, *, item_id: str, event_id: Optional[str] = None) -> None:\n        \"\"\"Retrieve a conversation item.\n\n        :keyword str item_id: ID of the item to retrieve.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventConversationItemRetrieve(item_id=item_id)\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n    async def truncate(\n        self, *, item_id: str, audio_end_ms: int, content_index: int, event_id: Optional[str] = None\n    ) -> None:\n        \"\"\"Truncate a conversation item's audio.\n\n        :keyword str item_id: ID of the item to truncate.\n        :keyword int audio_end_ms: Time in milliseconds where to truncate the audio.\n        :keyword int content_index: Index of the content to truncate.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event = ClientEventConversationItemTruncate(\n            item_id=item_id, audio_end_ms=audio_end_ms, content_index=content_index\n        )\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n\nclass ConversationResource:\n    \"\"\"Resource for conversation management.\n\n    Exposes helpers for manipulating items in the active conversation.\n\n    :ivar item: Resource for per-item operations (create, delete, retrieve, truncate)\n        within the conversation.\n    :vartype item: ~azure.ai.voicelive.aio.ConversationItemResource\n    \"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize a conversation resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n        self.item: ConversationItemResource = ConversationItemResource(connection)\n\n\nclass TranscriptionSessionResource:\n    \"\"\"Resource for transcription session management.\"\"\"\n\n    def __init__(self, connection: \"VoiceLiveConnection\") -> None:\n        \"\"\"Initialize a transcription session resource.\n\n        :param connection: The VoiceLiveConnection to use.\n        :type connection: ~azure.ai.voicelive.aio.VoiceLiveConnection\n        \"\"\"\n        self._connection = connection\n\n    async def update(self, *, session: Mapping[str, Any], event_id: Optional[str] = None) -> None:\n        \"\"\"Update the transcription session.\n\n        :keyword Mapping[str, Any] session: Transcription session configuration.\n        :keyword str event_id: Optional ID for the event.\n        :rtype: None\n        \"\"\"\n        event: dict[str, Any] = {\"type\": \"transcription_session.update\", \"session\": dict(session)}\n        if event_id:\n            event[\"event_id\"] = event_id\n        await self._connection.send(event)\n\n\nclass VoiceLiveConnection:\n    \"\"\"\n    Represents an active asynchronous WebSocket connection to the Azure Voice Live API.\n\n    This class exposes resource-specific helpers for interacting with the service:\n    - :attr:`session` — manage session configuration updates.\n    - :attr:`response` — create or cancel model responses.\n    - :attr:`input_audio_buffer` — append, commit, or clear audio data before processing.\n    - :attr:`output_audio_buffer` — clear generated audio output.\n    - :attr:`conversation` — manage conversation items (create, delete, truncate).\n    - :attr:`transcription_session` — update transcription-specific configuration.\n\n    Instances are yielded by the :func:`~azure.ai.voicelive.aio.connect` context manager.\n\n    :ivar session: Resource for managing session updates.\n    :vartype session: ~azure.ai.voicelive.aio.SessionResource\n    :ivar response: Resource for creating and cancelling model responses.\n    :vartype response: ~azure.ai.voicelive.aio.ResponseResource\n    :ivar input_audio_buffer: Resource for managing input audio buffer.\n    :vartype input_audio_buffer: ~azure.ai.voicelive.aio.InputAudioBufferResource\n    :ivar output_audio_buffer: Resource for clearing output audio.\n    :vartype output_audio_buffer: ~azure.ai.voicelive.aio.OutputAudioBufferResource\n    :ivar conversation: Resource for managing the conversation and its items.\n    :vartype conversation: ~azure.ai.voicelive.aio.ConversationResource\n    :ivar transcription_session: Resource for updating transcription session configuration.\n    :vartype transcription_session: ~azure.ai.voicelive.aio.TranscriptionSessionResource\n    \"\"\"\n\n    _client_session: aiohttp.ClientSession\n    _connection: aiohttp.ClientWebSocketResponse\n\n    session: \"SessionResource\"\n    response: \"ResponseResource\"\n    input_audio_buffer: \"InputAudioBufferResource\"\n    conversation: \"ConversationResource\"\n    output_audio_buffer: \"OutputAudioBufferResource\"\n    transcription_session: \"TranscriptionSessionResource\"\n\n    def __init__(self, client_session: aiohttp.ClientSession, ws: aiohttp.ClientWebSocketResponse) -> None:\n        \"\"\"Initialize a VoiceLiveConnection instance.\n\n        :param client_session: The active aiohttp ClientSession used for HTTP and WebSocket operations.\n        :type client_session: aiohttp.ClientSession\n        :param ws: The established WebSocket connection to the Voice Live service.\n        :type ws: aiohttp.ClientWebSocketResponse\n        \"\"\"\n        self._client_session: aiohttp.ClientSession = client_session\n        self._connection: aiohttp.ClientWebSocketResponse = ws\n\n        # Add all resource attributes\n        self.session = SessionResource(self)\n        self.response = ResponseResource(self)\n        self.input_audio_buffer = InputAudioBufferResource(self)\n        self.conversation = ConversationResource(self)\n        self.output_audio_buffer = OutputAudioBufferResource(self)\n        self.transcription_session = TranscriptionSessionResource(self)\n\n    async def __aiter__(self) -> AsyncIterator[ServerEvent]:\n        \"\"\"\n        Yield typed events until the connection is closed.\n\n        :return: An async iterator over typed server events.\n        :rtype: typing.AsyncIterator[~azure.ai.voicelive.models.ServerEvent]\n        \"\"\"\n        try:\n            while True:\n                yield await self.recv()\n        except (aiohttp.ClientError, ConnectionClosed, RuntimeError) as e:\n            log.debug(\"Connection closed: %s\", e)\n            return\n\n    async def recv(self) -> ServerEvent:\n        \"\"\"\n        Receive and parse the next message as a typed event.\n\n        :return: The next typed server event.\n        :rtype: ~azure.ai.voicelive.models.ServerEvent\n        \"\"\"\n        try:\n            raw = await self.recv_bytes()  # bytes or str\n            if not raw:\n                # Treat empty payload as a closed/errored connection\n                raise ConnectionClosed(1006, \"Empty WebSocket frame\")\n\n            payload = json.loads(raw.decode(\"utf-8\"))\n            event = cast(\"ServerEvent\", ServerEvent._deserialize(payload, []))  # pylint: disable=protected-access\n            return event\n        except (ValueError, TypeError) as e:\n            log.error(\"Error parsing message: %s\", e)\n            raise ConnectionError(f\"Failed to parse message: {e}\") from e\n\n    async def recv_bytes(self) -> bytes:\n        \"\"\"\n        Receive raw bytes from the connection.\n\n        :return: The raw WebSocket message payload as bytes.\n        :rtype: bytes\n        \"\"\"\n        try:\n            msg = await self._connection.receive()\n\n            if msg.type == aiohttp.WSMsgType.TEXT:\n                log.debug(\"Received websocket text message: %s\", msg.data)\n                return msg.data.encode(\"utf-8\")\n            if msg.type == aiohttp.WSMsgType.BINARY:\n                log.debug(\"Received websocket binary message: %s\", msg.data)\n                return msg.data\n            if msg.type == aiohttp.WSMsgType.CLOSE:\n                code = self._connection.close_code or 1000\n                reason = \"\"\n                log.debug(\"WebSocket connection closed with code %s: %s\", code, reason)\n                raise ConnectionClosed(code, reason)\n            if msg.type == aiohttp.WSMsgType.ERROR:\n                log.error(\"WebSocket connection error: %s\", self._connection.exception())\n                raise ConnectionClosed(1006, str(self._connection.exception()))\n            if msg.type == aiohttp.WSMsgType.CLOSED:\n                log.debug(\"WebSocket connection already closed\")\n                raise ConnectionClosed(1000, \"Connection closed\")\n\n            log.warning(\"Unexpected WebSocket message type: %s\", msg.type)\n            return b\"\"\n        except aiohttp.ClientError as e:\n            code = getattr(e, \"code\", 1006)\n            reason = str(e)\n            raise ConnectionClosed(code, reason) from e\n\n    async def send(self, event: Union[Mapping[str, Any], ClientEvent]) -> None:\n        \"\"\"\n        Send an event to the server over the active WebSocket connection (asynchronously).\n\n        Supported input types:\n\n        * **Mapping-like object** (e.g., ``dict``, ``MappingProxyType``) — converted to\n            a plain ``dict`` and then JSON-encoded. Any nested SDK models are serialized\n            using the fallback serializer ``_json_default()``.\n        * **ClientEvent model instance** — converted to a plain dictionary via\n            ``as_dict()`` (preserving REST field names and discriminators), then JSON-encoded.\n        * **Other objects** — directly passed to ``json.dumps()`` with ``_json_default()``\n            handling non-JSON-native values.\n\n        :param event: The event to send.\n        :type event: Union[Mapping[str, Any], ~azure.ai.voicelive.models.ClientEvent]\n        :raises ConnectionError: If serialization fails or the WebSocket send raises an error.\n        \"\"\"\n        try:\n            # Build a JSON-ready object or string first\n            payload: object\n            if isinstance(event, ClientEvent):\n                payload = event.as_dict()\n            elif isinstance(event, Mapping):\n                payload = json.dumps(dict(event), default=_json_default)\n            else:\n                payload = json.dumps(event, default=_json_default)\n\n            # Ensure we pass a str to send_str\n            data: str = payload if isinstance(payload, str) else json.dumps(payload, default=_json_default)\n\n            await self._connection.send_str(data)\n        except (TypeError, ValueError, aiohttp.ClientError, RuntimeError) as e:\n            log.error(\"Failed to send event: %s\", e)\n            raise ConnectionError(f\"Failed to send event: {e}\") from e\n\n    async def close(self, *, code: int = 1000, reason: str = \"\") -> None:\n        \"\"\"Close the WebSocket and underlying HTTP session.\n\n        This will gracefully terminate the connection to the Voice Live service and\n        release any network resources.\n\n        :keyword int code: WebSocket close code to send to the server. Defaults to ``1000`` (Normal Closure).\n        :keyword str reason: Optional reason string to include in the close frame.\n        :rtype: None\n        \"\"\"\n        try:\n            await self._connection.close(code=code, message=reason.encode(\"utf-8\"))\n        except (aiohttp.ClientError, RuntimeError) as e:\n            log.warning(\"Error closing connection: %s\", e)\n        try:\n            await self._client_session.close()\n        except (aiohttp.ClientError, RuntimeError) as e:\n            log.warning(\"Error closing session: %s\", e)\n\n\nclass WebsocketConnectionOptions(TypedDict, total=False):\n    \"\"\"\n    Transport-agnostic WebSocket connection options for VoiceLive.\n",
+      "contentHash": "23b9e450d3aefb6d08d36787f1e246a4a2762c1ba53296852a671a1cfe206c98",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 616,
+      "kind": "handwritten-marker",
+      "excerpt": true,
+      "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb"
+    },
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/models/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import Any\nfrom ._models import RequestSession as GeneratedRequestSession\n\n\nclass RequestSession(GeneratedRequestSession):\n    \"\"\"Extended RequestSession that tracks explicitly set None values.\"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        # Track which kwargs were explicitly passed as None\n        self._explicit_none_fields = {k for k, v in kwargs.items() if v is None}\n        super().__init__(*args, **kwargs)\n\n    def as_dict(self, **kwargs: Any) -> dict[str, Any]:\n        \"\"\"Convert to dict, including explicitly set None values.\n\n        :return: A dictionary representation of the RequestSession, including fields that were\n            explicitly set to None.\n        :rtype: dict[str, Any]\n        \"\"\"\n        result = super().as_dict(**kwargs)\n        # Add back any fields that were explicitly set to None\n        for field in self._explicit_none_fields:\n            # Convert attribute name to rest field name if needed\n            rest_name = self._attr_to_rest_field.get(field)\n            if rest_name:\n                result[rest_name._rest_name] = None  # pylint: disable=protected-access\n            else:\n                result[field] = None\n        return result\n\n\n__all__: list[str] = [\"RequestSession\"]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "264db8d89898b951544f487b803f8a9d27c73ac3e345be5c06af0e5f381d021f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/models/_patch.py",
+      "startLine": 1,
+      "endLine": 51,
+      "kind": "handwritten-marker",
+      "id": "049ec4837920d5856da0898ca0ceb42ceac736f44bde210709fdcb46ce69bec1"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/telemetry/README.md",
+      "text": "Azure AI VoiceLive Telemetry client library for Python\n======================================================\n\nThis module provides opt-in [OpenTelemetry](https://opentelemetry.io/)-based tracing for the Azure AI VoiceLive SDK, following [GenAI Semantic Conventions v1.34.0](https://opentelemetry.io/docs/specs/semconv/gen-ai/).\n\nGetting started\n---------------\n\n### Install dependencies\n\n```bash\n# Console tracing\npip install azure-ai-voicelive opentelemetry-sdk azure-core-tracing-opentelemetry\n\n# Azure Monitor tracing\npip install azure-ai-voicelive azure-monitor-opentelemetry\n```\n\n### Configure and enable tracing\n\n```python\nimport os\nfrom azure.core.settings import settings\n\n# Tell azure-core to use OpenTelemetry\nsettings.tracing_implementation = \"opentelemetry\"\n\n# Set up a tracer provider (console example)\nfrom opentelemetry import trace\nfrom opentelemetry.sdk.trace import TracerProvider\nfrom opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter\n\nprovider = TracerProvider()\nprovider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))\ntrace.set_tracer_provider(provider)\n\n# Gate: required environment variable\nos.environ[\"AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING\"] = \"true\"\n\n# Enable VoiceLive instrumentation\nfrom azure.ai.voicelive.telemetry import VoiceLiveInstrumentor\n\nVoiceLiveInstrumentor().instrument()\n```\n\n### Disable tracing\n\n```python\nVoiceLiveInstrumentor().uninstrument()\n```\n\n### Environment variables\n\n| Variable | Required | Description |\n|---|---|---|\n| `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING` | **Yes** | Must be `\"true\"` for `instrument()` to activate. Without it, `instrument()` is a no-op. |\n| `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | No | Set to `\"true\"` to record full message payloads in span events (`gen_ai.event.content`). **May contain personal data.** Defaults to `false`. |\n| `AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED` | No | Legacy equivalent of the above. If both are set and differ, content recording is disabled. |\n\nKey concepts\n------------\n\n### Architecture\n\n![Telemetry Architecture](telemetry_architecture.png)\n\n**Key layers:**\n\n- **User Application** — sets up `TracerProvider` and exporter, calls `VoiceLiveInstrumentor().instrument()`.\n- **azure-ai-voicelive SDK** — the VoiceLive client that manages WebSocket connections and message exchange.\n- **Telemetry Layer** — `VoiceLiveInstrumentor` automatically instruments SDK operations to emit OpenTelemetry spans.\n- **OpenTelemetry Stack** — `azure-core-tracing-opentelemetry` bridges to `opentelemetry-sdk` → Exporter → backend (Azure Monitor, Jaeger, console, etc.).\n\n### How it works\n\n1. **Enable** — Call `VoiceLiveInstrumentor().instrument()` after setting the required environment variable. This hooks into SDK operations to emit spans automatically.\n2. **Connect span** — A parent span is created when the VoiceLive session starts and remains open for the entire session lifetime. Session-level metrics (turn count, interruptions, audio bytes) are recorded on this span when the session ends.\n3. **Send / Recv spans** — Each message sent or received creates a child span under the connect span, capturing the event type, message size, and (optionally) the full payload.\n4. **First-token latency** — The time between sending `response.create` and receiving the first audio or text delta is measured and recorded automatically.\n5. **Disable** — Call `uninstrument()` to stop tracing.\n\n### Span structure\n\nThe instrumentor creates the following span hierarchy for a VoiceLive session:\n\n```\nconnect (parent span — open for the entire session lifetime)\n├── send session.update\n├── send conversation.item.create\n├── send response.create\n├── recv (session.created)\n├── recv (response.audio.delta)   ← first-token latency recorded here\n├── recv (response.audio.delta)\n├── recv (response.done)          ← turn count incremented here\n├── send response.cancel          ← interruption count incremented here\n├── recv (error)                  ← error event recorded\n└── close\n```\n\n### Span attributes\n\n#### Standard GenAI Semantic Convention Attributes\n\n| Attribute | Type | Description |\n|---|---|---|\n| `az.namespace` | string | Always `\"Microsoft.CognitiveServices\"` |\n| `gen_ai.system` | string | Always `\"az.ai.voicelive\"` |\n| `gen_ai.operation.name` | string | The operation: `connect`, `send`, `recv`, `close` |\n| `gen_ai.request.model` | string | The model name (e.g., `gpt-realtime`) |\n| `gen_ai.usage.input_tokens` | int | Input token count (from `response.done` usage) |\n| `gen_ai.usage.output_tokens` | int | Output token count (from `response.done` usage) |\n| `server.address` | string | Server hostname |\n| `server.port` | int | Server port |\n| `error.type` | string | Fully-qualified exception class name on error |\n\n#### VoiceLive-Specific Attributes\n\n| Attribute | Type | Scope | Description |\n|---|---|---|---|\n| `gen_ai.voice.session_id` | string | Connect span | Voice session ID, captured from `session.created`/`session.updated` events |\n| `gen_ai.voice.event_type` | string | Send/Recv spans | The VoiceLive event type (e.g., `session.update`, `response.done`) |\n| `gen_ai.voice.input_audio_format` | string | Connect span | Input audio format from session config (e.g., `pcm16`) |\n| `gen_ai.voice.output_audio_format` | string | Connect span | Output audio format from session config |\n| `gen_ai.voice.first_token_latency_ms` | float | Recv span + Connect span | Milliseconds from `response.create` to first audio/text delta |\n| `gen_ai.voice.turn_count` | int | Connect span | Total completed response turns in the session |\n| `gen_ai.voice.interruption_count` | int | Connect span | Number of `response.cancel` events sent |\n| `gen_ai.voice.audio_bytes_sent` | int | Connect span | Total raw audio bytes sent (decoded from base64) |\n| `gen_ai.voice.audio_bytes_received` | int | Connect span | Total raw audio bytes received (decoded from base64) |\n| `gen_ai.voice.message_size` | int | Send/Recv spans | JSON payload byte length of each WebSocket message |\n\n#### Span Events\n\n| Event Name | When | Key Attributes |\n|---|---|---|\n| `gen_ai.input.messages` | On every `send()` | `gen_ai.system`, `gen_ai.voice.event_type`, `gen_ai.event.content` (if content recording enabled) |\n| `gen_ai.output.messages` | On every `recv()` | `gen_ai.system`, `gen_ai.voice.event_type`, `gen_ai.event.content` (if content recording enabled) |\n| `gen_ai.voice.error` | On server `error` events | `error.code`, `error.message` |\n| `gen_ai.voice.rate_limits.updated` | On `rate_limits.updated` events | `gen_ai.voice.rate_limits` (JSON array) |\n\n### VoiceLiveInstrumentor API\n\n```python\nfrom azure.ai.voicelive.telemetry import VoiceLiveInstrumentor\n\ninstrumentor = VoiceLiveInstrumentor()\ninstrumentor.instrument()                        # Enable tracing\ninstrumentor.is_instrumented()                   # → True\ninstrumentor.is_content_recording_enabled()      # → False\ninstrumentor.uninstrument()                      # Disable tracing\n```\n\n| Method | Description |\n|---|---|\n| `instrument(enable_content_recording=None)` | Enable tracing. Requires `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true`. |\n| `uninstrument()` | Disable tracing. |\n| `is_instrumented()` | Returns `True` if tracing is active. |\n| `is_content_recording_enabled()` | Returns `True` if message content recording is enabled. |\n\nExamples\n--------\n\n### Use the SDK with tracing\n\n```python\nfrom azure.ai.voicelive.aio import connect\n\nasync with connect(endpoint=endpoint, credential=credential, model=model) as connection:\n    await connection.session.update(session=session_config)   # → \"send session.update\" span\n    await connection.conversation.item.create(item=message)   # → \"send conversation.item.create\" span\n    await connection.response.create()                        # → \"send response.create\" span\n\n    async for event in connection:                            # → \"recv\" spans per event\n        ...\n# ← connect span ends here\n```\n\nAll spans are created automatically — no code changes needed in your application logic.\n\n### Content recording\n\nBy default, message payloads are **not** captured in span events to protect user privacy. To enable:\n\n```python\n# Option 1: Environment variable\nos.environ[\"OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT\"] = \"true\"\nVoiceLiveInstrumentor().instrument()\n\n# Option 2: Programmatic\nVoiceLiveInstrumentor().instrument(enable_content_recording=True)\n```\n\nWhen enabled, the full JSON payload appears as `gen_ai.event.content` in `gen_ai.input.messages` and `gen_ai.output.messages` span events.\n\n> **Warning:** Content recording may capture personal data (user speech transcripts, AI responses). Only enable in development or controlled environments.\n\n### Exporter options\n\n#### Console (development)\n\n```python\nfrom opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter\n\nprovider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))\n```\n\n#### Azure Monitor / Application Insights (production)\n\n```python\nfrom azure.monitor.opentelemetry import configure_azure_monitor\n\nconfigure_azure_monitor(connection_string=os.environ[\"APPLICATIONINSIGHTS_CONNECTION_STRING\"])\n```\n\n#### OTLP (Jaeger, Aspire Dashboard, etc.)\n\n```python\nfrom opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter\nfrom opentelemetry.sdk.trace.export import BatchSpanProcessor\n\nprovider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))\n```\n\n### Samples\n\nSee the `samples/telemetry/` directory:\n\n| Sample | Description |\n|---|---|\n| `sample_voicelive_with_console_tracing.py` | Console exporter — spans print to stdout |\n| `sample_voicelive_with_azure_monitor_tracing.py` | Azure Monitor exporter |\n| `sample_voicelive_with_console_tracing_custom_attributes.py` | Custom `SpanProcessor` to inject app-specific attributes |\n| `sample_voicelive_with_content_recording.py` | Content recording enabled |\n\nTroubleshooting\n---------------\n\n| Problem | Cause | Fix |\n|---|---|---|\n| `instrument()` does nothing / no spans appear | `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING` not set | `os.environ[\"AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING\"] = \"true\"` |\n| `ModuleNotFoundError` when creating `VoiceLiveInstrumentor()` | `opentelemetry` packages not installed | `pip install opentelemetry-sdk azure-core-tracing-opentelemetry` |\n| Spans created but not exported anywhere | No `TracerProvider` / exporter configured | Set up a `TracerProvider` with an exporter (see Getting started) |\n| `settings.tracing_implementation` not set | `azure-core` doesn't know to use OpenTelemetry | `settings.tracing_implementation = \"opentelemetry\"` |\n| Content not appearing in span events | Content recording is off by default | Set `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` or pass `enable_content_recording=True` |\n\nNext steps\n----------\n\n- Explore the `samples/telemetry/` directory for complete working examples.\n- See the main `azure-ai-voicelive` package README for general SDK usage and authentication.\n- Learn more about [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) and [GenAI Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).\n\nContributing\n------------\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.\n",
+      "contentHash": "8cbd1c7beeed815b82781ff2416d40238d4b32eae3457066cbec08a12bbc20f0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/telemetry/README.md"
+    },
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-ai-voicelive\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Ai Voicelive Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"Programming Language :: Python :: 3.14\",\n]\nrequires-python = \">=3.10\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.optional-dependencies]\naiohttp = [\n  \"aiohttp>=3.9.0,<4.0.0\",\n]\ntest = [\n  \"pytest>=8.0\",\n  \"pytest-asyncio>=0.23\",\n  \"pytest-rerunfailures>=13.0\",\n  \"aiohttp>=3.9.0,<4.0.0\",\n  \"python-dotenv\",\n  \"azure-identity\",\n  \"soundfile\",\n  \"pyaudio; platform_python_implementation == 'CPython' and python_version < '3.13' and sys_platform == 'win32'\",\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.ai.voicelive._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.ai\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.pytest.ini_options]\nasyncio_mode = \"auto\"\nasyncio_default_fixture_loop_scope = \"function\"\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "492da452346706597389b6ec29c88a0f0c58fd5121547286a96d4612150ff797",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/pyproject.toml"
+    },
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/README.md",
+      "text": "Azure AI VoiceLive client library for Python\n============================================\n\nThis package provides a **real-time, speech-to-speech** client for Azure AI VoiceLive.\nIt opens a WebSocket session to stream microphone audio to the service and receive\ntyped server events (including audio) for responsive, interruptible conversations.\n\n> **Status:** Preview (`1.3.0b1`). This beta release includes the latest SDK and sample updates and may change before the next stable release.\n\n> **Important:** As of version 1.0.0, this SDK is **async-only**. The synchronous API has been removed to focus exclusively on async patterns. All examples and samples use `async`/`await` syntax.\n\n---\n\nGetting started\n---------------\n\n### Prerequisites\n\n- **Python 3.10+**\n- An **Azure subscription**\n- A **VoiceLive** resource and endpoint\n- A working **microphone** and **speakers/headphones** if you run the voice samples\n\n### Install\n\nInstall the latest preview version:\n\n```bash\n# Base install (core client only)\npython -m pip install --pre azure-ai-voicelive\n\n# For asynchronous streaming (uses aiohttp)\npython -m pip install --pre \"azure-ai-voicelive[aiohttp]\"\n\n# For voice samples (includes audio processing)\n# First install PyAudio dependencies for your platform:\n#   Linux: sudo apt-get install -y portaudio19-dev libasound2-dev\n#   macOS: brew install portaudio\npython -m pip install --pre \"azure-ai-voicelive[aiohttp]\" azure-identity pyaudio python-dotenv\n```\n\nThe SDK provides async-only WebSocket connections using `aiohttp` for optimal performance and reliability.\n\n### Authenticate\n\nYou can authenticate with an **API key** or a Microsoft Entra ID token.\nThe samples default to `DefaultAzureCredential`; for local development, `az login` is usually the simplest path.\n\n#### API Key Authentication (Quick Start)\n\nSet environment variables in a `.env` file or directly in your environment:\n\n```bash\n# In your .env file or environment variables\nAZURE_VOICELIVE_API_KEY=\"your-api-key\"\nAZURE_VOICELIVE_ENDPOINT=\"your-endpoint\"\n```\n\nThen, use the key in your code:\n\n```python\nimport asyncio\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.ai.voicelive import connect\n\nasync def main():\n    async with connect(\n        endpoint=\"your-endpoint\",\n        credential=AzureKeyCredential(\"your-api-key\"),\n        model=\"gpt-realtime\"\n    ) as connection:\n        # Your async code here\n        pass\n\nasyncio.run(main())\n```\n\n#### AAD Token Authentication\n\nFor production applications, Entra ID authentication is recommended:\n\n```python\nimport asyncio\nfrom azure.identity.aio import DefaultAzureCredential\nfrom azure.ai.voicelive import connect\n\nasync def main():\n    credential = DefaultAzureCredential()\n\n    try:\n        async with connect(\n            endpoint=\"your-endpoint\",\n            credential=credential,\n            model=\"gpt-realtime\"\n        ) as connection:\n            # Your async code here\n            pass\n    finally:\n        await credential.close()\n\nasyncio.run(main())\n```\n\n---\n\nKey concepts\n------------\n\n- **VoiceLiveConnection** – Manages an active async WebSocket connection to the service\n- **Session Management** – Configure conversation parameters:\n  - **SessionResource** – Update session parameters (voice, formats, VAD) with async methods\n  - **RequestSession** – Strongly-typed session configuration\n  - **ServerVad** – Configure voice activity detection\n  - **SmartEndOfTurnDetection** – Configure audio-based end-of-turn detection\n  - **AzureStandardVoice** – Configure voice settings\n  - **parallel_tool_calls** – Control whether tool calls may run in parallel for a session\n- **Audio Handling**:\n  - **InputAudioBufferResource** – Manage audio input to the service with async methods\n  - **OutputAudioBufferResource** – Control audio output from the service with async methods\n- **Conversation Management**:\n  - **ResponseResource** – Create or cancel model responses with async methods\n  - **ConversationResource** – Manage conversation items with async methods\n  - **ClientEventInputTextDelta / ClientEventInputTextDone** – Stream text input incrementally into an item\n- **Error Handling**: \n  - **ConnectionError** – Base exception for WebSocket connection errors\n  - **ConnectionClosed** – Raised when WebSocket connection is closed\n- **Strongly-Typed Events** – Process service events with type safety:\n  - `SESSION_UPDATED`, `RESPONSE_AUDIO_DELTA`, `RESPONSE_DONE`\n  - `INPUT_AUDIO_BUFFER_SPEECH_STARTED`, `INPUT_AUDIO_BUFFER_SPEECH_STOPPED`\n  - `ERROR`, and more\n\n---\n\nExamples\n--------\n\n### Basic Voice Assistant (Featured Sample)\n\nThe Basic Voice Assistant sample demonstrates full-featured voice interaction with:\n\n- Real-time speech streaming\n- Server-side voice activity detection  \n- Interruption handling\n- High-quality audio processing\n\n```bash\n# Run the basic voice assistant sample\n# Requires [aiohttp] for async\npython samples/basic_voice_assistant_async.py\n\n# With custom parameters\npython samples/basic_voice_assistant_async.py --model gpt-realtime --voice alloy --instructions \"You're a helpful assistant\"\n```\n\n### Minimal example\n\n```python\nimport asyncio\nfrom azure.core.credentials import AzureKeyCredential\nfrom azure.ai.voicelive.aio import connect\nfrom azure.ai.voicelive.models import (\n    AudioEchoCancellation,\n    RequestSession,\n    Modality,\n    InputAudioFormat,\n    OutputAudioFormat,\n    ServerVad,\n    ServerEventType,\n)\n\nAPI_KEY = \"your-api-key\"\nENDPOINT = \"wss://your-endpoint.com/openai/realtime\"\nMODEL = \"gpt-realtime\"\n\nasync def main():\n    async with connect(\n        endpoint=ENDPOINT,\n        credential=AzureKeyCredential(API_KEY),\n        model=MODEL,\n    ) as conn:\n        session = RequestSession(\n            modalities=[Modality.TEXT, Modality.AUDIO],\n            instructions=\"You are a helpful assistant.\",\n            input_audio_format=InputAudioFormat.PCM16,\n            output_audio_format=OutputAudioFormat.PCM16,\n            input_audio_echo_cancellation=AudioEchoCancellation(),\n            turn_detection=ServerVad(\n                threshold=0.5, \n                prefix_padding_ms=300, \n                silence_duration_ms=500\n            ),\n        )\n        await conn.session.update(session=session)\n\n        # Process events\n        async for evt in conn:\n            print(f\"Event: {evt.type}\")\n            if evt.type == ServerEventType.RESPONSE_DONE:\n                break\n\nasyncio.run(main())\n```\n\n`AudioEchoCancellation` now supports both the default server loopback reference path and a\nclient-provided stereo echo reference. Use `reference_source=\"client\"` with `channels=2` only when\nyour application sends stereo PCM16 input with the microphone on channel 0 and the echo reference\nsignal on channel 1.\n\nFor image inputs, `RequestImageContentPart` uses the `image_url` field name.\n\nAvailable Voice Options\n-----------------------\n\n### Azure Neural Voices\n\n```python\n# Use Azure Neural voices\nvoice_config = AzureStandardVoice(\n    name=\"en-US-AvaNeural\",  # Or another voice name\n    type=\"azure-standard\"\n)\n```\n\nPopular voices include:\n\n- `en-US-AvaNeural` - Female, natural and professional\n- `en-US-JennyNeural` - Female, conversational\n- `en-US-GuyNeural` - Male, professional\n\n### OpenAI Voices\n\n```python\n# Use OpenAI voices (as string)\nvoice_config = \"alloy\"  # Or another OpenAI voice\n```\n\nAvailable OpenAI voices:\n\n- `alloy` - Versatile, neutral\n- `echo` - Precise, clear\n- `fable` - Animated, expressive\n- `onyx` - Deep, authoritative\n- `nova` - Warm, conversational\n- `shimmer` - Optimistic, friendly\n\n---\n\nHandling Events\n---------------\n\n```python\nasync for event in connection:\n    if event.type == ServerEventType.SESSION_UPDATED:\n        print(f\"Session ready: {event.session.id}\")\n        # Start audio capture\n        \n    elif event.type == ServerEventType.INPUT_AUDIO_BUFFER_SPEECH_STARTED:\n        print(\"User started speaking\")\n        # Stop playback\n        \n    elif event.type == ServerEventType.RESPONSE_AUDIO_DELTA:\n        # Play the audio chunk\n        audio_bytes = event.delta\n        \n    elif event.type == ServerEventType.ERROR:\n        print(f\"Error: {event.error.message}\")\n```\n\n---\n\nTroubleshooting\n---------------\n\n### Connection Issues\n\n- **WebSocket connection errors (1006/timeout):**  \n  Verify `AZURE_VOICELIVE_ENDPOINT`, network rules, and that your credential has access.\n\n- **Missing WebSocket dependencies:**  \n  If you see import errors, make sure you have installed the package:\n    pip install azure-ai-voicelive[aiohttp]\n\n- **Auth failures:**  \n  For API key, double-check `AZURE_VOICELIVE_API_KEY`. For AAD, ensure the identity is authorized.\n\n### Audio Device Issues\n\n- **No microphone/speaker detected:**  \n  Check device connections and permissions. On headless CI environments, audio samples can't run.\n\n- **Audio library installation problems:**  \n  On Linux/macOS you may need PortAudio:\n\n  ```bash\n  # Debian/Ubuntu\n  sudo apt-get install -y portaudio19-dev libasound2-dev\n  # macOS (Homebrew)\n  brew install portaudio\n  ```\n\n### Enable Verbose Logging\n\n```python\nimport logging\nlogging.basicConfig(level=logging.DEBUG)\n```\n\n---\n\nNext steps\n----------\n\n1. **Run the featured sample:**\n   - Try `samples/basic_voice_assistant_async.py` for a complete voice assistant implementation\n\n2. **Customize your implementation:**\n   - Experiment with different voices and parameters\n   - Add custom instructions for specialized assistants\n   - Integrate with your own audio capture/playback systems\n\n3. **Advanced scenarios:**\n   - Add function calling support\n   - Implement tool usage\n   - Create multi-turn conversations with history\n\n4. **Explore other samples:**\n   - Check the `samples/` directory for specialized examples\n   - See `samples/README.md` for a full list of samples\n\n---\n\nContributing\n------------\n\nThis project follows the Azure SDK guidelines. If you'd like to contribute:\n\n1. Fork the repo and create a feature branch\n2. Run linters and tests locally\n3. Submit a pull request with a clear description of the change\n\n---\n\nRelease notes\n-------------\n\nChangelogs are available in the package directory.\n\n---\n\nLicense\n-------\n\nThis project is released under the **MIT License**.\n",
+      "contentHash": "6c9c34be2fa4ffbc9e5c337acb5815270a7c5cde874baee85e923dd69f77e9a8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/README.md"
+    },
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/tsp-location.yaml",
+      "text": "directory: specification/ai/data-plane/VoiceLive\ncommit: 0bb04c123ebc49110e228a473759403e2fb68a21\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "ea956bca2f95b95036b963b860c4d2c0aaae995428d30131513f49cfef3b47de",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/voicelive/azure-ai-voicelive/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "95b1bdbe59b7e599e5d1e383d6a1e6c5c70d8b845802a8cc60e6231a1eda309e",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "b48a6e4adbf34dad67beb9b12ee75310edcc7cc078efc498669f325b9d649970",
+        "category": "Other",
+        "subtype": "Build an optional agent configuration with paired required fields",
+        "explanation": "_build_foundry_agent_config returns None when all six arguments are None; otherwise it requires non-None agent_name and project_name and returns only non-None entries. Empty strings are not rejected. Its connection call site is outside the captured excerpt.",
+        "pattern": "paired-option-validation",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten-marker patch module implements a nonempty configuration helper rather than a generated skeleton.",
+        "symbols": [
+          "_build_foundry_agent_config"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 99,
+            "endLine": 125
+          }
+        ]
+      },
+      {
+        "key": "5ca18f1a879276c0708224a67e6d9fb98479bdc306d3171043dc789956cc7f3a",
+        "category": "Retry / error handling",
+        "subtype": "Connection exception hierarchy with closure code and reason",
+        "explanation": "The patch defines ConnectionError as an AzureError subtype and ConnectionClosed as its subtype; the closure constructor stores code and reason and formats them into the inherited exception message. Both types are exported, without local validation of the values.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten-marker patch exports both exception types and supplies the executable closure constructor.",
+        "symbols": [
+          "ConnectionError",
+          "ConnectionClosed",
+          "ConnectionClosed.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 128,
+            "endLine": 138
+          }
+        ]
+      },
+      {
+        "key": "d98a10a3230e2b602d29213d857b96a1d7d396a655c540512bc5a27ad0230955",
+        "category": "Convenience methods",
+        "subtype": "Adapt typed or mapping session configuration to an update event",
+        "explanation": "SessionResource.update constructs ClientEventSessionUpdate directly from RequestSession or from a copied mapping under session, conditionally adds a truthy event_id, and awaits the connection's send method.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported resource class in the handwritten-marker patch implements the type-dependent event adapter.",
+        "symbols": [
+          "SessionResource.update"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 152,
+            "endLine": 175
+          }
+        ]
+      },
+      {
+        "key": "9aebf8b087c76998ced02a65729ed796af1a5059df450c88a52b599504965d43",
+        "category": "Convenience methods",
+        "subtype": "Normalize response configuration and construct a response-create event",
+        "explanation": "ResponseResource.create converts a non-None mapping-like response to ResponseCreateParams unless it is already that type, supplies response, event_id and additional_instructions to ClientEventResponseCreate, and sends the event. Generated constructor handling of None and actual inference behavior are not shown.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported patch resource contains explicit configuration normalization and generated-event composition.",
+        "symbols": [
+          "ResponseResource.create"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 209,
+            "endLine": 218
+          }
+        ]
+      },
+      {
+        "key": "43a7a16d816cdc0e138c4f985207ab2f710688638bb5d49379436ecedfec6d57",
+        "category": "Convenience methods",
+        "subtype": "Construct cancellation events with optional identifiers",
+        "explanation": "ResponseResource.cancel creates ClientEventResponseCancel, adds response_id and event_id only when truthy, and sends it. It does not locally confirm a response is active or wait for cancellation acknowledgement.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource implements the event-shaping method around a generated event model.",
+        "symbols": [
+          "ResponseResource.cancel"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 230,
+            "endLine": 236
+          }
+        ]
+      },
+      {
+        "key": "389bf51d7db3ace864f236e74b33a6a21e55f94f6050e15b9150e422a1f4aef8",
+        "category": "Convenience methods",
+        "subtype": "Construct an input-audio append event from the supplied string",
+        "explanation": "InputAudioBufferResource.append puts the supplied audio value into ClientEventInputAudioBufferAppend, conditionally adds a truthy event_id and sends it. The wrapper does not itself encode, decode or validate base64 audio.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource implements a concrete event constructor and dispatch adapter.",
+        "symbols": [
+          "InputAudioBufferResource.append"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 250,
+            "endLine": 260
+          }
+        ]
+      },
+      {
+        "key": "df2c4c963e2a2956de58c61cc7b293116bf1f9143c3a8d39afe2baec0813a668",
+        "category": "Convenience methods",
+        "subtype": "Expose an input-audio commit event helper",
+        "explanation": "InputAudioBufferResource.commit constructs ClientEventInputAudioBufferCommit, optionally attaches a truthy event_id and sends it; server-side buffer commitment is not implemented in this method.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource supplies this executable adapter over the generated commit event.",
+        "symbols": [
+          "InputAudioBufferResource.commit"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 270,
+            "endLine": 273
+          }
+        ]
+      },
+      {
+        "key": "911cfccfd8becb5b57970c4f1459ec036963d64376f3715721e4a93ff832805d",
+        "category": "Convenience methods",
+        "subtype": "Expose an input-audio clear event helper",
+        "explanation": "InputAudioBufferResource.clear constructs ClientEventInputAudioBufferClear, adds a truthy event_id when present, and delegates event transmission.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource implements this generated-event adapter rather than only re-exporting its type.",
+        "symbols": [
+          "InputAudioBufferResource.clear"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 281,
+            "endLine": 284
+          }
+        ]
+      },
+      {
+        "key": "496e756ba94a4c8ffe1ba0e48e9632828ae2f7b05a61fc25492cdd5f46b8ae80",
+        "category": "Convenience methods",
+        "subtype": "Build an output-audio clear command as a raw event mapping",
+        "explanation": "OutputAudioBufferResource.clear builds a dictionary with type output_audio_buffer.clear, adds a truthy event_id and sends the mapping, without constructing a generated event model.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource explicitly builds the event discriminator and optional identifier.",
+        "symbols": [
+          "OutputAudioBufferResource.clear"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 298,
+            "endLine": 307
+          }
+        ]
+      },
+      {
+        "key": "784e8528099d0f2ba7bf8263f8fdc2f19adb1fd6e150199fb679b6d6b04a370b",
+        "category": "Convenience methods",
+        "subtype": "Adapt a conversation item to a generated create event",
+        "explanation": "ConversationItemResource.create retains a ConversationRequestItem instance or constructs one from a copied mapping, then creates ClientEventConversationItemCreate with item, previous_item_id and event_id before sending it.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource contains explicit public-input normalization and generated-event construction.",
+        "symbols": [
+          "ConversationItemResource.create"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 335,
+            "endLine": 343
+          }
+        ]
+      },
+      {
+        "key": "1dc2d08ade128a6ed741a7a1e9709f796e926b5abf5b671cacb2ac9166398e38",
+        "category": "Convenience methods",
+        "subtype": "Expose an item-delete event helper",
+        "explanation": "ConversationItemResource.delete constructs ClientEventConversationItemDelete with item_id, conditionally adds a truthy event_id, and sends it without implementing or confirming the remote deletion.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource implements this distinct generated-event adapter.",
+        "symbols": [
+          "ConversationItemResource.delete"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 345,
+            "endLine": 355
+          }
+        ]
+      },
+      {
+        "key": "ba1e5a7d707666e41ec35e5369a5e03e3e05bb4feb6afd4df5c2b5e57ca659b7",
+        "category": "Convenience methods",
+        "subtype": "Expose an item-retrieval request event helper",
+        "explanation": "ConversationItemResource.retrieve constructs ClientEventConversationItemRetrieve with item_id, adds a truthy event_id when present and sends it. It returns no retrieved item itself.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource supplies this concrete request-event adapter outside generated models.",
+        "symbols": [
+          "ConversationItemResource.retrieve"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 357,
+            "endLine": 367
+          }
+        ]
+      },
+      {
+        "key": "9683b045c53f807c19711271dc95b606e0d70dc102db0d66255150805cf36df6",
+        "category": "Convenience methods",
+        "subtype": "Shape item audio-truncation coordinates into an event",
+        "explanation": "ConversationItemResource.truncate passes item_id, audio_end_ms and content_index into ClientEventConversationItemTruncate, conditionally adds event_id and sends it. No coordinate bounds validation is implemented locally.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource implements this event-specific public method rather than only forwarding a prebuilt event.",
+        "symbols": [
+          "ConversationItemResource.truncate"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 369,
+            "endLine": 385
+          }
+        ]
+      },
+      {
+        "key": "a6a2368ee7f4886c17587cd350be5eed1cf047d603abef4dde2de96a5233737a",
+        "category": "Convenience methods",
+        "subtype": "Build a transcription-session update mapping",
+        "explanation": "TranscriptionSessionResource.update copies the session mapping into an event with type transcription_session.update, adds a truthy event_id when present, and delegates sending.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch resource explicitly assembles the protocol event mapping.",
+        "symbols": [
+          "TranscriptionSessionResource.update"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 419,
+            "endLine": 429
+          }
+        ]
+      },
+      {
+        "key": "c621bc801514b32bcfd985c68545f310adba1950dedcefbc3a462f8676a4ec75",
+        "category": "SSE / streaming",
+        "subtype": "Yield received events until selected connection exceptions terminate iteration",
+        "explanation": "VoiceLiveConnection.__aiter__ repeatedly yields await self.recv() and logs then ends iteration on aiohttp.ClientError, ConnectionClosed or RuntimeError. It does not catch every exception; the custom ConnectionError raised for parsing failures is not named in its catch tuple.",
+        "pattern": "websocket-iterator-termination",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported connection class in the handwritten-marker patch supplies an executable asynchronous event iterator.",
+        "symbols": [
+          "VoiceLiveConnection.__aiter__"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 489,
+            "endLine": 501
+          }
+        ]
+      },
+      {
+        "key": "6d8cc113293a941a36f93affe5aa7166c2bc80d800ab6bf1713a92440b211039",
+        "category": "SSE / streaming",
+        "subtype": "Decode received bytes into a generated server event with parse-error adaptation",
+        "explanation": "recv treats an empty raw payload as ConnectionClosed(1006), decodes UTF-8 JSON and invokes ServerEvent._deserialize(payload, []). It logs and wraps ValueError or TypeError as ConnectionError; the generated event deserializer and its discriminator rules are not supplied, and cast itself performs no conversion.",
+        "pattern": "sse-typed-event-stream",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch connection implements the decoding and error adapter around an imported generated event model.",
+        "symbols": [
+          "VoiceLiveConnection.recv"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 503,
+            "endLine": 521
+          }
+        ]
+      },
+      {
+        "key": "1df80758d28fb0b224ac599d3703d3056a5ffff804681ba400eaae77cc488e5a",
+        "category": "SSE / streaming",
+        "subtype": "Normalize WebSocket frame kinds and closure errors into a byte interface",
+        "explanation": "recv_bytes encodes text frames as UTF-8 and returns binary data directly; CLOSE, ERROR and CLOSED frames become ConnectionClosed with the shown codes/reasons. Unrecognized frame types log a warning and return empty bytes, and aiohttp.ClientError is wrapped with its code attribute or a default of 1006. The higher recv method separately interprets empty bytes as closure.",
+        "pattern": "websocket-frame-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten patch connection explicitly branches on aiohttp frame types and translates selected transport failures.",
+        "symbols": [
+          "VoiceLiveConnection.recv_bytes"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 523,
+            "endLine": 556
+          }
+        ]
+      },
+      {
+        "key": "6916a9f1cb00926376e80909b140e7692d0c799fcbdf495f497de8049bfca55a",
+        "category": "Serialization",
+        "subtype": "Serialize generated events and mappings with a model fallback before text-frame sending",
+        "explanation": "send obtains ClientEvent.as_dict() or JSON-encodes mappings/other inputs, then ensures a string for send_str. Its _json_default fallback prefers callable as_dict then to_dict, retries a TypeError through the class attribute, otherwise exposes non-underscore instance attributes or raises TypeError. send logs and wraps TypeError, ValueError, aiohttp.ClientError and RuntimeError as ConnectionError; it does not implement retries.",
+        "pattern": "websocket-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten-marker patch implements both the custom serialization fallback and its concrete WebSocket send call site.",
+        "symbols": [
+          "_json_default",
+          "VoiceLiveConnection.send"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 75,
+            "endLine": 96
+          },
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 576,
+            "endLine": 592
+          }
+        ]
+      },
+      {
+        "key": "f4577eda761537d45e4524e4c3623db072f1382476058e6933379fad2f544060",
+        "category": "SSE / streaming",
+        "subtype": "Close WebSocket and HTTP session with separate selected-error handling",
+        "explanation": "close awaits WebSocket close with the supplied code and a UTF-8-encoded reason, logs aiohttp.ClientError or RuntimeError without rethrowing, then attempts HTTP session close under its own equivalent handler. Other exceptions are not caught, so this is not an unconditional cleanup guarantee.",
+        "pattern": "websocket-session-cleanup",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported handwritten patch connection implements a two-resource cleanup sequence with explicit exception policies.",
+        "symbols": [
+          "VoiceLiveConnection.close"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 594,
+            "endLine": 611
+          }
+        ]
+      },
+      {
+        "key": "39c8243d25251ce2618b877b0ed94f1253122055beb88b8cf3b29cea9023dacf",
+        "category": "Serialization",
+        "subtype": "Restore constructor-keyword None values in model dictionary output",
+        "explanation": "The RequestSession subclass records constructor keyword names whose values are None before calling the generated base. Its as_dict calls the base and restores those names as None using mapped REST names when available, otherwise the original names. The captured override does not refresh this set on later assignments or record None values inside positional arguments.",
+        "pattern": "explicit-null-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model _patch.py exports RequestSession and supplies executable constructor/as_dict overrides of the explicitly imported generated model.",
+        "symbols": [
+          "RequestSession.__init__",
+          "RequestSession.as_dict"
+        ],
+        "evidence": [
+          {
+            "id": "049ec4837920d5856da0898ca0ceb42ceac736f44bde210709fdcb46ce69bec1",
+            "startLine": 12,
+            "endLine": 42
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "b48a6e4adbf34dad67beb9b12ee75310edcc7cc078efc498669f325b9d649970",
+        "status": "inconclusive",
+        "reason": "Lines 99-125 implement the paired-field check and filtered mapping in a handwritten patch, but this private helper is not exported and its connection call site is outside the captured excerpt. Its use as an SDK behavior cannot be established from the supplied source; this does not establish that it is unused."
+      },
+      {
+        "key": "5ca18f1a879276c0708224a67e6d9fb98479bdc306d3171043dc789956cc7f3a",
+        "status": "accepted",
+        "reason": "The nonempty aio/_patch.py exports both exceptions at lines 56-69; lines 128-138 define the AzureError hierarchy and the closure-specific constructor with code and reason. The custom-error-type pattern and error-handling category match the implementation."
+      },
+      {
+        "key": "d98a10a3230e2b602d29213d857b96a1d7d396a655c540512bc5a27ad0230955",
+        "status": "accepted",
+        "reason": "Lines 152-175 show the exported handwritten SessionResource.update selecting a typed or mapping input, constructing a session-update event and sending it. The proposal describes code behavior, not an unobserved server outcome."
+      },
+      {
+        "key": "9aebf8b087c76998ced02a65729ed796af1a5059df450c88a52b599504965d43",
+        "status": "accepted",
+        "reason": "Lines 209-218 implement the exported response-create adapter, converting non-ResponseCreateParams input before constructing and sending the event. The claim explicitly leaves generated constructor and server behavior unverified."
+      },
+      {
+        "key": "43a7a16d816cdc0e138c4f985207ab2f710688638bb5d49379436ecedfec6d57",
+        "status": "accepted",
+        "reason": "Lines 230-236 construct the cancellation event, conditionally add identifiers and send it in an exported handwritten resource. This is a distinct public event helper, not a claim of confirmed server cancellation."
+      },
+      {
+        "key": "389bf51d7db3ace864f236e74b33a6a21e55f94f6050e15b9150e422a1f4aef8",
+        "status": "accepted",
+        "reason": "Lines 250-260 supply a concrete public audio-append event helper in the handwritten patch; the proposal correctly does not attribute base64 conversion to the wrapper."
+      },
+      {
+        "key": "df2c4c963e2a2956de58c61cc7b293116bf1f9143c3a8d39afe2baec0813a668",
+        "status": "accepted",
+        "reason": "Lines 270-273 implement the distinct commit-event helper and optional event ID in the exported handwritten resource. No server-side commit behavior is attributed to the local method."
+      },
+      {
+        "key": "911cfccfd8becb5b57970c4f1459ec036963d64376f3715721e4a93ff832805d",
+        "status": "accepted",
+        "reason": "Lines 281-284 implement a separate clear-event helper in the exported handwritten resource and conditionally attach its event ID before sending."
+      },
+      {
+        "key": "496e756ba94a4c8ffe1ba0e48e9632828ae2f7b05a61fc25492cdd5f46b8ae80",
+        "status": "accepted",
+        "reason": "Lines 298-307 show a public typed method constructing a raw output-audio-clear command mapping and delegating it to send, exactly as stated. The pattern describes the typed convenience method over the protocol sender, not a generated event type."
+      },
+      {
+        "key": "784e8528099d0f2ba7bf8263f8fdc2f19adb1fd6e150199fb679b6d6b04a370b",
+        "status": "accepted",
+        "reason": "Lines 335-343 normalize the public item input and create and send a generated conversation-item event in the exported handwritten resource. The evidence supports the wrapper without assuming how the generated constructor behaves."
+      },
+      {
+        "key": "1dc2d08ade128a6ed741a7a1e9709f796e926b5abf5b671cacb2ac9166398e38",
+        "status": "accepted",
+        "reason": "Lines 345-355 define a distinct item-delete command helper that constructs a generated event and sends it; no remote deletion or acknowledgement is claimed."
+      },
+      {
+        "key": "ba1e5a7d707666e41ec35e5369a5e03e3e05bb4feb6afd4df5c2b5e57ca659b7",
+        "status": "accepted",
+        "reason": "Lines 357-367 define a separate item-retrieval request event helper in the handwritten resource, with no claim that the helper directly returns the retrieved item."
+      },
+      {
+        "key": "9683b045c53f807c19711271dc95b606e0d70dc102db0d66255150805cf36df6",
+        "status": "accepted",
+        "reason": "Lines 369-385 pass the requested truncation coordinates into an event and send it. The public handwritten adapter and its lack of local bounds checks are directly visible."
+      },
+      {
+        "key": "a6a2368ee7f4886c17587cd350be5eed1cf047d603abef4dde2de96a5233737a",
+        "status": "accepted",
+        "reason": "Lines 419-429 explicitly construct and send a transcription-session-update mapping in an exported handwritten resource. The typed public method is a convenience wrapper over the protocol sender even though its payload is a raw mapping."
+      },
+      {
+        "key": "c621bc801514b32bcfd985c68545f310adba1950dedcefbc3a462f8676a4ec75",
+        "status": "accepted",
+        "reason": "Lines 489-501 implement the async event iterator and its selective termination on three exception types; the custom parse ConnectionError is not in that catch tuple. This is WebSocket stream iteration, not an assertion that every error ends the stream."
+      },
+      {
+        "key": "6d8cc113293a941a36f93affe5aa7166c2bc80d800ab6bf1713a92440b211039",
+        "status": "revised",
+        "reason": "The conversion and selective parse-error adaptation are supported by lines 503-521, but the proposed sse-typed-event-stream pattern misidentifies this WebSocket event stream as SSE. Preserve the location and symbol while using a protocol-accurate reusable pattern.",
+        "finding": {
+          "key": "6d8cc113293a941a36f93affe5aa7166c2bc80d800ab6bf1713a92440b211039",
+          "category": "SSE / streaming",
+          "subtype": "Decode WebSocket payloads into typed server events with parse-error adaptation",
+          "explanation": "VoiceLiveConnection.recv treats an empty payload from recv_bytes as ConnectionClosed(1006), JSON-decodes a UTF-8 payload and calls ServerEvent._deserialize(payload, []). It logs and wraps ValueError or TypeError as ConnectionError. The generated deserializer's behavior is not supplied, and cast does not perform conversion.",
+          "pattern": "websocket-typed-event-stream",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The nonempty exported aio/_patch.py connection implements the WebSocket JSON decoding and selective error adapter around an imported generated event model.",
+          "symbols": [
+            "VoiceLiveConnection.recv"
+          ],
+          "evidence": [
+            {
+              "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+              "startLine": 503,
+              "endLine": 521
+            }
+          ]
+        }
+      },
+      {
+        "key": "1df80758d28fb0b224ac599d3703d3056a5ffff804681ba400eaae77cc488e5a",
+        "status": "accepted",
+        "reason": "Lines 523-556 explicitly adapt aiohttp WebSocket text, binary, close and error frames into bytes or ConnectionClosed. The proposal accounts for unknown frames returning empty bytes and the separate recv handling, without treating this as SSE."
+      },
+      {
+        "key": "6916a9f1cb00926376e80909b140e7692d0c799fcbdf495f497de8049bfca55a",
+        "status": "accepted",
+        "reason": "Lines 75-96 implement the custom JSON fallback and lines 576-592 use it to serialize outgoing event values before send_str, with selected errors adapted to ConnectionError. Both symbols describe one outbound serialization behavior, distinct from inbound event decoding."
+      },
+      {
+        "key": "f4577eda761537d45e4524e4c3623db072f1382476058e6933379fad2f544060",
+        "status": "accepted",
+        "reason": "Lines 594-611 implement the two close calls with separate narrow exception handling in the exported handwritten WebSocket connection. The proposal does not infer unconditional successful cleanup."
+      },
+      {
+        "key": "39c8243d25251ce2618b877b0ed94f1253122055beb88b8cf3b29cea9023dacf",
+        "status": "accepted",
+        "reason": "Lines 12-42 show an exported handwritten subclass of the generated RequestSession that records explicitly null constructor keywords and restores them in as_dict, with optional REST-name mapping. This is a model serialization override; the proposal limits the claim to constructor keywords."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "8c33b6be379fc351165367625e6b3414136c1f9f627bb64e4aebd5fb73e62ccd",
+        "category": "Hand-written client",
+        "subtype": "Expose grouped resource helpers on an active WebSocket connection",
+        "explanation": "VoiceLiveConnection.__init__ binds an aiohttp session and WebSocket and creates six named resource attributes, exposing a grouped helper surface on the connection. The caller that creates the connection is not included in the captured excerpt.",
+        "pattern": "websocket-resource-facade",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The nonempty aio/_patch.py exports VoiceLiveConnection, and its constructor explicitly assembles the resource objects rather than merely re-exporting generated models.",
+        "symbols": [
+          "VoiceLiveConnection.__init__"
+        ],
+        "evidence": [
+          {
+            "id": "62eeee2a3ba97f6811c20669c904775bec2298f99800108eb2746e83e40e63eb",
+            "startLine": 470,
+            "endLine": 487
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only two of 28 eligible files were captured among 94 discovered files. The async patch ends at line 616 inside WebsocketConnectionOptions documentation; connect, URL construction, credentials/handshake handling and the remaining transport options are not supplied.",
+      "Generated event models, RequestSession base serialization and field descriptors, aiohttp internals, and the telemetry instrumentor are absent. Findings describe visible event construction, JSON/transport adapters and local exception policies, not successful service operations or runtime verification.",
+      "The agent-configuration helper is concrete source but its connection call site is uncaptured. Resource constructors mostly assign the connection and compose helper objects; these are not counted again separately from the implemented resource operations.",
+      "README telemetry, GenAI metric, content-recording and authentication descriptions are untrusted context, not executable evidence. Imported credential types and a user-agent string factory alone do not establish a captured auth or telemetry customization.",
+      "The model patch's patch_sdk function contains only its standard docstring and is not counted. README preview wording differs from the stable package metadata; no deprecation or maintenance conclusion is inferred.",
+      "Collection was partial: 2 of 28 eligible files were captured (94 discovered), and aio/_patch.py ends at line 616 mid-definition. The connector, WebsocketConnectionOptions implementation, and other possible customizations beyond the excerpt cannot be assessed; omitted evidence does not establish absence.",
+      "The imported generated event and RequestSession base implementations are not supplied. Event constructor, deserialization, REST mapping and runtime behavior are assessed only as call sites and explicit patch logic, not verified end-to-end.",
+      "Generation context contains README descriptions of authentication and opt-in telemetry, but not their implementation source. These descriptions cannot support additional findings or establish those customizations' provenance.",
+      "Package context describes a preview 1.3.0b1 while library metadata lists stable latest release 1.3.0; neither establishes the precise release provenance of these source excerpts. All accepted decisions are AI-reviewed, not verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/aio/_patch.py",
+      "startLine": 1,
+      "endLine": 1013,
+      "provenance": "Python patch",
+      "contentHash": "ec9d72bbccc975ce52ba85dc69814003edba962209d0e032d808168445a1a05b"
+    },
+    {
+      "path": "sdk/voicelive/azure-ai-voicelive/azure/ai/voicelive/models/_patch.py",
+      "startLine": 1,
+      "endLine": 51,
+      "provenance": "Python patch",
+      "contentHash": "264db8d89898b951544f487b803f8a9d27c73ac3e345be5c06af0e5f381d021f"
+    }
+  ]
+}

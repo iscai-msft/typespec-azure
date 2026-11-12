@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "0fd5a425-8d97-4e5d-8718-f14daabda36c",
+  "observedAt": "2026-10-30T17:46:23.871Z",
+  "identity": "dotnet:azure.provisioning.apimanagement:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Provisioning.ApiManagement",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/apimanagement/Azure.Provisioning.ApiManagement"
+  },
+  "commit": "46c60441441d5e4d6ef965b6ce6560c717cc5307",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "700590685a5963e5c487f231b0e49e4dccfcf897"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 342,
+    "eligibleFiles": 333,
+    "capturedFiles": 1,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/apimanagement/Azure.Provisioning.ApiManagement/src/Custom/ApiManagementApi.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Provisioning.ApiManagement;\n\n[CodeGenType(\"Api\")]\npublic partial class ApiManagementApi\n{\n}\n",
+      "contentHash": "787f30af51d15cb78418fdedfac349beb652179d9626a2f2eb6f1771f714ce06",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/apimanagement/Azure.Provisioning.ApiManagement/src/Custom/ApiManagementApi.cs",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "handwritten-marker",
+      "id": "e80851e258088e7090488c0cff97ec1b922c3f50fd145e8e8e3850aef8b5a693"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/apimanagement/Azure.Provisioning.ApiManagement/README.md",
+      "text": "# Azure Provisioning ApiManagement client library for .NET\n\nAzure.Provisioning.ApiManagement simplifies declarative resource provisioning in .NET.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/ ):\n\n```dotnetcli\ndotnet add package Azure.Provisioning.ApiManagement --prerelease\n```\n\n### Prerequisites\n\n> You must have an [Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\n## Key concepts\n\nThis library allows you to specify your infrastructure in a declarative style using dotnet.  You can then use azd to deploy your infrastructure to Azure directly without needing to write or maintain bicep or arm templates.\n\n## Examples\n\n### Create an API Management Service with Managed Identity\n\nThis example demonstrates how to create an Azure API Management service with system-assigned managed identity.\n\n```C# Snippet:ApiManagementBasic\nInfrastructure infra = new();\n\nProvisioningParameter publisherEmail =\n    new(nameof(publisherEmail), typeof(string))\n    {\n        Description = \"The email address of the owner of the service.\"\n    };\ninfra.Add(publisherEmail);\n\nProvisioningParameter publisherName =\n    new(nameof(publisherName), typeof(string))\n    {\n        Description = \"The name of the owner of the service.\"\n    };\ninfra.Add(publisherName);\n\nApiManagementService apiService =\n    new(nameof(apiService), ApiManagementService.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Sku = new ApiManagementServiceSkuProperties\n        {\n            Name = ApiManagementServiceSkuType.Developer,\n            Capacity = 1\n        },\n        PublisherEmail = publisherEmail,\n        PublisherName = publisherName,\n        Identity = new ManagedServiceIdentity\n        {\n            ManagedServiceIdentityType = ManagedServiceIdentityType.SystemAssigned\n        }\n    };\ninfra.Add(apiService);\n\ninfra.Add(new ProvisioningOutput(\"name\", typeof(string)) { Value = apiService.Name });\ninfra.Add(new ProvisioningOutput(\"resourceId\", typeof(string)) { Value = apiService.Id });\n```\n\n### Create an API Management Service with API and Product\n\nThis example demonstrates a more advanced setup with an API and a product.\n\n```C# Snippet:ApiManagementWithApi\nInfrastructure infra = new();\n\nProvisioningParameter publisherEmail =\n    new(nameof(publisherEmail), typeof(string))\n    {\n        Description = \"The email address of the owner of the service.\"\n    };\ninfra.Add(publisherEmail);\n\nProvisioningParameter publisherName =\n    new(nameof(publisherName), typeof(string))\n    {\n        Description = \"The name of the owner of the service.\"\n    };\ninfra.Add(publisherName);\n\nProvisioningParameter tenantPolicy =\n    new(nameof(tenantPolicy), typeof(string)) { Description = \"Tenant policy XML.\" };\ninfra.Add(tenantPolicy);\n\nProvisioningParameter apiPolicy =\n    new(nameof(apiPolicy), typeof(string)) { Description = \"API policy XML.\" };\ninfra.Add(apiPolicy);\n\nProvisioningParameter operationPolicy =\n    new(nameof(operationPolicy), typeof(string)) { Description = \"Operation policy XML.\" };\ninfra.Add(operationPolicy);\n\nProvisioningParameter productPolicy =\n    new(nameof(productPolicy), typeof(string)) { Description = \"Product policy XML.\" };\ninfra.Add(productPolicy);\n\n// Service\nApiManagementService apiService =\n    new(nameof(apiService), ApiManagementService.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Sku = new ApiManagementServiceSkuProperties\n        {\n            Name = ApiManagementServiceSkuType.Developer,\n            Capacity = 1\n        },\n        PublisherEmail = publisherEmail,\n        PublisherName = publisherName\n    };\ninfra.Add(apiService);\n\n// Tenant policy\nApiManagementPolicy tenantPolicyResource =\n    new(\"tenantPolicyResource\", ApiManagementPolicy.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        Value = tenantPolicy\n    };\ninfra.Add(tenantPolicyResource);\n\n// API\nApiManagementApi exampleApi =\n    new(\"exampleApi\", ApiManagementApi.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"Example API Name\",\n        Description = \"Description for example API\",\n        Path = \"exampleapipath\",\n        Protocols = { ApiOperationInvokableProtocol.Https }\n    };\ninfra.Add(exampleApi);\n\n// Operations\nApiOperation exampleOperationDelete =\n    new(\"exampleOperationDelete\", ApiOperation.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = exampleApi,\n        DisplayName = \"DELETE resource\",\n        Method = \"DELETE\",\n        UriTemplate = \"/resource\",\n        Description = \"A demonstration of a DELETE call\"\n    };\ninfra.Add(exampleOperationDelete);\n\nApiOperation exampleOperationGet =\n    new(\"exampleOperationGet\", ApiOperation.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = exampleApi,\n        DisplayName = \"GET resource\",\n        Method = \"GET\",\n        UriTemplate = \"/resource\",\n        Description = \"A demonstration of a GET call\"\n    };\ninfra.Add(exampleOperationGet);\n\n// Operation policy\nApiOperationPolicy exampleOperationGetPolicy =\n    new(\"exampleOperationGetPolicy\", ApiOperationPolicy.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = exampleOperationGet,\n        Value = operationPolicy\n    };\ninfra.Add(exampleOperationGetPolicy);\n\n// API with policy\nApiManagementApi exampleApiWithPolicy =\n    new(\"exampleApiWithPolicy\", ApiManagementApi.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"Example API Name with Policy\",\n        Description = \"Description for example API with policy\",\n        Path = \"exampleapiwithpolicypath\",\n        Protocols = { ApiOperationInvokableProtocol.Https }\n    };\ninfra.Add(exampleApiWithPolicy);\n\nApiPolicy exampleApiWithPolicyPolicy =\n    new(\"exampleApiWithPolicyPolicy\", ApiPolicy.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = exampleApiWithPolicy,\n        Value = apiPolicy\n    };\ninfra.Add(exampleApiWithPolicyPolicy);\n\n// Product with policy\nApiManagementProduct exampleProduct =\n    new(\"exampleProduct\", ApiManagementProduct.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"Example Product Name\",\n        Description = \"Description for example product\",\n        IsSubscriptionRequired = true,\n        IsApprovalRequired = false,\n        SubscriptionsLimit = 1,\n        State = ApiManagementProductState.Published\n    };\ninfra.Add(exampleProduct);\n\nApiManagementProductPolicy exampleProductPolicy =\n    new(\"exampleProductPolicy\", ApiManagementProductPolicy.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = exampleProduct,\n        Value = productPolicy\n    };\ninfra.Add(exampleProductPolicy);\n\n// Users\nApiManagementUser exampleUser1 =\n    new(\"exampleUser1\", ApiManagementUser.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        FirstName = \"ExampleFirstName1\",\n        LastName = \"ExampleLastName1\",\n        Email = \"examplefirst1@example.com\",\n        State = ApiManagementUserState.Active,\n        Note = \"note for example user 1\"\n    };\ninfra.Add(exampleUser1);\n\nApiManagementUser exampleUser2 =\n    new(\"exampleUser2\", ApiManagementUser.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        FirstName = \"ExampleFirstName2\",\n        LastName = \"ExampleLastName2\",\n        Email = \"examplefirst2@example.com\",\n        State = ApiManagementUserState.Active,\n        Note = \"note for example user 2\"\n    };\ninfra.Add(exampleUser2);\n\n// Named value\nApiManagementNamedValue exampleNamedValue =\n    new(\"exampleNamedValue\", ApiManagementNamedValue.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"propertyExampleName\",\n        Value = \"propertyExampleValue\",\n        Tags = { \"exampleTag\" }\n    };\ninfra.Add(exampleNamedValue);\n\n// Group\nApiManagementGroup exampleGroup =\n    new(\"exampleGroup\", ApiManagementGroup.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"Example Group Name\",\n        Description = \"Example group description\"\n    };\ninfra.Add(exampleGroup);\n\n// OpenId Connect provider\nApiManagementOpenIdConnectProvider exampleOpenIdConnectProvider =\n    new(\"exampleOpenIdConnectProvider\", ApiManagementOpenIdConnectProvider.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        DisplayName = \"exampleOpenIdConnectProviderName\",\n        Description = \"Description for example OpenId Connect provider\",\n        MetadataEndpoint = \"https://example-openIdConnect-url.net\",\n        ClientId = \"exampleClientId\"\n    };\ninfra.Add(exampleOpenIdConnectProvider);\n\n// Logger\nApiManagementLogger exampleLogger =\n    new(\"exampleLogger\", ApiManagementLogger.ResourceVersions.V2025_09_01_PREVIEW)\n    {\n        Parent = apiService,\n        LoggerType = LoggerType.AzureEventHub,\n        Description = \"Description for example logger\"\n    };\ninfra.Add(exampleLogger);\n\ninfra.Add(new ProvisioningOutput(\"name\", typeof(string)) { Value = apiService.Name });\ninfra.Add(new ProvisioningOutput(\"resourceId\", typeof(string)) { Value = apiService.Id });\n```\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "f9f46b5633a1385131ffa9aacdbd4925654679d6067b5b31b00eb8d9598090d6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/apimanagement/Azure.Provisioning.ApiManagement/README.md"
+    },
+    {
+      "path": "sdk/apimanagement/Azure.Provisioning.ApiManagement/src/Azure.Provisioning.ApiManagement.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>Azure.Provisioning.ApiManagement simplifies declarative resource provisioning in .NET.</Description>\n    <Version>1.0.0-beta.2</Version>\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <LangVersion>12</LangVersion>\n\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Provisioning\" />\n  </ItemGroup>\n\n</Project>",
+      "contentHash": "cf36dbdb730d189cdf6f7128a072a3e2cb32d6c1b610f7625bd8855f3b5a4532",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/apimanagement/Azure.Provisioning.ApiManagement/src/Azure.Provisioning.ApiManagement.csproj"
+    },
+    {
+      "path": "sdk/apimanagement/Azure.Provisioning.ApiManagement/tsp-location.yaml",
+      "text": "directory: specification/apimanagement/resource-manager/Microsoft.ApiManagement/ApiManagement\ncommit: 530f4cc6276898a631c9570555652261faef7936\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-provisioning-emitter-package.json\n",
+      "contentHash": "9b76f32e974fba8ffafd8261598140874049e25c50df466dbab5c89e8baa3daf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/apimanagement/Azure.Provisioning.ApiManagement/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/apimanagement/Azure.Provisioning.ApiManagement/src/Custom/ApiManagementApi.cs",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "787f30af51d15cb78418fdedfac349beb652179d9626a2f2eb6f1771f714ce06"
+    }
+  ]
+}

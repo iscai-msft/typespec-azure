@@ -1,0 +1,278 @@
+{
+  "schemaVersion": 1,
+  "id": "814b37da-7f8e-4567-a819-2023b44c29f4",
+  "observedAt": "2026-10-22T20:52:50.881Z",
+  "identity": "javascript:@azure-rest/ai-translation-text:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure-rest/ai-translation-text",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/translation/ai-translation-text-rest"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "99fb2cf02a60b06e9350fd789dbefbe43ae3a3c0"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 187,
+    "eligibleFiles": 37,
+    "capturedFiles": 3,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/customClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport { logger } from \"./logger.js\";\nimport * as coreRestPipeline from \"@azure/core-rest-pipeline\";\nimport type { TextTranslationClient } from \"./clientDefinitions.js\";\nimport type {\n  TranslatorCredential,\n  TranslatorTokenCredential,\n} from \"./authenticationCustomized.js\";\nimport {\n  DEFAULT_SCOPE,\n  TranslatorAuthenticationPolicy,\n  TranslatorAzureKeyAuthenticationPolicy,\n  TranslatorTokenCredentialAuthenticationPolicy,\n} from \"./authenticationCustomized.js\";\nimport type { AzureKeyCredential, KeyCredential, TokenCredential } from \"@azure/core-auth\";\n\nconst DEFAULT_ENPOINT = \"https://api.cognitive.microsofttranslator.com\";\nconst PLATFORM_HOST = \"cognitiveservices\";\nconst PLATFORM_PATH = \"/translator/text/v3.0\";\n\nfunction isKeyCredential(credential: any): credential is KeyCredential {\n  return (credential as KeyCredential)?.key !== undefined;\n}\n\nfunction isTranslatorKeyCredential(credential: any): credential is TranslatorCredential {\n  return (credential as TranslatorCredential)?.key !== undefined;\n}\n\nfunction isTokenCredential(credential: any): credential is TokenCredential {\n  return (credential as TokenCredential)?.getToken !== undefined;\n}\n\nfunction isTranslatorTokenCredential(credential: any): credential is TranslatorTokenCredential {\n  return (\n    (credential as TranslatorTokenCredential)?.tokenCredential !== undefined &&\n    (credential as TranslatorTokenCredential)?.azureResourceId !== undefined\n  );\n}\n\nfunction isCredentials(credential: any): boolean {\n  return (\n    isKeyCredential(credential) ||\n    isTranslatorKeyCredential(credential) ||\n    isTokenCredential(credential) ||\n    isTranslatorTokenCredential(credential)\n  );\n}\n\n/**\n * Initialize a new instance of `TextTranslationClient`\n * @param credential - type: TranslatorCredential | TranslatorTokenCredential | KeyCredential |TokenCredential, credentials\n *      used to authenticate the service with.\n * @param options - type: ClientOptions, the parameter for all optional parameters\n */\nexport default function createClient(\n  credential: TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential,\n  options?: ClientOptions,\n): TextTranslationClient;\n\n/**\n * Initialize a new instance of `TextTranslationClient`\n * @param endpoint - type: string, Supported Text Translation endpoints (protocol and hostname, for example:\n *     https://api.cognitive.microsofttranslator.com).\n * @param options - type: ClientOptions, the parameter for all optional parameters\n */\nexport default function createClient(\n  endpoint: string,\n  options?: ClientOptions,\n): TextTranslationClient;\n\n/**\n * Initialize a new instance of `TextTranslationClient`\n * @param endpoint - type: string, Supported Text Translation endpoints (protocol and hostname, for example:\n *     https://api.cognitive.microsofttranslator.com).\n * @param credential - type: TranslatorCredential | TranslatorTokenCredential | KeyCredential |TokenCredential, credentials\n *      used to authenticate the service with.\n * @param options - type: ClientOptions, the parameter for all optional parameters\n */\nexport default function createClient(\n  endpoint: string,\n  credential: TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential,\n  options?: ClientOptions,\n): TextTranslationClient;\n\n// Implementation\nexport default function createClient(\n  arg1?:\n    string | (TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential),\n  arg2?:\n    | (TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential)\n    | ClientOptions,\n  arg3?: ClientOptions,\n): TextTranslationClient {\n  let serviceEndpoint: string;\n\n  let endpoint: string | undefined;\n  let options: ClientOptions | undefined;\n  let credential:\n    TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential | undefined;\n\n  if (typeof arg1 === \"string\") {\n    endpoint = arg1;\n  }\n\n  if (typeof arg1 !== \"string\" && isCredentials(arg1)) {\n    credential = arg1;\n    options = arg2 as ClientOptions;\n  } else if (isCredentials(arg2)) {\n    credential = arg2 as\n      TranslatorCredential | TranslatorTokenCredential | KeyCredential | TokenCredential;\n    options = arg3;\n  }\n\n  if (!options) {\n    options = {};\n  }\n\n  options.apiVersion = options.apiVersion ?? \"2026-06-06\";\n\n  if (!endpoint) {\n    serviceEndpoint = DEFAULT_ENPOINT;\n  } else if (endpoint.toLowerCase().indexOf(PLATFORM_HOST) !== -1) {\n    serviceEndpoint = `${endpoint}${PLATFORM_PATH}`;\n  } else {\n    serviceEndpoint = endpoint;\n  }\n\n  const baseUrl = options.baseUrl ?? `${serviceEndpoint}`;\n\n  const userAgentInfo = `azsdk-js-ai-translation-text-rest/2.0.1`;\n  const userAgentPrefix =\n    options.userAgentOptions && options.userAgentOptions.userAgentPrefix\n      ? `${options.userAgentOptions.userAgentPrefix} ${userAgentInfo}`\n      : `${userAgentInfo}`;\n  options = {\n    ...options,\n    userAgentOptions: {\n      userAgentPrefix,\n    },\n    loggingOptions: {\n      logger: options.loggingOptions?.logger ?? logger.info,\n    },\n  };\n\n  const client = getClient(baseUrl, options) as TextTranslationClient;\n\n  if (isTranslatorKeyCredential(credential)) {\n    const mtAuthneticationPolicy = new TranslatorAuthenticationPolicy(\n      credential as TranslatorCredential,\n    );\n    client.pipeline.addPolicy(mtAuthneticationPolicy);\n  } else if (isKeyCredential(credential)) {\n    const mtKeyAuthenticationPolicy = new TranslatorAzureKeyAuthenticationPolicy(\n      credential as AzureKeyCredential,\n    );\n    client.pipeline.addPolicy(mtKeyAuthenticationPolicy);\n  } else if (isTokenCredential(credential)) {\n    client.pipeline.addPolicy(\n      coreRestPipeline.bearerTokenAuthenticationPolicy({\n        credential: credential as TokenCredential,\n        scopes: options?.credentials?.scopes ?? DEFAULT_SCOPE,\n      }),\n    );\n  } else if (isTranslatorTokenCredential(credential)) {\n    client.pipeline.addPolicy(\n      coreRestPipeline.bearerTokenAuthenticationPolicy({\n        credential: (credential as TranslatorTokenCredential).tokenCredential,\n        scopes: options?.credentials?.scopes ?? DEFAULT_SCOPE,\n      }),\n    );\n    client.pipeline.addPolicy(\n      new TranslatorTokenCredentialAuthenticationPolicy(credential as TranslatorTokenCredential),\n    );\n  }\n\n  return client;\n}\n",
+      "contentHash": "28195d5fd3982f6370bb6cfce9c9286bc568ea06feb7d1d979a63ae89c83e133",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/src/customClient.ts",
+      "startLine": 1,
+      "endLine": 181,
+      "kind": "unknown",
+      "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/authenticationCustomized.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AzureKeyCredential, TokenCredential } from \"@azure/core-auth\";\nimport type {\n  PipelinePolicy,\n  PipelineRequest,\n  PipelineResponse,\n  SendRequest,\n} from \"@azure/core-rest-pipeline\";\n\nconst APIM_KEY_HEADER_NAME = \"Ocp-Apim-Subscription-Key\";\nconst APIM_REGION_HEADER_NAME = \"Ocp-Apim-Subscription-Region\";\nconst APIM_RESOURCE_ID = \"Ocp-Apim-ResourceId\";\nexport const DEFAULT_SCOPE = \"https://cognitiveservices.azure.com/.default\";\n\nexport interface TranslatorCredential {\n  key: string;\n  region: string;\n}\n\nexport interface TranslatorTokenCredential {\n  tokenCredential: TokenCredential;\n  region: string;\n  azureResourceId: string;\n}\n\nexport class TranslatorAuthenticationPolicy implements PipelinePolicy {\n  name: string = \"TranslatorAuthenticationPolicy\";\n  credential: TranslatorCredential;\n\n  constructor(credential: TranslatorCredential) {\n    this.credential = credential;\n  }\n\n  sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n    request.headers.set(APIM_KEY_HEADER_NAME, this.credential.key);\n    request.headers.set(APIM_REGION_HEADER_NAME, this.credential.region);\n\n    return next(request);\n  }\n}\n\nexport class TranslatorAzureKeyAuthenticationPolicy implements PipelinePolicy {\n  name: string = \"TranslatorAzureKeyAuthenticationPolicy\";\n  credential: AzureKeyCredential;\n\n  constructor(credential: AzureKeyCredential) {\n    this.credential = credential;\n  }\n\n  sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n    request.headers.set(APIM_KEY_HEADER_NAME, this.credential.key);\n\n    return next(request);\n  }\n}\n\nexport class TranslatorTokenCredentialAuthenticationPolicy implements PipelinePolicy {\n  name: string = \"TranslatorTokenCredentialAuthenticationPolicy\";\n  credential: TranslatorTokenCredential;\n\n  constructor(credential: TranslatorTokenCredential) {\n    this.credential = credential;\n  }\n\n  sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n    request.headers.set(APIM_REGION_HEADER_NAME, this.credential.region);\n    request.headers.set(APIM_RESOURCE_ID, this.credential.azureResourceId);\n\n    return next(request);\n  }\n}\n",
+      "contentHash": "440ee5a47bd5c43aaa107b3ba90a22df95b2e4cf19b5fa5a42944179be3bd220",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/src/authenticationCustomized.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "kind": "unknown",
+      "id": "33557c598dc61b6173ec68d526be014f1cff5503c013451432017dcb71bd718a"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/isUnexpected.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  GetSupportedLanguages200Response,\n  GetSupportedLanguagesDefaultResponse,\n  Translate200Response,\n  TranslateDefaultResponse,\n  Transliterate200Response,\n  TransliterateDefaultResponse,\n} from \"./responses.js\";\n\nconst responseMap: Record<string, string[]> = {\n  \"GET /languages\": [\"200\"],\n  \"POST /translate\": [\"200\"],\n  \"POST /transliterate\": [\"200\"],\n};\n\nexport function isUnexpected(\n  response: GetSupportedLanguages200Response | GetSupportedLanguagesDefaultResponse,\n): response is GetSupportedLanguagesDefaultResponse;\nexport function isUnexpected(\n  response: Translate200Response | TranslateDefaultResponse,\n): response is TranslateDefaultResponse;\nexport function isUnexpected(\n  response: Transliterate200Response | TransliterateDefaultResponse,\n): response is TransliterateDefaultResponse;\nexport function isUnexpected(\n  response:\n    | GetSupportedLanguages200Response\n    | GetSupportedLanguagesDefaultResponse\n    | Translate200Response\n    | TranslateDefaultResponse\n    | Transliterate200Response\n    | TransliterateDefaultResponse,\n): response is\n  GetSupportedLanguagesDefaultResponse | TranslateDefaultResponse | TransliterateDefaultResponse {\n  const lroOriginal = response.headers[\"x-ms-original-url\"];\n  const url = new URL(lroOriginal ?? response.request.url);\n  const method = response.request.method;\n  let pathDetails = responseMap[`${method} ${url.pathname}`];\n  if (!pathDetails) {\n    pathDetails = getParametrizedPathSuccess(method, url.pathname);\n  }\n  return !pathDetails.includes(response.status);\n}\n\nfunction getParametrizedPathSuccess(method: string, path: string): string[] {\n  const pathParts = path.split(\"/\");\n\n  // Traverse list to match the longest candidate\n  // matchedLen: the length of candidate path\n  // matchedValue: the matched status code array\n  let matchedLen = -1,\n    matchedValue: string[] = [];\n\n  // Iterate the responseMap to find a match\n  for (const [key, value] of Object.entries(responseMap)) {\n    // Extracting the path from the map key which is in format\n    // GET /path/foo\n    if (!key.startsWith(method)) {\n      continue;\n    }\n    const candidatePath = getPathFromMapKey(key);\n    // Get each part of the url path\n    const candidateParts = candidatePath.split(\"/\");\n\n    // track if we have found a match to return the values found.\n    let found = true;\n    for (let i = candidateParts.length - 1, j = pathParts.length - 1; i >= 1 && j >= 1; i--, j--) {\n      if (candidateParts[i]?.startsWith(\"{\") && candidateParts[i]?.indexOf(\"}\") !== -1) {\n        const start = candidateParts[i]!.indexOf(\"}\") + 1,\n          end = candidateParts[i]?.length;\n        // If the current part of the candidate is a \"template\" part\n        // Try to use the suffix of pattern to match the path\n        // {guid} ==> $\n        // {guid}:export ==> :export$\n        const isMatched = new RegExp(`${candidateParts[i]?.slice(start, end)}`).test(\n          pathParts[j] || \"\",\n        );\n\n        if (!isMatched) {\n          found = false;\n          break;\n        }\n        continue;\n      }\n\n      // If the candidate part is not a template and\n      // the parts don't match mark the candidate as not found\n      // to move on with the next candidate path.\n      if (candidateParts[i] !== pathParts[j]) {\n        found = false;\n        break;\n      }\n    }\n\n    // We finished evaluating the current candidate parts\n    // Update the matched value if and only if we found the longer pattern\n    if (found && candidatePath.length > matchedLen) {\n      matchedLen = candidatePath.length;\n      matchedValue = value;\n    }\n  }\n\n  return matchedValue;\n}\n\nfunction getPathFromMapKey(mapKey: string): string {\n  const pathStart = mapKey.indexOf(\"/\");\n  return mapKey.slice(pathStart);\n}\n",
+      "contentHash": "325bd4ecd0464c60ccae9ea9860a2588e5c0e209501f0587ac4044f5efbdc990",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/src/isUnexpected.ts",
+      "startLine": 1,
+      "endLine": 112,
+      "kind": "unknown",
+      "id": "63ed415d6d2416c462f9a04039dfb3013e928d0b3e4ffc60d800ecb1e45471d8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/translation/ai-translation-text-rest/package.json",
+      "text": "{\n  \"name\": \"@azure-rest/ai-translation-text\",\n  \"sdk-type\": \"client\",\n  \"author\": \"Microsoft Corporation\",\n  \"version\": \"2.0.1\",\n  \"description\": \"An isomorphic client library for the Azure Translator Service\",\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/translation/ai-translation-text-rest/README.md\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\",\n    \"translate\",\n    \"translation\"\n  ],\n  \"license\": \"MIT\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/translation/ai-translation-text-rest\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\",\n    \"review/\",\n    \"CHANGELOG.md\"\n  ],\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure Text Translation Service\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-cognitive-services\",\n      \"azure-translator\"\n    ],\n    \"skip\": [\n      \"translateCustom.js\"\n    ],\n    \"requiredResources\": {\n      \"Translator resource instance\": \"https://learn.microsoft.com/azure/cognitive-services/Translator/create-translator-resource\"\n    }\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure/arm-cognitiveservices\": \"catalog:arm\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"autorest\": \"catalog:\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/customClient.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "36aa724feb3b404dccf8c5fbb9c662176133abe3b95520a7f6a3971b04a5d0e7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/package.json"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/README.md",
+      "text": "# Azure TextTranslation REST client library for JavaScript\n\nAzure text translation is a cloud-based REST API provided by the Azure Translator service. It utilizes neural machine translation technology to deliver precise, contextually relevant, and semantically accurate real-time text translations across all supported languages.\n\nThe client library offers several key functionalities:\n\n- Retrieve the list of languages supported for translation and transliteration operations, as well as LLM models available for translations.\n\n- Perform deterministic text translation from a specified source language to a target language, with configurable parameters to ensure precision and maintain contextual integrity.\n\n- Execute transliteration by converting text from the original script to an alternative script representation.\n\n- Use LLM models to produce translation output variants that are tone-specific and gender-aware.\n\n**Please rely heavily on our [REST client docs](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/rest-clients.md) to use this library**\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/translation/ai-translation-text-rest)\n- [Package (NPM)](https://www.npmjs.com/package/@azure-rest/ai-translation-text)\n- [API reference documentation](https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/rest-api-guide)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/translation/ai-translation-text-rest/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- LTS versions of Node.js\n- Latest versions of Edge, Chrome, Safari and Firefox\n\n### Prerequisites\n\n- You must have an [Azure subscription](https://azure.microsoft.com/free/) to use this package.\n- An existing Translator service or Cognitive Services resource.\n\n### Install the `@azure-rest/ai-translation-text` package\n\nInstall the Azure TextTranslation REST client REST client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure-rest/ai-translation-text\n```\n\n#### Create a Translator service resource\n\nYou can create a Translator resource following [Create a Translator resource][translator_resource_create].\n\n### Browser support\n\n#### JavaScript Bundle\n\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n### Authenticate the client\n\nInteraction with the service using the client library begins with creating an instance of the [TextTranslationClient][translator_client_class] class. You will need an **API key** or `TokenCredential` to instantiate a client object. For more information regarding authenticating with cognitive services, see [Authenticate requests to Translator Service][translator_auth].\n\n#### Get an API key\n\nYou can get the `endpoint`, `API key` and `Region` from the Cognitive Services resource or Translator service resource information in the [Azure Portal][azure_portal].\n\nAlternatively, use the [Azure CLI][azure_cli] snippet below to get the API key from the Translator service resource.\n\n```PowerShell\naz cognitiveservices account keys list --resource-group <your-resource-group-name> --name <your-resource-name>\n```\n\n#### Create a `TextTranslationClient` using an Azure Active Directory credential\n\nTo use an [Azure Active Directory (AAD) token credential](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token),\nprovide an instance of the desired credential type obtained from the\n[@azure/identity](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#credentials) library.\n\nTo authenticate with AAD, you must first `npm` install [`@azure/identity`](https://www.npmjs.com/package/@azure/identity)\n\nAfter setup, you can choose which type of [credential](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#credentials) from `@azure/identity` to use.\nAs an example, [DefaultAzureCredential](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential)\ncan be used to authenticate the client.\n\n### Create a `TextTranslationClient` using an API key and Region credential\n\nOnce you have the value for the API key and Region, create an `TranslatorCredential`.\n\nWith the value of the `TranslatorCredential` you can create the [TextTranslationClient][translator_client_class]:\n\n```ts snippet:ReadmeSampleCreateClient_TranslatorCredential\nimport TextTranslationClient, { TranslatorCredential } from \"@azure-rest/ai-translation-text\";\n\nconst endpoint = \"https://api.cognitive.microsofttranslator.com\";\nconst key = \"YOUR_SUBSCRIPTION_KEY\";\nconst region = \"westus\";\nconst credential: TranslatorCredential = {\n  key,\n  region,\n};\nconst translationClient = TextTranslationClient(endpoint, credential);\n```\n\n## Examples\n\nThe following section provides several code snippets using the `client` [created above](#create-a-texttranslationclient-using-an-api-key-and-region-credential), and covers the main features present in this client library.\n\n### Get Supported Languages\n\nGets the set of languages currently supported by other operations of the Translator.\n\n```ts snippet:ReadmeSampleGetSupportedLanguages\nimport TextTranslationClient, {\n  TranslatorCredential,\n  isUnexpected,\n} from \"@azure-rest/ai-translation-text\";\n\nconst endpoint = \"https://api.cognitive.microsofttranslator.com\";\nconst key = \"YOUR_SUBSCRIPTION_KEY\";\nconst region = \"westus\";\nconst credential: TranslatorCredential = {\n  key,\n  region,\n};\nconst translationClient = TextTranslationClient(endpoint, credential);\n\nconst langResponse = await translationClient.path(\"/languages\").get();\n\nif (isUnexpected(langResponse)) {\n  throw langResponse.body.error;\n}\n\nconst languages = langResponse.body;\n\nif (languages.translation) {\n  console.log(\"Translated languages:\");\n  for (const [key, translationLanguage] of Object.entries(languages.translation)) {\n    console.log(`${key} -- name: ${translationLanguage.name} (${translationLanguage.nativeName})`);\n  }\n}\n\nif (languages.transliteration) {\n  console.log(\"Transliteration languages:\");\n  for (const [key, transliterationLanguage] of Object.entries(languages.transliteration)) {\n    console.log(\n      `${key} -- name: ${transliterationLanguage.name} (${transliterationLanguage.nativeName})`,\n    );\n  }\n}\n\nif (languages.models) {\n  console.log(\"Available LLM Models:\");\n  for (const model in languages.models) {\n    console.log(model);\n  }\n}\n```\n\nPlease refer to the service documentation for a conceptual discussion of [languages][languages_doc].\n\n### Translate\n\nRenders single source-language text to multiple target-language texts with a single request.\n\n```ts snippet:ReadmeSampleTranslate\nimport TextTranslationClient, {\n  TranslatorCredential,\n  isUnexpected,\n} from \"@azure-rest/ai-translation-text\";\n\nconst endpoint = \"https://api.cognitive.microsofttranslator.com\";\nconst key = \"YOUR_SUBSCRIPTION_KEY\";\nconst region = \"westus\";\nconst credential: TranslatorCredential = {\n  key,\n  region,\n};\nconst translationClient = TextTranslationClient(endpoint, credential);\n\nconst input = {\n  text: \"This is a test.\",\n  targets: [{ language: \"cs\" }],\n  language: \"en\",\n};\nconst translateResponse = await translationClient.path(\"/translate\").post({\n  body: { inputs: [input] },\n});\n\nif (isUnexpected(translateResponse)) {\n  throw translateResponse.body.error;\n}\n\nconst translations = translateResponse.body.value;\nfor (const translation of translations) {\n  console.log(\n    `Text was translated to: '${translation?.translations[0]?.language}' and the result is: '${translation?.translations[0]?.text}'.`,\n  );\n}\n```\n\nPlease refer to the service documentation for a conceptual discussion of [translate][translate_doc].\n\n### Transliterate\n\nConverts characters or letters of a source language to the corresponding characters or letters of a target language.\n\n```ts snippet:ReadmeSampleTransliterate\nimport TextTranslationClient, {\n  TranslatorCredential,\n  isUnexpected,\n} from \"@azure-rest/ai-translation-text\";\n\nconst endpoint = \"https://api.cognitive.microsofttranslator.com\";\nconst key = \"YOUR_SUBSCRIPTION_KEY\";\nconst region = \"westus\";\nconst credential: TranslatorCredential = {\n  key,\n  region,\n};\nconst translationClient = TextTranslationClient(endpoint, credential);\n\nconst inputText = [{ text: \"这是个测试。\" }];\nconst parameters = {\n  language: \"zh-Hans\",\n  fromScript: \"Hans\",\n  toScript: \"Latn\",\n};\nconst transliterateResponse = await translationClient.path(\"/transliterate\").post({\n  body: { inputs: inputText },\n  queryParameters: parameters,\n});\n\nif (isUnexpected(transliterateResponse)) {\n  throw transliterateResponse.body.error;\n}\n\nconst transliterations = transliterateResponse.body.value;\nfor (const transliteration of transliterations) {\n  console.log(\n    `Input text was transliterated to '${transliteration?.script}' script. Transliterated text: '${transliteration?.text}'.`,\n  );\n}\n```\n\nPlease refer to the service documentation for a conceptual discussion of [transliterate][transliterate_doc].\n\n\n\n## Troubleshooting\n\nWhen you interact with the Translator Service using the TextTranslator client library, errors returned by the Translator service correspond to the same HTTP status codes returned for REST API requests.\n\nFor example, if you submit a translation request without a target translate language, a `400` error is returned, indicating \"Bad Request\".\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_portal]: https://portal.azure.com\n[translator_resource_create]: https://learn.microsoft.com/azure/ai-services/translator/how-to/create-translator-resource?tabs=foundry\n[translator_auth]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication\n[translator_client_class]: https://learn.microsoft.com/javascript/api/@azure-rest/ai-translation-text/texttranslationclient\n[languages_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/get-languages\n[translate_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/translate-api\n[transliterate_doc]: https://learn.microsoft.com/azure/ai-services/translator/text-translation/preview/transliterate-api\n",
+      "contentHash": "895fed64e596968e07dc0b17df4c389f193ef9123a54a158ddaa1430d33bd953",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/README.md"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/tsp-location.yaml",
+      "text": "directory: specification/translation/data-plane/TextTranslation\ncommit: a505764f4d50bc126aea9f85696282707211028b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "3bd6684cb8ef264ea7673f655e20450c6bc1eef484c65999aa4c0819dddca237",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/translation/ai-translation-text-rest/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "13acdac927c65f802b2be97fbfa789065772bcc82dbe9b56195f6b9ce2153d05",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "96889dcbef497a6500f5e49b7d52eeb5efca9d21ef8a60a80f35348b26e16e9a",
+        "category": "Auth",
+        "subtype": "Custom Translator key/region and resource-id header policies",
+        "explanation": "Three handwritten PipelinePolicy classes set Ocp-Apim-Subscription-Key, -Region and -ResourceId headers from TranslatorCredential, AzureKeyCredential and TranslatorTokenCredential, with new credential interfaces and a default cognitiveservices scope.",
+        "handwrittenRationale": "Standalone authenticationCustomized.ts file defining policies and credential types outside generated code.",
+        "symbols": [
+          "TranslatorCredential",
+          "TranslatorTokenCredential",
+          "TranslatorAuthenticationPolicy",
+          "TranslatorAzureKeyAuthenticationPolicy",
+          "TranslatorTokenCredentialAuthenticationPolicy",
+          "DEFAULT_SCOPE"
+        ],
+        "evidence": [
+          {
+            "id": "33557c598dc61b6173ec68d526be014f1cff5503c013451432017dcb71bd718a",
+            "startLine": 12,
+            "endLine": 73
+          }
+        ],
+        "pattern": "custom-auth-header-policies",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "4f4657a0323742773936f68ba02e7d27d9838dd7aa90945a9b419fe91bf3f5b9",
+        "category": "Auth",
+        "subtype": "Overloaded createClient with credential type guards and policy selection",
+        "explanation": "createClient accepts several credential shapes, optional endpoint, uses type guards to distinguish them and adds the matching custom or bearer-token policy to the pipeline.",
+        "handwrittenRationale": "Handwritten customClient.ts factory with overloads and credential dispatch that wraps getClient.",
+        "symbols": [
+          "createClient",
+          "isKeyCredential",
+          "isTranslatorKeyCredential",
+          "isTokenCredential",
+          "isTranslatorTokenCredential",
+          "isCredentials"
+        ],
+        "evidence": [
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 25,
+            "endLine": 51
+          },
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 59,
+            "endLine": 121
+          },
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 149,
+            "endLine": 181
+          }
+        ],
+        "pattern": "credential-union-dispatch-factory",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "5842bbad51264c9a3f593d005a0fe6c8afe873ba9fb3e1eb6f7f224ea8c65dd7",
+        "category": "Other",
+        "subtype": "Default endpoint and platform path appending",
+        "explanation": "createClient falls back to a default Translator endpoint, appends /translator/text/v3.0 when the endpoint contains 'cognitiveservices', and defaults apiVersion.",
+        "handwrittenRationale": "Handwritten endpoint logic with string checks in customClient.ts.",
+        "symbols": [
+          "createClient",
+          "DEFAULT_ENPOINT",
+          "PLATFORM_HOST",
+          "PLATFORM_PATH"
+        ],
+        "evidence": [
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 21,
+            "endLine": 23
+          },
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 122,
+            "endLine": 132
+          }
+        ],
+        "pattern": "endpoint-defaulting-path-append",
+        "generatorAddressable": "unclear"
+      },
+      {
+        "key": "24a212deb63e97776eac8405d47fdfc9da056b83502c9c9cf005a8cf8dd3478b",
+        "category": "Tracing / telemetry",
+        "subtype": "User agent prefix and logger option merging",
+        "explanation": "createClient builds a package user-agent prefix (prepending any caller prefix) and defaults the logging logger to logger.info before calling getClient.",
+        "handwrittenRationale": "Handwritten options merge in customClient.ts with a hard-coded package version string.",
+        "symbols": [
+          "createClient",
+          "userAgentOptions",
+          "loggingOptions"
+        ],
+        "evidence": [
+          {
+            "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+            "startLine": 134,
+            "endLine": 147
+          }
+        ],
+        "pattern": "user-agent-prefix-merge",
+        "generatorAddressable": "yes"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "96889dcbef497a6500f5e49b7d52eeb5efca9d21ef8a60a80f35348b26e16e9a",
+        "status": "accepted",
+        "reason": "authenticationCustomized.ts lines 12-73 define TranslatorCredential/TranslatorTokenCredential, DEFAULT_SCOPE and three PipelinePolicy classes that set Ocp-Apim subscription key, region and resource-id headers; there is no generated counterpart in the evidence."
+      },
+      {
+        "key": "4f4657a0323742773936f68ba02e7d27d9838dd7aa90945a9b419fe91bf3f5b9",
+        "status": "accepted",
+        "reason": "customClient.ts lines 25-51 define credential type guards, 59-121 declare overloads and resolve arguments, and 149-181 add the matching custom or bearer policy; handwritten (package.json generate:client is skipped and the file name is customClient)."
+      },
+      {
+        "key": "5842bbad51264c9a3f593d005a0fe6c8afe873ba9fb3e1eb6f7f224ea8c65dd7",
+        "status": "revised",
+        "reason": "Endpoint defaulting and path appending at lines 21-23 and 124-130 are supported; the apiVersion default (line 122) is not cited and mirrors standard generated RLC factory code, so it was removed from the explanation.",
+        "finding": {
+          "key": "5842bbad51264c9a3f593d005a0fe6c8afe873ba9fb3e1eb6f7f224ea8c65dd7",
+          "category": "Other",
+          "subtype": "Default endpoint and platform path appending",
+          "explanation": "createClient falls back to a default Translator endpoint when none is given and appends /translator/text/v3.0 when the endpoint contains 'cognitiveservices'.",
+          "handwrittenRationale": "Handwritten endpoint logic with string checks in customClient.ts.",
+          "symbols": [
+            "createClient",
+            "DEFAULT_ENPOINT",
+            "PLATFORM_HOST",
+            "PLATFORM_PATH"
+          ],
+          "evidence": [
+            {
+              "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+              "startLine": 21,
+              "endLine": 23
+            },
+            {
+              "id": "0ca7d82d3b073d40073832e574f1b1e871d0a58a871ee39a5356f5c4a9f0dd56",
+              "startLine": 122,
+              "endLine": 132
+            }
+          ],
+          "pattern": "endpoint-defaulting-path-append",
+          "generatorAddressable": "unclear"
+        }
+      },
+      {
+        "key": "24a212deb63e97776eac8405d47fdfc9da056b83502c9c9cf005a8cf8dd3478b",
+        "status": "rejected",
+        "reason": "Lines 134-147 reproduce the standard user-agent prefix and logger.info option merge that generated RLC client factories emit; it is boilerplate copied into the handwritten factory (already counted by the createClient findings), not a distinct telemetry customization."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "isUnexpected.ts was treated as standard generated REST-level-client output and not reported.",
+      "Only 3 files were sent; operation helpers and other custom files were not visible.",
+      "isUnexpected.ts (63ed415d...) matches the standard generated RLC response-map helper and was not treated as a customization.",
+      "No generated/ counterpart of customClient.ts was supplied, so the reviewer could not diff it against the generator's createClient; generated-vs-handwritten judgments rely on file names and the skipped generate:client script.",
+      "Only 3 of 37 eligible files were captured; other src files (for example index.ts exports of the custom credential types) were not reviewed."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/authenticationCustomized.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "440ee5a47bd5c43aaa107b3ba90a22df95b2e4cf19b5fa5a42944179be3bd220"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/customClient.ts",
+      "startLine": 1,
+      "endLine": 181,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "28195d5fd3982f6370bb6cfce9c9286bc568ea06feb7d1d979a63ae89c83e133"
+    },
+    {
+      "path": "sdk/translation/ai-translation-text-rest/src/isUnexpected.ts",
+      "startLine": 1,
+      "endLine": 112,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "325bd4ecd0464c60ccae9ea9860a2588e5c0e209501f0587ac4044f5efbdc990"
+    }
+  ]
+}

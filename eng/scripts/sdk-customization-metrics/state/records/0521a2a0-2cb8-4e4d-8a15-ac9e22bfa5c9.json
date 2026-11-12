@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "id": "0521a2a0-2cb8-4e4d-8a15-ac9e22bfa5c9",
+  "observedAt": "2026-10-26T15:11:22.156Z",
+  "identity": "dotnet:azure.resourcemanager.selfhelp:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.SelfHelp",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/selfhelp/Azure.ResourceManager.SelfHelp"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "2d5c57895259b7c6f6eb9f8f515496672f8baece"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 211,
+    "eligibleFiles": 189,
+    "capturedFiles": 4,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/ArmSelfHelpModelFactory.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.ComponentModel;\nusing System.Linq;\nusing Azure.Core;\nusing Azure.ResourceManager.Models;\n\nnamespace Azure.ResourceManager.SelfHelp.Models\n{\n    public static partial class ArmSelfHelpModelFactory\n    {\n        /// <summary> Initializes a new instance of SelfHelpSolutionMetadata. </summary>\n        /// <param name=\"id\"> The id. </param>\n        /// <param name=\"name\"> The name. </param>\n        /// <param name=\"resourceType\"> The resourceType. </param>\n        /// <param name=\"systemData\"> The systemData. </param>\n        /// <param name=\"solutionId\"> Solution Id. </param>\n        /// <param name=\"solutionType\"> Solution Type. </param>\n        /// <param name=\"description\"> A detailed description of solution. </param>\n        /// <param name=\"requiredParameterSets\"> Required parameters for invoking this particular solution. </param>\n        /// <returns> A new <see cref=\"Models.SelfHelpSolutionMetadata\"/> instance for mocking. </returns>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static SelfHelpSolutionMetadata SelfHelpSolutionMetadata(ResourceIdentifier id, string name, ResourceType resourceType, ResourceManager.Models.SystemData systemData, string solutionId, string solutionType, string description, IEnumerable<IList<string>> requiredParameterSets)\n        {\n            return new SelfHelpSolutionMetadata(id, name, resourceType, systemData, default, null);\n        }\n    }\n}\n",
+      "contentHash": "6ec7332c2041368967fb70d85313f6e2107b5f0204f2a8da878ca3a5c8bdccc4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/ArmSelfHelpModelFactory.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "b9d4c3a6c9e5b04a4ed45759eb639e08b2a183f24eeff0ac99e8952abbb1fad7"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/MockableSelfHelpArmClient.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing Autorest.CSharp.Core;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Azure.ResourceManager.SelfHelp.Models;\n\nnamespace Azure.ResourceManager.SelfHelp.Mocking\n{\n    public partial class MockableSelfHelpArmClient : ArmResource\n    {\n        private ClientDiagnostics _discoverySolutionClientDiagnostics;\n        private DiscoverySolution _discoverySolutionRestClient;\n\n        private ClientDiagnostics DiscoverySolutionClientDiagnostics => _discoverySolutionClientDiagnostics ??= new ClientDiagnostics(\"Azure.ResourceManager.SelfHelp\", ProviderConstants.DefaultProviderNamespace, Diagnostics);\n        private DiscoverySolution DiscoverySolutionRestClient => _discoverySolutionRestClient ??= new DiscoverySolution(DiscoverySolutionClientDiagnostics, Pipeline, Diagnostics.ApplicationId, Endpoint, \"2024-03-01-preview\");\n\n        /// <summary>\n        /// Lists the relevant Azure diagnostics and solutions using [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) AND  resourceUri or resourceType.&lt;br/&gt; Discovery Solutions is the initial entry point within Help API, which identifies relevant Azure diagnostics and solutions. We will do our best to return the most effective solutions based on the type of inputs, in the request URL  &lt;br/&gt;&lt;br/&gt; Mandatory input :  problemClassificationId (Use the [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) &lt;br/&gt;Optional input: resourceUri OR resource Type &lt;br/&gt;&lt;br/&gt; &lt;b&gt;Note: &lt;/b&gt;  ‘requiredInputs’ from Discovery solutions response must be passed via ‘additionalParameters’ as an input to Diagnostics and Solutions API.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Help/discoverySolutions</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>DiscoverySolution_List</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2023-09-01-preview</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> 'ProblemClassificationId' or 'Id' is a mandatory filter to get solutions ids. It also supports optional 'ResourceType' and 'SolutionType' filters. The filter supports only 'and', 'or' and 'eq' operators. Example: $filter=ProblemClassificationId eq '1ddda5b4-cf6c-4d4f-91ad-bc38ab0e811e'. </param>\n        /// <param name=\"skiptoken\"> Skiptoken is only used if a previous operation returned a partial result. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Pageable<SelfHelpSolutionMetadata> GetSelfHelpDiscoverySolutions(ResourceIdentifier scope, string filter = null, string skiptoken = null, CancellationToken cancellationToken = default)\n        {\n            RequestContext context = new RequestContext\n            {\n                CancellationToken = cancellationToken\n            };\n            return new DiscoverySolutionDiscoverSolutionsCollectionResultOfT(DiscoverySolutionRestClient, filter, skiptoken, context, \"MockableSelfHelpArmClient.GetSelfHelpDiscoverySolutions\");\n        }\n\n        /// <summary>\n        /// Lists the relevant Azure diagnostics and solutions using [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) AND  resourceUri or resourceType.&lt;br/&gt; Discovery Solutions is the initial entry point within Help API, which identifies relevant Azure diagnostics and solutions. We will do our best to return the most effective solutions based on the type of inputs, in the request URL  &lt;br/&gt;&lt;br/&gt; Mandatory input :  problemClassificationId (Use the [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) &lt;br/&gt;Optional input: resourceUri OR resource Type &lt;br/&gt;&lt;br/&gt; &lt;b&gt;Note: &lt;/b&gt;  ‘requiredInputs’ from Discovery solutions response must be passed via ‘additionalParameters’ as an input to Diagnostics and Solutions API.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Help/discoverySolutions</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>DiscoverySolution_List</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2023-09-01-preview</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> 'ProblemClassificationId' or 'Id' is a mandatory filter to get solutions ids. It also supports optional 'ResourceType' and 'SolutionType' filters. The filter supports only 'and', 'or' and 'eq' operators. Example: $filter=ProblemClassificationId eq '1ddda5b4-cf6c-4d4f-91ad-bc38ab0e811e'. </param>\n        /// <param name=\"skiptoken\"> Skiptoken is only used if a previous operation returned a partial result. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual AsyncPageable<SelfHelpSolutionMetadata> GetSelfHelpDiscoverySolutionsAsync(ResourceIdentifier scope, string filter = null, string skiptoken = null, CancellationToken cancellationToken = default)\n        {\n            RequestContext context = new RequestContext\n            {\n                CancellationToken = cancellationToken\n            };\n            return new DiscoverySolutionDiscoverSolutionsAsyncCollectionResultOfT(DiscoverySolutionRestClient, filter, skiptoken, context, \"MockableSelfHelpArmClient.GetSelfHelpDiscoverySolutions\");\n        }\n    }\n}\n",
+      "contentHash": "fe60c01532d91b37c6e7bb805ff35a36779d62569e9d92f215a0cdd263b1ccfe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/MockableSelfHelpArmClient.cs",
+      "startLine": 1,
+      "endLine": 84,
+      "kind": "handwritten-marker",
+      "id": "de3672b3188f4de58e5e4223169c74e6a3b5bb29c3d4e3bd135326fa3e3c596f"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/SelfHelpExtensions.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.ResourceManager.Resources;\nusing Azure.ResourceManager.SelfHelp.Mocking;\nusing Azure.ResourceManager.SelfHelp.Models;\n\nnamespace Azure.ResourceManager.SelfHelp\n{\n    public static partial class SelfHelpExtensions\n    {\n        /// <summary>\n        /// Lists the relevant Azure diagnostics and solutions using [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) AND  resourceUri or resourceType.&lt;br/&gt; Discovery Solutions is the initial entry point within Help API, which identifies relevant Azure diagnostics and solutions. We will do our best to return the most effective solutions based on the type of inputs, in the request URL  &lt;br/&gt;&lt;br/&gt; Mandatory input :  problemClassificationId (Use the [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) &lt;br/&gt;Optional input: resourceUri OR resource Type &lt;br/&gt;&lt;br/&gt; &lt;b&gt;Note: &lt;/b&gt;  ‘requiredInputs’ from Discovery solutions response must be passed via ‘additionalParameters’ as an input to Diagnostics and Solutions API.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Help/discoverySolutions</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>DiscoverySolution_List</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2023-09-01-preview</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"client\"> The <see cref=\"ArmClient\" /> instance the method will execute against. </param>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> 'ProblemClassificationId' or 'Id' is a mandatory filter to get solutions ids. It also supports optional 'ResourceType' and 'SolutionType' filters. The filter supports only 'and', 'or' and 'eq' operators. Example: $filter=ProblemClassificationId eq '1ddda5b4-cf6c-4d4f-91ad-bc38ab0e811e'. </param>\n        /// <param name=\"skiptoken\"> Skiptoken is only used if a previous operation returned a partial result. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"client\"/> is null. </exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static Pageable<SelfHelpSolutionMetadata> GetSelfHelpDiscoverySolutions(this ArmClient client, ResourceIdentifier scope, string filter = null, string skiptoken = null, CancellationToken cancellationToken = default)\n        {\n            return GetMockableSelfHelpArmClient(client).GetSelfHelpDiscoverySolutions(scope, filter, skiptoken, cancellationToken);\n        }\n\n        /// <summary>\n        /// Lists the relevant Azure diagnostics and solutions using [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) AND  resourceUri or resourceType.&lt;br/&gt; Discovery Solutions is the initial entry point within Help API, which identifies relevant Azure diagnostics and solutions. We will do our best to return the most effective solutions based on the type of inputs, in the request URL  &lt;br/&gt;&lt;br/&gt; Mandatory input :  problemClassificationId (Use the [problemClassification API](https://learn.microsoft.com/rest/api/support/problem-classifications/list?tabs=HTTP)) &lt;br/&gt;Optional input: resourceUri OR resource Type &lt;br/&gt;&lt;br/&gt; &lt;b&gt;Note: &lt;/b&gt;  ‘requiredInputs’ from Discovery solutions response must be passed via ‘additionalParameters’ as an input to Diagnostics and Solutions API.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/{scope}/providers/Microsoft.Help/discoverySolutions</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>DiscoverySolution_List</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2023-09-01-preview</description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"client\"> The <see cref=\"ArmClient\" /> instance the method will execute against. </param>\n        /// <param name=\"scope\"> The scope that the resource will apply against. </param>\n        /// <param name=\"filter\"> 'ProblemClassificationId' or 'Id' is a mandatory filter to get solutions ids. It also supports optional 'ResourceType' and 'SolutionType' filters. The filter supports only 'and', 'or' and 'eq' operators. Example: $filter=ProblemClassificationId eq '1ddda5b4-cf6c-4d4f-91ad-bc38ab0e811e'. </param>\n        /// <param name=\"skiptoken\"> Skiptoken is only used if a previous operation returned a partial result. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"client\"/> is null. </exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static AsyncPageable<SelfHelpSolutionMetadata> GetSelfHelpDiscoverySolutionsAsync(this ArmClient client, ResourceIdentifier scope, string filter = null, string skiptoken = null, CancellationToken cancellationToken = default)\n        {\n            return GetMockableSelfHelpArmClient(client).GetSelfHelpDiscoverySolutionsAsync(scope, filter, skiptoken, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "e10cdc90ef3a35460cb16ef95984ffeae3b2021a9f3b468c41c92e304918a450",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/SelfHelpExtensions.cs",
+      "startLine": 1,
+      "endLine": 77,
+      "kind": "handwritten-marker",
+      "id": "9b32311c16915714aa29fe08c7dd53046198c35a42bfd6475dc78e8d3091bb2a"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Models/SelfHelpSolutionMetadata.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.ComponentModel;\nusing Azure.Core;\nusing Azure.ResourceManager.Models;\n\nnamespace Azure.ResourceManager.SelfHelp.Models\n{\n    public partial class SelfHelpSolutionMetadata\n    {\n        /// <summary> Solution Id. </summary>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public string SolutionId\n        {\n            get => throw new NotSupportedException(\"SolutionId property is not supported.\");\n            set => throw new NotSupportedException(\"SolutionId property is not supported.\");\n        }\n\n        /// <summary> Solution Type. </summary>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public string SolutionType\n        {\n            get => throw new NotSupportedException(\"SolutionType property is not supported.\");\n            set => throw new NotSupportedException(\"SolutionType property is not supported.\");\n        }\n\n        /// <summary> A detailed description of solution. </summary>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public string Description\n        {\n            get => throw new NotSupportedException(\"Description property is not supported.\");\n            set => throw new NotSupportedException(\"Description property is not supported.\");\n        }\n\n        /// <summary> Required parameters for invoking this particular solution. </summary>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public IList<IList<string>> RequiredParameterSets => throw new NotSupportedException(\"RequiredParameterSets property is not supported.\");\n    }\n}\n",
+      "contentHash": "90ba3b1b1d8f77165f865a83102174e71cd17ea165ec89703e6d0b527dcc14f9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Models/SelfHelpSolutionMetadata.cs",
+      "startLine": 1,
+      "endLine": 42,
+      "kind": "handwritten-marker",
+      "id": "ca40ed9f33aad6f9e40d562f19a879b921ca73d9acb65bca0d78c0065c2133d8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/README.md",
+      "text": "# Microsoft Azure SelfHelp management client library for .NET\n\nThe Azure Help REST API provides you access to rich and powerful self-help solutions and diagnostics to troubleshoot Azure issues anywhere.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure SelfHelp management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.SelfHelp\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html)\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "d5c3f280437dd09886566eef76bb7e4737ff66c9ddd82c8d9695867290b58346",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/README.md"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Azure.ResourceManager.SelfHelp.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.1.0-beta.9</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.0.0</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.SelfHelp</PackageId>\n    <Description>Azure Resource Manager client SDK for Azure resource provider SelfHelp.</Description>\n    <PackageTags>azure;management;arm;resource manager;selfhelp</PackageTags>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "245a29000c28d96d4838c7b17f840a47709e983ac841c9a437e2a6521186fc86",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Azure.ResourceManager.SelfHelp.csproj"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/tsp-location.yaml",
+      "text": "directory: specification/help/resource-manager/Microsoft.Help/Help\nrepo: Azure/azure-rest-api-specs\ncommit: 6de816d0d889ec2b769015125e20f0f9aa58db2b\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n",
+      "contentHash": "e2d161c23f208ce65747e614cdc9ee39013038ed9a5cf8626caa8a147d3e9f57",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/selfhelp/Azure.ResourceManager.SelfHelp/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/ArmSelfHelpModelFactory.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6ec7332c2041368967fb70d85313f6e2107b5f0204f2a8da878ca3a5c8bdccc4"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/MockableSelfHelpArmClient.cs",
+      "startLine": 1,
+      "endLine": 84,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "fe60c01532d91b37c6e7bb805ff35a36779d62569e9d92f215a0cdd263b1ccfe"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Extensions/SelfHelpExtensions.cs",
+      "startLine": 1,
+      "endLine": 77,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e10cdc90ef3a35460cb16ef95984ffeae3b2021a9f3b468c41c92e304918a450"
+    },
+    {
+      "path": "sdk/selfhelp/Azure.ResourceManager.SelfHelp/src/Custom/Models/SelfHelpSolutionMetadata.cs",
+      "startLine": 1,
+      "endLine": 42,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "90ba3b1b1d8f77165f865a83102174e71cd17ea165ec89703e6d0b527dcc14f9"
+    }
+  ]
+}

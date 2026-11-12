@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "id": "24babcf1-423f-4039-a9ad-67a36bf6beb7",
+  "observedAt": "2026-10-22T20:42:37.194Z",
+  "identity": "python:azure-ai-ml:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-ai-ml",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/ml/azure-ai-ml"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "73034f34a3e31d40306a0cdff14f517e7790e904"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 3172,
+    "eligibleFiles": 1064,
+    "capturedFiles": 8,
+    "skipped": [
+      {
+        "path": "sdk/ml/azure-ai-ml/pyproject.toml",
+        "reason": "File-count limit"
+      },
+      {
+        "path": "sdk/ml/azure-ai-ml/README.md",
+        "reason": "File-count limit"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n#\n# Copyright (c) Microsoft Corporation. All rights reserved.\n#\n# The MIT License (MIT)\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"\"Software\"\"), to\n# deal in the Software without restriction, including without limitation the\n# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or\n# sell copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in\n# all copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n# IN THE SOFTWARE.\n#\n# --------------------------------------------------------------------------\n\n\n# This file is used for handwritten extensions to the generated code. Example:\n# https://github.com/Azure/azure-sdk-for-python/blob/main/doc/dev/customize_code/how-to-patch-sdk-code.md\nfrom typing import Any, Optional, TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\nfrom ._client import DatasetDataplaneClient as _DatasetDataplaneClient\n\n__all__ = [\"DatasetDataplaneClient\"]\n\n\nclass DatasetDataplaneClient(_DatasetDataplaneClient):\n    \"\"\"Patched client that accepts the legacy (credential, base_url) signature.\"\"\"\n\n    def __init__(\n        self,\n        credential: Optional[\"TokenCredential\"] = None,\n        *,\n        subscription_id: Optional[str] = None,\n        base_url: Optional[str] = None,\n        endpoint: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        resolved_endpoint = endpoint or base_url or \"\"\n        self._subscription_id = subscription_id\n        self._base_url = resolved_endpoint\n        super().__init__(endpoint=resolved_endpoint, credential=credential, **kwargs)\n        self._client._base_url = resolved_endpoint\n\n\ndef patch_sdk():\n    pass\n",
+      "contentHash": "6a071dc99d678c7c1ebb735f10d359049b46a4333c09003a18a839eee685e649",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "kind": "handwritten-marker",
+      "id": "e3573ab15385296188e4c15adcd316f72c1a554996f53ddca3d92726647e08e2"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/models/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\n\nfrom typing import Any, Dict\n\nfrom ._models import DataVersionEntity\n\n__all__: list[str] = []  # Add all objects you want publicly available to users at this package level\n\n\ndef _additional_properties(self: DataVersionEntity) -> Dict[str, Any]:\n    \"\"\"Backwards-compatibility shim for the removed msrest ``additional_properties`` attribute.\n\n    When this client was migrated to TypeSpec, ``DataVersionEntity`` became a hybrid\n    (``MutableMapping``) model, which does not expose the msrest ``additional_properties``\n    attribute. External consumers still depend on it -- notably the ``mltable`` package's local\n    data-asset resolution path (``MLClient.jobs._dataset_dataplane_operations._operation.get``),\n    which reads ``data_version.additional_properties['isV2' | 'legacyDataflow']``. Losing the\n    attribute raised ``AttributeError`` when loading an ``azureml://`` MLTable data asset.\n\n    This restores the original contract by returning the un-modeled wire keys, i.e. the keys\n    present on the wire payload that are not backed by a declared ``rest_field`` on the model.\n\n    :return: The wire properties not declared as fields on the model.\n    :rtype: dict[str, typing.Any]\n    \"\"\"\n    # Wire names of the declared fields (e.g. ``dataVersion``, ``entityMetadata``).\n    modeled = {\n        getattr(rf, \"_rest_name\", None)  # pylint: disable=protected-access\n        for rf in getattr(self, \"_attr_to_rest_field\", {}).values()\n    }\n    raw = getattr(self, \"_data\", None)  # pylint: disable=protected-access\n    items = raw.items() if isinstance(raw, dict) else self.items()\n    return {key: value for key, value in items if key not in modeled}\n\n\n# Attach only when the generated model does not already provide it, so a future TypeSpec\n# regeneration that restores ``additional_properties`` natively takes precedence.\nif not hasattr(DataVersionEntity, \"additional_properties\"):\n    DataVersionEntity.additional_properties = property(_additional_properties)  # type: ignore[attr-defined]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "9fcd7563731184927eee4afd94fa66c73c0e4a9443daf7afcd62a6edaa72e040",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/models/_patch.py",
+      "startLine": 1,
+      "endLine": 56,
+      "kind": "handwritten-marker",
+      "id": "ed685631191dad117108c5930852f1505c23bb1747c676ba9347f51b534e792e"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n#\n# Copyright (c) Microsoft Corporation. All rights reserved.\n#\n# The MIT License (MIT)\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"\"Software\"\"), to\n# deal in the Software without restriction, including without limitation the\n# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or\n# sell copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in\n# all copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n# IN THE SOFTWARE.\n#\n# --------------------------------------------------------------------------\n\n\n# This file is used for handwritten extensions to the generated code. Example:\n# https://github.com/Azure/azure-sdk-for-python/blob/main/doc/dev/customize_code/how-to-patch-sdk-code.md\nfrom typing import Any, Optional, TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\nfrom ._client import ModelDataplaneClient as _ModelDataplaneClient\n\n__all__ = [\"ModelDataplaneClient\"]\n\n\nclass ModelDataplaneClient(_ModelDataplaneClient):\n    \"\"\"Patched client that accepts the legacy (credential, subscription_id, base_url) signature.\"\"\"\n\n    def __init__(\n        self,\n        credential: Optional[\"TokenCredential\"] = None,\n        *,\n        subscription_id: Optional[str] = None,\n        base_url: Optional[str] = None,\n        endpoint: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        resolved_endpoint = endpoint or base_url or \"\"\n        self._subscription_id = subscription_id\n        self._base_url = resolved_endpoint\n        super().__init__(endpoint=resolved_endpoint, credential=credential, **kwargs)\n        self._client._base_url = resolved_endpoint\n\n\ndef patch_sdk():\n    pass\n",
+      "contentHash": "bdd19b4c73e973d43da7b0d0bec3476da4137db5565b75f23a8cf75c54bd21ef",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "kind": "handwritten-marker",
+      "id": "46f70ecf163b6a1f7604355d2f37290b0130ee382f8b05acc9adf22e6131d0db"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/operations/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# --------------------------------------------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nfrom typing import Any\n\nfrom azure.core.exceptions import (\n    ClientAuthenticationError,\n    ResourceExistsError,\n    ResourceNotFoundError,\n)\nfrom azure.core.polling import LROPoller, NoPolling\nfrom azure.core.rest import HttpRequest\nfrom azure.mgmt.core.polling.arm_polling import ARMPolling\n\n\ndef _build_create_or_update_model_with_system_metadata_request(\n    subscription_id: str,\n    resource_group_name: str,\n    registry_name: str,\n    name: str,\n    version: str,\n    **kwargs: Any,\n) -> HttpRequest:\n    api_version = kwargs.pop(\"api_version\", \"2021-10-01-dataplanepreview\")\n    url = (\n        \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}\"\n        \"/providers/Microsoft.MachineLearningServices/registries/{registryName}\"\n        \"/models/{name}/versions/{version}\"\n    )\n    path_format_arguments = {\n        \"subscriptionId\": subscription_id,\n        \"resourceGroupName\": resource_group_name,\n        \"registryName\": registry_name,\n        \"name\": name,\n        \"version\": version,\n    }\n    url = url.format(**path_format_arguments)\n    return HttpRequest(\n        method=\"PUT\",\n        url=url,\n        params={\"api-version\": api_version},\n        headers={\"Content-Type\": \"application/json\", \"Accept\": \"application/json\"},\n        json=kwargs.get(\"json\"),\n    )\n\n\ndef _begin_create_or_update_model_with_system_metadata(\n    self,\n    subscription_id: str,\n    name: str,\n    version: str,\n    resource_group_name: str,\n    registry_name: str,\n    body: Any,\n    **kwargs: Any,\n) -> LROPoller:\n    \"\"\"Create or update a model version with system metadata in a registry.\n\n    This is a custom operation not present in the TypeSpec-generated code.\n    It was originally part of the old autorest-generated client and is needed\n    for registry model operations that include system_metadata.\n    \"\"\"\n    error_map = {401: ClientAuthenticationError, 404: ResourceNotFoundError, 409: ResourceExistsError}\n    error_map.update(kwargs.pop(\"error_map\", {}))\n\n    # ``body`` is an arm_ml_service hybrid ``ModelVersion``. Serialize it to the camelCase wire dict, then inject the\n    # ``system_metadata`` value under the snake_case ``properties.system_metadata`` key (byte-identical to the legacy\n    # behavior, which serialized a msrest ``ModelVersionData`` and then set the same snake_case key).\n    import json as _json_mod\n\n    from azure.ai.ml._restclient.arm_ml_service._utils.model_base import SdkJSONEncoder\n\n    _json = _json_mod.loads(_json_mod.dumps(body, cls=SdkJSONEncoder, exclude_readonly=True))\n    _json[\"properties\"][\"system_metadata\"] = body.properties.system_metadata\n\n    request = _build_create_or_update_model_with_system_metadata_request(\n        subscription_id=subscription_id,\n        resource_group_name=resource_group_name,\n        registry_name=registry_name,\n        name=name,\n        version=version,\n        json=_json,\n    )\n    request.url = self._client.format_url(request.url)\n\n    pipeline_response = self._client._pipeline.run(request, stream=False, **kwargs)\n    response = pipeline_response.http_response\n\n    cls = kwargs.pop(\"cls\", None)\n\n    def get_long_running_output(pipeline_response):\n        if cls:\n            return cls(pipeline_response, None, {})\n        return None\n\n    polling = kwargs.pop(\"polling\", True)\n    if polling is True:\n        lro_delay = kwargs.pop(\"polling_interval\", self._config.polling_interval)\n        polling_method = ARMPolling(lro_delay, **kwargs)\n    elif polling is False:\n        polling_method = NoPolling()\n    else:\n        polling_method = polling\n\n    return LROPoller(self._client, pipeline_response, get_long_running_output, polling_method)\n\n\n__all__: list[str] = []  # Add all objects you want publicly available to users at this package level\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n    from ._operations import ModelsOperations\n\n    ModelsOperations.begin_create_or_update_model_with_system_metadata = (\n        _begin_create_or_update_model_with_system_metadata\n    )\n",
+      "contentHash": "edad70b3185f259baaad2092070290547b85b89b3fadb3244b05d5660042ad41",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/operations/_patch.py",
+      "startLine": 1,
+      "endLine": 128,
+      "kind": "handwritten-marker",
+      "id": "61901aa7874e0e149b87d024e8ccc8dc4c636dedc5debbc6f079f3decbe967e8"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/registry_discovery/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n#\n# Copyright (c) Microsoft Corporation. All rights reserved.\n#\n# The MIT License (MIT)\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"\"Software\"\"), to\n# deal in the Software without restriction, including without limitation the\n# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or\n# sell copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in\n# all copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n# IN THE SOFTWARE.\n#\n# --------------------------------------------------------------------------\n\n\n# This file is used for handwritten extensions to the generated code. Example:\n# https://github.com/Azure/azure-sdk-for-python/blob/main/doc/dev/customize_code/how-to-patch-sdk-code.md\nfrom typing import Any, Optional, TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\nfrom ._client import RegistryDiscoveryClient as _RegistryDiscoveryClient\n\n__all__ = [\"RegistryDiscoveryClient\"]\n\n\nclass RegistryDiscoveryClient(_RegistryDiscoveryClient):\n    \"\"\"Patched client that accepts the legacy (credential, base_url) signature.\"\"\"\n\n    def __init__(\n        self,\n        credential: Optional[\"TokenCredential\"] = None,\n        *,\n        subscription_id: Optional[str] = None,\n        base_url: Optional[str] = None,\n        endpoint: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        resolved_endpoint = endpoint or base_url or \"\"\n        self._subscription_id = subscription_id\n        self._base_url = resolved_endpoint\n        super().__init__(endpoint=resolved_endpoint, credential=credential, **kwargs)\n        self._client._base_url = resolved_endpoint\n\n\ndef patch_sdk():\n    pass\n",
+      "contentHash": "98b16ae6b4c5ee501156531bf5067a10b0056ab0c151ad60380e44540b75a3c6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/registry_discovery/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "kind": "handwritten-marker",
+      "id": "e2db4a128f299a75d7788a9346aa9626de5e599714d577e5dd44a009699a9e17"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/runhistory/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n#\n# Copyright (c) Microsoft Corporation. All rights reserved.\n#\n# The MIT License (MIT)\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"\"Software\"\"), to\n# deal in the Software without restriction, including without limitation the\n# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or\n# sell copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in\n# all copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n# IN THE SOFTWARE.\n#\n# --------------------------------------------------------------------------\n\n\n# This file is used for handwritten extensions to the generated code. Example:\n# https://github.com/Azure/azure-sdk-for-python/blob/main/doc/dev/customize_code/how-to-patch-sdk-code.md\nfrom typing import Any, Optional, TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\nfrom ._client import RunHistoryClient as _RunHistoryClient\n\n__all__ = [\"RunHistoryClient\"]\n\n\nclass RunHistoryClient(_RunHistoryClient):\n    \"\"\"Patched client that accepts the legacy (credential, base_url) signature.\"\"\"\n\n    def __init__(\n        self,\n        credential: Optional[\"TokenCredential\"] = None,\n        *,\n        subscription_id: Optional[str] = None,\n        base_url: Optional[str] = None,\n        endpoint: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        resolved_endpoint = endpoint or base_url or \"\"\n        self._subscription_id = subscription_id\n        self._base_url = resolved_endpoint\n        super().__init__(endpoint=resolved_endpoint, credential=credential, **kwargs)\n        self._client._base_url = resolved_endpoint\n\n\ndef patch_sdk():\n    pass\n",
+      "contentHash": "d0f0fae505cf6f8893e1a60b6cd33043eb1a191b7a5a323337f212ec912c76e0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/runhistory/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "kind": "handwritten-marker",
+      "id": "329adbb722dd0f2f0866545aff913528f9579019b9d47771dcfcb8fa8828e5b4"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/workspace_dataplane/_patch.py",
+      "text": "# coding=utf-8\n# --------------------------------------------------------------------------\n#\n# Copyright (c) Microsoft Corporation. All rights reserved.\n#\n# The MIT License (MIT)\n#\n# Permission is hereby granted, free of charge, to any person obtaining a copy\n# of this software and associated documentation files (the \"\"Software\"\"), to\n# deal in the Software without restriction, including without limitation the\n# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or\n# sell copies of the Software, and to permit persons to whom the Software is\n# furnished to do so, subject to the following conditions:\n#\n# The above copyright notice and this permission notice shall be included in\n# all copies or substantial portions of the Software.\n#\n# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n# IN THE SOFTWARE.\n#\n# --------------------------------------------------------------------------\n\n\n# This file is used for handwritten extensions to the generated code. Example:\n# https://github.com/Azure/azure-sdk-for-python/blob/main/doc/dev/customize_code/how-to-patch-sdk-code.md\nfrom typing import Any, Optional, TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from azure.core.credentials import TokenCredential\n\nfrom ._client import WorkspaceDataplaneClient as _WorkspaceDataplaneClient\n\n__all__ = [\"WorkspaceDataplaneClient\"]\n\n\nclass WorkspaceDataplaneClient(_WorkspaceDataplaneClient):\n    \"\"\"Patched client that accepts the legacy (subscription_id, credential, base_url) signature.\"\"\"\n\n    def __init__(\n        self,\n        credential: Optional[\"TokenCredential\"] = None,\n        *,\n        subscription_id: Optional[str] = None,\n        base_url: Optional[str] = None,\n        endpoint: Optional[str] = None,\n        **kwargs: Any,\n    ) -> None:\n        resolved_endpoint = endpoint or base_url or \"\"\n        self._subscription_id = subscription_id\n        self._base_url = resolved_endpoint\n        super().__init__(endpoint=resolved_endpoint, credential=credential, **kwargs)\n        self._client._base_url = resolved_endpoint\n\n\ndef patch_sdk():\n    pass\n",
+      "contentHash": "dfdbe2f2a780e86c57f584ce98de2adc3ff1e5ba5fe6a414ce65d6d23ac0321c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/workspace_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "kind": "handwritten-marker",
+      "id": "7f6d4c2477ef4e26ef9b300aae5992118e85c8cc96069b4f668489c904ab9efa"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/entities/_autogen_entities/models/_patch.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\n# pylint: disable=protected-access\n\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport json\nfrom typing import Any, Dict, List, Optional\n\nfrom azure.ai.ml._restclient.arm_ml_service.models import MarketplaceSubscription as RestMarketplaceSubscription\nfrom azure.ai.ml._restclient.arm_ml_service.models import (\n    MarketplaceSubscriptionProperties as RestMarketplaceSubscriptionProperties,\n)\nfrom azure.ai.ml._restclient.arm_ml_service.models import ModelSettings as RestModelSettings\nfrom azure.ai.ml._restclient.arm_ml_service.models import ServerlessEndpoint as RestServerlessEndpoint\nfrom azure.ai.ml._restclient.arm_ml_service.models import (\n    ServerlessEndpointProperties as RestServerlessEndpointProperties,\n)\nfrom azure.ai.ml._restclient.arm_ml_service.models import Sku as RestSku\nfrom azure.ai.ml._restclient.arm_ml_service.models import SystemData as RestSystemData\nfrom azure.ai.ml._utils._experimental import experimental\nfrom azure.ai.ml._utils.utils import camel_to_snake\nfrom azure.ai.ml.entities._system_data import SystemData\n\nfrom .._model_base import rest_field\nfrom ._models import AzureOpenAIDeployment as _AzureOpenAIDeployment\nfrom ._models import MarketplacePlan as _MarketplacePlan\nfrom ._models import MarketplaceSubscription as _MarketplaceSubscription\nfrom ._models import ServerlessEndpoint as _ServerlessEndpoint\n\n__all__: List[str] = [\n    \"AzureOpenAIDeployment\",\n    \"ServerlessEndpoint\",\n    \"MarketplaceSubscription\",\n    \"MarketplacePlan\",\n]  # Add all objects you want publicly available to users at this package level\n\n_NULL = object()\n\n\nfunc_to_attr_type = {\n    \"_deserialize_dict\": dict,\n    \"_deserialize_sequence\": list,\n}\n\n\ndef _get_rest_field_type(field):\n    if hasattr(field, \"_type\"):\n        if field._type.func.__name__ == \"_deserialize_default\":\n            return field._type.args[0]\n        if func_to_attr_type.get(field._type.func.__name__):\n            return func_to_attr_type[field._type.func.__name__]\n        return _get_rest_field_type(field._type.args[0])\n    if hasattr(field, \"func\") and func_to_attr_type.get(field.func.__name__):\n        return func_to_attr_type[field.func.__name__]\n    if hasattr(field, \"args\"):\n        return _get_rest_field_type(field.args[0])\n    return field\n\n\nclass ValidationMixin:\n    def _validate(self) -> None:\n        # verify types\n        for attr, field in self._attr_to_rest_field.items():  # type: ignore\n            try:\n                attr_value = self.__getitem__(attr)  # type: ignore\n                attr_type = type(attr_value)\n            except KeyError as exc:\n                if field._visibility and \"read\" in field._visibility:\n                    # read-only field, no need to validate\n                    continue\n                if field._type.func.__name__ != \"_deserialize_with_optional\":\n                    # i'm required\n                    raise ValueError(f\"attr {attr} is a required property for {self.__class__.__name__}\") from exc\n            else:\n                if getattr(attr_value, \"_is_model\", False):\n                    attr_value._validate()\n                rest_field_type = _get_rest_field_type(field)\n                if attr_type != rest_field_type:\n                    raise ValueError(f\"Type of attr {attr} is of type {attr_type}, not {rest_field_type}\")\n\n\n@experimental\nclass AzureOpenAIDeployment(_AzureOpenAIDeployment):\n\n    system_data: Optional[SystemData] = rest_field(visibility=[\"read\"])\n    \"\"\"System data of the deployment.\"\"\"\n\n    @classmethod\n    def _from_rest_object(cls, obj: Dict[str, Any]) -> \"AzureOpenAIDeployment\":\n        # ``EndpointDeploymentResourcePropertiesBasicResource`` is not modeled on arm_ml_service; the openai\n        # deployments are listed via a raw ``send_request`` call, so read the camelCase wire dict directly.\n        # ``systemData`` is rehydrated through the arm ``SystemData`` model to preserve datetime parsing.\n        properties = obj.get(\"properties\") or {}\n        model = properties.get(\"model\") or {}\n        system_data = obj.get(\"systemData\")\n        return cls(\n            name=obj.get(\"name\"),\n            model_name=model.get(\"name\"),\n            model_version=model.get(\"version\"),\n            id=obj.get(\"id\"),\n            system_data=(\n                SystemData._from_rest_object(RestSystemData._deserialize(system_data, [])) if system_data else None\n            ),\n        )\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> Dict[str, Any]:\n        d = super().as_dict(exclude_readonly=exclude_readonly)\n        d[\"system_data\"] = json.loads(json.dumps(self.system_data._to_dict()))  # type: ignore\n        return d\n\n\nAzureOpenAIDeployment.__doc__ += (\n    _AzureOpenAIDeployment.__doc__.strip()  # type: ignore\n    + \"\"\"\n    :ivar system_data: System data of the deployment.\n    :vartype system_data: ~azure.ai.ml.entities.SystemData\n\"\"\"\n)\n\n\n@experimental\nclass MarketplacePlan(_MarketplacePlan):\n    pass\n\n\n@experimental\nclass ServerlessEndpoint(_ServerlessEndpoint, ValidationMixin):\n\n    system_data: Optional[SystemData] = rest_field(visibility=[\"read\"])\n    \"\"\"System data of the endpoint.\"\"\"\n\n    def _to_rest_object(self) -> RestServerlessEndpoint:\n        return RestServerlessEndpoint(\n            properties=RestServerlessEndpointProperties(\n                model_settings=RestModelSettings(model_id=self.model_id),\n            ),\n            tags=self.tags,\n            sku=RestSku(name=\"Consumption\"),\n            location=self.location,\n        )\n\n    @classmethod\n    def _from_rest_object(cls, obj: RestServerlessEndpoint) -> \"ServerlessEndpoint\":\n        return cls(  # type: ignore\n            name=obj.name,\n            id=obj.id,\n            tags=obj.tags,\n            location=obj.location,\n            auth_mode=obj.properties.auth_mode,\n            provisioning_state=camel_to_snake(obj.properties.provisioning_state),\n            model_id=obj.properties.model_settings.model_id if obj.properties.model_settings else None,\n            scoring_uri=obj.properties.inference_endpoint.uri if obj.properties.inference_endpoint else None,\n            system_data=SystemData._from_rest_object(obj.system_data) if obj.system_data else None,\n            headers=obj.properties.inference_endpoint.headers if obj.properties.inference_endpoint else None,\n        )\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> Dict[str, Any]:\n        d = super().as_dict(exclude_readonly=exclude_readonly)\n        d[\"system_data\"] = json.loads(json.dumps(self.system_data._to_dict()))  # type: ignore\n        return d\n\n\nServerlessEndpoint.__doc__ += (\n    _ServerlessEndpoint.__doc__.strip()  # type: ignore\n    + \"\"\"\n    :ivar system_data: System data of the endpoint.\n    :vartype system_data: ~azure.ai.ml.entities.SystemData\n\"\"\"\n)\n\n\n@experimental\nclass MarketplaceSubscription(_MarketplaceSubscription, ValidationMixin):\n\n    system_data: Optional[SystemData] = rest_field(visibility=[\"read\"])\n    \"\"\"System data of the endpoint.\"\"\"\n\n    def _to_rest_object(self) -> RestMarketplaceSubscription:\n        return RestMarketplaceSubscription(properties=RestMarketplaceSubscriptionProperties(model_id=self.model_id))\n\n    @classmethod\n    def _from_rest_object(cls, obj: RestMarketplaceSubscription) -> \"MarketplaceSubscription\":\n        properties = obj.properties\n        return cls(  # type: ignore\n            name=obj.name,\n            id=obj.id,\n            model_id=properties.model_id,\n            marketplace_plan=MarketplacePlan(\n                publisher_id=properties.marketplace_plan.publisher_id,\n                offer_id=properties.marketplace_plan.offer_id,\n                plan_id=properties.marketplace_plan.plan_id,\n            ),\n            status=camel_to_snake(properties.marketplace_subscription_status),\n            provisioning_state=camel_to_snake(properties.provisioning_state),\n            system_data=SystemData._from_rest_object(obj.system_data) if obj.system_data else None,\n        )\n\n    def as_dict(self, *, exclude_readonly: bool = False) -> Dict[str, Any]:\n        d = super().as_dict(exclude_readonly=exclude_readonly)\n        if self.system_data:\n            d[\"system_data\"] = json.loads(json.dumps(self.system_data._to_dict()))\n        return d\n\n\nMarketplaceSubscription.__doc__ = (\n    _MarketplaceSubscription.__doc__.strip()  # type: ignore\n    + \"\"\"\n    :ivar system_data: System data of the marketplace subscription.\n    :vartype system_data: ~azure.ai.ml.entities.SystemData\n\"\"\"\n)\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "7243b663bd3b1af7e82523980280086ede35a6d879ae5e019ebb5b3ac8bcf90c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/entities/_autogen_entities/models/_patch.py",
+      "startLine": 1,
+      "endLine": 226,
+      "kind": "handwritten-marker",
+      "id": "8b8485a007cc222e8d86276afb07ca1dcc9be0d209c74584a9bf36185368acd2"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/arm_ml_service/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/MachineLearningServices.Management\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "d04823f7672693fd556bc8c5165ab0d3ddb9fba06d3ebef5f7747e619eb71d12",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/arm_ml_service/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/azure_ai_assets_v2024_04_01/tsp-location.yaml",
+      "text": "commit: 42137be0cc89c315701035bfa87427b7f8ff8acf\ndirectory: specification/machinelearningservices/AzureAI.Assets\nadditionalDirectories: []\nrepo: Azure/azure-rest-api-specs\n\n",
+      "contentHash": "8b14dce1e3b00ccd8137a8c73ffe53bfce4c227ef3c9392a5422c509fe1e1f8e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/azure_ai_assets_v2024_04_01/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/data-plane/DatasetDataplane\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "5117f6d9c362174119ec0c172ec7ad420e25aacc678bd6003c07f9a4b8666f47",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/data-plane/ModelDataplane\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "59fb174784cbafcb0f2cf0490737792ff3ac6469ba7d93bf65e0431897fb40c0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"registry_discovery\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Registry_discovery Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.37.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"registry_discovery._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n",
+      "contentHash": "aac21cc7eefd73393ab4c6d0ceef72c5f37fe2d19429cb6695195a01004e4ee2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/pyproject.toml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/README.md",
+      "text": "# Azure Machine Learning REST client library for Python\n\nAuto-generated REST clients for the Azure Machine Learning service, generated from TypeSpec using tsp-client.\n\n## Getting started\n\n### Install the package\n\n```bash\npython -m pip install arm_ml_service\n```\n\n#### Prequisites\n\n- Python 3.9 or later is required to use this package.\n- You need an [Azure subscription][azure_sub] to use this package.\n- An existing Arm_ml_service Management instance.\n\n#### Create with an Azure Active Directory Credential\nTo use an [Azure Active Directory (AAD) token credential][authenticate_with_token],\nprovide an instance of the desired credential type obtained from the\n[azure-identity][azure_identity_credentials] library.\n\nTo authenticate with AAD, you must first [pip][pip] install [`azure-identity`][azure_identity_pip]\n\nAfter setup, you can choose which type of [credential][azure_identity_credentials] from azure.identity to use.\nAs an example, [DefaultAzureCredential][default_azure_credential] can be used to authenticate the client:\n\nSet the values of the client ID, tenant ID, and client secret of the AAD application as environment variables:\n`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`\n\nUse the returned token credential to authenticate the client:\n\n```python\n>>> from arm_ml_service import MachineLearningServicesMgmtClient\n>>> from azure.identity import DefaultAzureCredential\n>>> client = MachineLearningServicesMgmtClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n```\n\n## Examples\n\n```python\n>>> from arm_ml_service import MachineLearningServicesMgmtClient\n>>> from azure.identity import DefaultAzureCredential\n>>> from azure.core.exceptions import HttpResponseError\n\n>>> client = MachineLearningServicesMgmtClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n>>> try:\n        <!-- write test code here -->\n    except HttpResponseError as e:\n        print('service responds error: {}'.format(e.response.json()))\n\n```\n\n## Key concepts\n\nThese are internal REST clients used by the `azure-ai-ml` SDK. They are not intended to be used directly.\n\n## Troubleshooting\n\nFor troubleshooting, see the [azure-ai-ml troubleshooting guide](https://learn.microsoft.com/azure/machine-learning/).\n\n## Next steps\n\nSee the [azure-ai-ml documentation](https://learn.microsoft.com/python/api/azure-ai-ml/) for more information.\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require\nyou to agree to a Contributor License Agreement (CLA) declaring that you have\nthe right to, and actually do, grant us the rights to use your contribution.\nFor details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether\nyou need to provide a CLA and decorate the PR appropriately (e.g., label,\ncomment). Simply follow the instructions provided by the bot. You will only\nneed to do this once across all repos using our CLA.\n\nThis project has adopted the\n[Microsoft Open Source Code of Conduct][code_of_conduct]. For more information,\nsee the Code of Conduct FAQ or contact opencode@microsoft.com with any\nadditional questions or comments.\n\n<!-- LINKS -->\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[authenticate_with_token]: https://docs.microsoft.com/azure/cognitive-services/authentication?tabs=powershell#authenticate-with-an-authentication-token\n[azure_identity_credentials]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#credentials\n[azure_identity_pip]: https://pypi.org/project/azure-identity/\n[default_azure_credential]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#defaultazurecredential\n[pip]: https://pypi.org/project/pip/\n[azure_sub]: https://azure.microsoft.com/free/\n",
+      "contentHash": "a2ee14b0abb8f312045ec4e1ebdff047398d183f4950ac64d50474da1c02b0ae",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/README.md"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/registry_discovery/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/data-plane/RegistryDiscovery\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "801cbdfd9f783236f27fa0b543c99d272665847c8a57ac06e964e0fcfaff7ef3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/registry_discovery/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/runhistory/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/data-plane/RunHistory\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "61ecb4bdba4d19192077fbadaa6246a50c9b6a990036e315a263c4a06100c340",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/runhistory/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/tsp-location.yaml",
+      "text": "batch:\n  - ./azure_ai_assets_v2024_04_01\n  - ./arm_ml_service\n  - ./registry_discovery\n  - ./workspace_dataplane\n  - ./dataset_dataplane\n  - ./model_dataplane\n  - ./runhistory\n",
+      "contentHash": "01bfe5b23f96cc44bf40c9a0f0cfd477f8fb868f4b7d2dd9f1f36b0a8e641cd1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/tsp-location.yaml"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/workspace_dataplane/tsp-location.yaml",
+      "text": "directory: specification/machinelearningservices/data-plane/WorkspaceDataplane\ncommit: bce80108d7ce39dccc1e9c2df1b1bd99d018bf7f\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: []\n",
+      "contentHash": "4e264afff36efc265949bcfe3a1399e790717cfbc616c8e7843fedca893b3de0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/workspace_dataplane/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "provenance": "Python patch",
+      "contentHash": "6a071dc99d678c7c1ebb735f10d359049b46a4333c09003a18a839eee685e649"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/dataset_dataplane/models/_patch.py",
+      "startLine": 1,
+      "endLine": 56,
+      "provenance": "Python patch",
+      "contentHash": "9fcd7563731184927eee4afd94fa66c73c0e4a9443daf7afcd62a6edaa72e040"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "provenance": "Python patch",
+      "contentHash": "bdd19b4c73e973d43da7b0d0bec3476da4137db5565b75f23a8cf75c54bd21ef"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/model_dataplane/operations/_patch.py",
+      "startLine": 1,
+      "endLine": 128,
+      "provenance": "Python patch",
+      "contentHash": "edad70b3185f259baaad2092070290547b85b89b3fadb3244b05d5660042ad41"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/registry_discovery/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "provenance": "Python patch",
+      "contentHash": "98b16ae6b4c5ee501156531bf5067a10b0056ab0c151ad60380e44540b75a3c6"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/runhistory/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "provenance": "Python patch",
+      "contentHash": "d0f0fae505cf6f8893e1a60b6cd33043eb1a191b7a5a323337f212ec912c76e0"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/_restclient/workspace_dataplane/_patch.py",
+      "startLine": 1,
+      "endLine": 61,
+      "provenance": "Python patch",
+      "contentHash": "dfdbe2f2a780e86c57f584ce98de2adc3ff1e5ba5fe6a414ce65d6d23ac0321c"
+    },
+    {
+      "path": "sdk/ml/azure-ai-ml/azure/ai/ml/entities/_autogen_entities/models/_patch.py",
+      "startLine": 1,
+      "endLine": 226,
+      "provenance": "Python patch",
+      "contentHash": "7243b663bd3b1af7e82523980280086ede35a6d879ae5e019ebb5b3ac8bcf90c"
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "id": "fff9ecc1-2950-4f3c-847a-30460edf1dd1",
+  "observedAt": "2026-10-24T02:55:52.821Z",
+  "identity": "javascript:@azure/communication-identity:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/communication-identity",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/communication/communication-identity"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "c637cad9ca8f8fe3ddbe7448b575b9afe016bcda"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 85,
+    "eligibleFiles": 36,
+    "capturedFiles": 5,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/communication/communication-identity/src/common/logger.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createClientLogger } from \"@azure/logger\";\n\n/**\n * The \\@azure/logger configuration for this package.\n */\nexport const logger = createClientLogger(\"communication-identity\");\n",
+      "contentHash": "48aef02a19ab5ec7f1f9cf9a8d0c1806f1d54fb01def507e124937c7ca3afe3c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/src/common/logger.ts",
+      "startLine": 1,
+      "endLine": 9,
+      "kind": "unknown",
+      "id": "8581597d5522b18b8ee0c3620a80399c93dc9c952d76ad09b2882130b53d57c3"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/constants.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport const SDK_VERSION: string = \"2.0.0\";\n",
+      "contentHash": "666c2f81186acad474ae714514f02eed490f8c1eb2769179362b1fe617d9e43b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/src/constants.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "kind": "unknown",
+      "id": "54bc8b5d8b8c9f0fa4f0e186750149458e25c15b62c2083408d07402f83bce87"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/legacyOperationOptions.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  FullOperationResponse,\n  OperationOptions as GeneratedOperationOptions,\n  OperationRequestOptions as GeneratedRequestOptions,\n} from \"@azure-rest/core-client\";\nimport type { OperationOptions, OperationRequestOptions } from \"@azure/core-client\";\nimport { isRestError, RestError } from \"@azure/core-rest-pipeline\";\n\ntype CompatibleRequestOptions = OperationRequestOptions &\n  GeneratedRequestOptions & {\n    customHeaders?: Record<string, string>;\n  };\n\nexport async function withLegacyOperationOptions<T>(\n  options: OperationOptions,\n  operation: (options: GeneratedOperationOptions) => Promise<T>,\n): Promise<T> {\n  let response: FullOperationResponse | undefined;\n  let responseError: unknown;\n  const generatedOptions = convertOperationOptions(options, (value, error) => {\n    response = value;\n    responseError = error;\n  });\n\n  let result: T;\n  try {\n    result = await operation(generatedOptions);\n  } catch (error) {\n    if (response && responseError === undefined && !shouldDeserialize(options, response)) {\n      const value = response.parsedBody as T;\n      options.onResponse?.(response, value);\n      return value;\n    }\n\n    const normalizedError = normalizeResponseError(error, response, responseError);\n    const errorWithResponse = getErrorWithResponse(normalizedError);\n    if (response && errorWithResponse) {\n      errorWithResponse.response = response;\n    }\n    const legacyResponse = response ?? errorWithResponse?.response;\n    if (legacyResponse) {\n      const flatResponse = response\n        ? response.parsedBody\n        : (errorWithResponse?.details ?? legacyResponse.parsedBody ?? {});\n      if (!response && errorWithResponse) {\n        errorWithResponse.details = flatResponse;\n      }\n      options.onResponse?.(legacyResponse, flatResponse, responseError ?? normalizedError);\n    }\n\n    throw normalizedError;\n  }\n\n  const value = shouldDeserialize(options, response) ? result : (response?.parsedBody as T);\n  if (response) {\n    response.parsedBody = value as FullOperationResponse[\"parsedBody\"];\n    options.onResponse?.(response, value);\n  }\n  return value;\n}\n\nfunction getErrorWithResponse(\n  error: unknown,\n): { response: FullOperationResponse; details?: unknown } | undefined {\n  if (\n    typeof error !== \"object\" ||\n    error === null ||\n    !(\"response\" in error) ||\n    typeof error.response !== \"object\" ||\n    error.response === null\n  ) {\n    return undefined;\n  }\n\n  return error as { response: FullOperationResponse; details?: unknown };\n}\n\nfunction normalizeResponseError(\n  error: unknown,\n  response: FullOperationResponse | undefined,\n  responseError: unknown,\n): unknown {\n  if (!response || response.status < 300 || responseError !== undefined || isRestError(error)) {\n    return error;\n  }\n\n  const details = response.parsedBody;\n  const message =\n    typeof details === \"string\"\n      ? details\n      : typeof details === \"object\" &&\n          details !== null &&\n          \"message\" in details &&\n          typeof details.message === \"string\"\n        ? details.message\n        : `Unexpected status code: ${response.status}`;\n  const restError = new RestError(message, {\n    statusCode: response.status,\n    request: response.request,\n    response,\n  });\n  restError.details = details;\n  return restError;\n}\n\nfunction convertOperationOptions(\n  options: OperationOptions,\n  captureResponse: (response: FullOperationResponse, error?: unknown) => void,\n): GeneratedOperationOptions {\n  const {\n    customHeaders,\n    shouldDeserialize: _,\n    ...requestOptions\n  } = (options.requestOptions as CompatibleRequestOptions | undefined) ?? {};\n\n  return {\n    ...options,\n    requestOptions: {\n      ...requestOptions,\n      headers: {\n        ...customHeaders,\n        ...requestOptions.headers,\n      },\n    },\n    onResponse(response, error, legacyError) {\n      captureResponse(response, legacyError ?? error);\n    },\n  };\n}\n\nfunction shouldDeserialize(\n  options: OperationOptions,\n  response: FullOperationResponse | undefined,\n): boolean {\n  const value = options.requestOptions?.shouldDeserialize;\n  return !response || (typeof value === \"function\" ? value(response) : value !== false);\n}\n",
+      "contentHash": "a709c0b591aaf15eafbecbe051be5dd07b2b0fa7e2314d266a47b2bd8e1c0acf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/src/legacyOperationOptions.ts",
+      "startLine": 1,
+      "endLine": 140,
+      "kind": "unknown",
+      "id": "389b6d5fd3fd814b1a1793fc1ba41a5eb25ca4972544c122ccca8aa338d1a69d"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { CommonClientOptions, OperationOptions } from \"@azure/core-client\";\nimport type { CommunicationUserIdentifier } from \"@azure/communication-common\";\n\n/**\n * Represents the scope of the token.\n */\nexport type TokenScope = \"chat\" | \"voip\" | \"chat.join\" | \"chat.join.limited\" | \"voip.join\";\n\n/**\n * Client options used to configure the CommunicationIdentity API requests.\n */\nexport interface CommunicationIdentityClientOptions extends CommonClientOptions {}\n\n/**\n * The access token for a user.\n */\nexport interface CommunicationAccessToken {\n  /**\n   * The access token issued for the user.\n   */\n  token: string;\n  /**\n   * The expiry time of the token.\n   */\n  expiresOn: Date;\n}\n\n/**\n * The issued token and the user it was issued for.\n */\nexport interface CommunicationUserToken extends CommunicationAccessToken {\n  /**\n   * Represents the user the token was issued for\n   */\n  user: CommunicationUserIdentifier;\n}\n\n/**\n * Options used to exchange an AAD access token of a Teams user for a new Communication Identity access token.\n */\nexport interface GetTokenForTeamsUserOptions extends OperationOptions {\n  /**\n   * Azure Active Directory access token of a Teams user.\n   */\n  teamsUserAadToken: string;\n\n  /**\n   * Client ID of an Azure AD application to be verified against the appId claim in the Azure AD access token.\n   */\n  clientId: string;\n\n  /**\n   * Object ID of an Azure AD user (Teams User) to be verified against the OID claim in the Azure AD access token.\n   */\n  userObjectId: string;\n}\n\n/**\n * Options to create a single user and a token simultaneously.\n */\nexport declare interface CreateUserAndTokenOptions extends OperationOptions {\n  /** Optional custom validity period of the token within [60,1440] minutes range. If not provided, the default value of 1440 minutes (24 hours) will be used. */\n  tokenExpiresInMinutes?: number;\n}\n\n/**\n * Options to create a single user.\n */\nexport declare interface CreateUserOptions extends OperationOptions {}\n\n/**\n * Options to create a scoped user token.\n */\nexport declare interface GetTokenOptions extends OperationOptions {\n  /** Optional custom validity period of the token within [60,1440] minutes range. If not provided, the default value of 1440 minutes (24 hours) will be used. */\n  tokenExpiresInMinutes?: number;\n}\n",
+      "contentHash": "868760c51890877469c004b295fdd015ffe3f600e6f58a65ab3568bd4e43120a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/src/models.ts",
+      "startLine": 1,
+      "endLine": 80,
+      "kind": "unknown",
+      "id": "cacc36e99481447d2a716343ab9a088be73b1a8f862d47d29c19390c706e9f5d"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/tracing.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createTracingClient } from \"@azure/core-tracing\";\nimport { SDK_VERSION } from \"./constants.js\";\n\n/** @internal */\nexport const tracingClient = createTracingClient({\n  namespace: \"Microsoft.Communication\",\n  packageName: \"@azure/communication-identity\",\n  packageVersion: SDK_VERSION,\n});\n",
+      "contentHash": "b2bc3c1fb8403ddcecd1e53d3a76d597abfce1dde6ce26a91250ee7c6edc0297",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/src/tracing.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "655b15549c021378851d86e0771d6c09cf89bf1aec8b7cc000a0498648ad1405"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/communication/communication-identity/package.json",
+      "text": "{\n  \"name\": \"@azure/communication-identity\",\n  \"version\": \"2.0.0\",\n  \"description\": \"SDK for Azure Communication service which facilitates user token administration.\",\n  \"sdk-type\": \"client\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* temp types *.tgz *.log\",\n    \"execute:js-samples\": \"dev-tool samples run dist-samples/javascript\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"execute:ts-samples\": \"dev-tool samples run dist-samples/typescript/dist/dist-samples/typescript/src/\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"generate:client\": \"tsp-client update && npm run format\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"test:browser\": \"dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"test:watch\": \"npm run test -- --watch --reporter min\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/constants.ts\",\n        \"prefix\": \"SDK_VERSION\"\n      }\n    ]\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure Communication Services - Identity\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-communication-services\"\n    ],\n    \"skip\": [\n      \"getTokenForTeamsUser.js\"\n    ],\n    \"requiredResources\": {\n      \"Azure Communication Services account\": \"https://learn.microsoft.com/azure/communication-services/quickstarts/create-communication-resource\"\n    }\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"keywords\": [\n    \"azure\",\n    \"cloud\",\n    \"communication\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/communication/communication-identity/README.md\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/communication/communication-identity\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"sideEffects\": false,\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.6.1\",\n    \"@azure/communication-common\": \"^2.3.1\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.11.1\",\n    \"@azure/core-rest-pipeline\": \"^1.18.2\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/core-util\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/msal-node\": \"^2.16.1\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"rimraf\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "420a0ccd82b894207cd04522154296941a0e30c9a1f1333bb0ea70e0bf60117a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/package.json"
+    },
+    {
+      "path": "sdk/communication/communication-identity/README.md",
+      "text": "# Azure Communication Identity client library for JavaScript\n\nThe identity library is used for managing users and tokens for Azure Communication Services.\n\n## Getting started\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n- An existing Communication Services resource. If you need to create the resource, you can use the [Azure Portal][azure_portal], the [Azure PowerShell][azure_powershell], or the [Azure CLI][azure_cli].\n\n### Installing\n\n```bash\nnpm install @azure/communication-identity\n```\n\n### Browser support\n\n#### JavaScript Bundle\n\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### Clients\n\nThe `CommunicationIdentityClient` provides methods to manage users and their tokens.\n\n## Examples\n\n## Authentication\n\nYou can get a key and/or connection string from your Communication Services resource in [Azure Portal][azure_portal]. Once you have a key, you can authenticate the `CommunicationIdentityClient` with any of the following methods:\n\n### Create `KeyCredential` with `AzureKeyCredential` before initializing the client\n\n```ts snippet:ReadmeSampleCreateClient_KeyCredential\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst key = \"<some-key>\";\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new AzureKeyCredential(key);\nconst client = new CommunicationIdentityClient(endpoint, credential);\n```\n\n### Using a connection string\n\n```ts snippet:ReadmeSampleCreateClient_ConnectionString\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\n// Example connection string\nconst connectionString =\n  \"endpoint=https://contoso.eastus.communications.azure.net/;accesskey=secret\";\n\nconst client = new CommunicationIdentityClient(connectionString);\n```\n\n### Using a `TokenCredential`\n\n```ts snippet:ReadmeSampleCreateClient_TokenCredential\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n```\n\nIf you use a key to initialize the client you will also need to provide the appropriate endpoint. You can get this endpoint from your Communication Services resource in [Azure Portal][azure_portal].\n\n## Usage\n\n### Creating a new user\n\nUse the `createUser` method to create a new user.\n\n```ts snippet:ReadmeSampleCreateUser\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst user = await client.createUser();\n```\n\n### Creating and refreshing a user token\n\nUse the `getToken` method to issue or refresh a token for an existing user. The method also takes in a list of communication token scopes. Scope options include:\n\n- `chat` (Use this for full access to Chat APIs)\n- `voip` (Use this for full access to Calling APIs)\n- `chat.join` (Access to Chat APIs but without the authorization to create, delete or update chat threads)\n- `chat.join.limited` (A more limited version of chat.join that doesn't allow to add or remove participants)\n- `voip.join` (Access to Calling APIs but without the authorization to start new calls)\n\n```ts snippet:ReadmeSampleCreateToken\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst user = await client.createUser();\n\nconst { token } = await client.getToken(user, [\"chat\"]);\n```\n\nTo refresh the user token, issue another token with the same user.\n\n```ts snippet:ReadmeSampleRefreshToken\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst user = await client.createUser();\n\nlet { token } = await client.getToken(user, [\"chat\"]);\n\n// Refresh the token again\n({ token } = await client.getToken(user, [\"chat\"]));\n```\n\n### Creating a user token with custom expiration\n\nIt's also possible to create a Communication Identity access token by customizing the expiration time. Validity period of the token must be within [60,1440] minutes range. If not provided, the default value of 1440 minutes (24 hours) will be used.\n\n```ts snippet:ReadmeSampleCreateTokenWithOptions\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst user = await client.createUser();\n\nconst tokenOptions = { tokenExpiresInMinutes: 60 };\nconst { token } = await client.getToken(user, [\"chat\"], tokenOptions);\n```\n\n### Creating a user and a token in a single request\n\nFor convenience, use `createUserAndToken` to create a new user and issue a token with one function call. This translates into a single web request as opposed to creating a user first and then issuing a token.\n\n```ts snippet:ReadmeSampleCreateUserAndToken\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst { user, token } = await client.createUserAndToken([\"chat\"]);\n```\n\n### Creating a user and a token with custom expiration in a single request\n\nIt's also possible to create a Communication Identity access token by customizing the expiration time. Validity period of the token must be within [60,1440] minutes range. If not provided, the default value of 1440 minutes (24 hours) will be used.\n\n```ts snippet:ReadmeSampleCreateUserAndTokenWithOptions\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst userAndTokenOptions = { tokenExpiresInMinutes: 60 };\nconst { user, token } = await client.createUserAndToken([\"chat\"], userAndTokenOptions);\n```\n\n### Revoking tokens for a user\n\nUse the `revokeTokens` method to revoke all issued tokens for a user.\n\n```ts snippet:ReadmeSampleRevokeTokens\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\n// Create user\nconst user = await client.createUser();\n\n// Later when you want to revoke the user's tokens\nawait client.revokeTokens(user);\n```\n\n### Deleting a user\n\nUse the `deleteUser` method to delete a user.\n\n```ts snippet:ReadmeSampleDeleteUser\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\n// Create user\nconst user = await client.createUser();\n\n// Later when you want to delete the user\nawait client.deleteUser(user);\n```\n\n### Exchanging Azure AD access token of a Teams User for a Communication access token\n\nUse `getTokenForTeamsUser` method to exchange an Azure AD access token of a Teams user for a new `CommunicationAccessToken` with a matching expiration time.\n\n```ts snippet:ReadmeSampleGetTokenForTeamsUser\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { CommunicationIdentityClient } from \"@azure/communication-identity\";\n\nconst endpoint = \"https://contoso.eastus.communications.azure.net\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new CommunicationIdentityClient(endpoint, credential);\n\nconst { token, expiresOn } = await client.getTokenForTeamsUser({\n  teamsUserAadToken: \"<aad-access-token-of-a-teams-user>\",\n  clientId: \"<cliend-id-of-an-aad-application>\",\n  userObjectId: \"<aad-object-id-of-a-teams-user>\",\n});\n```\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\n## Next steps\n\nPlease take a look at the\n[samples](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/communication/communication-identity/samples)\ndirectory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for Javascript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_powershell]: https://learn.microsoft.com/powershell/module/az.communication/new-azcommunicationservice\n",
+      "contentHash": "3b2384d8aebad785e4a8877a8a6b8a1bd786233093fe501e3ccb732fd453a92a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/README.md"
+    },
+    {
+      "path": "sdk/communication/communication-identity/tsp-location.yaml",
+      "text": "directory: specification/communication/data-plane/Identity\ncommit: 1893171028aed5a757fc78c2d4aa439c14df4afc\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "7415f00d19a4e6051d45d67c8113410404b0382cceb8b3b928cdd10e3e3d7e2e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/communication/communication-identity/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "e5eb893bd592474790b2451af9344c404b596b37eac2970743e69a5794edfb4b",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "fe6c173fa28e4e1486b49aa02b576b8cd6d7fbcdb7ffaedd10459db2baade359",
+        "category": "Other",
+        "subtype": "Adapt legacy core-client options, responses and errors to a REST-core operation",
+        "explanation": "withLegacyOperationOptions bridges @azure/core-client options to an operation accepting @azure-rest/core-client options. Its converter merges customHeaders below explicit headers, removes shouldDeserialize from forwarded requestOptions and captures response/error callbacks. The wrapper chooses typed versus parsed-body results, invokes the legacy callback shape and normalizes eligible non-RestError failures with status >=300 into RestError with body details. In the captured-response/no-callback-error catch branch, disabled deserialization instead returns parsedBody. Supporting helpers are grouped with this single adapter.",
+        "pattern": "legacy-operation-options-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The dedicated legacyOperationOptions module concretely bridges two different SDK core contracts, translating legacy customHeaders, shouldDeserialize and callback/error shapes rather than declaring protocol models. This purpose-built compatibility integration supports handwriting beyond missing headers or code complexity alone, though no emitted counterpart is supplied.",
+        "symbols": [
+          "withLegacyOperationOptions",
+          "convertOperationOptions",
+          "shouldDeserialize",
+          "normalizeResponseError",
+          "getErrorWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "389b6d5fd3fd814b1a1793fc1ba41a5eb25ca4972544c122ccca8aa338d1a69d",
+            "startLine": 4,
+            "endLine": 63
+          },
+          {
+            "id": "389b6d5fd3fd814b1a1793fc1ba41a5eb25ca4972544c122ccca8aa338d1a69d",
+            "startLine": 65,
+            "endLine": 140
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "fe6c173fa28e4e1486b49aa02b576b8cd6d7fbcdb7ffaedd10459db2baade359",
+        "status": "inconclusive",
+        "reason": "The cited legacyOperationOptions.ts lines implement the described conversion of legacy request headers and deserialization options, response callbacks, and error normalization, and the five named functions occur within the cited ranges. The reusable adapter pattern is service-independent, but whether a generator could emit this compatibility bridge cannot be established from these excerpts alone. Most importantly, this file is marked with unknown provenance: its location under src/ and its specialized behavior do not establish that it differs from generated output, and no generated counterpart, generator manifest, or customization marker is supplied. It therefore cannot yet be accepted as genuinely handwritten customization."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Partial coverage: five of 36 eligible files among 85 discovered files are captured, with no explicit skips/errors. The actual public client, callers of the adapter and generated protocol source are absent.",
+      "All five evidence items have unknown provenance. No generated-versus-shipped diff or complete emission manifest is supplied, so ownership is inferred only for the explicit legacy/current-core compatibility bridge, not all files under src.",
+      "models.ts contains token/result/option declarations, including empty option extensions and documented expiration ranges. Without generated counterparts or customization context, these are not established model overrides, token conversion, validation or authentication implementations.",
+      "logger.ts and tracing.ts only configure standard package logger/tracing factories; constants.ts is version-only. No positive ownership evidence establishes these template-like initializations as customized telemetry, and no actual traced operation is captured.",
+      "The adapter's local branches and assignments are visible, but consumer reachability, transport callback timing, RestError internals and runtime correctness were not tested or inferred. Helper functions are supporting parts of the adapter, not five additional instances.",
+      "README authentication/token examples do not supply implementation evidence. The supplied identity has moduleMajor 1 while package metadata/version constants show 2.0.0; the immutable target is preserved without resolving that identity/version discrepancy. Generator addressability is plausible only.",
+      "Coverage is partial: 5 of 36 eligible source files were captured, so neither the uncaptured files nor the whole library have been assessed for missing customizations.",
+      "All five captured source files have unknown generation provenance; no generated/ comparison, generated file inventory, or customization script is provided. This prevents confirmation that the proposed adapter or any apparent model changes are handwritten.",
+      "The supplied logger, version constant, tracing setup, and model declarations do not independently establish additional handwritten customization; the package metadata identifies constants.ts as a version-constant path. This limited evidence does not establish absence of other customizations."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/communication/communication-identity/src/common/logger.ts",
+      "startLine": 1,
+      "endLine": 9,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "48aef02a19ab5ec7f1f9cf9a8d0c1806f1d54fb01def507e124937c7ca3afe3c"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/constants.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "666c2f81186acad474ae714514f02eed490f8c1eb2769179362b1fe617d9e43b"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/legacyOperationOptions.ts",
+      "startLine": 1,
+      "endLine": 140,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a709c0b591aaf15eafbecbe051be5dd07b2b0fa7e2314d266a47b2bd8e1c0acf"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/models.ts",
+      "startLine": 1,
+      "endLine": 80,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "868760c51890877469c004b295fdd015ffe3f600e6f58a65ab3568bd4e43120a"
+    },
+    {
+      "path": "sdk/communication/communication-identity/src/tracing.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b2bc3c1fb8403ddcecd1e53d3a76d597abfce1dde6ce26a91250ee7c6edc0297"
+    }
+  ]
+}
