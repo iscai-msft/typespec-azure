@@ -7,7 +7,7 @@ import {
   filterLibraries,
   historyRows,
   languageLabel,
-  hasHeuristicDetection,
+  scanJudged,
   healthSummary,
   libraryVariant,
   lineShare,
@@ -74,6 +74,21 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   return node as T;
 }
 // Form controls whose id is only known at runtime (filters, presets).
+
+// JavaScript package layouts (guidelines/javascript.md).
+const JS_LAYOUT_TEXT = {
+  none: "No generated folder: fully generated, no customization",
+  wrapper:
+    "Full wrapper: the emitter writes src/generated/ and everything else in src/ is handwritten code around it",
+  merge:
+    "Merge flow: generated/ holds the emitter output and a 3-way merge writes src/; customizations are what src/ changes",
+} as const;
+const mergeGapText = (gaps: string[]) =>
+  `Generated code never reached src/ (the last generate ran without the 3-way merge): ${gaps
+    .slice(0, 5)
+    .map((path) => path.split("/generated/")[1] ?? path)
+    .join(", ")}${gaps.length > 5 ? `, +${gaps.length - 5} more` : ""}`;
+
 const control = (id: string) => byId<HTMLInputElement | HTMLSelectElement>(id);
 
 // A pattern's display name (catalog name, or the id in words); set once the catalog loads.
@@ -716,7 +731,9 @@ function renderHealth(entries: Parameters<typeof healthSummary>[0]) {
   byId("health-rows").replaceChildren(
     ...languages.map((language) => {
       const summary = healthSummary(entries.filter((item) => item.language === language));
-      const judged = !hasHeuristicDetection(language);
+      const judged = entries
+        .filter((item) => item.language === language)
+        .every((item) => scanJudged(item));
       const tr = element("tr");
       tr.append(
         element("td", languageLabel(language)),
@@ -1390,7 +1407,7 @@ export async function start() {
         "Handwritten code",
         share.total ? percent(share.handwritten, share.total) : "—",
         share.total
-          ? `${compact.format(share.handwritten)} of ${compact.format(share.total)} code lines in ${number.format(share.counted)} ${share.counted === 1 ? "library" : "libraries"}${share.missing ? ` · ${number.format(share.missing)} not counted yet` : ""}${scanned.some((row) => hasHeuristicDetection(row.language)) ? " · JavaScript not counted" : ""}`
+          ? `${compact.format(share.handwritten)} of ${compact.format(share.total)} code lines in ${number.format(share.counted)} ${share.counted === 1 ? "library" : "libraries"}${share.missing ? ` · ${number.format(share.missing)} not counted yet` : ""}${scanned.some((row) => !scanJudged(row.scan)) ? " · JavaScript scans from before its layout rule not counted" : ""}`
           : "Line counts appear once libraries are counted",
         "",
         meter(share.handwritten, share.total, "Handwritten share of code lines"),
@@ -1471,7 +1488,7 @@ export async function start() {
         );
       } else {
         // Only languages with settled detection rules can say a library is customized.
-        const judged = scanned.filter((row) => !hasHeuristicDetection(row.language));
+        const judged = scanned.filter((row) => scanJudged(row.scan));
         const judgedIds = new Set(judged.map((row) => row.scan!.identity));
         const withCode = new Set(
           codeLinks.filter((item) => judgedIds.has(item.identity)).map((item) => item.identity),
@@ -1513,7 +1530,7 @@ export async function start() {
             "Reviewed customizations",
             reviewed ? number.format(view.accepted.length) : "Not reviewed",
             reviewed
-              ? `${number.format(view.unassessed.filter((item) => item.customizationLinks?.length && !hasHeuristicDetection(item.language)).length)} libraries with handwritten code awaiting review`
+              ? `${number.format(view.unassessed.filter((item) => item.customizationLinks?.length && scanJudged(item)).length)} libraries with handwritten code awaiting review`
               : `None of these ${number.format(view.scope.length)} libraries has an AI review yet`,
           ),
           kpi(
@@ -2313,6 +2330,16 @@ export async function start() {
             tag.title = item.deprecated.evidence;
             name.append(" ", tag);
           }
+          if (item.scan?.jsLayout === "wrapper") {
+            const tag = element("span", "Full wrapper", "pill pill-muted");
+            tag.title = JS_LAYOUT_TEXT.wrapper;
+            name.append(" ", tag);
+          }
+          if (item.scan?.jsMergeGaps?.length) {
+            const tag = element("span", "Merge not run", "pill pill-pending");
+            tag.title = mergeGapText(item.scan.jsMergeGaps);
+            name.append(" ", tag);
+          }
           const status = element("td");
           status.append(
             item.tracker
@@ -2431,6 +2458,10 @@ export async function start() {
         );
         const plane = PLANES.find((item) => item.id === selectedLibrary.plane);
         fact("Plane", plane?.label ?? selectedLibrary.plane);
+        if (selectedLibrary.scan?.jsLayout)
+          fact("JavaScript layout", JS_LAYOUT_TEXT[selectedLibrary.scan.jsLayout]);
+        if (selectedLibrary.scan?.jsMergeGaps?.length)
+          fact("Merge not run", mergeGapText(selectedLibrary.scan.jsMergeGaps));
         if (selectedLibrary.deprecated)
           fact(
             "Deprecated",
@@ -2778,6 +2809,8 @@ export async function start() {
                   language: row.language,
                   health: quality.libraries[row.scan.identity],
                   ...(row.scan.lines ? { lines: row.scan.lines } : {}),
+                  // quality.json still holds JavaScript handwritten files from before the layout
+                  // rule, so JavaScript stays out of the health splits until it is recomputed.
                 },
               ]
             : [],
@@ -2935,9 +2968,9 @@ export async function start() {
                 row.totalLines ? (100 * row.handwrittenLines!) / row.totalLines : null,
               ),
               {
-                series: languageSeries.filter(
-                  (item) => !hasHeuristicDetection(item.key.slice("lang:".length)),
-                ),
+                // A language's line appears once its scans can judge handwritten code
+                // (JavaScript from its layout rule on); earlier points are gaps, not zero.
+                series: languageSeries,
                 format: shareFormat,
                 endLabels: true,
                 events: HISTORY_EVENTS,

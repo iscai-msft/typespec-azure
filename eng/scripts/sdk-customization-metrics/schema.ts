@@ -126,8 +126,23 @@ export const scanSchema = object(
         // "folder": .NET evidence outside Generated/ is never classified as generated, even
         // with a copied generated header. Absent on scans made before the rule.
         dotnetGeneratedRule: choice("folder"),
+        // "layout": JavaScript generated/handwritten split follows the package layout
+        // (guidelines/javascript.md). Absent on scans made before the rule.
+        jsGeneratedRule: choice("layout"),
+        // The layout found: no generated folder, src/generated/ wrapper, or generated/ merge.
+        jsLayout: choice("none", "wrapper", "merge"),
+        // Generated files with no src/ copy whose users are missing from src/ too: the last
+        // generate ran without the merge.
+        jsMergeGaps: list(str()),
       },
-      ["packageTree", "reader", "dotnetGeneratedRule"],
+      [
+        "packageTree",
+        "reader",
+        "dotnetGeneratedRule",
+        "jsGeneratedRule",
+        "jsLayout",
+        "jsMergeGaps",
+      ],
     ),
     coverage: object({
       status: choice("partial", "failed"),

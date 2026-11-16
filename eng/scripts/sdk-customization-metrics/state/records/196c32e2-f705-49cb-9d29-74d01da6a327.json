@@ -1,0 +1,688 @@
+{
+  "schemaVersion": 1,
+  "id": "196c32e2-f705-49cb-9d29-74d01da6a327",
+  "observedAt": "2026-11-16T20:20:14.711Z",
+  "identity": "javascript:@azure/monitor-query-logs:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/monitor-query-logs",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/monitor/monitor-query-logs"
+  },
+  "commit": "68eeadd5bbe6e532eb751f4185ce4f04570770c5",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "jsGeneratedRule": "layout",
+    "reader": "git",
+    "packageTree": "e393586e79f17cdfb3951673280bbfe9dbe14b9d",
+    "jsLayout": "merge"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 98,
+    "eligibleFiles": 34,
+    "capturedFiles": 49,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "text": "\nexport {\n  createMonitorQueryLogs,\n  type MonitorQueryLogsContext,\n  type LogsQueryClientOptions,\n} from \"./monitorQueryLogsContext.js\";\nexport { batch, executeWithResourceId, execute } from \"./operations.js\";\nexport type {\n  LogsQueryBatchOptions,\n  LogsQueryOptions,\n  ExecuteWithResourceIdOptionalParams,\n  ExecuteOptionalParams,\n  QueryLogsOptions,\n} from \"./options.js\";",
+      "contentHash": "c2b9b97530dad21c07b7b0ac8556b4e1582ed53bd1f09f3bdbd11266bc110139",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "startLine": 3,
+      "endLine": 16,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "6d536d1aed999aa3a57f36d294d4803ad430ace05a0c417d0eb0c419bb84e2e0"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "text": "// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential } from \"@azure/core-auth\";\n\nexport interface MonitorQueryLogsContext extends Client {\n  /** The service API version. */\n  apiVersion: string;\n}\n\n/** Optional parameters for the client. */\nexport interface LogsQueryClientOptions extends ClientOptions {\n  /** The service API version. */\n  apiVersion?: string;\n  /**\n   * The Audience to use for authentication with Microsoft Entra ID. The\n   * audience is not considered when using a shared key.\n   */\n  audience?: string;\n}\n\nexport function createMonitorQueryLogs(\n  credential: TokenCredential,\n  options: LogsQueryClientOptions = {},\n): MonitorQueryLogsContext {\n  const endpointParam = options.endpoint ?? \"https://api.loganalytics.io\";\n  const apiVersion = options.apiVersion ?? \"v1\";\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? `${endpointParam}/${apiVersion}`;\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-monitor-query-logs/1.0.1`;\n  const userAgentPrefix = prefixFromOptions",
+      "contentHash": "d8583e2cac7c08d042b380d70b65361dbbadee520a623d1df7e328752dda57bd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "startLine": 2,
+      "endLine": 34,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "df5c3f4e6a1c3e633facacb419ab3a0f324585517a6de22704c56b8b2287c81f"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "text": "    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://api.loganalytics.io/.default\"],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);",
+      "contentHash": "a344474da050b2c51862fd8fc92c3c06e3cb24491f667ba41eca9d1e63896efc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "startLine": 39,
+      "endLine": 45,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "6324447b3011d43561defaa930ee158a6b3c43227fc68b0b71fe271a391b314e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { MonitorQueryLogsContext as Client, LogsQueryBatchOptions } from \"./index.js\";\nimport type { QueryBody, BatchRequest } from \"../models/models.js\";\nimport type { LogsQueryBatchResult, LogsQueryResult } from \"../models/public.js\";\nimport {\n  queryBodySerializer,\n  queryResultsDeserializer,\n  convertToLogsQueryResult,\n  errorResponseDeserializer,\n  batchRequestSerializer,\n  batchResponseDeserializer,\n  convertToLogsBatchResult,\n} from \"../models/models.js\";\nimport { expandUrlTemplate } from \"../static-helpers/urlTemplate.js\";\nimport type { ExecuteWithResourceIdOptionalParams, ExecuteOptionalParams } from \"./options.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _batchSend(\n  context: Client,\n  body: BatchRequest,\n  options: LogsQueryBatchOptions = { requestOptions: {} },\n): StreamableMethod {\n  return context.path(\"/$batch\").post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {",
+      "contentHash": "0eb945a7f4443fedb21a26c688269e8923bde40ac45db2d2c3b108d8a25891fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 29,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f98458829961a43ab02c95eb377a2dc6ba48222a2f28f1e7a7618febca2bd44e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "\nexport async function _batchDeserialize(\n  result: PathUncheckedResponse,\n): Promise<LogsQueryBatchResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);",
+      "contentHash": "29ddeffadea128d142a4e7172c1a05f821477898622bcacf1cc91417f8201eee",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 36,
+      "endLine": 42,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "26a0f0321ca71c1f17ce07a28aa5d86f21ac588ad4d897a6ed0ff3693ed9fcc1"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "    throw error;\n  }\n\n  const internalResult = batchResponseDeserializer(result.body);\n  return convertToLogsBatchResult(internalResult);\n}\n\n/**",
+      "contentHash": "0760f5f87c49c9fba689819b0090c33816fed8278a3d86532ee179fd68e141ac",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 44,
+      "endLine": 51,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f8cbc17e2b89d52ad34caccb1f72d0cfc53feb612dc939ea0033722444537fd4"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "export async function batch(\n  context: Client,\n  body: BatchRequest,\n  options: LogsQueryBatchOptions = { requestOptions: {} },\n): Promise<LogsQueryBatchResult> {\n  const result = await _batchSend(context, body, options);\n  return _batchDeserialize(result);\n}",
+      "contentHash": "e9c47e64e7339f3937f3b0b0c2ac0e16632543c812bbaede0212d8d49660ec11",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 56,
+      "endLine": 63,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fb2f280b0641a46a61a4b139b4f6548a574c557bc5cd9c876f4c7527bb1c5d66"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {",
+      "contentHash": "5595df047bc71566a3be84e8059fce100a2dc6da1575bdf1cb9d91ee36b68699",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 77,
+      "endLine": 83,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3a3d820f78676d8cf36d03c7d6e14abf81738b773c72d7680a1ac31e457ba430"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "\nexport async function _executeWithResourceIdDeserialize(\n  result: PathUncheckedResponse,\n): Promise<LogsQueryResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);",
+      "contentHash": "276c17eb78bd25ba86564d7ec2563692d5d204177a6a28b4b808ea47fa1ef1b1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 91,
+      "endLine": 97,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "792f01854eaf7f3ab523d34a6be1e9d28942c99e7f7b5a53d8f10d41ccd37c08"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "    throw error;\n  }\n\n  return convertToLogsQueryResult(queryResultsDeserializer(result.body));\n}\n\n/**",
+      "contentHash": "cfccf7e4dc0c670a100a9028c6321e41c0cba22d7fadfe86b899af6534c9cb79",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 99,
+      "endLine": 105,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4a7bc5756bc55be3f2c773a1982da9de9668642d5b01c964028df0a2a5b687ec"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "  resourceId: string,\n  body: QueryBody,\n  options: ExecuteWithResourceIdOptionalParams = { requestOptions: {} },\n): Promise<LogsQueryResult> {\n  const result = await _executeWithResourceIdSend(context, resourceId, body, options);\n  return _executeWithResourceIdDeserialize(result);\n}\n",
+      "contentHash": "ccdb4e2324d5aa3e203cdada9a11d3c50e2a43d673d6b7810f3d4d20b5aaf481",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 112,
+      "endLine": 118,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "403993f571b6740b795e97859de9b647f84d0847d58eaf10d6977aa123d8c211"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {",
+      "contentHash": "5595df047bc71566a3be84e8059fce100a2dc6da1575bdf1cb9d91ee36b68699",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 132,
+      "endLine": 138,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c17606cd5b105d7c1348c36b8c0bcd0bc018bed160e75111de277fb7b9534ad4"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "  });\n}\n\nexport async function _executeDeserialize(result: PathUncheckedResponse): Promise<LogsQueryResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);",
+      "contentHash": "10c21dc50a15c574cf0b2ed834e08ffa604cb4da7fdea4e1ff9cbbbd768a8d64",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 144,
+      "endLine": 150,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "65cad3fa4efdd1bebf18b89c6946df983c3046285f5abca30a30b41815a6035d"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "    throw error;\n  }\n\n  return convertToLogsQueryResult(queryResultsDeserializer(result.body));\n}\n\n/**",
+      "contentHash": "cfccf7e4dc0c670a100a9028c6321e41c0cba22d7fadfe86b899af6534c9cb79",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 152,
+      "endLine": 158,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "14b2b662ebfabff264ae2470ee3b78b763a89519eb5599de7893bb66a0b1fe1e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "text": "  workspaceId: string,\n  body: QueryBody,\n  options: ExecuteOptionalParams = { requestOptions: {} },\n): Promise<LogsQueryResult> {\n  const result = await _executeSend(context, workspaceId, body, options);\n  return _executeDeserialize(result);\n}",
+      "contentHash": "89f9804659a569e25db3974e8c00429dc2033b41d9d2ebce968f00d8625e2930",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 165,
+      "endLine": 171,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "150c2dac285cbca67fa85b09d6ae6d6e623f3e2865726872c135d63901280711"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "text": "import type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters for batch query operations. */\nexport interface LogsQueryBatchOptions extends OperationOptions {}\n\n/**\n * Options for querying logs.\n */\nexport interface LogsQueryOptions extends OperationOptions {\n  /**\n   * A list of workspaces that are included in the query, except for the one set as the `workspaceId` parameter.\n   * These may consist of the following identifier formats:",
+      "contentHash": "15b72ba0f741b8e41ccfd4c155e2648e7d396b08dd8f086c979f344fb1cf0e97",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "startLine": 4,
+      "endLine": 15,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7c91cd767483c0f9ca6e2a103deba593baa4ac7316c9692cf7b8d7a28ac1ad27"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "text": "   * - Workspace IDs\n   * - Azure resource IDs\n   */\n  additionalWorkspaces?: string[];\n  /**\n   * Results will also include statistics about the query.\n   */\n  includeQueryStatistics?: boolean;\n  /**\n   * Results will also include visualization information, in JSON format.\n   */\n  includeVisualization?: boolean;\n  /**\n   * The maximum amount of time the server will spend processing the query.\n   * Default: 180 seconds (3 minutes), maximum allowed is 600 seconds (10 minutes)\n   */\n  serverTimeoutInSeconds?: number;\n}\n\n/** Optional parameters. */\nexport interface QueryLogsOptions extends OperationOptions {\n  /**\n   * Optional. The prefer header to set server timeout, query statistics and\n   * visualization information.",
+      "contentHash": "736ca4e6941f862a9bdebf92693762fc4a4e60cde6454f90b202bfca3b78ca45",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "startLine": 17,
+      "endLine": 40,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "21bbf42da609218354f5533f04c18e3930bf5f4a6bc2e467fc622a264a670caa"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "text": "}\n\n/** Optional parameters. */\nexport interface ExecuteWithResourceIdOptionalParams extends QueryLogsOptions {}\n\n/** Optional parameters. */\nexport interface ExecuteOptionalParams extends QueryLogsOptions {}",
+      "contentHash": "bf255231c88e535c075ae8f238e2b596281d079da069d9b4d924d9e941a07719",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "startLine": 43,
+      "endLine": 49,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e4108c8c5e3e6d5d562c5c8c89d6be9af0a4cbbd5961fc75e035b8a2aa925cd8"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { LogsQueryClient } from \"./logsQueryClient.js\";\nexport {\n  type QueryBody,\n  type Table,\n  type Column,\n  type ColumnDataType,\n  type ErrorInfo,\n  type ErrorDetail,\n  type ErrorResponse,\n  type BatchRequest,\n  type BatchQueryRequest,\n  type LogsQueryBatchResult,\n  type BatchQueryResponse,\n  type BatchQueryResults,\n  type QueryBatch,\n  type QueryTimeInterval,\n  Durations,\n} from \"./models/index.js\";\nexport {\n  type LogsQueryResult,\n  LogsQueryResultStatus,\n  type LogsTable,\n  type LogsColumn,\n  type LogsErrorInfo,\n  type LogsQuerySuccessfulResult,\n  type LogsQueryPartialResult,\n  type LogsQueryError,\n  KnownMonitorLogsQueryAudience,\n} from \"./models/public.js\";\nexport type {\n  LogsQueryClientOptions,\n  LogsQueryBatchOptions,\n  LogsQueryOptions,\n  ExecuteWithResourceIdOptionalParams,\n  ExecuteOptionalParams,\n  QueryLogsOptions,\n} from \"./api/index.js\";\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";",
+      "contentHash": "fe75f89b4d933a2c08b99b842ffdad33bfbadd59800cfee311e0b74c85845bcd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/index.ts",
+      "startLine": 1,
+      "endLine": 41,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9464a016a92ab215b3df17b03853b7aea89c2397e71e01da8b992333d987788e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { MonitorQueryLogsContext, LogsQueryClientOptions } from \"./api/index.js\";\nimport { createMonitorQueryLogs } from \"./api/index.js\";\nimport type { QueryTimeInterval } from \"./models/models.js\";\nimport { convertQueryBatch } from \"./models/models.js\";\nimport type { QueryBatch, LogsQueryBatchResult } from \"./models/public.js\";\nimport type { QueryBody } from \"./models/models.js\";\nimport type { LogsQueryBatchOptions, LogsQueryOptions } from \"./api/options.js\";\nimport { batch as batchOperation, executeWithResourceId, execute } from \"./api/operations.js\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { BatchQueryRequest } from \"./models/index.js\";\nimport { convertTimespanToInterval } from \"./static-helpers/timespanConversion.js\";\nimport type { LogsQueryResult } from \"./models/public.js\";\n\nexport type { LogsQueryClientOptions } from \"./api/monitorQueryLogsContext.js\";\n\n/**\n * Converts LogsQueryOptions to internal option format\n */\nfunction convertToInternalOptions(options?: LogsQueryOptions): {\n  prefer?: string;\n  requestOptions: {};\n} {\n  if (!options) {\n    return { requestOptions: {} };\n  }\n\n  // Convert LogsQueryOptions properties to prefer header format\n  const preferParts: string[] = [];\n\n  if (options.serverTimeoutInSeconds !== undefined) {\n    preferParts.push(`wait=${options.serverTimeoutInSeconds}`);\n  }\n\n  if (options.includeQueryStatistics) {\n    preferParts.push(\"include-statistics=true\");\n  }\n\n  if (options.includeVisualization) {\n    preferParts.push(\"include-render=true\");\n  }\n\n  const prefer = preferParts.length > 0 ? preferParts.join(\",\") : undefined;\n\n  return {\n    prefer,\n    requestOptions: options.requestOptions ? options.requestOptions : {},\n  };\n}\n\n/**\n * The client to query Azure Monitor logs.\n */\nexport class LogsQueryClient {\n  private _client: MonitorQueryLogsContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  /**\n   * Initializes a new instance of the LogsQueryClient.\n   * @param tokenCredential - The credential to use for authentication.\n   * @param options - The optional parameters for the client.\n   */\n  constructor(tokenCredential: TokenCredential, options: LogsQueryClientOptions = {}) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createMonitorQueryLogs(tokenCredential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n  }\n\n  /**\n   * Executes a batch of Analytics queries for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/batch-queries)\n   * is an example for using POST with an Analytics query.\n   * @param batch - The batch of queries to execute.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the batch of queries.\n   */\n  queryBatch(\n    batch: QueryBatch[],\n    options: LogsQueryBatchOptions = { requestOptions: {} },\n  ): Promise<LogsQueryBatchResult> {\n    const requests: BatchQueryRequest[] = batch.map((q, index) => {\n      // Generate a unique ID for each query\n      const id = `query-${index}`;\n      // Convert public QueryBatch to internal InternalQueryBatch\n      const internalQuery = convertQueryBatch(q, id);\n\n      return {\n        id: internalQuery.id,\n        body: {\n          query: internalQuery.query,\n          timespan: internalQuery.timespan\n            ? convertTimespanToInterval(internalQuery.timespan)\n            : undefined,\n          workspaces: internalQuery.workspaces,\n        },\n        path: \"/query\" as const,\n        method: \"POST\" as const,\n        workspace: internalQuery.workspace,\n        headers: internalQuery.headers,\n      };\n    });\n    return batchOperation(this._client, { requests: requests }, options);\n  }\n\n  /**\n   * Executes an Analytics query for data in the context of a resource.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/azure-resource-queries)\n   * is an example for using POST with an Analytics query.\n   * @param resourceId - The resource ID to query the data for.\n   * @param query - The query to execute.\n   * @param timespan - The timespan for the query.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the query.\n   */\n  queryResource(\n    resourceId: string,\n    query: string,\n    timespan: QueryTimeInterval,\n    // eslint-disable-next-line @azure/azure-sdk/ts-naming-options\n    options?: LogsQueryOptions,\n  ): Promise<LogsQueryResult> {\n    const internalOptions = convertToInternalOptions(options);\n    const body: QueryBody = {\n      query,\n      timespan: convertTimespanToInterval(timespan),\n      workspaces: options?.additionalWorkspaces,\n    };\n    return executeWithResourceId(this._client, resourceId, body, internalOptions);\n  }\n\n  /**\n   * Executes an Analytics query for data.\n   * [Here](https://learn.microsoft.com/azure/azure-monitor/logs/api/request-format)\n   * is an example for using POST with an Analytics query.\n   * @param workspaceId - The workspace ID to query the data for.\n   * @param query - The query to execute.\n   * @param timespan - The timespan for the query.\n   * @param options - The optional parameters for the operation.\n   * @returns The results of the query.\n   */\n  queryWorkspace(\n    workspaceId: string,\n    query: string,\n    timespan: QueryTimeInterval,\n    // eslint-disable-next-line @azure/azure-sdk/ts-naming-options\n    options?: LogsQueryOptions,\n  ): Promise<LogsQueryResult> {\n    const internalOptions = convertToInternalOptions(options);\n    const body: QueryBody = {\n      query,\n      timespan: convertTimespanToInterval(timespan),\n      workspaces: options?.additionalWorkspaces,\n    };\n    return execute(this._client, workspaceId, body, internalOptions);\n  }\n}\n",
+      "contentHash": "afd80ea628d38b0ee7b3d35947d4cbabdea6a8eeefe022f9b7447ff74395b6f3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "startLine": 1,
+      "endLine": 166,
+      "kind": "unknown",
+      "id": "3fa8516776bf68afe3232bd6aa846c8d84a98300ae148e1e95c892e7001939ec"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/constants.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * Aliases for some common ISO8601 durations.\n */\nexport const Durations = {\n  /** Alias for ISO8601 value 'P7D' */\n  sevenDays: \"P7D\",\n  /** Alias for ISO8601 value 'P3D' */\n  threeDays: \"P3D\",\n  /** Alias for ISO8601 value 'P2D' */\n  twoDays: \"P2D\",\n  /** Alias for ISO8601 value 'P1D' */\n  oneDay: \"P1D\",\n  /** Alias for ISO8601 value 'PT1H' */\n  oneHour: \"PT1H\",\n  /** Alias for ISO8601 value 'PT4H' */\n  fourHours: \"PT4H\",\n  /** Alias for ISO8601 value 'PT24H' */\n  twentyFourHours: \"PT24H\",\n  /** Alias for ISO8601 value 'PT48H' */\n  fortyEightHours: \"PT48H\",\n  /** Alias for ISO8601 value 'PT30M' */\n  thirtyMinutes: \"PT30M\",\n  /** Alias for ISO8601 value 'PT5M' */\n  fiveMinutes: \"PT5M\",\n} as const;\n",
+      "contentHash": "f1724534e32ae7c8d37d7a6a66ea8a99830d1a2f9cdc3fffcc84e9f4928d9606",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/constants.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "kind": "unknown",
+      "id": "f15fc412cec37fca215962a54f2dfb391c6437117e0a36ed9ae8e30f139dfe95"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "text": "\nexport type {\n  QueryBody,\n  Table,\n  Column,\n  ColumnDataType,\n  ErrorInfo,",
+      "contentHash": "b43ffa098357620c7fad9637f114833192e4594271c75e560e6afe5124869193",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "startLine": 3,
+      "endLine": 9,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cf215a7ca0b127a761f6f6ba0906f398d2b5a0312e790377672221fffd532b7e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "text": "  ErrorResponse,\n  BatchRequest,\n  BatchQueryRequest,\n  BatchQueryResponse,\n  BatchQueryResults,\n  QueryTimeInterval,\n} from \"./models.js\";\nexport {\n  LogsQueryResultStatus,\n  type LogsColumn,\n  type LogsTable,\n  type LogsErrorInfo,\n  type LogsQuerySuccessfulResult,\n  type LogsQueryPartialResult,\n  type LogsQueryError,\n  type LogsQueryResult,\n  type LogsQueryBatchResult,\n  type QueryBatch,\n  KnownMonitorLogsQueryAudience,\n} from \"./public.js\";\nexport * from \"./constants.js\";",
+      "contentHash": "5cdb8d71a8498d5130a6a2e55cd603ad46d4c5f2cb7e1b115c2129218ae76811",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "startLine": 11,
+      "endLine": 31,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e7587f9b440a68ea466fe7eb3e9e3effed32530d18f42050afb0c1dd1cf67a1b"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  LogsQueryResult,\n  LogsTable,\n  LogsErrorInfo,\n  QueryBatch,\n  LogsQueryBatchResult,\n  LogsQueryError,\n  LogsQuerySuccessfulResult,\n  LogsQueryPartialResult,\n} from \"./public.js\";\nimport { LogsQueryResultStatus } from \"./public.js\";\n\n/** Converts public QueryBatch to internal InternalQueryBatch */\nexport function convertQueryBatch(query: QueryBatch, id: string): InternalQueryBatch {\n  const headers: Record<string, string> = {};\n\n  // Build prefer header from options\n  const preferParts: string[] = [];\n  if (query.serverTimeoutInSeconds) {\n    preferParts.push(`wait=${query.serverTimeoutInSeconds}`);\n  }\n  if (query.includeQueryStatistics) {\n    preferParts.push(\"include-statistics=true\");\n  }\n  if (query.includeVisualization) {\n    preferParts.push(\"include-render=true\");\n  }\n\n  if (preferParts.length > 0) {\n    headers.prefer = preferParts.join(\",\");\n  }\n\n  return {\n    id,\n    query: query.query,\n    timespan: query.timespan,\n    headers: Object.keys(headers).length > 0 ? headers : undefined,\n    workspaces: query.additionalWorkspaces,\n    workspace: query.workspaceId,\n  };\n}\n\n/**\n * The timespan for the query. This is an ISO8601 time period value.\n * This timespan is applied in addition to any that are specified in the query expression.\n * */\nexport type QueryTimeInterval =\n  | {\n      startTime: Date;\n      endTime: Date;\n    }\n  | {\n      startTime: Date;\n      duration: string;\n    }\n  | {\n      duration: string;\n      endTime: Date;\n    }\n  | {\n      duration: string;\n    };\n\n/**\n * The Analytics query. Learn more about the",
+      "contentHash": "3a638b03dcc3b56979b6d3415f7e6c6421d42779f97c544cf392d5d1b0b29f5f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0c51e9ecd82d699f3b469739f8b84eec55e2ccb15371ed207ebfff947cfdef0c"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  error?: ErrorInfo;\n}\n\nexport function queryResultsDeserializer(item: {\n  tables: any[];\n  statistics: any;\n  render: any;\n  error: any;\n}): QueryResults {\n  return {\n    tables: tableArrayDeserializer(item[\"tables\"]),\n    statistics: item[\"statistics\"],\n    render: item[\"render\"],\n    error: !item[\"error\"] ? item[\"error\"] : errorInfoDeserializer(item[\"error\"]),\n  };\n}\n\n/**\n * Converts a table from the API response to LogsTable format with proper type conversion\n */\nfunction convertTable(table: Table): LogsTable {\n  const dynamicsIndices: number[] = [];\n  const datesIndices: number[] = [];\n\n  // Find indices of columns that need special conversion\n  for (let i = 0; i < table.columns.length; ++i) {\n    if (table.columns[i].type === \"datetime\") {\n      datesIndices.push(i);\n    } else if (table.columns[i].type === \"dynamic\") {\n      dynamicsIndices.push(i);\n    }\n  }\n\n  return {\n    name: table.name,\n    columnDescriptors: table.columns,\n    rows: table.rows.map((originalRow) => {\n      // Create a copy of the row to avoid mutating the original\n      const row = [...originalRow];\n\n      // Convert datetime columns to Date objects\n      for (const dateIndex of datesIndices) {\n        if (row[dateIndex] != null && typeof row[dateIndex] === \"string\") {\n          row[dateIndex] = new Date(row[dateIndex] as string);\n        }\n      }\n\n      // Convert dynamic columns to JSON objects\n      for (const dynamicIndex of dynamicsIndices) {\n        try {\n          if (row[dynamicIndex] != null && typeof row[dynamicIndex] === \"string\") {\n            row[dynamicIndex] = JSON.parse(row[dynamicIndex] as string) as Record<string, unknown>;\n          }\n        } catch (_err: any) {\n          /* leave as is if JSON parse fails */\n        }\n      }\n\n      return row;\n    }),\n  };\n}\n\nexport function convertToLogsQueryResult(queryResults: QueryResults): LogsQueryResult {\n  // Convert tables to LogsTable format with proper type conversion\n  const convertedTables: LogsTable[] = queryResults.tables.map(convertTable);\n\n  // If there's an error, return a partial result\n  if (queryResults.error) {\n    return {\n      status: LogsQueryResultStatus.PartialFailure,\n      partialTables: convertedTables,\n      partialError: queryResults.error as LogsErrorInfo,\n      statistics: queryResults.statistics,\n      visualization: queryResults.render,\n    };\n  }\n\n  // Otherwise, return a successful result\n  return {\n    status: LogsQueryResultStatus.Success,\n    tables: convertedTables,\n    statistics: queryResults.statistics,\n    visualization: queryResults.render,\n  };\n}\n\nexport function tableArrayDeserializer(result: Array<Table>): any[] {\n  return result.map((item) => {",
+      "contentHash": "dd65605e20acbf1623d4f701afcc1baab391df35dcffbcd04ac6894c0108ad60",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 105,
+      "endLine": 193,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7f45fbfa084bbb938f0413da2484f7e4f28623bb58170b28364efd3faf7c46ab"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  rows: any[][];\n}\n\nexport function tableDeserializer(item: { name: string; columns: any[]; rows: any[][] }): Table {\n  return {\n    name: item[\"name\"],\n    columns: columnArrayDeserializer(item[\"columns\"]),\n    rows: item[\"rows\"].map((row: any[]) => {\n      return row.map((cell: any) => {\n        return cell;\n      });\n    }),\n  };",
+      "contentHash": "1f054bd17be6b3187171d3375e927c09a1921ba6a198b1d3955f4dfe5a24bb8b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 205,
+      "endLine": 217,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "aef1d6b58ce2e89c4bb840938948da41b432791914b08af655f614b60cf98210"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  type: ColumnDataType;\n}\n\nexport function columnDeserializer(item: { name: string; type: any }): Column {\n  return {\n    name: item[\"name\"],\n    type: item[\"type\"],",
+      "contentHash": "ae22de11b75a963b8f973191eae6501c33c21924b664d18f748a86c7afd36beb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 231,
+      "endLine": 237,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7dd3fea236782a24aee04fbd5947b923abc01715e8046ce5f8d15207fa381be7"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  additionalProperties?: Record<string, any>;\n}\n\nexport function errorInfoDeserializer(item: {\n  code: any;\n  message: any;\n  details: any;\n  innererror: any;\n  additionalProperties: any;\n}): ErrorInfo {\n  return {\n    code: item[\"code\"],\n    message: item[\"message\"],\n    details: !item[\"details\"] ? item[\"details\"] : errorDetailArrayDeserializer(item[\"details\"]),\n    innererror: !item[\"innererror\"]\n      ? item[\"innererror\"]\n      : errorInfoDeserializer(item[\"innererror\"]),",
+      "contentHash": "a1b5cd5b34e02d8e469e8e2b1d17a11c2a28b067b3eda0729f7a7afb98be786a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 265,
+      "endLine": 281,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "40dfd2b697e73d6f6c096cf283c0f1fab284dd8ec3963763e968a9d8954a515b"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  };\n}\n\nexport function errorDetailArrayDeserializer(result: Array<ErrorDetail>): any[] {\n  return result.map((item) => {\n    return errorDetailDeserializer(item);\n  });",
+      "contentHash": "9b0c9230ba3861b0e3ba5ccdc12ee441aad4e3346ce7828acd29f5e65acf8321",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 283,
+      "endLine": 289,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "232399f5c8f12a33f234ef3dce048005faa4bc2ad76fbbd0e8fdb3ba4888a08b"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  additionalProperties?: Record<string, any>;\n}\n\nexport function errorDetailDeserializer(item: {\n  code: any;\n  message: any;\n  target?: any;\n  value?: any;\n  resources?: any;\n  additionalProperties?: any;\n}): ErrorDetail {\n  return {\n    code: item[\"code\"],\n    message: item[\"message\"],",
+      "contentHash": "a4a2a1d9a7aef97e1ad2d5a3568ecae41df9283ecb95127a0ba1417ceb27cced",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 305,
+      "endLine": 318,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7f9cfe510204287ab5dc518965410756bc00092bf202ccd72750f814d84be1df"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  error: ErrorInfo;\n}\n\nexport function errorResponseDeserializer(item: { error: any }): ErrorResponse {\n  return {\n    error: errorInfoDeserializer(item[\"error\"]),\n  };\n}\n\n/** A single request in a batch. */\nexport interface InternalQueryBatch {\n  /** Unique ID corresponding to each request in the batch. */\n  id: string;\n  /**\n   * The Analytics query. Learn more about the [Analytics query\n   * syntax](https://azure.microsoft.com/documentation/articles/app-insights-analytics-reference/)\n   */\n  query: string;\n  /**\n   * The timespan over which to query data. This is an ISO8601 time period\n   * value.  This timespan is applied in addition to any that are specified in the\n   * query expression.\n   */\n  timespan: QueryTimeInterval;\n  /**\n   * Headers of the request. Can use prefer header to set server timeout and to\n   * query statistics and visualization information.\n   */\n  headers?: Record<string, string>;\n  /** A list of workspaces to query in addition to the primary workspace. */\n  workspaces?: string[];\n  /**\n   * Primary Workspace ID of the query. This is the Workspace ID from the Properties\n   * blade in the Azure portal.\n   */\n  workspace: string;\n}\n\n/** An array of requests. */\nexport interface BatchRequest {",
+      "contentHash": "bd925fa4fdc86a9f2fd8eec74805b395bcd92554204ff5b9c6c9e21827beb387",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 333,
+      "endLine": 372,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "37685398b1a0517882a78f058cac282ced3a764c59eb9dec30fab2a1906a51c0"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  return { requests: batchQueryRequestArraySerializer(item[\"requests\"]) };\n}\n\nexport function batchQueryRequestArraySerializer(result: Array<BatchQueryRequest>): any[] {\n  return result.map((item) => {\n    return batchQueryRequestSerializer(item);\n  });",
+      "contentHash": "fa72b2e55689f6e5439f22228cce2033202c63eab8eed08b8dae5d54438ab2e3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 378,
+      "endLine": 384,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3072a4ca607910f22adaea8952158ed619568d3282bf719222d15316b5560cb2"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "}\n\n/** Response to a batch query. */\nexport interface InternalBatchResult {\n  /** An array of responses corresponding to each individual request in a batch. */\n  responses?: BatchQueryResponse[];\n}\n\nexport function batchResponseDeserializer(item: { responses: any }): InternalBatchResult {\n  return {\n    responses: !item[\"responses\"]\n      ? item[\"responses\"]",
+      "contentHash": "fee2f2b351edcaecf9d685f88dc4c18ea5bc0952af0c636af2f2ad157cef53b1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 421,
+      "endLine": 432,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2fb02b2f188afeb897434057e38904f8933c824c1ba94abd21832646f82cda3a"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "}\n\n/** Converts InternalBatchResult to LogsQueryBatchResult */\nexport function convertToLogsBatchResult(\n  internalResult: InternalBatchResult,\n): LogsQueryBatchResult {\n  if (!internalResult.responses) {\n    return [];\n  }\n\n  return internalResult.responses.map(\n    (response): LogsQuerySuccessfulResult | LogsQueryPartialResult | LogsQueryError => {\n      // If the response has no body, it's an error\n      if (!response.body) {\n        const error: LogsQueryError = {\n          name: \"LogsQueryError\",\n          message: \"Query failed with no response body\",\n          code: response.status?.toString() || \"Unknown\",\n          status: LogsQueryResultStatus.Failure,\n        };\n        return error;\n      }\n\n      // Convert BatchQueryResults to QueryResults format for converter\n      const queryResults: QueryResults = {\n        tables: response.body.tables || [],\n        statistics: response.body.statistics,\n        render: response.body.render,\n        error: response.body.error,\n      };\n\n      // Convert using the existing converter\n      const queryResult = convertToLogsQueryResult(queryResults);\n\n      // If the converted result has an error status, create a LogsQueryError\n      if (queryResult.status === LogsQueryResultStatus.PartialFailure) {\n        return queryResult as LogsQueryPartialResult;\n      }\n\n      return queryResult as LogsQuerySuccessfulResult;\n    },\n  );\n}\n\nexport function batchQueryResponseArrayDeserializer(result: Array<BatchQueryResponse>): any[] {\n  return result.map((item) => {\n    return batchQueryResponseDeserializer(item);\n  });",
+      "contentHash": "ef7119abda4e6df7661f9556331925b52081a853aa0eb9fea2da5441ad885417",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 435,
+      "endLine": 482,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5903a903627d4d6b18310debdca722bd8cd8c1b6071e9f0dcf449b2ef5673aa4"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  headers?: Record<string, string>;\n}\n\nexport function batchQueryResponseDeserializer(item: {\n  id?: any;\n  status?: any;\n  body?: any;\n  headers?: any;\n}): BatchQueryResponse {\n  return {\n    id: item[\"id\"],\n    status: item[\"status\"],\n    body: !item[\"body\"] ? item[\"body\"] : batchQueryResultsDeserializer(item[\"body\"]),\n    headers: item[\"headers\"],\n  };\n}",
+      "contentHash": "f8ecea95de85620e5a08974f00781d9a5dab446e9d3ed92ac7da3e5e5be36ab6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 494,
+      "endLine": 509,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c6ff14dff2ea96f09f6e97669b92ec2d29d0341833f5428a638b092c74203127"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "text": "  error?: ErrorInfo;\n}\n\nexport function batchQueryResultsDeserializer(item: {\n  tables: any;\n  statistics: any;\n  render: any;\n  error: any;\n}): BatchQueryResults {\n  return {\n    tables: !item[\"tables\"] ? item[\"tables\"] : tableArrayDeserializer(item[\"tables\"]),\n    statistics: item[\"statistics\"],\n    render: item[\"render\"],\n    error: !item[\"error\"] ? item[\"error\"] : errorInfoDeserializer(item[\"error\"]),\n  };\n}",
+      "contentHash": "765983bb8936e853602c87e59ad13e6092461b03e998333768b903bbc0d0536b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 520,
+      "endLine": 535,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "076ffc53713166c6c5d3a11d9d93385817f3e040fb2d712b38bbe947ad09d296"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/public.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  Column as GeneratedColumn,\n  ErrorInfo as GeneratedErrorInfo,\n  QueryTimeInterval,\n} from \"./models.js\";\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Options for querying logs. */\nexport interface LogsQueryOptions extends OperationOptions {\n  /**\n   * A list of workspaces that are included in the query, except for the one set as the `workspaceId` parameter.\n   * These may consist of the following identifier formats:\n   * - Qualified workspace names\n   * - Workspace IDs\n   * - Azure resource IDs\n   */\n  additionalWorkspaces?: string[];\n  /**\n   * The maximum amount of time the server will spend processing the query.\n   * Default: 180 seconds (3 minutes), maximum allowed is 600 seconds (10 minutes)\n   */\n  serverTimeoutInSeconds?: number;\n  /**\n   * Results will also include statistics about the query.\n   */\n  includeQueryStatistics?: boolean;\n  /**\n   * Results will also include visualization information, in JSON format.\n   */\n  includeVisualization?: boolean;\n}\n\n/** The status of a query. */\nexport enum LogsQueryResultStatus {\n  /** The query was successful. */\n  Success = \"Success\",\n  /** The query was partially successful. */\n  PartialFailure = \"PartialFailure\",\n  /** The query failed. */\n  Failure = \"Failure\",\n}\n\n/** A column in a table. */\nexport interface LogsColumn extends GeneratedColumn {}\n\n/** Contains the columns and rows for one table in a query response. */\nexport interface LogsTable {\n  /** The name of the table. */\n  name: string;\n  /** The list of columns in this table. */\n  columnDescriptors: LogsColumn[];\n  /** The resulting rows from this query. */\n  rows: (string | number | boolean | Record<string, any> | Date)[][];\n}\n\n/** The code and message for an error. */\nexport interface LogsErrorInfo extends GeneratedErrorInfo {}\n\n/** A successful query result. */\nexport interface LogsQuerySuccessfulResult {\n  /** The status of the query. */\n  status: LogsQueryResultStatus.Success;\n  /** The results of the query in tabular format. */\n  tables: LogsTable[];\n  /** Statistics represented in JSON format. */\n  statistics?: Record<string, any>;\n  /** Visualization data in JSON format. */\n  visualization?: Record<string, any>;\n}\n\n/** A partially successful query result. */\nexport interface LogsQueryPartialResult {\n  /** The status of the query. */\n  status: LogsQueryResultStatus.PartialFailure;\n  /** The results of the query in tabular format. */\n  partialTables: LogsTable[];\n  /** The code and message for an error. */\n  partialError: LogsErrorInfo;\n  /** Statistics represented in JSON format. */\n  statistics?: Record<string, any>;\n  /** Visualization data in JSON format. */\n  visualization?: Record<string, any>;\n}\n\n/** A failed query result. */\nexport interface LogsQueryError extends Error {\n  /** A machine readable error code. */\n  code: string;\n  /** Indicates that the query failed */\n  status: LogsQueryResultStatus.Failure;\n}\n\n/** The result of a query. */\nexport type LogsQueryResult = LogsQuerySuccessfulResult | LogsQueryPartialResult;\n\n/** The result of a batch query operation. */\nexport type LogsQueryBatchResult = Array<\n  LogsQueryPartialResult | LogsQuerySuccessfulResult | LogsQueryError\n>;\n\n/** A query to execute as part of a batch. */\nexport interface QueryBatch {\n  /** A list of workspaces to query in addition to the primary workspace. */\n  additionalWorkspaces?: string[];\n  /** Whether to include query statistics in the response. */\n  includeQueryStatistics?: boolean;\n  /** Whether to include visualization data in the response. */\n  includeVisualization?: boolean;\n  /** The Analytics query to execute. */\n  query: string;\n  /** The server timeout in seconds. */\n  serverTimeoutInSeconds?: number;\n  /** The timespan for the query. */\n  timespan: QueryTimeInterval;\n  /** The workspace ID to query. */\n  workspaceId: string;\n}\n\n/** Audiences for Azure Monitor Logs. */\nexport enum KnownMonitorLogsQueryAudience {\n  /** The Azure public cloud. */\n  AzurePublicCloud = \"https://api.loganalytics.io\",\n  /** The Azure China cloud. */\n  AzureChina = \"https://api.loganalytics.azure.cn\",\n  /** The Azure US Government cloud. */\n  AzureGovernment = \"https://api.loganalytics.us\",\n}\n",
+      "contentHash": "9e5d8ffb39baf50e851a3ce961b07e5883d3407cb3404574aa06c3b2fb9d3c85",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/models/public.ts",
+      "startLine": 1,
+      "endLine": 130,
+      "kind": "unknown",
+      "id": "c42edc47eee1ff8ae2167bf34d9e0a4ea63422e69200cc551066335f836283c9"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type {\n  ExecuteOptionalParams,\n  ExecuteWithResourceIdOptionalParams,\n  LogsQueryBatchOptions,\n  LogsQueryClientOptions,\n  MonitorQueryLogsContext,\n} from \"./api/index.js\";\nimport { createMonitorQueryLogs } from \"./api/index.js\";\nimport { batch, executeWithResourceId, execute } from \"./api/operations.js\";\nimport type { LogsQueryBatchResult, LogsQueryResult } from \"./models/public.js\";\nimport type { BatchRequest, QueryBody } from \"./models/models.js\";\n\nexport type { LogsQueryClientOptions } from \"./api/monitorQueryLogsContext.js\";\n\nexport class LogsQueryClient {\n  private _client: MonitorQueryLogsContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  constructor(credential: TokenCredential, options: LogsQueryClientOptions = {}) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`",
+      "contentHash": "7832d4d8c054ca7c1790bef245c471c0d587d2cc0b1b9209c643c50994469afe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8a3c0231068b2c8f81fb50a8f141140b6d2a7ee58d7a5af6d0900ba961738b5c"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "text": "   */\n  batch(\n    body: BatchRequest,\n    options: LogsQueryBatchOptions = { requestOptions: {} },\n  ): Promise<LogsQueryBatchResult> {\n    return batch(this._client, body, options);\n  }\n",
+      "contentHash": "6b0de952e5c3ce1a1a21c73f06d4f79fd9655cb83e8c3bf887985914e934d1ce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 41,
+      "endLine": 47,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "64d3d784c93ac36c2f373779d83f72123c5898888e240abcb21d61667be20f93"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "text": "    resourceId: string,\n    body: QueryBody,\n    options: ExecuteWithResourceIdOptionalParams = { requestOptions: {} },\n  ): Promise<LogsQueryResult> {\n    return executeWithResourceId(this._client, resourceId, body, options);\n  }\n",
+      "contentHash": "e3a340f7a68266257dbea66a48b3bb28fb2bb9a21561ecdb719f5507e4376817",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 55,
+      "endLine": 60,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "89a9ff7ad81cf9a0e8574af880edbfa0283507a678350bb5268bc103139cd304"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "text": "    workspaceId: string,\n    body: QueryBody,\n    options: ExecuteOptionalParams = { requestOptions: {} },\n  ): Promise<LogsQueryResult> {\n    return execute(this._client, workspaceId, body, options);\n  }\n}",
+      "contentHash": "de3c4077652584793b060a80e919a83a0a1335e3c17b009a8494e9dedffc5cdf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 68,
+      "endLine": 74,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "916ca2994c49ce2b4c75c793138af039d2c621213c82e884e342feb971801815"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { QueryTimeInterval } from \"./../models/index.js\";\nimport { isObjectWithProperties } from \"@azure/core-util\";\n\nexport function convertTimespanToInterval(timespan: QueryTimeInterval): string {\n  if (isObjectWithProperties(timespan, [\"startTime\", \"endTime\", \"duration\"])) {\n    throw new TypeError(\"Invalid Timespan - contains startTime, endTime, and duration.\");\n  }\n\n  if (isObjectWithProperties(timespan, [\"startTime\", \"endTime\"])) {\n    return `${(timespan as any).startTime.toISOString()}/${(\n      timespan as any\n    ).endTime.toISOString()}`;\n  } else if (isObjectWithProperties(timespan, [\"startTime\", \"duration\"])) {\n    return `${(timespan as any).startTime.toISOString()}/${(timespan as any).duration}`;\n  } else if (isObjectWithProperties(timespan, [\"duration\", \"endTime\"])) {\n    return `${timespan.duration}/${(timespan as any).endTime.toISOString()}`;\n  } else if (isObjectWithProperties(timespan, [\"duration\"])) {\n    return timespan.duration;\n  }\n\n  throw new TypeError(\"Invalid Timespan - no valid fields assigned.\");\n}\n\nexport function convertIntervalToTimeIntervalObject(timespan: string): QueryTimeInterval {\n  if (timespan.includes(\"/\")) {\n    const intervalUnits: string[] = timespan.split(\"/\");\n    if (Date.parse(intervalUnits[0]) && Date.parse(intervalUnits[1])) {\n      return { startTime: new Date(intervalUnits[0]), endTime: new Date(intervalUnits[1]) };\n    } else if (Date.parse(intervalUnits[0]) && !Date.parse(intervalUnits[1])) {\n      return { startTime: new Date(intervalUnits[0]), duration: intervalUnits[1] };\n    } else if (!Date.parse(intervalUnits[0]) && Date.parse(intervalUnits[1])) {\n      return { duration: intervalUnits[0], endTime: new Date(intervalUnits[1]) };\n    } else {\n      return { duration: timespan };\n    }\n  } else {\n    return { duration: timespan };\n  }\n}\n",
+      "contentHash": "fb4fde194ba70ee2fa8a4c4f09c603fd8e20893c590d86b447d814597f84211e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "startLine": 1,
+      "endLine": 42,
+      "kind": "unknown",
+      "id": "04215706336342dd638c7292cd3a17e46b4b368ad89d9b4f8353af9ca842af5b"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "// ---------------------\n// helpers\n// ---------------------\nfunction encodeComponent(val: string, reserved?: boolean, op?: string): string {\n  return (reserved ?? op === \"+\") || op === \"#\"\n    ? encodeReservedComponent(val)\n    : encodeRFC3986URIComponent(val);\n}\n\nfunction encodeReservedComponent(str: string): string {\n  return str\n    .split(/(%[0-9A-Fa-f]{2})/g)\n    .map((part) => (!/%[0-9A-Fa-f]/.test(part) ? encodeURI(part) : part))\n    .join(\"\");\n}\n\nfunction encodeRFC3986URIComponent(str: string): string {\n  return encodeURIComponent(str).replace(\n    /[!'()*]/g,\n    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,\n  );\n}\n\nfunction isDefined(val: any): boolean {\n  return val !== undefined && val !== null;\n}\n\nfunction getNamedAndIfEmpty(op?: string): [boolean, string] {\n  return [!!op && [\";\", \"?\", \"&\"].includes(op), !!op && [\"?\", \"&\"].includes(op) ? \"=\" : \"\"];\n}\n\nfunction getFirstOrSep(op?: string, isFirst = false): string {\n  if (isFirst) {\n    return !op || op === \"+\" ? \"\" : op;\n  } else if (!op || op === \"+\" || op === \"#\") {",
+      "contentHash": "b57657347da67d4fa5518c7e9df381cd8655d1755b2b6015d6e0ad015028a7c6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 21,
+      "endLine": 55,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c7c27ee21d497f4bd3f8b11fa33f6b22ee4fa7bf56fe68da4df03865185eae4f"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "  }\n}\n\nfunction getExpandedValue(option: ValueOptions): string {\n  let isFirst = option.isFirst;\n  const { op, varName, varValue: value, reserved } = option;\n  const vals: string[] = [];",
+      "contentHash": "c73b6f15c57d736e958ae84900cca0f492019d74d8abf6b1dc8b5f3f8e1607cb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 61,
+      "endLine": 67,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ccb13cece5f66d78d0c91d6e57c941ed35279f372875b0ae46d8ec5805fc8725"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (named && varName) {\n        vals.push(`${encodeURIComponent(varName)}`);\n        if (val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }",
+      "contentHash": "18eb455af3dffd9ceed9a1ec5c46a6ec559fff5fa6018fc35ca6ccc375e63b2d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 73,
+      "endLine": 84,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4af62b0b3fab195b0498f950a8a4b9814a5cfc2eb283320f38d671449359c859"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (key) {\n        vals.push(`${encodeURIComponent(key)}`);\n        if (named && val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }",
+      "contentHash": "a6f1470b00061119f7a8832e0a75bef4093824ac633771c5b2fd89e7546e9344",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 92,
+      "endLine": 103,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "03a9132b83f1061832b4dacf85dfb09e18bc131715156815b1510c862dc7f159"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "  return vals.join(\"\");\n}\n\nfunction getNonExpandedValue(option: ValueOptions): string | undefined {\n  const { op, varName, varValue: value, isFirst, reserved } = option;\n  const vals: string[] = [];\n  const first = getFirstOrSep(op, isFirst);",
+      "contentHash": "8348d312ddf3ce1423d024fc6d43cb0dc8d6da4eff4fe3b74efd7305cf14163b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 105,
+      "endLine": 111,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7468d6cac78a3f4d73b6aaf140edae37ff0326eba03feffe4d8fb6d0fc79f769"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "    if (named && varName) {\n      // No need to encode varName considering it is already encoded\n      vals.push(varName);\n      if (val === \"\") {\n        vals.push(ifEmpty);\n      } else {\n        vals.push(\"=\");\n      }\n    }\n    if (modifier && modifier !== \"*\") {\n      val = val.substring(0, parseInt(modifier, 10));\n    }",
+      "contentHash": "5eadc14301b47d3c97bf8282eb3f24d45a1ae1f8d0a4a1e137fdd53de1793d32",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 151,
+      "endLine": 162,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a0ae30fe9cb1a77750d09e8a8e752eae2640434068b51a01f6f8f5946af63406"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "text": "  context: Record<string, any>,\n  option?: UrlTemplateOptions,\n): string {\n  return template.replace(/\\{([^{}]+)\\}|([^{}]+)/g, (_, expr, text) => {\n    if (!expr) {\n      return encodeReservedComponent(text);\n    }\n    let op;\n    let expressionToParse = expr;\n    if ([\"+\", \"#\", \".\", \"/\", \";\", \"?\", \"&\"].includes(expressionToParse[0])) {\n      op = expressionToParse[0];\n      expressionToParse = expressionToParse.slice(1);\n    }\n    const varList = expressionToParse.split(/,/g);\n    const result = [];\n    for (const varSpec of varList) {\n      const varMatch = /([^:*]*)(?::(\\d+)|(\\*))?/.exec(varSpec);\n      if (!varMatch || !varMatch[1]) {\n        continue;\n      }",
+      "contentHash": "afde6ee057e94e85cf939ffa8484bc25aa9043ab5cc6523ad3e02f64e43f2603",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 177,
+      "endLine": 196,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c681584bc8a43f111c3aa45808688a958d06dbee8b10cd16a4f09327d842eed1"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/package.json",
+      "text": "{\n  \"name\": \"@azure/monitor-query-logs\",\n  \"version\": \"1.0.1\",\n  \"description\": \"An isomorphic client library for querying Azure Monitor's Logs data sources.\",\n  \"sdk-type\": \"client\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/monitorQueryLogsContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* temp types *.tgz *.log coverage coverage-browser\",\n    \"execute:samples\": \"echo Obsolete\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"test:node:live\": \"dev-tool run test:vitest -- -c vitest.int.config.ts\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/monitor/monitor-query-logs\"\n  },\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"keywords\": [\n    \"azure\",\n    \"cloud\",\n    \"typescript\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/monitor/monitor-query-logs/README.md\",\n  \"sideEffects\": false,\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.5.0\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure/core-paging\": \"^1.6.2\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/abort-controller\": \"^2.0.0\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/monitor-opentelemetry-exporter\": \"1.0.0-beta.45\",\n    \"@opentelemetry/api\": \"^1.9.1\",\n    \"@opentelemetry/sdk-trace-base\": \"^2.9.0\",\n    \"@opentelemetry/sdk-trace-node\": \"^2.9.0\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"//sampleConfiguration\": {\n    \"skipFolder\": false,\n    \"productName\": \"Monitor Query Logs\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-monitor\"\n    ],\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/\",\n    \"requiredResources\": {\n      \"Azure Monitor\": \"https://learn.microsoft.com/azure/azure-monitor/\"\n    }\n  },\n  \"type\": \"module\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "6389a58aa91d952375c4d0864729f3dbe914c159a57c2f8c3f455d20028686fc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/package.json"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Query.Logs\ncommit: fe3a4c5e55bff5ef805503fa9260a5cd3118cbf2\nrepo: azure/azure-rest-api-specs\n",
+      "contentHash": "3bdcf38f5480b80739bee06371854b4860521946dffeb9d0f290816d1b3f71d9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/monitor/monitor-query-logs/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/index.ts",
+      "startLine": 6,
+      "endLine": 15,
+      "provenance": "JavaScript edits to a generated file: 5 changed lines, 2 places with generated code removed",
+      "contentHash": "7b9bcd59dd6680aadf1448be12d8017ae573815c1679ac4250667a6b01c16655"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/monitorQueryLogsContext.ts",
+      "startLine": 5,
+      "endLine": 42,
+      "provenance": "JavaScript edits to a generated file: 9 changed lines, 7 places with generated code removed",
+      "contentHash": "792195cc0ab2cd52871086534628115aa65d438ac3b179dfc2f3148bd8f8c472"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/operations.ts",
+      "startLine": 4,
+      "endLine": 168,
+      "provenance": "JavaScript edits to a generated file: 24 changed lines, 19 places with generated code removed",
+      "contentHash": "feaac82537eed5c2127925afddc0f05f243a7d5a2080bece9e5f4a6530e3cbac"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/api/options.ts",
+      "startLine": 7,
+      "endLine": 49,
+      "provenance": "JavaScript edits to a generated file: 9 changed lines, 2 places with generated code removed",
+      "contentHash": "9e8d59b47d7b3a0c048a7a6fd74b3295f96b2d871da6d628c82c3ad4e4fc08da"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/index.ts",
+      "startLine": 4,
+      "endLine": 41,
+      "provenance": "JavaScript edits to a generated file: 32 changed lines, 3 places with generated code removed",
+      "contentHash": "2daa5ff1003ea5e755e35abcf9583cb47b3382a07cd12d48fedd701ca9a2f859"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/logsQueryClient.ts",
+      "startLine": 1,
+      "endLine": 166,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "afd80ea628d38b0ee7b3d35947d4cbabdea6a8eeefe022f9b7447ff74395b6f3"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/constants.ts",
+      "startLine": 1,
+      "endLine": 28,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "f1724534e32ae7c8d37d7a6a66ea8a99830d1a2f9cdc3fffcc84e9f4928d9606"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/index.ts",
+      "startLine": 6,
+      "endLine": 31,
+      "provenance": "JavaScript edits to a generated file: 15 changed lines, 3 places with generated code removed",
+      "contentHash": "2a831b9b0f6dde04ab7f3ce85fb2e38121d02f7f7ea9e31a5f54d117e3ba10f0"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/models.ts",
+      "startLine": 4,
+      "endLine": 535,
+      "provenance": "JavaScript edits to a generated file: 189 changed lines, 20 places with generated code removed",
+      "contentHash": "60cb123c45cf1971921af8445fcc0e922bd99ff9d563174b37e480489e047df9"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/models/public.ts",
+      "startLine": 1,
+      "endLine": 130,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "9e5d8ffb39baf50e851a3ce961b07e5883d3407cb3404574aa06c3b2fb9d3c85"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/monitorQueryLogsClient.ts",
+      "startLine": 4,
+      "endLine": 71,
+      "provenance": "JavaScript edits to a generated file: 16 changed lines, 7 places with generated code removed",
+      "contentHash": "43b09c9a5936b283102bfad7089a2a4e51c0eda21aa5a19f2c7e5deacfd90316"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/timespanConversion.ts",
+      "startLine": 1,
+      "endLine": 42,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "fb4fde194ba70ee2fa8a4c4f09c603fd8e20893c590d86b447d814597f84211e"
+    },
+    {
+      "path": "sdk/monitor/monitor-query-logs/src/static-helpers/urlTemplate.ts",
+      "startLine": 24,
+      "endLine": 193,
+      "provenance": "JavaScript edits to a generated file: 30 changed lines, 15 places with generated code removed",
+      "contentHash": "d7277961b69420f95147a659c23df696cbabd0f7101ecc2c392ae21febf5d55b"
+    }
+  ]
+}

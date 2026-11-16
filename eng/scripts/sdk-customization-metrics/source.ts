@@ -3,6 +3,11 @@ import {
   codeNavigation,
   entryPoint,
   javaHandwrittenMembers,
+  JS_EDITED,
+  JS_REMOVED,
+  jsChangedLines,
+  jsRemovedFiles,
+  jsSkippedFiles,
   navigationContext,
 } from "./navigation.ts";
 import { identity, scanSchema, validate } from "./schema.ts";
@@ -67,6 +72,7 @@ export function newScan(
       origin,
       collectorVersion: COLLECTOR_VERSION,
       ...(target.language === "dotnet" ? { dotnetGeneratedRule: "folder" as const } : {}),
+      ...(target.language === "javascript" ? { jsGeneratedRule: "layout" as const } : {}),
     },
     coverage: {
       status: "partial",
@@ -96,12 +102,14 @@ export function sourceUrl(
 
 // `dotnetFolder`: the scan follows the .NET rule that only Generated/ holds generated code
 // (provenance.dotnetGeneratedRule), so a copied generated header outside it doesn't count.
+// `jsLayout`: the same for JavaScript scans that follow the layout rule
+// (provenance.jsGeneratedRule): only generated/ and src/generated/ hold generated code.
 export function classify(
   path: string,
   text: string,
-  { dotnetFolder = false }: { dotnetFolder?: boolean } = {},
+  { dotnetFolder = false, jsLayout = false }: { dotnetFolder?: boolean; jsLayout?: boolean } = {},
 ): Evidence["kind"] {
-  const headerApplies = !dotnetFolder || /(?:^|\/)generated(?:\/|$)/i.test(path);
+  const headerApplies = !(dotnetFolder || jsLayout) || /(?:^|\/)generated(?:\/|$)/i.test(path);
   if (
     headerApplies &&
     /auto[- ]generated|automatically generated|code generated|@Generated\b/i.test(
@@ -198,6 +206,7 @@ export function capture(
         endLine: sourceLineCount(file.text),
         kind: classify(file.path, file.text, {
           dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+          jsLayout: scan.provenance.jsGeneratedRule === "layout",
         }),
       });
     } else {
@@ -241,10 +250,13 @@ const REVIEW_PRIORITY = [
   /^(?:Python patch|Java customization script|Go custom source)$/,
   /^Java members without @Generated|\/custom/i,
 ];
+// `baselines`: for JavaScript merge-flow files, the generated/ copy (by src path), so only the
+// changed lines become evidence.
 export function reviewEvidence(
   scan: Scan,
   texts: Map<string, string>,
   { budget = 40000, maxChunk = 24000 }: { budget?: number; maxChunk?: number } = {},
+  baselines?: Map<string, string>,
 ): Evidence[] {
   const rank = (link: { provenance: string; path: string }) => {
     const index = REVIEW_PRIORITY.findIndex(
@@ -279,6 +291,7 @@ export function reviewEvidence(
       endLine: startLine + sourceLineCount(lineText) - 1,
       kind: classify(path, lineText, {
         dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+        jsLayout: scan.provenance.jsGeneratedRule === "layout",
       }),
       ...(excerpt ? { excerpt: true } : {}),
     };
@@ -291,6 +304,26 @@ export function reviewEvidence(
     if (typeof text !== "string" || !text.trim()) continue;
     if (used >= budget) {
       scan.coverage.skipped.push({ path: link.path, reason: "Review budget; not sent for review" });
+      continue;
+    }
+    // Generated files removed from src/ have no handwritten text to show.
+    if (link.provenance === JS_REMOVED) continue;
+    // Edits to a generated file: only the changed lines, with a little context.
+    if (link.provenance.startsWith(JS_EDITED) && baselines?.has(link.path)) {
+      const { added, removedAt } = jsChangedLines(text, baselines.get(link.path)!);
+      const total = sourceLineCount(text);
+      const ranges: [number, number][] = [];
+      for (const line of [...new Set([...added, ...removedAt])].sort((a, b) => a - b)) {
+        const start = Math.max(1, line - 3);
+        const end = Math.min(total, line + 3);
+        const last = ranges.at(-1);
+        if (last && start <= last[1] + 1) last[1] = Math.max(last[1], end);
+        else ranges.push([start, end]);
+      }
+      for (const [start, end] of ranges) {
+        if (used >= budget) break;
+        add(link.path, text, start, end, true);
+      }
       continue;
     }
     if (link.provenance.startsWith("Java members without @Generated")) {
@@ -344,7 +377,15 @@ export async function scanFiles(
   const context = navigationContext(
     target.language,
     files.map((file) => file.path),
+    target.root,
   );
+  if (context.jsLayout) {
+    scan.provenance.jsLayout = context.jsLayout;
+    const manifest = files.find((file) => file.path === `${target.root}/package.json`);
+    if (manifest && context.jsLayout === "merge")
+      context.jsSkipped = jsSkippedFiles(await readBlob(manifest));
+  }
+  const baselines = new Map<string, string>();
   // The API reader reads entry points one request at a time, so it keeps tight limits; the
   // git reader has already downloaded them and can afford to check far more.
   const maxNavigationFiles = limits.navigationFiles ?? 100;
@@ -367,7 +408,7 @@ export async function scanFiles(
     const text = await readBlob(file);
     navigationBytes += file.size;
     let baseline: string | undefined;
-    if (target.language === "javascript") {
+    if (target.language === "javascript" && (!context.jsLayout || context.jsLayout === "merge")) {
       const generated = files.find(
         (item) =>
           item.path === file.path.replace(`${target.root}/src/`, `${target.root}/generated/`),
@@ -382,6 +423,7 @@ export async function scanFiles(
         }
         baseline = await readBlob(generated);
         navigationBytes += generated.size;
+        baselines.set(file.path, baseline);
       }
     }
     const candidate = codeNavigation(target.language, file.path, text, baseline, context);
@@ -392,6 +434,33 @@ export async function scanFiles(
       path: file.path,
       reason: "Customization navigation file limit; content not checked",
     });
+  if (context.jsLayout === "merge") {
+    // Generated files with no src/ copy: deliberate removals, or a merge that never ran.
+    const generatedTexts = new Map<string, string>();
+    for (const file of files)
+      if (file.path.startsWith(`${target.root}/generated/`) && file.size <= 1000000)
+        try {
+          generatedTexts.set(file.path, await readBlob(file));
+        } catch {
+          // Not downloaded (not source): it can't import anything we track.
+        }
+    const { removed, gaps } = jsRemovedFiles(
+      target.root,
+      files.map((file) => file.path),
+      generatedTexts,
+    );
+    for (const path of removed) {
+      const text = generatedTexts.get(path) ?? "";
+      scan.navigation.push({
+        path,
+        startLine: 1,
+        endLine: Math.max(1, sourceLineCount(text)),
+        provenance: JS_REMOVED,
+        contentHash: digest(text),
+      });
+    }
+    if (gaps.length) scan.provenance.jsMergeGaps = gaps;
+  }
   if (limits.review) {
     // Context files (manifests, tsp-location.yaml) as before; evidence is the review set.
     const texts = new Map<string, string>();
@@ -403,7 +472,7 @@ export async function scanFiles(
     for (const file of files.filter((item) => isContext(item.path) && item.size <= 16000))
       contextFiles.push({ ...file, text: await readBlob(file) });
     capture(scan, contextFiles, { maxFiles: 10, maxFileBytes: 16000, maxTotalBytes: 60000 });
-    scan.evidence = reviewEvidence(scan, texts, limits.review);
+    scan.evidence = reviewEvidence(scan, texts, limits.review, baselines);
     scan.coverage.capturedFiles = scan.evidence.length;
     scan.coverage.eligibleFiles = files.filter((file) => eligible(target, file.path)).length;
     return;
@@ -558,6 +627,7 @@ export class GitSource {
       const context = navigationContext(
         target.language,
         blobs.map((entry) => entry.path),
+        target.root,
       );
       const wanted = blobs.filter(
         (entry) =>

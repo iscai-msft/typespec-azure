@@ -212,9 +212,7 @@ export function lineShare(
     lines?: { handwritten: number; generated: number };
   }[],
 ) {
-  const countable = packages.filter(
-    (item) => !item.excluded && !hasHeuristicDetection(item.language),
-  );
+  const countable = packages.filter((item) => !item.excluded && scanJudged(item));
   const counted = countable.filter((item) => item.lines);
   const handwritten = counted.reduce((sum, item) => sum + item.lines!.handwritten, 0);
   const total = counted.reduce(
@@ -609,11 +607,18 @@ export function filterLibraries(
 export const hasHeuristicDetection = (language: string) =>
   languageById.get(language)?.detection === "heuristic";
 
+// Can this library's scan say what is handwritten? Yes for languages with settled rules, and
+// for JavaScript scans made under the layout rule (guidelines/javascript.md); older JavaScript
+// scans treated every src/ file as a candidate and stay unjudged.
+export const scanJudged = (
+  item: { language: string; jsLayout?: string } | null | undefined,
+): boolean => Boolean(item) && (!hasHeuristicDetection(item!.language) || Boolean(item!.jsLayout));
+
 // Is this library customized? The tracker's answer, else the code scan's (any handwritten entry
 // point) for languages with settled detection rules; null when neither knows.
 export function customizedAnswer(row: LibraryRow): boolean | null {
   if (row.tracker) return row.tracker.customized;
-  if (!row.scan?.navigationRecorded || hasHeuristicDetection(row.language)) return null;
+  if (!row.scan?.navigationRecorded || !scanJudged(row.scan)) return null;
   return (row.scan.customizationLinks?.length ?? 0) > 0;
 }
 
@@ -905,9 +910,10 @@ export function healthSummary(
     language: string;
     health: LibraryHealth;
     lines?: { handwritten: number; generated: number };
+    jsLayout?: string;
   }[],
 ) {
-  const judged = entries.filter((item) => !hasHeuristicDetection(item.language));
+  const judged = entries.filter((item) => scanJudged(item));
   const regenerations = entries.flatMap((item) => item.health.regenerations);
   const judgedRegenerations = judged.flatMap((item) => item.health.regenerations);
   const withLines = judged.filter((item) => item.lines);

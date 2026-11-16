@@ -1,6 +1,6 @@
 # JavaScript: telling generated from handwritten TypeScript (draft for JS specialists)
 
-Status: draft proposal for review by the JS SDK specialists; the scanner does not use it yet. Evidence comes from Azure/azure-sdk-for-js at `4fd827c0b64c` (2026-10-22).
+Status: **superseded** by the rule in [javascript.md](./javascript.md) (settled November 2026), which the scanner uses. Kept for history. Evidence comes from Azure/azure-sdk-for-js at `4fd827c0b64c` (2026-10-22).
 
 ## Problem
 

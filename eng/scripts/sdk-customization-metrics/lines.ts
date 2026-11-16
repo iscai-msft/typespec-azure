@@ -11,7 +11,7 @@
 // append-only scan records, so adding or recounting them never changes a reviewed scan.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { javaHandwrittenMembers } from "./navigation.ts";
+import { javaHandwrittenMembers, JS_EDITED, JS_REMOVED, jsChangedLines } from "./navigation.ts";
 import { eligible, javaMemberRange } from "./source.ts";
 import type { LineCount, NavigationLink, Target } from "./web/types.ts";
 
@@ -81,8 +81,23 @@ export const codeLines = (language: string, text: string) => codeLineNumbers(lan
 
 const JAVA_MEMBERS = /^Java members without @Generated/;
 
-// Handwritten code lines of one navigation link's file.
-function handwrittenLines(language: string, link: NavigationLink, text: string): number {
+// Handwritten code lines of one navigation link's file. `baseline`: for a JavaScript edit to a
+// generated file, its generated/ copy, so only the changed lines count.
+function handwrittenLines(
+  language: string,
+  link: NavigationLink,
+  text: string,
+  baseline?: string,
+): number {
+  if (language === "javascript" && link.provenance === JS_REMOVED) return 0;
+  if (
+    language === "javascript" &&
+    link.provenance.startsWith(JS_EDITED) &&
+    baseline !== undefined
+  ) {
+    const changed = new Set(jsChangedLines(text, baseline).added);
+    return codeLineNumbers(language, text).filter((line) => changed.has(line)).length;
+  }
   if (language === "java" && JAVA_MEMBERS.test(link.provenance)) {
     const handwritten = new Set<number>();
     for (const member of javaHandwrittenMembers(text)) {
@@ -117,7 +132,11 @@ export function countLibraryLines(
     const text = texts.get(link.path);
     if (text === undefined || handwrittenPaths.has(link.path)) continue;
     handwrittenPaths.add(link.path);
-    handwritten += handwrittenLines(target.language, link, text);
+    const baseline =
+      target.language === "javascript"
+        ? texts.get(link.path.replace(`${target.root}/src/`, generatedCopy))
+        : undefined;
+    handwritten += handwrittenLines(target.language, link, text, baseline);
   }
   return {
     method: LINES_METHOD,

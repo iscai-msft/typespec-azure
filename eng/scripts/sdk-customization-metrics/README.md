@@ -42,10 +42,16 @@ even when no findings match.
 
 The main view shows direct commit/range links to content-checked customization entry
 points, separately from reviewed findings. Deterministic candidates include substantive
-Python patches, Java customization scripts, C# non-generated source, JavaScript overlays
-and Go custom files. Empty patch scaffolding and generated headers are excluded; JavaScript
-generated counterparts are compared ignoring formatting/leading union bars and SDK
-user-agent version updates. Candidates have no inferred semantic category and never count
+Python patches, Java customization scripts, C# non-generated source, JavaScript code by
+package layout and Go custom files. Empty patch scaffolding and generated headers are excluded.
+JavaScript follows the layout rule in [guidelines/javascript.md](./guidelines/javascript.md):
+no generated folder means fully generated; `src/generated/` means a full wrapper (everything
+else in `src/` is handwritten); a package-level `generated/` means the merge flow, where a
+`src/` file is compared with its `generated/` copy ignoring lint and formatting (comments,
+whitespace, `import type`, leading union bars, user-agent versions) and only the changed lines
+count. Files kept out of the merge with `--skip` count in full; generated files removed from
+`src/` are customizations unless the code using them never reached `src/` either, which flags
+the library "Merge not run". Candidates have no inferred semantic category and never count
 as accepted findings. Category/review filters omit unclassified candidates, including
 Java+LRO; an AI or human assessment is still required for that semantic query.
 
@@ -662,8 +668,9 @@ chart under Trends.
   comments) in each library's source files that scans consider eligible, so tests, samples and
   build output are excluded. Handwritten lines are the files the scan identified as handwritten;
   for Java files that mix generated and handwritten members, only the members without
-  `@Generated`. JavaScript libraries with a `generated/` copy are counted once, from `src/`.
-  JavaScript is left out of the share while its detection is a heuristic.
+  `@Generated`; for JavaScript merge-flow files, only the lines changed from the `generated/`
+  copy. JavaScript libraries with a `generated/` copy are counted once, from `src/`. JavaScript
+  scans made before its layout rule (November 16, 2026) are left out of the share.
 - **Where it is stored:** `state/line-counts.json`, per library and commit, separate from the
   append-only scan records. `collect` (git reader) counts new scans from the files it already
   downloaded; `cli.ts count-lines --plane data|management|all [--latest-only]` counts scans that
@@ -692,8 +699,8 @@ blob-less history clones, only small files downloaded):
   handwritten share of code rather than reading it alone.
 
 Commits touching more than 10 libraries (engineering-system sweeps) are left out of churn and
-bug fixes, and JavaScript is left out of the handwritten splits while its detection is a
-heuristic. Handwritten files are each library's current ones. Read these as health signals over
+bug fixes, and JavaScript scans made before its layout rule are left out of the handwritten
+splits. Handwritten files are each library's current ones. Read these as health signals over
 time and within a language, not as targets.
 
 ## Optional private legacy import

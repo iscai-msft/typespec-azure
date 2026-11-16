@@ -13,8 +13,9 @@
 //
 // Handwritten files are the library's current ones (its latest scan); a file that was handwritten
 // only in the past counts as generated. Commits touching more than BULK_LIBRARIES libraries
-// (engineering-system sweeps) are left out of churn and bug-fix counts. JavaScript is left out of
-// the handwritten/generated split while its detection is a heuristic.
+// (engineering-system sweeps) are left out of churn and bug-fix counts. The dashboard leaves
+// JavaScript out of the handwritten/generated split until this file is recomputed from scans
+// made under the JavaScript layout rule.
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";

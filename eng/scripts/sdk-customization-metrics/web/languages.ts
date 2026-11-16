@@ -57,8 +57,8 @@ export const LANGUAGES: LanguageConfig[] = [
     packageName: "package.json",
     rootPattern: "^sdk/[^/]+/[^/]+$",
     planes: { management: "^@azure/arm-" },
-    // Every src/ file is a candidate until the JS specialists settle how to tell generated
-    // modular code from handwritten code (guidelines/javascript.md, open questions).
+    // Scans made before the layout rule (guidelines/javascript.md) treated every src/ file as
+    // a candidate, so they stay unjudged; scans with provenance.jsGeneratedRule are judged.
     detection: "heuristic",
   },
   {

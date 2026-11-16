@@ -139,6 +139,9 @@ export interface Scan {
     packageTree?: string;
     reader?: "github-api" | "git";
     dotnetGeneratedRule?: "folder";
+    jsGeneratedRule?: "layout";
+    jsLayout?: "none" | "wrapper" | "merge";
+    jsMergeGaps?: string[];
   };
   coverage: Coverage;
   evidence: Evidence[];
@@ -219,6 +222,9 @@ export interface PackageRecord extends Target {
   coverage: Coverage;
   sourceFiles?: { id?: string; path: string; kind: string; startLine: number; endLine: number }[];
   navigationRecorded?: boolean;
+  // JavaScript scans that follow the layout rule (guidelines/javascript.md).
+  jsLayout?: "none" | "wrapper" | "merge";
+  jsMergeGaps?: string[];
   // Code lines at this scan's commit, when counted (state/line-counts.json).
   lines?: LineCount;
   customizationLinks: CustomizationLink[];

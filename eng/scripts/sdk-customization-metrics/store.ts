@@ -95,6 +95,7 @@ export function validateScan(scan: Scan): Scan {
         captured.kind !==
         classify(captured.path, captured.text, {
           dotnetFolder: scan.provenance.dotnetGeneratedRule === "folder",
+          jsLayout: scan.provenance.jsGeneratedRule === "layout",
         })
       )
         throw new Error("Evidence classification mismatch");
@@ -471,6 +472,10 @@ export function effectiveDataset(
       })),
       // Older scans predate entry-point discovery; an empty list there is "not measured", not zero.
       navigationRecorded: Array.isArray(scan.navigation),
+      ...(scan.provenance.jsGeneratedRule === "layout" && scan.provenance.jsLayout
+        ? { jsLayout: scan.provenance.jsLayout }
+        : {}),
+      ...(scan.provenance.jsMergeGaps?.length ? { jsMergeGaps: scan.provenance.jsMergeGaps } : {}),
       customizationLinks: (scan.navigation ?? []).map((item) => {
         // Prefer the excerpt that starts at the link (Java members), else the file.
         const evidence =

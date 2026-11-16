@@ -7,7 +7,16 @@ import type { NavigationLink } from "./web/types.ts";
 // Package-level facts some languages need (see navigationContext).
 export interface NavigationContext {
   generatedFolders?: string[];
+  // JavaScript (guidelines/javascript.md): how the package keeps generated code.
+  //   "none": no generated folder, so the package is fully generated;
+  //   "wrapper": src/generated/ holds the emitter output and everything else in src/ wraps it;
+  //   "merge": generated/ holds the emitter output and a 3-way merge writes src/.
+  jsLayout?: JsLayout;
+  jsRoot?: string;
+  // Files the merge keeps unmerged (`dev-tool customization apply --skip <file>`).
+  jsSkipped?: string[];
 }
+export type JsLayout = "none" | "wrapper" | "merge";
 // A navigation link before the caller adds the content hash.
 export type NavigationCandidate = Omit<NavigationLink, "contentHash">;
 
@@ -27,10 +36,46 @@ export function pythonGeneratedFolders(paths: string[]): string[] {
   return [...folders];
 }
 
-// Package-level facts some languages need (computed once from the package's file list).
-export function navigationContext(language: string, paths: string[]): NavigationContext {
-  return language === "python" ? { generatedFolders: pythonGeneratedFolders(paths) } : {};
+export function jsLayout(root: string, paths: string[]): JsLayout {
+  if (paths.some((path) => path.startsWith(`${root}/src/generated/`))) return "wrapper";
+  if (paths.some((path) => path.startsWith(`${root}/generated/`))) return "merge";
+  return "none";
 }
+
+// `--skip <file>` arguments of `dev-tool customization apply` in package.json scripts, as
+// package-relative paths under src/ (e.g. "src/index.ts").
+export function jsSkippedFiles(packageJson: string): string[] {
+  let scripts: Record<string, unknown> = {};
+  try {
+    scripts = (JSON.parse(packageJson) as { scripts?: Record<string, unknown> }).scripts ?? {};
+  } catch {
+    return [];
+  }
+  const skipped = new Set<string>();
+  for (const script of Object.values(scripts)) {
+    if (typeof script !== "string" || !/customization\s+apply/.test(script)) continue;
+    for (const match of script.matchAll(/--skip(?:=|\s+)["']?([^\s"'&;|]+)/g)) {
+      const file = match[1].replace(/^\.\//, "");
+      skipped.add(file.startsWith("src/") ? file : `src/${file}`);
+    }
+  }
+  return [...skipped];
+}
+
+// Package-level facts some languages need (computed once from the package's file list).
+export function navigationContext(language: string, paths: string[], root = ""): NavigationContext {
+  if (language === "python") return { generatedFolders: pythonGeneratedFolders(paths) };
+  if (language === "javascript" && root)
+    return { jsLayout: jsLayout(root, paths), jsRoot: root, jsSkipped: [] };
+  return {};
+}
+
+const JS_SOURCE = /\.(?:[cm]?[jt]s)$/;
+export const JS_SKIPPED = "JavaScript file kept out of the merge (--skip)";
+export const JS_ONLY_IN_SRC = "JavaScript file only in src";
+export const JS_EDITED = "JavaScript edits to a generated file";
+export const JS_WRAPPER = "JavaScript wrapper source";
+export const JS_REMOVED = "JavaScript generated file removed from src";
 
 export function entryPoint(
   language: string,
@@ -63,6 +108,17 @@ export function entryPoint(
     return "";
   }
   if (language === "javascript") {
+    const root = context.jsRoot;
+    if (context.jsLayout && root) {
+      // The layout decides (guidelines/javascript.md); generated headers don't.
+      if (context.jsLayout === "none" || !JS_SOURCE.test(path)) return "";
+      if (!path.startsWith(`${root}/src/`) || path.endsWith(".d.ts")) return "";
+      if (context.jsLayout === "wrapper")
+        return path.startsWith(`${root}/src/generated/`) ? "" : JS_WRAPPER;
+      return (context.jsSkipped ?? []).includes(path.slice(root.length + 1))
+        ? JS_SKIPPED
+        : JS_EDITED;
+    }
     if (/(?:^|\/)generated(?:\/|$)/i.test(path)) return "";
     return /\/src\/.*\.[jt]s$/.test(path) ? "JavaScript source overlay candidate" : "";
   }
@@ -75,6 +131,89 @@ export function entryPoint(
 }
 
 const lineCount = (text: string) => text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
+
+// A JavaScript line as the merge sees it, minus edits lint and formatting make on their own:
+// comments (headers, eslint-disable), whitespace, `import type` vs `import`, inline `type`
+// modifiers, leading union pipes and user-agent version strings.
+function jsLineKeys(text: string): { line: number; key: string }[] {
+  const withoutBlocks = text.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replace(/[^\n]/g, ""),
+  );
+  const keys: { line: number; key: string }[] = [];
+  for (const [index, raw] of withoutBlocks.split("\n").entries()) {
+    const key = raw
+      .replace(/(^|[^:"'`\\])\/\/.*$/, "$1")
+      .replace(/\bimport\s+type\b/g, "import")
+      .replace(/\bexport\s+type\s*(?=[{*])/g, "export ")
+      .replace(/([{,]\s*)type\s+(?=[A-Za-z_$])/g, "$1")
+      .replace(/azsdk-js-[\w-]+\/[\d.]+(?:-[\w.]+)?/g, "azsdk-js-PACKAGE/VERSION")
+      .replace(/\s+/g, "")
+      .replace(/^\|/, "");
+    if (key) keys.push({ line: index + 1, key });
+  }
+  return keys;
+}
+
+// Lines of `text` (a src/ file) that differ from `baseline` (its generated/ copy): `added` are
+// src lines the generated copy doesn't have; `removedAt` are src lines just after a place
+// where generated lines were dropped. Both are 1-based and sorted.
+export function jsChangedLines(
+  text: string,
+  baseline: string,
+): { added: number[]; removedAt: number[] } {
+  const ours = jsLineKeys(text);
+  const theirs = jsLineKeys(baseline);
+  let start = 0;
+  while (start < ours.length && start < theirs.length && ours[start].key === theirs[start].key)
+    start++;
+  let endOurs = ours.length;
+  let endTheirs = theirs.length;
+  while (
+    endOurs > start &&
+    endTheirs > start &&
+    ours[endOurs - 1].key === theirs[endTheirs - 1].key
+  ) {
+    endOurs--;
+    endTheirs--;
+  }
+  const a = ours.slice(start, endOurs);
+  const b = theirs.slice(start, endTheirs);
+  const anchor = (index: number) =>
+    index < a.length ? a[index].line : (ours[endOurs]?.line ?? ours.at(-1)?.line ?? 1);
+  if (!a.length && !b.length) return { added: [], removedAt: [] };
+  if (a.length * b.length > 4000000)
+    // Too large to align: everything in the differing middle counts.
+    return { added: a.map((item) => item.line), removedAt: b.length ? [anchor(0)] : [] };
+  // Longest common subsequence over the differing middle.
+  const width = b.length + 1;
+  const table = new Uint32Array((a.length + 1) * width);
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      table[i * width + j] =
+        a[i].key === b[j].key
+          ? table[(i + 1) * width + j + 1] + 1
+          : Math.max(table[(i + 1) * width + j], table[i * width + j + 1]);
+  const added: number[] = [];
+  const removedAt = new Set<number>();
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i].key === b[j].key) {
+      i++;
+      j++;
+    } else if (
+      j < b.length &&
+      (i >= a.length || table[i * width + j + 1] >= table[(i + 1) * width + j])
+    ) {
+      removedAt.add(anchor(i));
+      j++;
+    } else {
+      added.push(a[i].line);
+      i++;
+    }
+  }
+  return { added, removedAt: [...removedAt].sort((x, y) => x - y) };
+}
 
 // Java members declared without @Generated in a file that uses @Generated.
 export function javaHandwrittenMembers(text: string): { name: string; line: number }[] {
@@ -142,6 +281,28 @@ export function codeNavigation(
     return /\b(?:class|interface|enum|record)\s+\w+/.test(code) ? whole : null;
   }
 
+  // JavaScript with a known layout: the folder and the merge decide, not headers.
+  if (language === "javascript" && context.jsLayout) {
+    if (!code) return null;
+    if (provenance === JS_EDITED) {
+      if (baseline === undefined) return { ...whole, provenance: JS_ONLY_IN_SRC };
+      const { added, removedAt } = jsChangedLines(text, baseline);
+      const changed = [...new Set([...added, ...removedAt])].sort((x, y) => x - y);
+      if (!changed.length) return null;
+      return {
+        path,
+        startLine: changed[0],
+        endLine: changed.at(-1)!,
+        provenance: `${JS_EDITED}: ${added.length} changed ${added.length === 1 ? "line" : "lines"}${removedAt.length ? `, ${removedAt.length} ${removedAt.length === 1 ? "place" : "places"} with generated code removed` : ""}`,
+      };
+    }
+    if (provenance === JS_SKIPPED && baseline !== undefined) {
+      const { added, removedAt } = jsChangedLines(text, baseline);
+      if (!added.length && !removedAt.length) return null;
+    }
+    return whole;
+  }
+
   // .NET: the folder decides. All generated code is under Generated/ (confirmed by the .NET
   // team), so a file elsewhere is handwritten even when it kept a copied generated header.
   if (
@@ -187,4 +348,50 @@ export function codeNavigation(
   else if (language === "go") substantive = /\bfunc\s*(?:\([^)]*\)\s*)?\w+|\btype\s+\w+/.test(code);
   else substantive = /\b(?:function|class|const|interface|type)\s+\w+/.test(code);
   return substantive ? whole : null;
+}
+
+// JavaScript merge flow: files in generated/ with no copy in src/. A file is a deliberate
+// removal (a customization) when every generated file that imports it still has a src/ copy:
+// the author rewrote or dropped the code that used it. It is a missed merge ("generate run,
+// merge not run") when a generated file that imports it has no src/ copy either, so newly
+// generated code never reached src/.
+export function jsRemovedFiles(
+  root: string,
+  paths: string[],
+  texts: Map<string, string>,
+): { removed: string[]; gaps: string[] } {
+  const generatedDir = `${root}/generated/`;
+  const strip = (path: string) => path.replace(/\.(?:[cm]?[jt]s)$/, "").replace(/\/index$/, "");
+  const generated = paths.filter(
+    (path) => path.startsWith(generatedDir) && JS_SOURCE.test(path) && !path.endsWith(".d.ts"),
+  );
+  const inSrc = new Set(paths.filter((path) => path.startsWith(`${root}/src/`)));
+  const srcCopy = (path: string) => `${root}/src/${path.slice(generatedDir.length)}`;
+  const only = generated.filter((path) => !inSrc.has(srcCopy(path)));
+  if (!only.length) return { removed: [], gaps: [] };
+  // Which generated files import which (relative specifiers only).
+  const importers = new Map<string, string[]>();
+  for (const file of generated) {
+    const text = texts.get(file);
+    if (text === undefined) continue;
+    const directory = file.slice(0, file.lastIndexOf("/"));
+    for (const match of text.matchAll(
+      /\bfrom\s+["'](\.{1,2}\/[^"']+)["']|\bimport\s*\(\s*["'](\.{1,2}\/[^"']+)["']/g,
+    )) {
+      const parts = `${directory}/${match[1] ?? match[2]}`.split("/");
+      const resolved: string[] = [];
+      for (const part of parts)
+        if (part === "..") resolved.pop();
+        else if (part !== ".") resolved.push(part);
+      const key = strip(resolved.join("/"));
+      importers.set(key, [...(importers.get(key) ?? []), file]);
+    }
+  }
+  const removed: string[] = [];
+  const gaps: string[] = [];
+  for (const file of only) {
+    const users = (importers.get(strip(file)) ?? []).filter((user) => user !== file);
+    (users.some((user) => !inSrc.has(srcCopy(user))) ? gaps : removed).push(file);
+  }
+  return { removed, gaps };
 }
