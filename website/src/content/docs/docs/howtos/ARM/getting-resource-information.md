@@ -92,8 +92,8 @@ The selected result contains only declarations available in that version. Return
 models, operations, properties, and HTTP metadata come from the projected version graph, so they
 also reflect versioned renames, type changes, optionality changes, and return-type changes.
 
-An unknown version or a version supplied for a transiently versioned service reports a diagnostic
-and returns an empty provider result.
+An unknown version, or a version supplied for an unversioned or transiently versioned service,
+reports a diagnostic and returns an empty provider result.
 
 Reuse the same compiled `Program` when resolving several versions:
 

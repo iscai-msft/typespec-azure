@@ -164,11 +164,31 @@ Identity paths are matched case-insensitively for literal segments and by positi
 - `no-query-in-point-op` allows only `api-version` (case-insensitively) on GET, PUT, PATCH, and DELETE resource-instance paths.
 - `no-query-in-post` allows only `api-version` on POST operations; other inputs belong in the request body.
 - `list-operation-missing-pageable` requires collection GET operations to use TypeSpec paging metadata with a continuation link. Standard ARM list operation templates supply this metadata.
-- `list-response-envelope` requires collection GET response models to contain exactly `value` and `nextLink`.
+- `list-response-envelope` validates both ARM-provider collection GETs and authored `@list` operations with `@nextLink` paging metadata, including POST lists. The HTTP 200 response must have an array-valued `value` and the standard `nextLink` envelope; inherited properties are included.
 - `use-application-json-content-type` requires `application/json` request and response bodies in ARM provider namespaces.
 - `use-model-request-body` requires non-multipart request bodies to use plain models without indexers.
+- `use-standard-response-codes` allows only `200`, `201`, `202`, `204`, and `default`; GET operations inside services must include `200` and may add only `202` or `default`.
 - `no-tenant-level-apis` reports ARM PUT routes beginning with `/providers`, except the `/operations` endpoint.
 - `lro-response-mismatch` validates that PUT and PATCH final results match the resource type, DELETE final results are `void`, and POST final results match successful response bodies.
+
+## ARM Path and Resource Contract Rules
+
+- `scope-path-segment-casing` requires complete path segments to use the exact spellings `subscriptions` and `resourceGroups`.
+- `use-resource-path-for-put` requires concrete PUT paths to end in repeated resource type/name pairs after the provider namespace.
+- `resource-missing-read` requires a resource with a registered createOrUpdate or update operation to also have a registered read operation. It reports once per resource and does not treat list operations as reads.
+- `no-tags-on-proxy-resource` rejects an envelope `tags` JSON property on every non-tracked resource, including proxy and extension resources. A similarly named property inside the resource-specific `properties` bag is not an ARM envelope tag.
+- `use-scope-for-extension-routing` is an opt-in RPaaS policy. It warns when a concrete operation path has more than one case-sensitive `/providers/` segment; ordinary ARM extension routes with specific parents remain supported.
+- In the Azure resource-manager ruleset, all five rules above and `list-response-envelope` and `use-standard-response-codes` are disabled. The ARM package's own `all` ruleset enables every rule except the RPaaS-specific `use-scope-for-extension-routing`.
+
+## Versioned `resolveArmResources`
+
+- `resolveArmResources(program)` with no options returns the multi-version declaration view.
+- `{ version: "..." }` projects one exact service version. Unknown versions, unversioned services, transient versioning, and projection failures report diagnostics and return an empty provider.
+- `{ serviceVersions: [{ namespace, version }] }` projects independently versioned ARM services and combines resources and provider operations in selection order. Selections use TypeSpec `Namespace` and registered `Version` objects, not shared ARM provider strings, and validation is atomic.
+- The `version` and `serviceVersions` options are mutually exclusive.
+- `ResolvedResource.kind` exposes only `Tracked` or `Proxy`; every non-tracked structural kind is presented as `Proxy`.
+- A `nameResolver` customizes logical resource, resource-model, operation, and operation-group names only after structural association. It never changes HTTP paths, serialized names, ARM resource type segments, instance paths, parent/scope identity, or singleton keys.
+- Customized naming results are not placed in shared caches. Repeated selected-version calls reuse projected namespace/realm snapshots without leaking names or metadata between versions or the declaration view.
 
 When these rules are added or promoted, update both the generated linter reference and the manually maintained rule evaluation and RPC coverage guides.
 
