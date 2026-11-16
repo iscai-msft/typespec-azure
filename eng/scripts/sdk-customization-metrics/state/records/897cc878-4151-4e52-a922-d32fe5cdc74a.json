@@ -1,0 +1,1266 @@
+{
+  "schemaVersion": 1,
+  "id": "897cc878-4151-4e52-a922-d32fe5cdc74a",
+  "observedAt": "2026-10-22T20:42:42.569Z",
+  "identity": "java:azure-developer-loadtesting:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-developer-loadtesting",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/loadtesting/azure-developer-loadtesting"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "df59d033a588a42a85cef60086a88fe00c801544"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 140,
+    "eligibleFiles": 113,
+    "capturedFiles": 87,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationAsyncClient.java",
+      "text": "    /**\n     * Uploads file and polls the validation status of the uploaded file.\n     *\n     * @param testId Unique name for load test, must be a valid URL character ^[a-z0-9_-]*$.\n     * @param fileName Unique name for test file with file extension like : App.jmx.\n     * @param body The file content as application/octet-stream.\n     * @param fileUploadRequestOptions The options to configure the file upload HTTP request before HTTP client sends\n     * it.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the file info with validation status.\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<BinaryData, BinaryData> beginUploadTestFile(String testId, String fileName, BinaryData body,\n        RequestOptions fileUploadRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (fileUploadRequestOptions != null) {\n            defaultRequestOptions.setContext(fileUploadRequestOptions.getContext());\n        }\n        return new PollerFlux<>(Duration.ofSeconds(2),\n            (context) -> uploadTestFileWithResponse(testId, fileName, body, fileUploadRequestOptions)\n                .flatMap(FluxUtil::toMono)\n                .flatMap(fileBinaryData -> PollingUtils\n                    .getPollResponseMono(() -> PollingUtils.getValidationStatus(fileBinaryData)))\n                .flatMap(fileValidationPollResp -> Mono.just(fileValidationPollResp.getValue())),\n            (context) -> getTestFileWithResponse(testId, fileName, defaultRequestOptions).flatMap(FluxUtil::toMono)\n                .flatMap(fileBinaryData -> PollingUtils\n                    .getPollResponseMono(() -> PollingUtils.getValidationStatus(fileBinaryData))),\n            (activationResponse, context) -> Mono\n                .error(LOGGER.logExceptionAsError(new RuntimeException(\"Cancellation is not supported\"))),\n            (context) -> getTestFileWithResponse(testId, fileName, defaultRequestOptions).flatMap(FluxUtil::toMono));\n    }",
+      "contentHash": "6c84e6d2e542bbf5ea194cb53876a2235330eb597032fc74c85f46395639b75a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationAsyncClient.java",
+      "startLine": 456,
+      "endLine": 486,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "21dae2c07e79f7993852a65be8a1c7cf599f0b2ca1275b1b5f67510eca007b1f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationAsyncClient.java",
+      "text": "    /**\n     * Uploads file and polls the validation status of the uploaded file.\n     *\n     * @param testId Unique name for load test, must be a valid URL character ^[a-z0-9_-]*$.\n     * @param fileName Unique name for test file with file extension like : App.jmx.\n     * @param body The file content as application/octet-stream.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the file info with validation status.\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<TestFileInfo, TestFileInfo> beginUploadTestFile(String testId, String fileName, BinaryData body) {\n        return new PollerFlux<>(Duration.ofSeconds(2), (context) -> uploadTestFile(testId, fileName, body),\n            (context) -> getTestFile(testId, fileName).flatMap(\n                fileResp -> PollingUtils.getPollResponseMono(() -> PollingUtils.getValidationStatus(fileResp))),\n            (activationResponse, context) -> Mono\n                .error(LOGGER.logExceptionAsError(new RuntimeException(\"Cancellation is not supported\"))),\n            (context) -> getTestFile(testId, fileName));\n    }",
+      "contentHash": "d9d088cd47cd9f8e061b021210939c64911a7ae109696c37c3615ff60a2e758b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationAsyncClient.java",
+      "startLine": 488,
+      "endLine": 505,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4a72e3dde80b4b6d6697362853207ab2efccab7befa51ced9cd9dec5438884ad"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationClient.java",
+      "text": "    /**\n     * Uploads file and polls the validation status of the uploaded file.\n     *\n     * @param testId Unique name for load test, must be a valid URL character ^[a-z0-9_-]*$.\n     * @param fileName Unique name for test file with file extension like : App.jmx.\n     * @param body The file content as application/octet-stream.\n     * @param fileUploadRequestOptions The options to configure the file upload HTTP request before HTTP client sends\n     * it.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link SyncPoller} to poll on and retrieve the file info with validation status.\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public SyncPoller<BinaryData, BinaryData> beginUploadTestFile(String testId, String fileName, BinaryData body,\n        RequestOptions fileUploadRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (fileUploadRequestOptions != null) {\n            defaultRequestOptions.setContext(fileUploadRequestOptions.getContext());\n        }\n        return SyncPoller.createPoller(Duration.ofSeconds(2),\n            (context) -> PollingUtils.getValidationStatus(\n                uploadTestFileWithResponse(testId, fileName, body, fileUploadRequestOptions).getValue()),\n            (context) -> PollingUtils\n                .getValidationStatus(getTestFileWithResponse(testId, fileName, defaultRequestOptions).getValue()),\n            (activationResponse, context) -> {\n                throw LOGGER.logExceptionAsError(new RuntimeException(\"Cancellation is not supported\"));\n            }, (context) -> getTestFileWithResponse(testId, fileName, defaultRequestOptions).getValue());\n    }",
+      "contentHash": "e537208749fc59b0520321eb9082163ac77d4c70bf0ca6bdbdf712ba91153667",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationClient.java",
+      "startLine": 536,
+      "endLine": 562,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "aedd3e2b684f5bf85ef2524b9f376d4674f913b1cc5e1e87328b9da50e317346"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationClient.java",
+      "text": "    /**\n     * Uploads file and polls the validation status of the uploaded file.\n     *\n     * @param testId Unique name for load test, must be a valid URL character ^[a-z0-9_-]*$.\n     * @param fileName Unique name for test file with file extension like : App.jmx.\n     * @param body The file content as application/octet-stream.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link SyncPoller} to poll on and retrieve the file info with validation status.\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public SyncPoller<TestFileInfo, TestFileInfo> beginUploadTestFile(String testId, String fileName, BinaryData body) {\n        return SyncPoller.createPoller(Duration.ofSeconds(2),\n            (context) -> PollingUtils.getValidationStatus(uploadTestFile(testId, fileName, body)),\n            (context) -> PollingUtils.getValidationStatus(getTestFile(testId, fileName)),\n            (activationResponse, context) -> {\n                throw LOGGER.logExceptionAsError(new RuntimeException(\"Cancellation is not supported\"));\n            }, (context) -> getTestFile(testId, fileName));\n    }",
+      "contentHash": "042fbae89a89acf84c0cf0049196a33b2136be471c08c68145bd5dba2c284d18",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationClient.java",
+      "startLine": 564,
+      "endLine": 581,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3c4d630c5e3d2a0c506d414389225e0f2dcb5b7a6551d4dde5c16efb14682f98"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testRunId Unique name for the load test run, must contain only lower-case alphabetic, numeric, underscore\n     * or hyphen characters.\n     * @param body Load test run model.\n     * @param testRunRequestOptions The options to configure the file upload HTTP request before HTTP client sends it.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/PROVISIONING/PROVISIONED/CONFIGURING/CONFIGURED/EXECUTING/EXECUTED/DEPROVISIONING/DEPROVISIONED/DONE/CANCELLING/CANCELLED/FAILED/VALIDATION_SUCCESS/VALIDATION_FAILURE).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<BinaryData, BinaryData> beginTestRun(String testRunId, BinaryData body,\n        RequestOptions testRunRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (testRunRequestOptions != null) {\n            defaultRequestOptions.setContext(testRunRequestOptions.getContext());\n        }\n        return new PollerFlux<>(Duration.ofSeconds(5),\n            (context) -> createOrUpdateTestRunWithResponse(testRunId, body, testRunRequestOptions)\n                .flatMap(FluxUtil::toMono),\n            (context) -> getTestRunWithResponse(testRunId, defaultRequestOptions).flatMap(FluxUtil::toMono)\n                .flatMap(testRunBinary -> PollingUtils\n                    .getPollResponseMono(() -> PollingUtils.getTestRunStatus(testRunBinary))),\n            (activationResponse, context) -> stopTestRunWithResponse(testRunId, defaultRequestOptions)\n                .flatMap(FluxUtil::toMono),\n            (context) -> getTestRunWithResponse(testRunId, defaultRequestOptions).flatMap(FluxUtil::toMono));\n    }",
+      "contentHash": "40cddf0e6b9fd54297dfe29642742aca566e0c6ec3d0de1c5ece56a919b0ac41",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "startLine": 574,
+      "endLine": 601,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fb17b3ac529186b912b920b5ae103619315dc526b9f1e20a30f2dcd2190ef7e5"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testRunId Unique name for the load test run, must contain only lower-case alphabetic, numeric, underscore\n     * or hyphen characters.\n     * @param body Load test run model.\n     * @throws ResourceNotFoundException when a test with {@code testId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/PROVISIONING/PROVISIONED/CONFIGURING/CONFIGURED/EXECUTING/EXECUTED/DEPROVISIONING/DEPROVISIONED/DONE/CANCELLING/CANCELLED/FAILED/VALIDATION_SUCCESS/VALIDATION_FAILURE).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<LoadTestRun, LoadTestRun> beginTestRun(String testRunId, LoadTestRun body) {\n        return new PollerFlux<>(Duration.ofSeconds(5), (context) -> createOrUpdateTestRun(testRunId, body),\n            (context) -> getTestRun(testRunId).flatMap(\n                testRunBinary -> PollingUtils.getPollResponseMono(() -> PollingUtils.getTestRunStatus(testRunBinary))),\n            (activationResponse, context) -> stopTestRun(testRunId), (context) -> getTestRun(testRunId));\n    }",
+      "contentHash": "108473648aca9275ed4b692acbc83592274d45dc91ebc4f08fefd92629b64d8a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "startLine": 603,
+      "endLine": 619,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d02ae8992139bd3677187d96ff6deaada2a9cbdf96471466a486c7b1482bb0b0"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "text": "    /**\n     * Starts a test profile run and polls the status of the test profile run.\n     *\n     * @param testProfileRunId Unique name for the test profile run, must contain only lower-case alphabetic, numeric,\n     * underscore\n     * or hyphen characters.\n     * @param body Test Profile Run model.\n     * @param testProfileRunRequestOptions The options to configure the file upload HTTP request before HTTP client\n     * sends it.\n     * @throws ResourceNotFoundException when a test profile with {@code testProfileId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/EXECUTING/DONE/CANCELLING/CANCELLED/FAILED).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<BinaryData, BinaryData> beginTestProfileRun(String testProfileRunId, BinaryData body,\n        RequestOptions testProfileRunRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (testProfileRunRequestOptions != null) {\n            defaultRequestOptions.setContext(testProfileRunRequestOptions.getContext());\n        }\n        return new PollerFlux<>(Duration.ofSeconds(5),\n            (context) -> createOrUpdateTestProfileRunWithResponse(testProfileRunId, body, testProfileRunRequestOptions)\n                .flatMap(FluxUtil::toMono),\n            (context) -> getTestRunWithResponse(testProfileRunId, defaultRequestOptions).flatMap(FluxUtil::toMono)\n                .flatMap(testRunBinary -> PollingUtils\n                    .getPollResponseMono(() -> PollingUtils.getTestRunStatus(testRunBinary))),\n            (activationResponse, context) -> stopTestRunWithResponse(testProfileRunId, defaultRequestOptions)\n                .flatMap(FluxUtil::toMono),\n            (context) -> getTestRunWithResponse(testProfileRunId, defaultRequestOptions).flatMap(FluxUtil::toMono));\n    }",
+      "contentHash": "6b8b062aa689fc079161ae24484c1e585573a4c160acba4deb5257d73cc14948",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "startLine": 621,
+      "endLine": 650,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f29665bc56baf578c4e92fde4aecc2e64fabafd96294763fc5630f4b6eede8b1"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "text": "    /**\n     * Starts a test profile run and polls the status of the test profile run.\n     *\n     * @param testProfileRunId Unique name for the test profile run, must contain only lower-case alphabetic, numeric,\n     * underscore\n     * or hyphen characters.\n     * @param body Test Profile Run model.\n     * @throws ResourceNotFoundException when a test profile with {@code testProfileId} doesn't exist.\n     * @return A {@link PollerFlux} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/EXECUTING/DONE/CANCELLING/CANCELLED/FAILED).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public PollerFlux<TestProfileRun, TestProfileRun> beginTestProfileRun(String testProfileRunId,\n        TestProfileRun body) {\n        return new PollerFlux<>(Duration.ofSeconds(5),\n            (context) -> createOrUpdateTestProfileRun(testProfileRunId, body),\n            (context) -> getTestProfileRun(testProfileRunId).flatMap(testProfileRunBinary -> PollingUtils\n                .getPollResponseMono(() -> PollingUtils.getTestProfileRunStatus(testProfileRunBinary))),\n            (activationResponse, context) -> stopTestProfileRun(testProfileRunId),\n            (context) -> getTestProfileRun(testProfileRunId));\n    }",
+      "contentHash": "b7036827d6d445b71c2abad355a6626e452b0ecf1f010c404065b55399fc0767",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "startLine": 652,
+      "endLine": 672,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "44fb5518426a9dfa01bea121635607278d0bfa81ea2ccf8d3390a76e9e75f2e9"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testRunId Unique name for the load test run, must contain only lower-case alphabetic, numeric, underscore\n     * or hyphen characters.\n     * @param body Load test run model.\n     * @param testRunRequestOptions The options to configure the file upload HTTP request before HTTP client sends it.\n     * @return A {@link SyncPoller} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/PROVISIONING/PROVISIONED/CONFIGURING/CONFIGURED/EXECUTING/EXECUTED/DEPROVISIONING/DEPROVISIONED/DONE/CANCELLING/CANCELLED/FAILED/VALIDATION_SUCCESS/VALIDATION_FAILURE).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public SyncPoller<BinaryData, BinaryData> beginTestRun(String testRunId, BinaryData body,\n        RequestOptions testRunRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (testRunRequestOptions != null) {\n            defaultRequestOptions.setContext(testRunRequestOptions.getContext());\n        }\n        return SyncPoller.createPoller(Duration.ofSeconds(5),\n            (context) -> PollingUtils\n                .getTestRunStatus(createOrUpdateTestRunWithResponse(testRunId, body, testRunRequestOptions).getValue()),\n            (context) -> PollingUtils\n                .getTestRunStatus(getTestRunWithResponse(testRunId, defaultRequestOptions).getValue()),\n            (activationResponse, context) -> stopTestRunWithResponse(testRunId, defaultRequestOptions).getValue(),\n            (context) -> getTestRunWithResponse(testRunId, defaultRequestOptions).getValue());\n    }",
+      "contentHash": "9fc7016cf328d4e38311e4f382209ec5fb0b6d9b1c93f76c70b2aac18e54f005",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "startLine": 568,
+      "endLine": 592,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "99216807e87aaa983a7d37f899e0ec5a9be856a86c77a17f87eeec4e220f7aee"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testRunId Unique name for the load test run, must contain only lower-case alphabetic, numeric, underscore\n     * or hyphen characters.\n     * @param testRun Load test run model.\n     * @param oldTestRunId Existing test run identifier that should be rerun, if this is provided, the test will run\n     * with the JMX file, configuration and app components from the existing test run. You can override the\n     * configuration values for new test run in the request body.\n     * @throws ResourceNotFoundException when a test with {@code oldTestRunId} doesn't exist.\n     * @return A {@link SyncPoller} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/PROVISIONING/PROVISIONED/CONFIGURING/CONFIGURED/EXECUTING/EXECUTED/DEPROVISIONING/DEPROVISIONED/DONE/CANCELLING/CANCELLED/FAILED/VALIDATION_SUCCESS/VALIDATION_FAILURE).\n     */\n    public SyncPoller<LoadTestRun, LoadTestRun> beginTestRun(String testRunId, LoadTestRun testRun,\n        String oldTestRunId) {\n        return SyncPoller.createPoller(Duration.ofSeconds(5),\n            (context) -> PollingUtils.getTestRunStatus(createOrUpdateTestRun(testRunId, testRun, oldTestRunId)),\n            (context) -> PollingUtils.getTestRunStatus(getTestRun(testRunId)),\n            (activationResponse, context) -> stopTestRun(testRunId), (context) -> getTestRun(testRunId));\n    }",
+      "contentHash": "94b67792a8026e96bbf9639194120121c47a2f5d410a3c5301a06baa079c77bb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "startLine": 594,
+      "endLine": 613,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8c9d4b795606de15bad7efd05fcbcb8faf0894fb9077a2eb8a647fab86913b78"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testProfileRunId Unique name for the test profile run, must contain only lower-case alphabetic, numeric,\n     * underscore\n     * or hyphen characters.\n     * @param body Test Profile Run Model.\n     * @param testProfileRunRequestOptions The options to configure the file upload HTTP request before HTTP client\n     * sends it.\n     * @return A {@link SyncPoller} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/EXECUTING/DONE/CANCELLING/CANCELLED/FAILED).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public SyncPoller<BinaryData, BinaryData> beginTestProfileRun(String testProfileRunId, BinaryData body,\n        RequestOptions testProfileRunRequestOptions) {\n        RequestOptions defaultRequestOptions = new RequestOptions();\n        if (testProfileRunRequestOptions != null) {\n            defaultRequestOptions.setContext(testProfileRunRequestOptions.getContext());\n        }\n        return SyncPoller.createPoller(Duration.ofSeconds(5), (context) -> PollingUtils.getTestProfileRunStatus(\n            createOrUpdateTestProfileRunWithResponse(testProfileRunId, body, testProfileRunRequestOptions).getValue()),\n            (context) -> PollingUtils.getTestProfileRunStatus(\n                getTestProfileRunWithResponse(testProfileRunId, defaultRequestOptions).getValue()),\n            (activationResponse, context) -> stopTestProfileRunWithResponse(testProfileRunId, defaultRequestOptions)\n                .getValue(),\n            (context) -> getTestProfileRunWithResponse(testProfileRunId, defaultRequestOptions).getValue());\n    }",
+      "contentHash": "a738a3b6c8884e500e9140d790985008f14e595839442feebd97466b58eda4d3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "startLine": 615,
+      "endLine": 641,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9b40dbb8a6acd44776a4f3589034549d2ba337256f28de6c2fd9c31d77a2993a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "text": "    /**\n     * Starts a test run and polls the status of the test run.\n     *\n     * @param testProfileRunId Unique name for the test profile run, must contain only lower-case alphabetic, numeric,\n     * underscore\n     * or hyphen characters.\n     * @param testProfileRun Test Profile Run Model.\n     * @return A {@link SyncPoller} to poll on and retrieve the test run\n     * status(ACCEPTED/NOTSTARTED/EXECUTING/DONE/CANCELLING/CANCELLED/FAILED).\n     */\n    @ServiceMethod(returns = ReturnType.LONG_RUNNING_OPERATION)\n    public SyncPoller<TestProfileRun, TestProfileRun> beginTestProfileRun(String testProfileRunId,\n        TestProfileRun testProfileRun) {\n        return SyncPoller.createPoller(Duration.ofSeconds(5),\n            (context) -> PollingUtils\n                .getTestProfileRunStatus(createOrUpdateTestProfileRun(testProfileRunId, testProfileRun)),\n            (context) -> PollingUtils.getTestProfileRunStatus(getTestProfileRun(testProfileRunId)),\n            (activationResponse, context) -> stopTestProfileRun(testProfileRunId),\n            (context) -> getTestProfileRun(testProfileRunId));\n    }",
+      "contentHash": "133c00c87c9c1d663317f4b3e88920db406f07e44895aeaa34cdc8ebe81d9867",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "startLine": 643,
+      "endLine": 662,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "227dfb1e863124ba0d64408115c7e87a1bf5225d52f5dfaafb551cad71a0ec38"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/AutoStopCriteria.java",
+      "text": "            @Override\n            public AutoStopCriteria prepareModelForJsonMergePatch(AutoStopCriteria model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "fe4b483883ac155770716b64718fc41d193797fa12d141616470d6b6cc4eced6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/AutoStopCriteria.java",
+      "startLine": 67,
+      "endLine": 72,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0ed7b92b07107f764fda7ad6aa347486e98babaa0a9a8b1d6c7ae3e379915148"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/AutoStopCriteria.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(AutoStopCriteria model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "99912322728d151759dff18b884f672abd2a0503d10f7119fdc2a171a903b1c9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/AutoStopCriteria.java",
+      "startLine": 74,
+      "endLine": 77,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c9125413ea2a657f6987720d0573c955f04e1789115437124392f8f2cae0f856"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/FunctionFlexConsumptionResourceConfiguration.java",
+      "text": "                @Override\n                public FunctionFlexConsumptionResourceConfiguration prepareModelForJsonMergePatch(\n                    FunctionFlexConsumptionResourceConfiguration model, boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "b172976e9fa9252a45d06ceec138f4f00cf59e48766f2952120a56c716b070c8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/FunctionFlexConsumptionResourceConfiguration.java",
+      "startLine": 54,
+      "endLine": 59,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fc477e6e26f37dceaa472a74c905f0efe78a69f5939de427fa779fc9874a9c88"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/FunctionFlexConsumptionResourceConfiguration.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(FunctionFlexConsumptionResourceConfiguration model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "5e23f15ddab45c86201e6b56fba4f702e1085177c954a5066e4dc5e5a2ac1d8d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/FunctionFlexConsumptionResourceConfiguration.java",
+      "startLine": 61,
+      "endLine": 64,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bcb7b3c63e3311650244c7dd47c80a3b46ca8c27e81960b72ae0fb1981b50763"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTest.java",
+      "text": "            @Override\n            public LoadTest prepareModelForJsonMergePatch(LoadTest model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "5f770059d4537b9a5c9ab295b6c3ead29f648a9b18a8b7cc8d1715778f8b28cf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTest.java",
+      "startLine": 207,
+      "endLine": 211,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "45a879bfcb5d7736547a55fbdeb4d25953e0ee45574dd82e47c7b799a79823a2"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTest.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(LoadTest model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "19242cdad63f63169d70acd663ecf9db46e6af4ae85452aa5a61c6bcbd725181",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTest.java",
+      "startLine": 213,
+      "endLine": 216,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "113016b2f71e0c49932a24a24cabbe3e01aefb000f87f5e1377c330663f078d3"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestConfiguration.java",
+      "text": "            @Override\n            public LoadTestConfiguration prepareModelForJsonMergePatch(LoadTestConfiguration model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "10785b8dd23079977020788ab5be0399787ecbc1ac4446b8ee8f40844c6d88fa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestConfiguration.java",
+      "startLine": 76,
+      "endLine": 81,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "66ca3f1e4100da513b7043b598cf65de74f1b8d410ee3087ac0c0d4ae9d98f48"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestConfiguration.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(LoadTestConfiguration model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "882aa1226de67304209f485b0ff33ba1e43b15bd60c7ab16e39d85f2417fb88e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestConfiguration.java",
+      "startLine": 83,
+      "endLine": 86,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "daa8e5f8631f5985bab76ea2fbd569961fe2f759b55bbe3ad6620fdfe66c8522"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestingAppComponent.java",
+      "text": "                @Override\n                public LoadTestingAppComponent prepareModelForJsonMergePatch(LoadTestingAppComponent model,\n                    boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "5d59ba0f6ba28639e1d5ddb8793e51081d58eecc158a137ee69223099881b4b1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestingAppComponent.java",
+      "startLine": 85,
+      "endLine": 90,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "243444365c8737213f5c67b35c6cf95d5259dbd2ec6ed618fe5e14fb31e11093"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestingAppComponent.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(LoadTestingAppComponent model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "0171a3b8985c9ef28392db8235b6b8e3ae4f2706d7b3d68c13095f6a95ceb950",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestingAppComponent.java",
+      "startLine": 92,
+      "endLine": 95,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "651c1456bee3b6de8b7acce0ef41f190684036e519d6d89b0ad47d57189cf9d1"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestRun.java",
+      "text": "            @Override\n            public LoadTestRun prepareModelForJsonMergePatch(LoadTestRun model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "00dda920dbfa26512f73f4489dea1ffb03afe8870d267d8750d8be32d93eb2e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestRun.java",
+      "startLine": 279,
+      "endLine": 283,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "8f48972ef85164a08329decf7584cf6469095ae5c2a7d4204bc14be2d5bd0a94"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestRun.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(LoadTestRun model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "1fa6c0858da6ec358aaf4fd56ad93cbf87b4ae89a65a4594cf442e22781ec30b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestRun.java",
+      "startLine": 285,
+      "endLine": 288,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c3eb99af5bcc23ac2abdcb971d2adc5c446952b5310355174c44dda560276637"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public NotificationRule prepareModelForJsonMergePatch(NotificationRule model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "426dd2c4c7931ddd2396a9d4689a3ecf4b577d81f732fa5431dd8084af1363c6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 91,
+      "endLine": 96,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7f6bc23d21c7c49ea4a4599ff627a2e0f0ee93636b4b10d0b25a131284dfef8f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(NotificationRule model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "41b7f5ce87377b4ae450b9bcace993e6061e40408db4b85e1b79941d97c31fc3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 98,
+      "endLine": 101,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "db1c7cce8f336ab2342f0ff25346e68775e06b8bbef9486f6df2dc9f6130853b"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setNotificationRuleId(NotificationRule model, String notificationRuleId) {\n                model.notificationRuleId = notificationRuleId;\n            }",
+      "contentHash": "d8e643f0638f2999efb21a723477f47bf577856f72c8b1f3fdc5630dd2407d0b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 103,
+      "endLine": 106,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "279dd86fbe910142bf647014033f07a8f54622f627f3a39bbe22f9f35d271791"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setDisplayName(NotificationRule model, String displayName) {\n                model.displayName = displayName;\n            }",
+      "contentHash": "1178530a73042a024663ac9bf8e1994d0b4d4c7715b7f19e8e59ba3671ea3fe4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 108,
+      "endLine": 111,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "85a22ea8506889a49b26303a6d884fcf4bd8f952db0f7aaf7a585513626af42e"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setActionGroupIds(NotificationRule model, List<String> actionGroupIds) {\n                model.actionGroupIds = actionGroupIds;\n            }",
+      "contentHash": "66550f17efa9c9ab65bbf10499e335440dfe99fabc2a31b77b8a8a3e2610b3b7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 113,
+      "endLine": 116,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "737215580775557a82f83af70bd973e4fb3b141ed559be5503d5b1e597ba472c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setCreatedDateTime(NotificationRule model, OffsetDateTime createdDateTime) {\n                model.createdDateTime = createdDateTime;\n            }",
+      "contentHash": "649f92ac1a7fa48d3c93f67f73c9333436cdb871f4e65eacd33fc3bb6e4ae768",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 118,
+      "endLine": 121,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cec2261780313766ff4493574441ce28a58eb0ac8512d2915c711f85eed4e150"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setCreatedBy(NotificationRule model, String createdBy) {\n                model.createdBy = createdBy;\n            }",
+      "contentHash": "76314250ded9b6261be355c7ef879425eb0282880b6c5782d14f18e9d5892cd6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 123,
+      "endLine": 126,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "522ad1b27c4b4e2118d5c38d5a6cedd688f15a1be132e8d48d78ca4aaf00c3f1"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setLastModifiedDateTime(NotificationRule model, OffsetDateTime lastModifiedDateTime) {\n                model.lastModifiedDateTime = lastModifiedDateTime;\n            }",
+      "contentHash": "04007cd5c9c64ed53810490472d57b00037a1bd60da3e602c1edbfdb47738734",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 128,
+      "endLine": 131,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "085c0aee9bbace914a6c2610c402f5b62f9364638f940dec44fa152a9a367c28"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "text": "            @Override\n            public void setLastModifiedBy(NotificationRule model, String lastModifiedBy) {\n                model.lastModifiedBy = lastModifiedBy;\n            }",
+      "contentHash": "c192f4c623880e1a2820136007e1595cb397051ec23503a916aca163e7d43a1b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 133,
+      "endLine": 136,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9b4b6657bb3a3f4331ade2cdfe73828152a2c5c4db10c0dc135de89188703507"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/OptionalLoadTestConfiguration.java",
+      "text": "                @Override\n                public OptionalLoadTestConfiguration prepareModelForJsonMergePatch(OptionalLoadTestConfiguration model,\n                    boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "9123d0674c9388433001d02996d1e86b69cda3d0e13a49e45ffe61e8c11bc4f8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/OptionalLoadTestConfiguration.java",
+      "startLine": 79,
+      "endLine": 84,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d5121636c511fe78b014cc2429419c14b6a5c02cfec8873315c76745a70c1a30"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/OptionalLoadTestConfiguration.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(OptionalLoadTestConfiguration model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "6d9cf79b027ecfd16175ca09a7ad414e05681ca3b9890976f47c83f2ac20cec6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/OptionalLoadTestConfiguration.java",
+      "startLine": 86,
+      "endLine": 89,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "626a955ed0d22929117dd2313ccaadf97a952f42e50aa3d5028b54932d5a3242"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailCriteria.java",
+      "text": "            @Override\n            public PassFailCriteria prepareModelForJsonMergePatch(PassFailCriteria model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "7f1c0e966e1678cae4d53162a66d0013a3cc87e642392feba0d41ffdca5e3ed4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailCriteria.java",
+      "startLine": 53,
+      "endLine": 58,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "dc0f4b9eac0634c9140799674d02f6b446fd83de42fe9b7c65069bcdb73beeb4"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailCriteria.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(PassFailCriteria model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "5da04c703d73866c0dd3b588ab2eb08c4e65496b4399ef59592c547d28bf463c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailCriteria.java",
+      "startLine": 60,
+      "endLine": 63,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3fcc0f97199eb450807d1cccc10dabd27f7d684e83678356839bf4816cb6f378"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailMetric.java",
+      "text": "            @Override\n            public PassFailMetric prepareModelForJsonMergePatch(PassFailMetric model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "9cf1dab780dac4e99770d69b3838b48520c53cf411777a9366d686f0eff37f56",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailMetric.java",
+      "startLine": 92,
+      "endLine": 96,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4b452f4f255b666084617389b2e1a13b012d9e52e170cb57d3c36e04e6b7731e"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailMetric.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(PassFailMetric model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "1fd072005eda0e8d7f5906109a1f4e1946cdcfad5322d7033968c5f0a1fb4508",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailMetric.java",
+      "startLine": 98,
+      "endLine": 101,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "db23c7ffe3c208e91659948465e12d50dabf20ef96c932b97d8447fb8ef8bcce"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailServerMetric.java",
+      "text": "            @Override\n            public PassFailServerMetric prepareModelForJsonMergePatch(PassFailServerMetric model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "94e89251e611973a5681d815c0242c876f32eb8e7075e204a5830d38eb9773b9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailServerMetric.java",
+      "startLine": 94,
+      "endLine": 99,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1c10575ca6e85fbac80ec6c0c2db49e8e7a2392d04560decec82bd8ab0fd4b31"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailServerMetric.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(PassFailServerMetric model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "d91ece899f043ab68a50071f02258bd0222ffeb1233749e04a0f8fb29e2472c1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailServerMetric.java",
+      "startLine": 101,
+      "endLine": 104,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e50709142a54aa454bac7d0eb6b8adea235a43f4fafb29a124ff33bba529ca5a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "text": "            @Override\n            public Recurrence prepareModelForJsonMergePatch(Recurrence model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "6a0c2722ca2ff01aee12928110b42524e83b6779a572319db5fea421620c1f8a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "startLine": 55,
+      "endLine": 59,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "6a51dcbf1aa4be67e40f4d2edb43727cfc0bbae8425f79064712be36f9571709"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(Recurrence model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "e90f27aa47d47ac829f09a8e26fb2f8252e236d0c3b4210386473b8c822f12ba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "startLine": 61,
+      "endLine": 64,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2995ff5d88c93d71367094be1e712a6a79a1188d3d58cc1e2d94b9371d018c28"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "text": "            @Override\n            public void setRecurrenceEnd(Recurrence model, RecurrenceEnd recurrenceEnd) {\n                model.recurrenceEnd = recurrenceEnd;\n            }",
+      "contentHash": "f4adb156739841bae6df45163275a28b6d85f232e279bf4800f6c2aa9ee13776",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "startLine": 66,
+      "endLine": 69,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d68cbacbe5326eeaea79a2055c39e7e20bf1e0c365fc9adec8f7a50f1a0b6c3f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RecurrenceEnd.java",
+      "text": "            @Override\n            public RecurrenceEnd prepareModelForJsonMergePatch(RecurrenceEnd model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "8334a4ce8866a273209b055047b115dbdbf7e7416b25165ad92ab18cf29e05bf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RecurrenceEnd.java",
+      "startLine": 58,
+      "endLine": 62,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "75244901c8221dfc6fb0b5b2530ddbf1d0b4a1b4a4320c8a786aaad8109a10a3"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RecurrenceEnd.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(RecurrenceEnd model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "2a3a82c36f6fe85ef5cfb9311cd71549a1ef8293406a1ee4b4e7bac62ba3e444",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RecurrenceEnd.java",
+      "startLine": 64,
+      "endLine": 67,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bf904503557493442a83abbc4c077f790c04a79f8fd73ef1357d441b91d747e4"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RegionalConfiguration.java",
+      "text": "            @Override\n            public RegionalConfiguration prepareModelForJsonMergePatch(RegionalConfiguration model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "e4d43d3fa73434abed441bcc204cbdb77155342e9af4b4f712911d777951d4e0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RegionalConfiguration.java",
+      "startLine": 56,
+      "endLine": 61,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e212ad095bc8a03a5bd58596c2eb6c4a3ab5cc90a8e17a0850e62eb78d1ac5eb"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RegionalConfiguration.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(RegionalConfiguration model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "401e3fd9dc1a8f3dc9b03fb9d8fe56568876d771bf798feca33ff7aa87a5197d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RegionalConfiguration.java",
+      "startLine": 63,
+      "endLine": 66,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "492b98ad9625b1ba34a9ffdaf0d073d03cdf0691e45f5bdc78a641b49c092d05"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/ResourceMetric.java",
+      "text": "            @Override\n            public ResourceMetric prepareModelForJsonMergePatch(ResourceMetric model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "f6a85824a1e477c4b8fc3f18c99f0f4d54e0cac72fb034546f73c5313d1d0b80",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/ResourceMetric.java",
+      "startLine": 90,
+      "endLine": 94,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "21f2279f4267c4e5ed42ead29b06fb56928ec8105f8129d77a93a511fafd9a38"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/ResourceMetric.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(ResourceMetric model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "3c2f2364512f53f88da0826e781ee9da8ece679383f1e23e77f2b857b988a06b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/ResourceMetric.java",
+      "startLine": 96,
+      "endLine": 99,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "74d1714168907f88a524eaa950a8a2fcbceffd2e5c9f75d356e60b614fa90cc2"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TargetResourceConfigurations.java",
+      "text": "                @Override\n                public TargetResourceConfigurations prepareModelForJsonMergePatch(TargetResourceConfigurations model,\n                    boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "36983cc39843d8c21e803f87c03bb31b59095380d10acb47356bbd37eab9be95",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TargetResourceConfigurations.java",
+      "startLine": 47,
+      "endLine": 52,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d118481d020c09118dad5540f08f6bb8cab890bc47fc8d7396b395b5111a7357"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TargetResourceConfigurations.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(TargetResourceConfigurations model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "3ce3bf242b9e44bfe784b7de2209b7924902feb24c07af9ac82a21fbf339783c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TargetResourceConfigurations.java",
+      "startLine": 54,
+      "endLine": 57,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c4998e8e06d8e2ca141bb6db1d81f937aba8cefa411904d35f19f2316dceaf32"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestAppComponents.java",
+      "text": "            @Override\n            public TestAppComponents prepareModelForJsonMergePatch(TestAppComponents model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "f6d4c8af0f42a36f332572ac04508c8654fe94a51219e905b6df35359d650d53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestAppComponents.java",
+      "startLine": 81,
+      "endLine": 86,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a5f61d80bede7e9381844c85867d4f1e4bf76742e42b9af31b408c6ed915ef1e"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestAppComponents.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestAppComponents model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "148a21b8c2381ed33b46575cbaf49a134ce9b1eb225def1c90af5d2339b14f53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestAppComponents.java",
+      "startLine": 88,
+      "endLine": 91,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "39ab6e5a4fc2a4424bded5a173c13958422befac58a9312fe1f53cf51889ed5f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestCertificate.java",
+      "text": "            @Override\n            public TestCertificate prepareModelForJsonMergePatch(TestCertificate model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "31fa6569b38fcae3d96660fb484085447f8036bb0587f824b70c3883d69ddf93",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestCertificate.java",
+      "startLine": 58,
+      "endLine": 62,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5d5f862e019bee5e6dfb0e484ca2268a5fa8576cc0fee881ff7a6f6ac1352411"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestCertificate.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestCertificate model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "fc87cd24ed452c60b8b8cc7f4560e1d52260bfe1d475b309e5c7bcd9bac4179f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestCertificate.java",
+      "startLine": 64,
+      "endLine": 67,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b4dd6473540dd6e30d524d2af4484c1c01ced32467f3ab1c7139c9c9a5b1a3c6"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestPreferences.java",
+      "text": "            @Override\n            public TestPreferences prepareModelForJsonMergePatch(TestPreferences model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "29aa4f40f57f558a352c91646328728b47356a2c8bab09168cd374fea4f1dc01",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestPreferences.java",
+      "startLine": 46,
+      "endLine": 50,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "62b3f16bc473bc868a065026a87769c3611acd97f5dca6bd32a0d72b3204de4c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestPreferences.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestPreferences model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "f84c06d2925902b880e0a73173771daf7a2e53c0d8d66b5bf631e0e4ac2b8c03",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestPreferences.java",
+      "startLine": 52,
+      "endLine": 55,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "36ae5bfc310ef74bfeb7df4751f9a736d41e8a6c2213ff6ad0bf4decdd7fb025"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfile.java",
+      "text": "            @Override\n            public TestProfile prepareModelForJsonMergePatch(TestProfile model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "553fe15aae0dd1d00510918a82293d54253444bfc3449f82c551735027907586",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfile.java",
+      "startLine": 108,
+      "endLine": 112,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fd1e323dd22bafa87eb050141b3e808befddaea20c49903a884fd7b794335693"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfile.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestProfile model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "0ac8e5f57a35c41c12b9aea6004616117eaf04e36da5d7c4f819f4d9ac0612ba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfile.java",
+      "startLine": 114,
+      "endLine": 117,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9be6b49d9952eadb9fec5fad42fdc1860967d436b5c9b267cc93a843430c8ba9"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfileRun.java",
+      "text": "            @Override\n            public TestProfileRun prepareModelForJsonMergePatch(TestProfileRun model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "e574ab8fbbc116fb1885388498f337b39d8eee7b949f556ebc43bee3f64d5358",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfileRun.java",
+      "startLine": 152,
+      "endLine": 156,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "19b792e98257352626bad8180c789e0b895845728597e349314f7f2b516bc0c5"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfileRun.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestProfileRun model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "0e0ef6ab1aba012a037e11c47bd64535c652d0d6ef0ff5a3eb93f0263345c71d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfileRun.java",
+      "startLine": 158,
+      "endLine": 161,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "49065e1b55388aca1ef3660d40f5ae996cfb55bf2a1cb1745b56e444bb78243b"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunAppComponents.java",
+      "text": "            @Override\n            public TestRunAppComponents prepareModelForJsonMergePatch(TestRunAppComponents model,\n                boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "c4803450a405985cbd07bfc3622a4261ff5a32719a76a23f34428ca8204f62ac",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunAppComponents.java",
+      "startLine": 81,
+      "endLine": 86,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ed7b260d1a51a5903f64e2d59f2737e3902b0a83ade596be7088207607e28601"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunAppComponents.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestRunAppComponents model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "41a2bd17a3d393b4d58624e62cac7f833b6bff40d57a9aac1fd5fa8de3a0c582",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunAppComponents.java",
+      "startLine": 88,
+      "endLine": 91,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2053e88f2e44aeef67bb6a1beb2e8e64564772681713bcf6120fd88a0ba0a945"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunEndedEventCondition.java",
+      "text": "                @Override\n                public TestRunEndedEventCondition prepareModelForJsonMergePatch(TestRunEndedEventCondition model,\n                    boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "ea88b15dcc644859c5d357b3e227f31136ac9c506c9a344fc18ea374cd21bf99",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunEndedEventCondition.java",
+      "startLine": 54,
+      "endLine": 59,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "6f3899081cb9e5ce3aacf21350ee99a729f859730dd6c83f0b08701e520fe317"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunEndedEventCondition.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(TestRunEndedEventCondition model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "f71fc1b5bdbdefb26ce832319ca2dcbf02a380d18ba5c1d525637ab8685ba08a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunEndedEventCondition.java",
+      "startLine": 61,
+      "endLine": 64,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4d76b5452d655e0ef77fce371365090dab12f3169b7669de26bf48ef244e3b35"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunInsights.java",
+      "text": "            @Override\n            public TestRunInsights prepareModelForJsonMergePatch(TestRunInsights model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "1fd167e54ad83e7e0f184571c476f511151e960398f60b62d272dbfa69a9a283",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunInsights.java",
+      "startLine": 66,
+      "endLine": 70,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2735dbc65e33acdb0dca2c5f73d08eaebea5f02fb462042509b6c5f3b939113a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunInsights.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestRunInsights model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "da7132be5a7ea63c262a6fd4863a08f8ab4fb3c49501f6ea8aa2d48fa25b59b1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunInsights.java",
+      "startLine": 72,
+      "endLine": 75,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "52b6f70b2d49b5e9c58a32169936604258f5838630d367808ba179616131263e"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunServerMetricsConfiguration.java",
+      "text": "                @Override\n                public TestRunServerMetricsConfiguration prepareModelForJsonMergePatch(\n                    TestRunServerMetricsConfiguration model, boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "9c1203f76072caf939747474e126a71522761d440fb23d58f56d6341eb0ebda0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunServerMetricsConfiguration.java",
+      "startLine": 82,
+      "endLine": 87,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "956420da20ab8d693ceef2eca6554c655e50b2568fee143954925493c4866a95"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunServerMetricsConfiguration.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(TestRunServerMetricsConfiguration model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "1865c5cd93b232eedd1cdb49ecb99b8b41d2983ea77403eee8fb9e7fd641abf2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunServerMetricsConfiguration.java",
+      "startLine": 89,
+      "endLine": 92,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1b834933f1a4583469f28ba444e822492031bbcb7b9c2a88764237ea34779829"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestSecret.java",
+      "text": "            @Override\n            public TestSecret prepareModelForJsonMergePatch(TestSecret model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "a02a62d559d21ba0d67bb7011876426c160f7955737dc24d5512c0e64f98e2f3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestSecret.java",
+      "startLine": 52,
+      "endLine": 56,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c1d0c304f492a0c30895dc78a02078198d71d517cfad158b94bf6a39d4512498"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestSecret.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(TestSecret model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "c8da9789a386c6dc619ba4a1bc6ac57c4fc58d729c70392b22ed13f85e27eb6c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestSecret.java",
+      "startLine": 58,
+      "endLine": 61,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "709977188967d0501f886de79962d961862f566a16a7913138a402d8fcbc5095"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestServerMetricsConfiguration.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(TestServerMetricsConfiguration model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "1d7a7170bfeac0f4f6fbc9ea1c0357bfbf6b09afbce9d0d66cf8d7f72f044d5a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestServerMetricsConfiguration.java",
+      "startLine": 89,
+      "endLine": 92,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "380de18dcdfda8a631f89bc9678df32f5e2188c6a7b003be2a59915569a9954d"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestsNotificationEventFilter.java",
+      "text": "                @Override\n                public TestsNotificationEventFilter prepareModelForJsonMergePatch(TestsNotificationEventFilter model,\n                    boolean jsonMergePatchEnabled) {\n                    model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                    return model;\n                }",
+      "contentHash": "768bb5bc276af74d82d0a32160acfb8a9277d8b1a5e582f62506714b8c2ef8d4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestsNotificationEventFilter.java",
+      "startLine": 47,
+      "endLine": 52,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "290a14a52a5f2c1ed3b97f268bf53eb5440f4b427c23f89268530eb797d28fb4"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestsNotificationEventFilter.java",
+      "text": "                @Override\n                public boolean isJsonMergePatch(TestsNotificationEventFilter model) {\n                    return model.jsonMergePatch;\n                }",
+      "contentHash": "dacf4ef300e9aa1c999b2ee02362064ef9df614a4976a8af0f55fe244e43f98d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestsNotificationEventFilter.java",
+      "startLine": 54,
+      "endLine": 57,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "576b789e7b5c64ee90de39ae4cb904bc25b742ace63eb07def7d66676dfba853"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public Trigger prepareModelForJsonMergePatch(Trigger model, boolean jsonMergePatchEnabled) {\n                model.serializeAsJsonMergePatch(jsonMergePatchEnabled);\n                return model;\n            }",
+      "contentHash": "8bbfb2e0b6808ec50df84e61f9ea91bff361abce4cf85c190e497c762314bd78",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 102,
+      "endLine": 106,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f2fe464f0f4b5ea48566178a608c7649762d15f717659ef7de53614ac11c0369"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public boolean isJsonMergePatch(Trigger model) {\n                return model.jsonMergePatch;\n            }",
+      "contentHash": "25efc1652c62a8b2279b4f1383bc5505e37a90fbf1769d56c0257a89f2765fa8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 108,
+      "endLine": 111,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f51022ce730780080780c5466c6dbc85ad1031e8091944d839d2096d5a2125ba"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setTriggerId(Trigger model, String triggerId) {\n                model.triggerId = triggerId;\n            }",
+      "contentHash": "dff5c8e796dd9dd5adb732992fb364b75a375c763eee7e54a3e8ae95cafc90dd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 113,
+      "endLine": 116,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "316d691837ab525153fae905c0d13c29ef479f8122c50084900451a36e70ded8"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setDisplayName(Trigger model, String displayName) {\n                model.displayName = displayName;\n            }",
+      "contentHash": "942c15b39dd4c69e0f7e63e4d54517cb26d568fe3e1fb26c09801bfe4759bc43",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 118,
+      "endLine": 121,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d141f34b0da2fa0302b0fe48af8c044909caee1cde0af9c1c7596cf95f6fbd09"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setDescription(Trigger model, String description) {\n                model.description = description;\n            }",
+      "contentHash": "1ac9f86c6b08ccccad5b1567019372ea1eb1af04a8b7b1e390103050bd22260d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 123,
+      "endLine": 126,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1d50d2bd8fe230c57ec07722484a829028a87c5f7619ad866e304a893d2416a7"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setState(Trigger model, TriggerState state) {\n                model.state = state;\n            }",
+      "contentHash": "9d9380e31f629865ddab0dc1ea5ee7aad56762e35ac37c0b437d8c14f56322b2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 128,
+      "endLine": 131,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a9b69dd73b1227912f6f1995ed7e365890543d8b00d987504286cdbb52bc29e0"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setStateDetails(Trigger model, StateDetails stateDetails) {\n                model.stateDetails = stateDetails;\n            }",
+      "contentHash": "9a32f567ce17a0f16a286243e66893e103d9ef063ed082f5d1ceb7f808f2502c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 133,
+      "endLine": 136,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0d8c7a63763a53e1f5bc5a05a0b1abeabb18f740885bd7d777c8f9046a42489b"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setCreatedDateTime(Trigger model, OffsetDateTime createdDateTime) {\n                model.createdDateTime = createdDateTime;\n            }",
+      "contentHash": "b8ce3789e0216f2070d9d510bb20154ee74f9ca1ce0d24c0f48fae0053418452",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 138,
+      "endLine": 141,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e01dcd70d80764e1413bbd0afaae7ebc8f43cd082db5e801a1cf14621be34f78"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setCreatedBy(Trigger model, String createdBy) {\n                model.createdBy = createdBy;\n            }",
+      "contentHash": "c86049c9be517729ddce8a6a018f1ab292b1c14670dc17e05b600daa807b635d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 143,
+      "endLine": 146,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5b5d8b52bf7e9e757ed64cccc955c00d6bc0f47e8acbe3ad585d9c1c4fcf11be"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setLastModifiedDateTime(Trigger model, OffsetDateTime lastModifiedDateTime) {\n                model.lastModifiedDateTime = lastModifiedDateTime;\n            }",
+      "contentHash": "afaac69bafc85deeff0450fd9e57c8f5243d11afb4e07c7c6e7c642c1ae8b868",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 148,
+      "endLine": 151,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "349d7b56d949807aaddad0db2c3510d8ad321ab746917e5165eb48e3a6d228f3"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "text": "            @Override\n            public void setLastModifiedBy(Trigger model, String lastModifiedBy) {\n                model.lastModifiedBy = lastModifiedBy;\n            }",
+      "contentHash": "f0f4231ab4c2f7423c67ad15fae822a1518caefe4347039fe230242db429de76",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 153,
+      "endLine": 156,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e1095609e7900bdc94b787e5592946d0aa1cea2ae772d1f6512dab632729a546"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/PollingUtils.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\npackage com.azure.developer.loadtesting;\n\nimport com.azure.core.util.BinaryData;\nimport com.azure.core.util.polling.LongRunningOperationStatus;\nimport com.azure.core.util.polling.PollResponse;\nimport com.azure.developer.loadtesting.models.FileValidationStatus;\nimport com.azure.developer.loadtesting.models.LoadTestRun;\nimport com.azure.developer.loadtesting.models.TestFileInfo;\nimport com.azure.developer.loadtesting.models.TestProfileRun;\nimport com.azure.developer.loadtesting.models.TestProfileRunStatus;\nimport com.azure.developer.loadtesting.models.TestRunStatus;\nimport com.azure.json.JsonProviders;\nimport com.azure.json.JsonReader;\nimport reactor.core.publisher.Mono;\n\nimport java.io.IOException;\nimport java.util.Map;\nimport java.util.concurrent.Callable;\n\nfinal class PollingUtils {\n    static <T> Mono<PollResponse<T>> getPollResponseMono(Callable<PollResponse<T>> pollOperation) {\n        try {\n            return Mono.just(pollOperation.call());\n        } catch (Exception e) {\n            return Mono.error(e);\n        }\n    }\n\n    static PollResponse<BinaryData> getValidationStatus(BinaryData fileBinary) throws RuntimeException {\n        String validationStatus;\n\n        try (JsonReader jsonReader = JsonProviders.createReader(fileBinary.toBytes())) {\n            Map<String, Object> jsonTree = jsonReader.readMap(JsonReader::readUntyped);\n\n            validationStatus = jsonTree.get(\"validationStatus\").toString();\n        } catch (IOException e) {\n            throw new RuntimeException(\"Encountered exception while retrieving validation status\", e);\n        }\n\n        LongRunningOperationStatus lroStatus;\n\n        switch (validationStatus) {\n            case \"VALIDATION_NOT_REQUIRED\":\n            case \"VALIDATION_SUCCESS\":\n                lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n\n                break;\n\n            case \"VALIDATION_FAILURE\":\n                lroStatus = LongRunningOperationStatus.FAILED;\n\n                break;\n\n            case \"VALIDATION_INITIATED\":\n                lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n\n                break;\n\n            case \"NOT_VALIDATED\":\n                lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n\n                break;\n\n            default:\n                lroStatus = LongRunningOperationStatus.NOT_STARTED;\n\n                break;\n        }\n\n        return new PollResponse<>(lroStatus, fileBinary);\n    }\n\n    static PollResponse<TestFileInfo> getValidationStatus(TestFileInfo testFile) throws RuntimeException {\n        LongRunningOperationStatus lroStatus;\n\n        if (FileValidationStatus.VALIDATION_NOT_REQUIRED.equals(testFile.getValidationStatus())\n            || FileValidationStatus.VALIDATION_SUCCESS.equals(testFile.getValidationStatus())) {\n            lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n        } else if (FileValidationStatus.VALIDATION_FAILURE.equals(testFile.getValidationStatus())) {\n            lroStatus = LongRunningOperationStatus.FAILED;\n        } else if (FileValidationStatus.VALIDATION_INITIATED.equals(testFile.getValidationStatus())) {\n            lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n        } else if (FileValidationStatus.NOT_VALIDATED.equals(testFile.getValidationStatus())) {\n            lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n        } else {\n            lroStatus = LongRunningOperationStatus.NOT_STARTED;\n        }\n\n        return new PollResponse<>(lroStatus, testFile);\n    }\n\n    static PollResponse<BinaryData> getTestRunStatus(BinaryData testRunBinary) throws RuntimeException {\n        String status;\n\n        try (JsonReader jsonReader = JsonProviders.createReader(testRunBinary.toBytes())) {\n            Map<String, Object> jsonTree = jsonReader.readMap(JsonReader::readUntyped);\n\n            status = jsonTree.get(\"status\").toString();\n        } catch (IOException e) {\n            throw new RuntimeException(\"Encountered exception while retrieving test run status\", e);\n        }\n\n        LongRunningOperationStatus lroStatus;\n\n        switch (status) {\n            case \"NOTSTARTED\":\n                lroStatus = LongRunningOperationStatus.NOT_STARTED;\n\n                break;\n\n            case \"DONE\":\n                lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n\n                break;\n\n            case \"FAILED\":\n                lroStatus = LongRunningOperationStatus.FAILED;\n\n                break;\n\n            case \"CANCELLED\":\n                lroStatus = LongRunningOperationStatus.USER_CANCELLED;\n\n                break;\n\n            default:\n                lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n\n                break;\n        }\n\n        return new PollResponse<>(lroStatus, testRunBinary);\n    }\n\n    static PollResponse<LoadTestRun> getTestRunStatus(LoadTestRun loadTestRun) throws RuntimeException {\n\n        LongRunningOperationStatus lroStatus;\n\n        if (TestRunStatus.NOT_STARTED.equals(loadTestRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.NOT_STARTED;\n        } else if (TestRunStatus.DONE.equals(loadTestRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n        } else if (TestRunStatus.FAILED.equals(loadTestRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.FAILED;\n        } else if (TestRunStatus.CANCELLED.equals(loadTestRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.USER_CANCELLED;\n        } else {\n            lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n        }\n\n        return new PollResponse<>(lroStatus, loadTestRun);\n    }\n\n    static PollResponse<BinaryData> getTestProfileRunStatus(BinaryData testProfileRunBinary) throws RuntimeException {\n        String status;\n\n        try (JsonReader jsonReader = JsonProviders.createReader(testProfileRunBinary.toBytes())) {\n            Map<String, Object> jsonTree = jsonReader.readMap(JsonReader::readUntyped);\n\n            status = jsonTree.get(\"status\").toString();\n        } catch (IOException e) {\n            throw new RuntimeException(\"Encountered exception while retrieving test profile run status\", e);\n        }\n\n        LongRunningOperationStatus lroStatus;\n\n        switch (status) {\n            case \"NOTSTARTED\":\n                lroStatus = LongRunningOperationStatus.NOT_STARTED;\n\n                break;\n\n            case \"DONE\":\n                lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n\n                break;\n\n            case \"FAILED\":\n                lroStatus = LongRunningOperationStatus.FAILED;\n\n                break;\n\n            case \"CANCELLED\":\n                lroStatus = LongRunningOperationStatus.USER_CANCELLED;\n\n                break;\n\n            default:\n                lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n\n                break;\n        }\n\n        return new PollResponse<>(lroStatus, testProfileRunBinary);\n    }\n\n    static PollResponse<TestProfileRun> getTestProfileRunStatus(TestProfileRun testProfileRun) throws RuntimeException {\n        LongRunningOperationStatus lroStatus;\n\n        if (TestProfileRunStatus.NOT_STARTED.equals(testProfileRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.NOT_STARTED;\n        } else if (TestProfileRunStatus.DONE.equals(testProfileRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.SUCCESSFULLY_COMPLETED;\n        } else if (TestProfileRunStatus.FAILED.equals(testProfileRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.FAILED;\n        } else if (TestProfileRunStatus.CANCELLED.equals(testProfileRun.getStatus())) {\n            lroStatus = LongRunningOperationStatus.USER_CANCELLED;\n        } else {\n            lroStatus = LongRunningOperationStatus.IN_PROGRESS;\n        }\n\n        return new PollResponse<>(lroStatus, testProfileRun);\n    }\n}\n",
+      "contentHash": "7e6393c5665b2f19d67083528e76d1f7fd5d03468cf86780a9de90014111d19e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/PollingUtils.java",
+      "startLine": 1,
+      "endLine": 216,
+      "kind": "unknown",
+      "id": "637795d1a70fa02b4b5cb9cfd0a87d10aa10c7d5f854963be4cab36c35aed0f6"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/package.json",
+      "text": "{\n  \"dependencies\": {\n    \"@azure-tools/typespec-java\": \"^0.38.3\"\n  }\n}\n",
+      "contentHash": "a42991e058097dd47a318f8d1db5c224f9353d1d9b50cc40a11b4238c140ba29",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/package.json"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/pom.xml",
+      "text": "<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-developer-loadtesting</artifactId>\n  <version>1.2.0-beta.2</version> <!-- {x-version-update;com.azure:azure-developer-loadtesting;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for Load Testing</name>\n  <description>This package contains Microsoft Azure Load Testing client library.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n\n    <spotbugs.skip>false</spotbugs.skip>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "89d12c7401464fd65e4e13c8f2709c2e24c1ee3cf217750ab63f1ea462d7619a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/pom.xml"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/README.md",
+      "text": "# Azure Load Testing client library for Java\n\nAzure Load Testing provides client library in Java to the user by which they can interact natively with Azure Load Testing service. Azure Load Testing is a fully managed load-testing service that enables you to generate high-scale load. The service simulates traffic for your applications, regardless of where they're hosted. Developers, testers, and quality assurance (QA) engineers can use it to optimize application performance, scalability, or capacity\n\nThis package contains Microsoft Azure Developer LoadTesting client library.\n\n## Documentation\n\nVarious documentation is available to help you get started\n\n- [Source code][source_code]\n- [API reference documentation][api_reference_doc]\n- [Product Documentation][product_documentation]\n\n## Getting started\n\n### Prerequisites\n\n- [Java Development Kit (JDK)][jdk] with version 8 or above\n- [Azure Subscription][azure_subscription]\n- Azure Load Testing resource\n\n### Adding the package to your product\n\n[//]: # ({x-version-update-start;com.azure:azure-developer-loadtesting;current})\n```xml\n<dependency>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-developer-loadtesting</artifactId>\n    <version>1.2.0-beta.1</version>\n</dependency>\n```\n[//]: # ({x-version-update-end})\n\n### Authentication\n\n[Azure Identity][azure_identity] package provides the default implementation for authenticating the client.\n\nBy default, Azure Active Directory token authentication depends on correct configure of following environment variables.\n\n- `AZURE_CLIENT_ID` for Azure client ID.\n- `AZURE_TENANT_ID` for Azure tenant ID.\n- `AZURE_CLIENT_SECRET` or `AZURE_CLIENT_CERTIFICATE_PATH` for client secret or client certificate.\n\nIn addition, Azure subscription ID can be configured via environment variable `AZURE_SUBSCRIPTION_ID`.\n\nWith above configuration, clients can be authenticated by following code:\n\n```java java-readme-sample-auth\n// ensure the user, service principal or managed identity used has Loadtesting Contributor role for the resource\nTokenCredential credential = new DefaultAzureCredentialBuilder().build();\n// create client using DefaultAzureCredential\nLoadTestAdministrationClient adminClient = new LoadTestAdministrationClientBuilder()\n    .credential(credential)\n    .endpoint(\"<Enter Azure Load Testing Data-Plane URL>\")\n    .buildClient();\nLoadTestRunClient testRunClient = new LoadTestRunClientBuilder()\n    .credential(credential)\n    .endpoint(\"<Enter Azure Load Testing Data-Plane URL>\")\n    .buildClient();\n\nRequestOptions reqOpts = new RequestOptions()\n    .addQueryParam(\"orderBy\", \"lastModifiedDateTime\")\n    .addQueryParam(\"maxPageSize\", \"10\");\nadminClient.listTests(reqOpts);\n\nreqOpts = new RequestOptions()\n    .addQueryParam(\"orderBy\", \"lastModifiedDateTime\")\n    .addQueryParam(\"status\", \"EXECUTING,DONE\")\n    .addQueryParam(\"maxPageSize\", \"10\");\ntestRunClient.listTestRuns(reqOpts);\n```\n\n## Key concepts\n\nThe following components make up the Azure Load Testing service. The Azure Load Test client library for Java allows you to interact with each of these components through the use of clients. There are two top-level clients which are the main entry points for the library\n\n- `LoadTestingClient`\n\n- `LoadTestingAsyncClient`\n\nThe two clients have similar methods in them except the methods in the async client are async as well.\n\nThe top-level clients have two sub-clients\n\n- `LoadTestAdministration`\n\n- `LoadTestRun`\n\nThese sub-clients are used for managing and using different components of the service.\n\n### Load Test Administration Client\n\nThe `LoadTestAdministration` sub-clients is used to administer and configure the load tests, test profiles, app components and metrics.\n\n#### Test\n\nA test specifies the test script, and configuration settings for running a load test. You can create one or more tests in an Azure Load Testing resource.\n\n#### App Component\n\nWhen you run a load test for an Azure-hosted application, you can monitor resource metrics for the different Azure application components (server-side metrics). While the load test runs, and after completion of the test, you can monitor and analyze the resource metrics in the Azure Load Testing dashboard.\n\n#### Metrics\n\nDuring a load test, Azure Load Testing collects metrics about the test execution. There are two types of metrics:\n\n1. Client-side metrics give you details reported by the test engine. These metrics include the number of virtual users, the request response time, the number of failed requests, or the number of requests per second.\n\n2. Server-side metrics are available for Azure-hosted applications and provide information about your Azure application components. Metrics can be for the number of database reads, the type of HTTP responses, or container resource consumption.\n\n### Load Test Run Client\n\nThe `LoadTestRun` sub-clients is used to start and stop test runs corresponding to a load test. A test run represents one execution of a load test. It collects the logs associated with running the Apache JMeter script, the load test YAML configuration, the list of app components to monitor, and the results of the test.\n\n### Data-Plane Endpoint\n\nData-plane of Azure Load Testing resources is addressable using the following URL format:\n\n`00000000-0000-0000-0000-000000000000.aaa.cnt-prod.loadtesting.azure.com`\n\nThe first GUID `00000000-0000-0000-0000-000000000000` is the unique identifier used for accessing the Azure Load Testing resource. This is followed by  `aaa` which is the Azure region of the resource.\n\nThe data-plane endpoint is obtained from Control Plane APIs. To obtain the data-plane endpoint for your resource, follow [this documentation][data_plane_uri].\n\n**Example:** `1234abcd-12ab-12ab-12ab-123456abcdef.eastus.cnt-prod.loadtesting.azure.com`\n\nIn the above example, `eastus` represents the Azure region `East US`.\n\n## Examples\n\n### Creating a Load Test\n\n```java java-readme-sample-createTest\nLoadTestAdministrationClient adminClient = new LoadTestAdministrationClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .endpoint(\"<endpoint>\")\n    .buildClient();\n\n// Create a test object\nLoadTest loadTest = new LoadTest()\n    .setDisplayName(\"Sample Display Name\")\n    .setDescription(\"Sample Description\")\n    .setLoadTestConfiguration(new LoadTestConfiguration() // Load Test Configuration describes the number of test engines to generate load\n        .setEngineInstances(1));\n\n// Environment Variables are plain-text data passed to test engines\nMap<String, String> envVarMap = new HashMap<>();\nenvVarMap.put(\"a\", \"b\");\nenvVarMap.put(\"x\", \"y\");\nloadTest.setEnvironmentVariables(envVarMap);\n\n// Secrets are secure data sent using Azure Key Vault\nTestSecret testSecrets = new TestSecret()\n    .setType(SecretType.KEY_VAULT_SECRET_URI)\n    .setValue(\"https://samplevault.vault.azure.net/secrets/samplesecret/f113f91fd4c44a368049849c164db827\");\nMap<String, TestSecret> secretsMap = new HashMap<>();\nsecretsMap.put(\"sampleSecret\", testSecrets);\nloadTest.setSecrets(secretsMap);\n\n// PassFailCriteria defines the conditions to conclude the test as success\nMap<String, PassFailMetric> passFailMetrics = new HashMap<>();\nPassFailMetric samplePassFailMetric = new PassFailMetric()\n    .setClientMetric(PfMetrics.RESPONSE_TIME_IN_MILLISECONDS)\n    .setAggregate(PassFailAggregationFunction.AVERAGE)\n    .setCondition(\">\")\n    .setValue(20D)\n    .setAction(PassFailAction.CONTINUE);\npassFailMetrics.put(\"fefd759d-7fe8-4f83-8b6d-aeebe0f491fe\", samplePassFailMetric);\nPassFailCriteria passFailCriteria = new PassFailCriteria()\n    .setPassFailMetrics(passFailMetrics);\nloadTest.setPassFailCriteria(passFailCriteria);\n\n// Now can create the test using the client and receive the response\nLoadTest testResponse = adminClient.createOrUpdateTest(\"test12345\", loadTest);\n\nSystem.out.println(testResponse.toString());\n```\n\n### Uploading .jmx file to a Load Test\n\n```java java-readme-sample-uploadTestFile\nLoadTestAdministrationClient adminClient = new LoadTestAdministrationClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .endpoint(\"<endpoint>\")\n    .buildClient();\n\n// extract file contents to BinaryData\nBinaryData fileData = BinaryData.fromFile(new File(\"path/to/file\").toPath());\n\n// receive response with BinaryData content\nPollResponse<BinaryData> fileUrlOut = adminClient.beginUploadTestFile(\"test12345\", \"sample-file.jmx\", fileData, null)\n    .waitForCompletion(Duration.ofMinutes(2));\nSystem.out.println(fileUrlOut.getValue().toString());\n```\n\n### Running a Load Test\n\n```java java-readme-sample-runTest\nLoadTestRunClient testRunClient = new LoadTestRunClientBuilder()\n    .credential(new DefaultAzureCredentialBuilder().build())\n    .endpoint(\"<endpoint>\")\n    .buildClient();\n\nLoadTestRun testRun = new LoadTestRun()\n    .setDisplayName(\"Sample Test Run Display Name\")\n    .setDescription(\"Sample Test Run Description\")\n    .setTestId(\"test12345\");\n\n// Now can create the test run using the client and receive response\nSyncPoller<LoadTestRun, LoadTestRun> testRunPoller = testRunClient.beginTestRun(\"testrun12345\", testRun, null);\n\nSystem.out.println(testRunPoller.poll().getValue().toString());\n\n// Wait for test to reach terminal state\n// Wait for test to reach terminal state\nPollResponse<LoadTestRun> testRunOut = testRunPoller.poll();\nTestRunStatus testStatus = null;\nString startDateTime = null, endDateTime = null;\n\nwhile (!testRunOut.getStatus().isComplete()) {\n    testRunOut = testRunPoller.poll();\n\n    // Get the status of the test run\n    testStatus = testRunOut.getValue().getStatus();\n    System.out.println(\"Test run status: \" + testStatus.toString());\n\n    // Wait and check test status every 5 seconds\n    try {\n        Thread.sleep(5 * 1000);\n    } catch (InterruptedException e) {\n        // handle interruption\n    }\n}\n\nLoadTestRun finalResponse = testRunPoller.getFinalResult();\nstartDateTime = finalResponse.getStartDateTime().toString();\nendDateTime = finalResponse.getEndDateTime().toString();\n\n// Get list of all metric namespaces and pick the first one\nMetricNamespaces metricNamespaces = testRunClient.getMetricNamespaces(\"testrun12345\");\nString metricNamespace = null;\n\nmetricNamespace = metricNamespaces.getValue().get(0).getName();\n\n// Get list of all metric definitions and pick the first one\nMetricDefinitions metricDefinitions = testRunClient.getMetricDefinitions(\"testrun12345\", metricNamespace);\nString metricName = null;\nmetricName = metricDefinitions.getValue().get(0).getName();\n\n// Fetch client metrics using metric namespace and metric name\nPagedIterable<BinaryData> clientMetricsOut = testRunClient.listMetrics(\"testrun12345\", metricName, metricNamespace, startDateTime + '/' + endDateTime, null);\n\nclientMetricsOut.forEach((clientMetric) -> {\n    System.out.println(clientMetric.toString());\n});\n```\n\n## Troubleshooting\n\nAzure SDKs for Java offer a consistent logging story to help aid in troubleshooting application errors and expedite\ntheir resolution. The logs produced will capture the flow of an application before reaching the terminal state to help\nlocate the root issue. View the [logging][logging] wiki for guidance about enabling logging.\n\n## Next steps\n\nAzure Loading Testing Java SDK samples are available to you in the SDK's GitHub repository. These samples provide example code for additional scenarios commonly encountered.\nSee [Azure Load Testing samples][sample_code].\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide](https://github.com/Azure/azure-sdk-for-java/blob/main/CONTRIBUTING.md).\n\n1. Fork it\n1. Create your feature branch (`git checkout -b my-new-feature`)\n1. Commit your changes (`git commit -am 'Add some feature'`)\n1. Push to the branch (`git push origin my-new-feature`)\n1. Create new Pull Request\n\n<!-- LINKS -->\n[source_code]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/loadtesting/azure-developer-loadtesting/src\n[sample_code]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/loadtesting/azure-developer-loadtesting/src/samples\n[data_plane_uri]: https://learn.microsoft.com/rest/api/apptesting/loadtest/data-plane-uri\n[api_reference_doc]: https://learn.microsoft.com/rest/api/apptesting/loadtest/\n[product_documentation]: https://azure.microsoft.com/services/load-testing/\n[jdk]: https://learn.microsoft.com/java/azure/jdk/\n[azure_subscription]: https://azure.microsoft.com/free/\n[azure_identity]: https://github.com/Azure/azure-sdk-for-java/blob/main/sdk/identity/azure-identity\n[logging]: https://github.com/Azure/azure-sdk-for-java/blob/main/docs/logging.md\n",
+      "contentHash": "8a5cf5b4a2b2314858262af57348c778c59be31eea6d29294b3e106593f4e8bc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/README.md"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/tsp-location.yaml",
+      "text": "directory: specification/loadtestservice/data-plane/loadtesting\ncommit: 4c7c015ab9f054ecb26bdd77ee4fd23b1e175e3d\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "159325f6faadd6991b2fc1ff8a6517822ee4b65873a759def41dd498d548dbd4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/loadtesting/azure-developer-loadtesting/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationAsyncClient.java",
+      "startLine": 468,
+      "endLine": 498,
+      "provenance": "Java members without @Generated: beginUploadTestFile",
+      "contentHash": "71ee2fa16eab3b8500b9b4df7264aa4330e4019cecd0dfc3f264b1efe2f38c4c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestAdministrationClient.java",
+      "startLine": 548,
+      "endLine": 574,
+      "provenance": "Java members without @Generated: beginUploadTestFile",
+      "contentHash": "2fd6440803b3e4b7d97ef0f362831ce2af1a2d42aa46cf29ecfa1da57a460fee"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunAsyncClient.java",
+      "startLine": 586,
+      "endLine": 664,
+      "provenance": "Java members without @Generated: beginTestRun, beginTestProfileRun",
+      "contentHash": "a904c5744976fb9eb670584159d6c8cb7b105c43de437e4431c36e4d7a4b3862"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/LoadTestRunClient.java",
+      "startLine": 579,
+      "endLine": 654,
+      "provenance": "Java members without @Generated: beginTestRun, beginTestProfileRun",
+      "contentHash": "255a456708387687f4bcedae41a1133e8ffe97214337a5a7f013d4cfacc2c27c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/PollingUtils.java",
+      "startLine": 1,
+      "endLine": 216,
+      "provenance": "Java handwritten source",
+      "contentHash": "7e6393c5665b2f19d67083528e76d1f7fd5d03468cf86780a9de90014111d19e"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/AutoStopCriteria.java",
+      "startLine": 68,
+      "endLine": 75,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "31d9f4e016273136dfca0c3c20a2fbd976e30026d67f93111540ed2965b04c51"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/FunctionFlexConsumptionResourceConfiguration.java",
+      "startLine": 55,
+      "endLine": 62,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "30a841bd090f3591f0d0cca812a63a02e5babc15106b30c3b879438bb6f5089c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTest.java",
+      "startLine": 208,
+      "endLine": 214,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "982376d36291059452ddd3503dc9ff246784c7252b809cff6b17c87052905932"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestConfiguration.java",
+      "startLine": 77,
+      "endLine": 84,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "86614d7417852084db9a76a7faf6798d86207f29e2d0f5569cac9f3260b6b10a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestRun.java",
+      "startLine": 280,
+      "endLine": 286,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "1e5a10ab6986f744b7295d758bfdef3796dd6f1c682ed2cea2dacc6ac663d2f1"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/LoadTestingAppComponent.java",
+      "startLine": 86,
+      "endLine": 93,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "b3ec66c03e96fb31d38b207e6ae7fda3a816dd4e41c746e5bcfc04b71ec43570"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/NotificationRule.java",
+      "startLine": 92,
+      "endLine": 134,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch, setNotificationRuleId, setDisplayName, setActionGroupIds, setCreatedDateTime, +3 more",
+      "contentHash": "5d9221155a4a118e5b50570d3d1e47070c3aa5b8d579f6a7273369768cc2c791"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/OptionalLoadTestConfiguration.java",
+      "startLine": 80,
+      "endLine": 87,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "f2b775823b0fc09e669a16388cd746d78e4dd9412a89d99d633e8f83ec701d57"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailCriteria.java",
+      "startLine": 54,
+      "endLine": 61,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "d6307fbccdbb1075ac021e46b6b06b5812249a5e843f9ebfaf2e796e167b0f2b"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailMetric.java",
+      "startLine": 93,
+      "endLine": 99,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "abae9e9e3afb94db0b318497af137ce14660e72705e8dc3802c564680b08798a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/PassFailServerMetric.java",
+      "startLine": 95,
+      "endLine": 102,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "f41074bd3570db64807435a1b80b6fdb1697a9bc5a9cba3a1381dc92c6700a1a"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Recurrence.java",
+      "startLine": 56,
+      "endLine": 67,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch, setRecurrenceEnd",
+      "contentHash": "7faef269f51ec15fdc5871dcf909757bcc2bff5d794bfca48bdd84cda15cf3f0"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RecurrenceEnd.java",
+      "startLine": 59,
+      "endLine": 65,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "8f3b082430cbf1fbb24c612046f9a591126ebc55d37a04049ed879f83cabbf65"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/RegionalConfiguration.java",
+      "startLine": 57,
+      "endLine": 64,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "5bbd81b79f9f4079153a2f8fdfd5a50a8d1097c72bdb65a7d2f4a6de36a81e9f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/ResourceMetric.java",
+      "startLine": 91,
+      "endLine": 97,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "8789fc84230ac3c55c0401869103b2cbc98e7876518aa51b1eec8eb9b17b7146"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TargetResourceConfigurations.java",
+      "startLine": 48,
+      "endLine": 55,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "6f33d87ae688252cfea0f4c9ec3bc2f1b2771bdafb5948270bbd46e55d385686"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestAppComponents.java",
+      "startLine": 82,
+      "endLine": 89,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "35b07c9ed42b02e52cb3e515b1e10f97a2e6ac58a662aa5a0c39d0267c4b02c5"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestCertificate.java",
+      "startLine": 59,
+      "endLine": 65,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "c6fd6fde2bc5e831b989d905a8df37c6b9ff35a3ec106b46ac60ac556ca1a368"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestPreferences.java",
+      "startLine": 47,
+      "endLine": 53,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "ead721fc310adb5551c7e589786c2e381c1c9104da7a743e36def5e20d8b1563"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfile.java",
+      "startLine": 109,
+      "endLine": 115,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "e0ceeade9730dc85297c9f04988ec6ffa8563d39c196ed3e2c3477f47fa98254"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestProfileRun.java",
+      "startLine": 153,
+      "endLine": 159,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "f2ac7e49eeae325782c3f11f2b64ee1c9bd9691f115199ee52f740bc6689f6bc"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunAppComponents.java",
+      "startLine": 82,
+      "endLine": 89,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "94463355a0780d247638cd220ff438b1a689f216f079498a437ad778c569fa81"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunEndedEventCondition.java",
+      "startLine": 55,
+      "endLine": 62,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "fdc001853e8512cae2cb6b6b4e16ad3de232d8c6cabf3d8dd60048a323763cb7"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunInsights.java",
+      "startLine": 67,
+      "endLine": 73,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "024c2a2e3c96341d12c55b269594139379407bb25be6355920e50d01d3ab2267"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestRunServerMetricsConfiguration.java",
+      "startLine": 83,
+      "endLine": 90,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "1708911805106387d96db5eacfba5164c4454ff738211f3ca78a8102baf7170b"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestSecret.java",
+      "startLine": 53,
+      "endLine": 59,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "7f44c1820a6f3549e5fe62e369204fe5789cfeedd8459795780d419504e0582c"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestServerMetricsConfiguration.java",
+      "startLine": 90,
+      "endLine": 90,
+      "provenance": "Java members without @Generated: isJsonMergePatch",
+      "contentHash": "a89aba46fa98e3b5a129fa5c614e92e0ae0e7b4c8c8a18a0c4c72659c156b7e2"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/TestsNotificationEventFilter.java",
+      "startLine": 48,
+      "endLine": 55,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch",
+      "contentHash": "43060cb04a6138b88cbb1cdaea4f402ad145d7bef2353c46daa8f9236d273a6f"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/src/main/java/com/azure/developer/loadtesting/models/Trigger.java",
+      "startLine": 103,
+      "endLine": 154,
+      "provenance": "Java members without @Generated: prepareModelForJsonMergePatch, isJsonMergePatch, setTriggerId, setDisplayName, setDescription, setState, +5 more",
+      "contentHash": "cd00f6e522c9363a0ce2a1da2b5aadc9ee5dc93a0885bcac616b79b34e1036d3"
+    }
+  ]
+}

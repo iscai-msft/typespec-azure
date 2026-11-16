@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "id": "f2558078-602f-47be-84e6-f738d184e944",
+  "observedAt": "2026-10-27T00:22:45.186Z",
+  "identity": "dotnet:azure.resourcemanager.healthbot:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.HealthBot",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/healthbot/Azure.ResourceManager.HealthBot"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "9e98ea781cb970f15cad1ea4bd3eb0f8fdf8c673"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 85,
+    "eligibleFiles": 69,
+    "capturedFiles": 4,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotData.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing Azure.Core;\nusing Azure.ResourceManager.HealthBot.Models;\n\nnamespace Azure.ResourceManager.HealthBot\n{\n    // Customization rationale:\n    // The previous SDK declared a constructor `HealthBotData(AzureLocation location, HealthBotSku sku)`\n    // with `sku` as a required (non-nullable) parameter. The TypeSpec-generated constructor only\n    // accepts `location` because `sku` is modeled as optional in the spec. Removing the original\n    // 2-arg constructor is a breaking change for callers, so we re-add it here as a partial-class\n    // customization with the same null-check semantics as before.\n    public partial class HealthBotData\n    {\n        /// <summary> Initializes a new instance of <see cref=\"HealthBotData\"/>. </summary>\n        /// <param name=\"location\"> The location. </param>\n        /// <param name=\"sku\"> SKU of the Azure Health Bot. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"sku\"/> is null. </exception>\n        public HealthBotData(AzureLocation location, HealthBotSku sku) : base(location)\n        {\n            Argument.AssertNotNull(sku, nameof(sku));\n\n            Sku = sku;\n        }\n    }\n}\n",
+      "contentHash": "fa64c53c85e4ba9bcf5535d2ae27aa278dd4c653e7f31d3c062f4daab147bd15",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotData.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "handwritten-marker",
+      "id": "02dce280913a6890ea5afed063eda43fda5efa9ff8e84b9129f8fe10979b9bf5"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.ResourceManager.HealthBot.Models;\nusing Azure.ResourceManager.Resources;\n\nnamespace Azure.ResourceManager.HealthBot\n{\n    /// <summary>\n    /// A Class representing a HealthBot along with the instance operations that can be performed on it.\n    /// If you have a <see cref=\"ResourceIdentifier\"/> you can construct a <see cref=\"HealthBotResource\"/>\n    /// from an instance of <see cref=\"ArmClient\"/> using the GetHealthBotResource method.\n    /// Otherwise you can get one from its parent resource <see cref=\"ResourceGroupResource\"/> using the GetHealthBot method.\n    /// </summary>\n    public partial class HealthBotResource : ArmResource\n    {\n        // Customization rationale:\n        // The previous SDK exposed synchronous and asynchronous `Update(HealthBotPatch, ...)` overloads\n        // that did not accept a `WaitUntil` parameter (the patch endpoint is non-LRO in this RP and\n        // the legacy SDK returned a direct Response<HealthBotResource>). The TypeSpec emitter now\n        // generates only the `Update(WaitUntil, HealthBotPatch, ...)` overloads. Dropping the legacy\n        // overloads would be a breaking change for callers, so we re-add them here as forwarders that\n        // pass `WaitUntil.Completed` and unwrap the operation result. They are hidden from IntelliSense\n        // via `[EditorBrowsable(Never)]` to steer new code toward the LRO-shaped API.\n        /// <summary>\n        /// Patch a HealthBot.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.HealthBot/healthBots/{botName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Bots_Update</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-08-24</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"HealthBotResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"patch\"> The parameters to provide for the required Azure Health Bot. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"patch\"/> is null. </exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual async Task<Response<HealthBotResource>> UpdateAsync(HealthBotPatch patch, CancellationToken cancellationToken = default)\n        {\n            var response = await UpdateAsync(WaitUntil.Completed, patch, cancellationToken).ConfigureAwait(false);\n            return Response.FromValue(response.Value, response.GetRawResponse());\n        }\n\n        /// <summary>\n        /// Patch a HealthBot.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.HealthBot/healthBots/{botName}</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>Bots_Update</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-08-24</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"HealthBotResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"patch\"> The parameters to provide for the required Azure Health Bot. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"patch\"/> is null. </exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Response<HealthBotResource> Update(HealthBotPatch patch, CancellationToken cancellationToken = default)\n        {\n            var response = Update(WaitUntil.Completed, patch, cancellationToken);\n            return Response.FromValue(response.Value, response.GetRawResponse());\n        }\n    }\n}\n",
+      "contentHash": "c3118ae74422ea0753a61f63e8efa6fc6f916ca202db8f907e721a2811424cb9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotResource.cs",
+      "startLine": 1,
+      "endLine": 94,
+      "kind": "handwritten-marker",
+      "id": "e57acab05d5ea37ae98d8bfafbc767f819b99ff104c6de28efecb9a0841e1526"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSku.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nnamespace Azure.ResourceManager.HealthBot.Models\n{\n    public partial class HealthBotSku\n    { }\n}\n",
+      "contentHash": "390c79521b37c79a726fe7c7df038a1b5c1227785ff0dc9ce90a0b2e484e287c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSku.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "handwritten-marker",
+      "id": "690516e5065bee725b35fea80e80a2314b5699db067b501a2b260b85bd086e5a"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSkuName.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System.ComponentModel;\n\nnamespace Azure.ResourceManager.HealthBot.Models\n{\n    /// <summary> The name of the Azure Health Bot SKU. </summary>\n    public enum HealthBotSkuName\n    {\n        /// <summary> F0. </summary>\n        F0,\n        /// <summary> S1. </summary>\n        S1,\n        /// <summary> C0. </summary>\n        C0,\n        /// <summary> PES. </summary>\n        PES,\n        /// <summary> C1. </summary>\n        C1\n    }\n}\n",
+      "contentHash": "79d7a7352adf2f411347a9f928201d5c0cf1ee31e2466d68769f8c6100d7d683",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSkuName.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "handwritten-marker",
+      "id": "ded36e999b7e4992cf063fb834b6fa12a7b804889b1fcd166a6eac704c0fb98a"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/README.md",
+      "text": "# Microsoft Azure Health Bot management client library for .NET\n\nMicrosoft Azure Health Bot Service is a cloud platform that empowers developers in Healthcare organizations to build and deploy their compliant, AI-powered virtual health assistants and health bots, that help them improve processes and reduce costs. It allows you to offer your users intelligent and personalized access to health-related information and interactions through a natural conversation experience.\n\nThis library supports managing Microsoft Azure Health Bot resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Health Bot management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.HealthBot\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "fcbccaa17c0945fbec6dd06558a1011e0c9334c76bc20f981889d4606760708a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/README.md"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Azure.ResourceManager.HealthBot.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.4.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.3.0</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.HealthBot</PackageId>\n    <Description>Microsoft Azure Resource Manager client SDK for Azure resource provider Microsoft.HealthBot.</Description>\n    <PackageTags>azure;management;arm;resource manager;healthbot</PackageTags>\n  </PropertyGroup>\n</Project>",
+      "contentHash": "f44b09207fc2ef518d83f0c940f8ed0d98481c4562ab33427886d5471f4cb6ef",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/src/Azure.ResourceManager.HealthBot.csproj"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/tsp-location.yaml",
+      "text": "directory: specification/healthbot/HealthBot.Management\ncommit: 7eedf0843327d688a23ed89a7c2921cbfc129dfe\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json",
+      "contentHash": "a90730ee812cd0ea4a93a7903d9bb428bd1236b5f67a391ed5e915c5f996ee1c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/healthbot/Azure.ResourceManager.HealthBot/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "077516d23c6a47cb81548d7f8a70c2e90ea64a956c743a4725ce3b28db0f07e8",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "709954de9ddb82fc93a8de6eb4c0861c73820e5d7a5c627deaa61f40bcd308fd",
+        "category": "Model overrides",
+        "subtype": "Two-argument data constructor validates and assigns a SKU",
+        "explanation": "Adds public HealthBotData(AzureLocation,HealthBotSku), delegates location to the base constructor, then null-checks sku and assigns it to Sku. The stated historical constructor regression is not independently established.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The constructor signature and executable validation/assignment are supplied in Custom/HealthBotData.cs with handwritten-marker provenance.",
+        "symbols": ["HealthBotData.HealthBotData(AzureLocation,HealthBotSku)"],
+        "evidence": [
+          {
+            "id": "02dce280913a6890ea5afed063eda43fda5efa9ff8e84b9129f8fe10979b9bf5",
+            "startLine": 24,
+            "endLine": 29
+          }
+        ]
+      },
+      {
+        "key": "f17187c5f78636a22ff7c4d8a5a75cb4895f97a7236f1242b77b5f7431aa75cd",
+        "category": "Convenience methods",
+        "subtype": "Hidden patch overloads supply completed-wait mode and return resource responses",
+        "explanation": "Adds hidden sync/async Update(HealthBotPatch,CancellationToken) overloads that call the corresponding overload with WaitUntil.Completed and return Response.FromValue using its Value and raw response. No polling loop or service non-LRO behavior is established by these wrappers.",
+        "pattern": "legacy-overload-compatibility",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit forwarding and response adaptation are implemented in Custom/HealthBotResource.cs outside Generated.",
+        "symbols": [
+          "HealthBotResource.Update(HealthBotPatch,CancellationToken)",
+          "HealthBotResource.UpdateAsync(HealthBotPatch,CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "e57acab05d5ea37ae98d8bfafbc767f819b99ff104c6de28efecb9a0841e1526",
+            "startLine": 56,
+            "endLine": 61
+          },
+          {
+            "id": "e57acab05d5ea37ae98d8bfafbc767f819b99ff104c6de28efecb9a0841e1526",
+            "startLine": 87,
+            "endLine": 92
+          }
+        ]
+      },
+      {
+        "key": "589857023d422ebc6916b0df43a0ba48f9d20eda464cca082a7bcafaafc9c979",
+        "category": "Model overrides",
+        "subtype": "Public SKU type is a closed five-member enum",
+        "explanation": "Supplies a public HealthBotSkuName enum declaring F0, S1, C0, PES and C1. No extensible string constructor or wire conversion implementation is present in this capture.",
+        "pattern": "closed-enum-override",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The full public enum declaration is in Custom/Models/HealthBotSkuName.cs with handwritten-marker provenance, not inferred from documentation alone.",
+        "symbols": [
+          "HealthBotSkuName",
+          "HealthBotSkuName.F0",
+          "HealthBotSkuName.S1",
+          "HealthBotSkuName.C0",
+          "HealthBotSkuName.PES",
+          "HealthBotSkuName.C1"
+        ],
+        "evidence": [
+          {
+            "id": "ded36e999b7e4992cf063fb834b6fa12a7b804889b1fcd166a6eac704c0fb98a",
+            "startLine": 11,
+            "endLine": 23
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "709954de9ddb82fc93a8de6eb4c0861c73820e5d7a5c627deaa61f40bcd308fd",
+        "status": "accepted",
+        "reason": "Custom/HealthBotData.cs lines 24-29 show a public two-argument constructor, a null check, and SKU assignment. This is executable handwritten model-construction behavior outside Generated; the proposal appropriately does not treat the comment about a previous SDK or the generated constructor as independently verified. An additional constructor is plausibly generator-addressable, without establishing current generator support."
+      },
+      {
+        "key": "f17187c5f78636a22ff7c4d8a5a75cb4895f97a7236f1242b77b5f7431aa75cd",
+        "status": "accepted",
+        "reason": "Custom/HealthBotResource.cs lines 56-61 and 87-92 implement one paired sync/async forwarding behavior: hidden patch overloads choose WaitUntil.Completed and turn the returned operation into a resource response. The legacy-compatibility intent is stated in the adjacent comment, but the prior API and non-LRO service behavior are not independently established. The proposal does not claim an implemented poller; emitting compatible forwarding overloads is plausibly generator-addressable."
+      },
+      {
+        "key": "589857023d422ebc6916b0df43a0ba48f9d20eda464cca082a7bcafaafc9c979",
+        "status": "revised",
+        "reason": "The captured Custom/Models/HealthBotSkuName.cs establishes a handwritten public enum with five declared members, but no supplied generated declaration or use proves that it overrides an existing generated enum. Replace the override-implying pattern and subtype with an evidence-limited definition; generation of such a declared enum is plausible, not verified.",
+        "finding": {
+          "key": "589857023d422ebc6916b0df43a0ba48f9d20eda464cca082a7bcafaafc9c979",
+          "category": "Model overrides",
+          "subtype": "Handwritten public SKU enum declaration",
+          "explanation": "Declares the public HealthBotSkuName enum with members F0, S1, C0, PES and C1; the captured code does not show a generated counterpart, wire conversion or use of this type.",
+          "pattern": "handwritten-enum-definition",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The complete enum declaration and its five members appear in src/Custom/Models/HealthBotSkuName.cs, outside src/Generated/, rather than in empty partial scaffolding.",
+          "symbols": [
+            "HealthBotSkuName",
+            "HealthBotSkuName.F0",
+            "HealthBotSkuName.S1",
+            "HealthBotSkuName.C0",
+            "HealthBotSkuName.PES",
+            "HealthBotSkuName.C1"
+          ],
+          "evidence": [
+            {
+              "id": "ded36e999b7e4992cf063fb834b6fa12a7b804889b1fcd166a6eac704c0fb98a",
+              "startLine": 11,
+              "endLine": 23
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Partial discovery: four complete captures out of 69 eligible and 85 discovered files. Other eligible files are unassessed; additional customizations may exist.",
+      "Generated constructor/update/model counterparts, shipped API history, compiled API and runtime service behavior are unavailable. Rationale comments about optionality, previous APIs and a non-LRO endpoint are unverified accounts, not measured causes.",
+      "HealthBotSku.cs is an empty public partial without mapping attributes or executable members. Its independent customization significance is not established by the capture and is not counted.",
+      "The resource partial declares the standard ArmResource base; no generated counterpart establishes an independent inheritance override. It is not counted separately from the concrete method customizations.",
+      "The closed enum shape is observed, but actual wire strings/serialization and its generated-model integration are not supplied. No poller internals are shown.",
+      "README and project/TypeSpec metadata are generation context only. Generator-addressable yes indicates a plausible generic feature, not a verified existing capability.",
+      "Coverage is partial: four source files were captured from 69 eligible files in the configured package root (85 discovered); no finding or empty omission list establishes the absence of other customization.",
+      "The captured HealthBotSku partial class is empty and supplies no behavior to count; generated counterparts, enum serialization and uses of the declared enum are not included.",
+      "Comments describe historical SDK compatibility and service operation semantics, but the former API and generated overloads/constructor were not supplied for independent verification. README, project metadata and TypeSpec location identify context, not executable customization.",
+      "These decisions are AI-reviewed assessments of the supplied captures, not human verification or confirmation of current generator capabilities."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotData.cs",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "fa64c53c85e4ba9bcf5535d2ae27aa278dd4c653e7f31d3c062f4daab147bd15"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/HealthBotResource.cs",
+      "startLine": 1,
+      "endLine": 94,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c3118ae74422ea0753a61f63e8efa6fc6f916ca202db8f907e721a2811424cb9"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSku.cs",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "390c79521b37c79a726fe7c7df038a1b5c1227785ff0dc9ce90a0b2e484e287c"
+    },
+    {
+      "path": "sdk/healthbot/Azure.ResourceManager.HealthBot/src/Custom/Models/HealthBotSkuName.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "79d7a7352adf2f411347a9f928201d5c0cf1ee31e2466d68769f8c6100d7d683"
+    }
+  ]
+}

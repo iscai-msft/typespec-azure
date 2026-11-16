@@ -1,0 +1,1060 @@
+{
+  "schemaVersion": 1,
+  "id": "5376d976-1802-4034-88a0-b030ac21515a",
+  "observedAt": "2026-10-23T23:40:18.754Z",
+  "identity": "python:azure-keyvault-secrets:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-keyvault-secrets",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/keyvault/azure-keyvault-secrets"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "8468cccc117cf60d3eb1ee5cbe9cf00b2f1edf8a"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 99,
+    "eligibleFiles": 42,
+    "capturedFiles": 4,
+    "skipped": [
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/_polling.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/async_challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/async_client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/http_challenge_cache.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/http_challenge.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/aio/_client.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_client.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom datetime import datetime\nfrom functools import partial\nfrom typing import Any, cast, Dict, Optional, Union\n\nfrom azure.core.paging import ItemPaged\nfrom azure.core.polling import LROPoller\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._generated.models import ContentType\nfrom ._models import KeyVaultSecret, DeletedSecret, SecretProperties\nfrom ._shared import KeyVaultClientBase\nfrom ._shared._polling import DeleteRecoverPollingMethod, KeyVaultOperationPoller\n\n\nclass SecretClient(KeyVaultClientBase):\n    \"\"\"A high-level interface for managing a vault's secrets.\n\n    :param str vault_url: URL of the vault the client will access. This is also called the vault's \"DNS Name\".\n        You should validate that this URL references a valid Key Vault resource. See https://aka.ms/azsdk/blog/vault-uri\n        for details.\n    :param credential: An object which can provide an access token for the vault, such as a credential from\n        :mod:`azure.identity`\n    :type credential: ~azure.core.credentials.TokenCredential\n\n    :keyword api_version: Version of the service API to use. Defaults to the most recent.\n    :paramtype api_version: ~azure.keyvault.secrets.ApiVersion or str\n    :keyword bool verify_challenge_resource: Whether to verify the authentication challenge resource matches the Key\n        Vault domain. Defaults to True.\n\n    Example:\n        .. literalinclude:: ../tests/test_samples_secrets.py\n            :start-after: [START create_secret_client]\n            :end-before: [END create_secret_client]\n            :language: python\n            :caption: Create a new ``SecretClient``\n            :dedent: 4\n    \"\"\"\n\n    # pylint:disable=protected-access\n\n    @distributed_trace\n    def get_secret(\n        self,\n        name: str,\n        version: Optional[str] = None,\n        *,\n        out_content_type: Optional[Union[str, ContentType]] = None,\n        **kwargs: Any,\n    ) -> KeyVaultSecret:\n        \"\"\"Get a secret. Requires the secrets/get permission.\n\n        :param str name: The name of the secret\n        :param str version: (optional) Version of the secret to get. If unspecified, gets the latest version.\n        :keyword out_content_type: The desired media type of the certificate secret value. For certificate-backed\n            secrets, the service can convert supported values such as ``application/x-pem-file``. Accepted values\n            include members of :class:`~azure.keyvault.secrets.ContentType`.\n        :paramtype out_content_type: str or ~azure.keyvault.secrets.ContentType or None\n\n        :returns: The fetched secret.\n        :rtype: ~azure.keyvault.secrets.KeyVaultSecret\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the secret doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START get_secret]\n                :end-before: [END get_secret]\n                :language: python\n                :caption: Get a secret\n                :dedent: 8\n        \"\"\"\n        client_kwargs = dict(kwargs)\n        if out_content_type is not None:\n            client_kwargs[\"out_content_type\"] = out_content_type\n\n        bundle = self._client.get_secret(\n            secret_name=name,\n            secret_version=version or \"\",\n            **client_kwargs\n        )\n        return KeyVaultSecret._from_secret_bundle(bundle)\n\n    @distributed_trace\n    def set_secret(\n        self,\n        name: str,\n        value: str,\n        *,\n        enabled: Optional[bool] = None,\n        tags: Optional[Dict[str, str]] = None,\n        content_type: Optional[str] = None,\n        not_before: Optional[datetime] = None,\n        expires_on: Optional[datetime] = None,\n        **kwargs: Any,\n    ) -> KeyVaultSecret:\n        \"\"\"Set a secret value. If `name` is in use, create a new version of the secret. If not, create a new secret.\n\n        Requires secrets/set permission.\n\n        :param str name: The name of the secret\n        :param str value: The value of the secret\n\n        :keyword bool enabled: Whether the secret is enabled for use.\n        :keyword tags: Application specific metadata in the form of key-value pairs.\n        :paramtype tags: Dict[str, str] or None\n        :keyword str content_type: An arbitrary string indicating the type of the secret, e.g. 'password'\n        :keyword ~datetime.datetime not_before: Not before date of the secret in UTC\n        :keyword ~datetime.datetime expires_on: Expiry date of the secret in UTC\n\n        :returns: The created or updated secret.\n        :rtype: ~azure.keyvault.secrets.KeyVaultSecret\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START set_secret]\n                :end-before: [END set_secret]\n                :language: python\n                :caption: Set a secret's value\n                :dedent: 8\n\n        \"\"\"\n        if enabled is not None or not_before is not None or expires_on is not None:\n            attributes = self._models.SecretAttributes(\n                enabled=enabled, not_before=not_before, expires=expires_on\n            )\n        else:\n            attributes = None\n\n        parameters = self._models.SecretSetParameters(\n            value=value,\n            tags=tags,\n            content_type=content_type,\n            secret_attributes=attributes\n        )\n\n        bundle = self._client.set_secret(\n            secret_name=name,\n            parameters=parameters,\n            **kwargs\n        )\n        return KeyVaultSecret._from_secret_bundle(bundle)\n\n    @distributed_trace\n    def update_secret_properties(\n        self,\n        name: str,\n        version: Optional[str] = None,\n        *,\n        enabled: Optional[bool] = None,\n        tags: Optional[Dict[str, str]] = None,\n        content_type: Optional[str] = None,\n        not_before: Optional[datetime] = None,\n        expires_on: Optional[datetime] = None,\n        **kwargs: Any,\n    ) -> SecretProperties:\n        \"\"\"Update properties of a secret other than its value. Requires secrets/set permission.\n\n        This method updates properties of the secret, such as whether it's enabled, but can't change the secret's\n        value. Use :func:`set_secret` to change the secret's value.\n\n        :param str name: Name of the secret\n        :param str version: (optional) Version of the secret to update. If unspecified, the latest version is updated.\n\n        :keyword bool enabled: Whether the secret is enabled for use.\n        :keyword tags: Application specific metadata in the form of key-value pairs.\n        :paramtype tags: Dict[str, str] or None\n        :keyword str content_type: An arbitrary string indicating the type of the secret, e.g. 'password'\n        :keyword ~datetime.datetime not_before: Not before date of the secret in UTC\n        :keyword ~datetime.datetime expires_on: Expiry date of the secret in UTC\n\n        :returns: The updated secret properties.\n        :rtype: ~azure.keyvault.secrets.SecretProperties\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the secret doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START update_secret]\n                :end-before: [END update_secret]\n                :language: python\n                :caption: Update a secret's attributes\n                :dedent: 8\n\n        \"\"\"\n        if enabled is not None or not_before is not None or expires_on is not None:\n            attributes = self._models.SecretAttributes(\n                enabled=enabled, not_before=not_before, expires=expires_on\n            )\n        else:\n            attributes = None\n\n        parameters = self._models.SecretUpdateParameters(\n            content_type=content_type,\n            secret_attributes=attributes,\n            tags=tags,\n        )\n\n        bundle = self._client.update_secret(\n            name,\n            secret_version=version or \"\",\n            parameters=parameters,\n            **kwargs\n        )\n        return SecretProperties._from_secret_bundle(bundle)  # pylint: disable=protected-access\n\n    @distributed_trace\n    def list_properties_of_secrets(self, **kwargs: Any) -> ItemPaged[SecretProperties]:\n        \"\"\"List identifiers and attributes of all secrets in the vault. Requires secrets/list permission.\n\n        List items don't include secret values. Use :func:`get_secret` to get a secret's value.\n\n        :returns: An iterator of secrets, excluding their values\n        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.secrets.SecretProperties]\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START list_secrets]\n                :end-before: [END list_secrets]\n                :language: python\n                :caption: List all secrets\n                :dedent: 8\n\n        \"\"\"\n        return self._client.get_secrets(\n            maxresults=kwargs.pop(\"max_page_size\", None),\n            cls=lambda objs: [SecretProperties._from_secret_item(x) for x in objs],\n            **kwargs\n        )\n\n    @distributed_trace\n    def list_properties_of_secret_versions(self, name: str, **kwargs: Any) -> ItemPaged[SecretProperties]:\n        \"\"\"List properties of all versions of a secret, excluding their values. Requires secrets/list permission.\n\n        List items don't include secret values. Use :func:`get_secret` to get a secret's value.\n\n        :param str name: Name of the secret\n\n        :returns: An iterator of secrets, excluding their values\n        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.secrets.SecretProperties]\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START list_properties_of_secret_versions]\n                :end-before: [END list_properties_of_secret_versions]\n                :language: python\n                :caption: List all versions of a secret\n                :dedent: 8\n\n        \"\"\"\n        return self._client.get_secret_versions(\n            name,\n            maxresults=kwargs.pop(\"max_page_size\", None),\n            cls=lambda objs: [SecretProperties._from_secret_item(x) for x in objs],\n            **kwargs\n        )\n\n    @distributed_trace\n    def backup_secret(self, name: str, **kwargs: Any) -> bytes:\n        \"\"\"Back up a secret in a protected form useable only by Azure Key Vault. Requires secrets/backup permission.\n\n        :param str name: Name of the secret to back up\n\n        :returns: The backup result, in a protected bytes format that can only be used by Azure Key Vault.\n        :rtype: bytes\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the secret doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START backup_secret]\n                :end-before: [END backup_secret]\n                :language: python\n                :caption: Back up a secret\n                :dedent: 8\n\n        \"\"\"\n        backup_result = self._client.backup_secret(name, **kwargs)\n        return cast(bytes, backup_result.value)\n\n    @distributed_trace\n    def restore_secret_backup(self, backup: bytes, **kwargs: Any) -> SecretProperties:\n        \"\"\"Restore a backed up secret. Requires the secrets/restore permission.\n\n        :param bytes backup: A secret backup as returned by :func:`backup_secret`\n\n        :returns: The restored secret\n        :rtype: ~azure.keyvault.secrets.SecretProperties\n\n        :raises ~azure.core.exceptions.ResourceExistsError or ~azure.core.exceptions.HttpResponseError:\n            the former if the secret's name is already in use; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START restore_secret_backup]\n                :end-before: [END restore_secret_backup]\n                :language: python\n                :caption: Restore a backed up secret\n                :dedent: 8\n\n        \"\"\"\n        bundle = self._client.restore_secret(\n            parameters=self._models.SecretRestoreParameters(secret_bundle_backup=backup),\n            **kwargs\n        )\n        return SecretProperties._from_secret_bundle(bundle)\n\n    @distributed_trace\n    def begin_delete_secret(self, name: str, **kwargs: Any) -> LROPoller[DeletedSecret]:  # pylint:disable=bad-option-value,delete-operation-wrong-return-type\n        \"\"\"Delete all versions of a secret. Requires secrets/delete permission.\n\n        When this method returns Key Vault has begun deleting the secret. Deletion may take several seconds in a vault\n        with soft-delete enabled. This method therefore returns a poller enabling you to wait for deletion to complete.\n\n        :param str name: Name of the secret to delete.\n\n        :returns: A poller for the delete operation. The poller's `result` method returns the\n            :class:`~azure.keyvault.secrets.DeletedSecret` without waiting for deletion to complete. If the vault has\n            soft-delete enabled and you want to permanently delete the secret with :func:`purge_deleted_secret`, call\n            the poller's `wait` method first. It will block until the deletion is complete. The `wait` method requires\n            secrets/get permission.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.secrets.DeletedSecret]\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the secret doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START delete_secret]\n                :end-before: [END delete_secret]\n                :language: python\n                :caption: Delete a secret\n                :dedent: 8\n\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 2\n        # Ignore pyright warning about return type not being iterable because we use `cls` to return a tuple\n        pipeline_response, deleted_secret_bundle = self._client.delete_secret(\n            secret_name=name,\n            cls=lambda pipeline_response, deserialized, _: (pipeline_response, deserialized),\n            **kwargs,\n        )  # pyright: ignore[reportGeneralTypeIssues]\n        deleted_secret = DeletedSecret._from_deleted_secret_bundle(deleted_secret_bundle)\n\n        command = partial(self.get_deleted_secret, name=name, **kwargs)\n        polling_method = DeleteRecoverPollingMethod(\n            # no recovery ID means soft-delete is disabled, in which case we initialize the poller as finished\n            finished=deleted_secret.recovery_id is None,\n            pipeline_response=pipeline_response,\n            command=command,\n            final_resource=deleted_secret,\n            interval=polling_interval,\n        )\n        return KeyVaultOperationPoller(polling_method)\n\n    @distributed_trace\n    def get_deleted_secret(self, name: str, **kwargs: Any) -> DeletedSecret:\n        \"\"\"Get a deleted secret. Possible only in vaults with soft-delete enabled. Requires secrets/get permission.\n\n        :param str name: Name of the deleted secret\n\n        :returns: The deleted secret.\n        :rtype: ~azure.keyvault.secrets.DeletedSecret\n\n        :raises ~azure.core.exceptions.ResourceNotFoundError or ~azure.core.exceptions.HttpResponseError:\n            the former if the deleted secret doesn't exist; the latter for other errors\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START get_deleted_secret]\n                :end-before: [END get_deleted_secret]\n                :language: python\n                :caption: Get a deleted secret\n                :dedent: 8\n\n        \"\"\"\n        bundle = self._client.get_deleted_secret(name, **kwargs)\n        return DeletedSecret._from_deleted_secret_bundle(bundle)\n\n    @distributed_trace\n    def list_deleted_secrets(self, **kwargs: Any) -> ItemPaged[DeletedSecret]:\n        \"\"\"Lists all deleted secrets. Possible only in vaults with soft-delete enabled.\n\n        Requires secrets/list permission.\n\n        :returns: An iterator of deleted secrets, excluding their values\n        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.secrets.DeletedSecret]\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START list_deleted_secrets]\n                :end-before: [END list_deleted_secrets]\n                :language: python\n                :caption: List deleted secrets\n                :dedent: 8\n\n        \"\"\"\n        return self._client.get_deleted_secrets(\n            maxresults=kwargs.pop(\"max_page_size\", None),\n            cls=lambda objs: [DeletedSecret._from_deleted_secret_item(x) for x in objs],\n            **kwargs\n        )\n\n    @distributed_trace\n    def purge_deleted_secret(self, name: str, **kwargs: Any) -> None:\n        \"\"\"Permanently deletes a deleted secret. Possible only in vaults with soft-delete enabled.\n\n        Performs an irreversible deletion of the specified secret, without possibility for recovery. The operation is\n        not available if the :py:attr:`~azure.keyvault.secrets.SecretProperties.recovery_level` does not specify\n        'Purgeable'. This method is only necessary for purging a secret before its\n        :py:attr:`~azure.keyvault.secrets.DeletedSecret.scheduled_purge_date`.\n\n        Requires secrets/purge permission.\n\n        :param str name: Name of the deleted secret to purge\n\n        :returns: None\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. code-block:: python\n\n                # if the vault has soft-delete enabled, purge permanently deletes the secret\n                # (with soft-delete disabled, begin_delete_secret is permanent)\n                secret_client.purge_deleted_secret(\"secret-name\")\n\n        \"\"\"\n        self._client.purge_deleted_secret(name, **kwargs)\n\n    @distributed_trace\n    def begin_recover_deleted_secret(self, name: str, **kwargs: Any) -> LROPoller[SecretProperties]:\n        \"\"\"Recover a deleted secret to its latest version. Possible only in a vault with soft-delete enabled.\n\n        Requires the secrets/recover permission. If the vault does not have soft-delete enabled,\n        :func:`begin_delete_secret` is permanent, and this method will return an error. Attempting to recover a\n        non-deleted secret will also return an error. When this method returns Key Vault has begun recovering the\n        secret. Recovery may take several seconds. This method therefore returns a poller enabling you to wait for\n        recovery to complete. Waiting is only necessary when you want to use the recovered secret in another operation\n        immediately.\n\n        :param str name: Name of the deleted secret to recover\n\n        :returns: A poller for the recovery operation. The poller's `result` method returns the recovered secret's\n            :class:`~azure.keyvault.secrets.SecretProperties` without waiting for recovery to complete. If you want to\n            use the recovered secret immediately, call the poller's `wait` method, which blocks until the secret is\n            ready to use. The `wait` method requires secrets/get permission.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.secrets.SecretProperties]\n\n        :raises ~azure.core.exceptions.HttpResponseError:\n\n        Example:\n            .. literalinclude:: ../tests/test_samples_secrets.py\n                :start-after: [START recover_deleted_secret]\n                :end-before: [END recover_deleted_secret]\n                :language: python\n                :caption: Recover a deleted secret\n                :dedent: 8\n\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 2\n        # Ignore pyright warning about return type not being iterable because we use `cls` to return a tuple\n        pipeline_response, recovered_secret_bundle = self._client.recover_deleted_secret(\n            secret_name=name,\n            cls=lambda pipeline_response, deserialized, _: (pipeline_response, deserialized),\n            **kwargs,\n        )  # pyright: ignore[reportGeneralTypeIssues]\n        recovered_secret = SecretProperties._from_secret_bundle(recovered_secret_bundle)\n\n        command = partial(self.get_secret, name=name, **kwargs)\n        polling_method = DeleteRecoverPollingMethod(\n            finished=False,\n            pipeline_response=pipeline_response,\n            command=command,\n            final_resource=recovered_secret,\n            interval=polling_interval,\n        )\n        return KeyVaultOperationPoller(polling_method)\n\n    def __enter__(self) -> \"SecretClient\":\n        self._client.__enter__()\n        return self\n",
+      "contentHash": "b4e7722a50791967203768f88e06db0d636f01a770d65695dc7a325ee1c4a88a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_client.py",
+      "startLine": 1,
+      "endLine": 494,
+      "kind": "unknown",
+      "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_models.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom datetime import datetime\n\nfrom typing import Any, Dict, Optional, Union\n\nfrom ._generated import models as _models\nfrom ._shared import parse_key_vault_id\n\n\nclass SecretProperties(object):\n    \"\"\"A secret's ID and attributes.\"\"\"\n\n    def __init__(self, *args: Any, **kwargs: Any) -> None:\n        self._attributes: Optional[_models.SecretAttributes] = args[0] if args else kwargs.get(\"attributes\", None)\n        self._id: Optional[str] = args[1] if len(args) > 1 else kwargs.get(\"vault_id\", None)\n        self._vault_id = KeyVaultSecretIdentifier(self._id) if self._id else None\n        self._content_type = kwargs.get(\"content_type\", None)\n        self._key_id = kwargs.get(\"key_id\", None)\n        self._managed = kwargs.get(\"managed\", None)\n        self._previous_version = kwargs.get(\"previous_version\", None)\n        self._tags = kwargs.get(\"tags\", None)\n\n    def __repr__(self) -> str:\n        return f\"<SecretProperties [{self.id}]>\"[:1024]\n\n    @classmethod\n    def _from_secret_bundle(\n        cls, secret_bundle: Union[_models.DeletedSecretBundle, _models.SecretBundle]\n    ) -> \"SecretProperties\":\n        return cls(\n            secret_bundle.attributes,\n            secret_bundle.id,\n            content_type=secret_bundle.content_type,\n            key_id=secret_bundle.kid,\n            managed=secret_bundle.managed,\n            previous_version=secret_bundle.previous_version,\n            tags=secret_bundle.tags,\n        )\n\n    @classmethod\n    def _from_secret_item(cls, secret_item: Union[_models.DeletedSecretItem, _models.SecretItem]) -> \"SecretProperties\":\n        return cls(\n            secret_item.attributes,\n            secret_item.id,\n            content_type=secret_item.content_type,\n            managed=secret_item.managed,\n            previous_version=getattr(secret_item, \"previous_version\", None),\n            tags=secret_item.tags,\n        )\n\n    @property\n    def content_type(self) -> Optional[str]:\n        \"\"\"An arbitrary string indicating the type of the secret.\n\n        :returns: The content type of the secret.\n        :rtype: str or None\n        \"\"\"\n        return self._content_type\n\n    @property\n    def id(self) -> Optional[str]:\n        \"\"\"The secret's ID.\n\n        :returns: The secret's ID.\n        :rtype: str or None\n        \"\"\"\n        return self._id\n\n    @property\n    def key_id(self) -> Optional[str]:\n        \"\"\"If this secret backs a certificate, this property is the identifier of the corresponding key.\n\n        :returns: The ID of the key backing the certificate that's backed by this secret. If the secret isn't backing a\n            certificate, this is None.\n        :rtype: str or None\n        \"\"\"\n        return self._key_id\n\n    @property\n    def enabled(self) -> Optional[bool]:\n        \"\"\"Whether the secret is enabled for use.\n\n        :returns: True if the secret is enabled for use; False otherwise.\n        :rtype: bool or None\n        \"\"\"\n        return self._attributes.enabled if self._attributes else None\n\n    @property\n    def not_before(self) -> Optional[datetime]:\n        \"\"\"The time before which the secret cannot be used, in UTC.\n\n        :returns: The time before which the secret cannot be used, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.not_before if self._attributes else None\n\n    @property\n    def expires_on(self) -> Optional[datetime]:\n        \"\"\"When the secret expires, in UTC.\n\n        :returns: When the secret expires, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.expires if self._attributes else None\n\n    @property\n    def created_on(self) -> Optional[datetime]:\n        \"\"\"When the secret was created, in UTC.\n\n        :returns: When the secret was created, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.created if self._attributes else None\n\n    @property\n    def updated_on(self) -> Optional[datetime]:\n        \"\"\"When the secret was last updated, in UTC.\n\n        :returns: When the secret was last updated, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._attributes.updated if self._attributes else None\n\n    @property\n    def recoverable_days(self) -> Optional[int]:\n        \"\"\"The number of days the key is retained before being deleted from a soft-delete enabled Key Vault.\n\n        :returns: The number of days the key is retained before being deleted from a soft-delete enabled Key Vault.\n        :rtype: int or None\n        \"\"\"\n        # recoverable_days was added in 7.1-preview\n        if self._attributes and hasattr(self._attributes, \"recoverable_days\"):\n            return self._attributes.recoverable_days\n        return None\n\n    @property\n    def recovery_level(self) -> Optional[str]:\n        \"\"\"The vault's deletion recovery level for secrets.\n\n        :returns: The vault's deletion recovery level for secrets.\n        :rtype: str or None\n        \"\"\"\n        return self._attributes.recovery_level if self._attributes else None\n\n    @property\n    def vault_url(self) -> Optional[str]:\n        \"\"\"URL of the vault containing the secret.\n\n        :returns: URL of the vault containing the secret.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.vault_url if self._vault_id else None\n\n    @property\n    def name(self) -> Optional[str]:\n        \"\"\"The secret's name.\n\n        :returns: The secret's name.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.name if self._vault_id else None\n\n    @property\n    def version(self) -> Optional[str]:\n        \"\"\"The secret's version.\n\n        :returns: The secret's version.\n        :rtype: str or None\n        \"\"\"\n        return self._vault_id.version if self._vault_id else None\n\n    @property\n    def tags(self) -> Optional[Dict[str, str]]:\n        \"\"\"Application specific metadata in the form of key-value pairs.\n\n        :returns: A dictionary of tags attached to this secret.\n        :rtype: dict or None\n        \"\"\"\n        return self._tags\n\n    @property\n    def managed(self) -> Optional[bool]:\n        \"\"\"Whether the secret's lifetime is managed by Key Vault. If the secret backs a certificate, this will be true.\n\n        :returns: True if the secret's lifetime is managed by Key Vault; False otherwise.\n        :rtype: bool or None\n        \"\"\"\n        return self._managed\n\n    @property\n    def previous_version(self) -> Optional[str]:\n        \"\"\"The previous version identifier for certificate-backed secrets, if available.\n\n        :returns: The previous version identifier.\n        :rtype: str or None\n        \"\"\"\n        return self._previous_version\n\n\nclass KeyVaultSecret(object):\n    \"\"\"All of a secret's properties, and its value.\n\n    :param properties: The secret's properties.\n    :type properties: ~azure.keyvault.secrets.SecretProperties\n    :param value: The value of the secret.\n    :type value: str or None\n    \"\"\"\n\n    def __init__(self, properties: SecretProperties, value: Optional[str]) -> None:\n        self._properties = properties\n        self._value = value\n\n    def __repr__(self) -> str:\n        return f\"<KeyVaultSecret [{self.id}]>\"[:1024]\n\n    @classmethod\n    def _from_secret_bundle(cls, secret_bundle: _models.SecretBundle) -> \"KeyVaultSecret\":\n        return cls(\n            properties=SecretProperties._from_secret_bundle(secret_bundle),  # pylint: disable=protected-access\n            value=secret_bundle.value,\n        )\n\n    @property\n    def name(self) -> Optional[str]:\n        \"\"\"The secret's name.\n\n        :returns: The secret's name.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.name\n\n    @property\n    def id(self) -> Optional[str]:\n        \"\"\"The secret's ID.\n\n        :returns: The secret's ID.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.id\n\n    @property\n    def properties(self) -> SecretProperties:\n        \"\"\"The secret's properties.\n\n        :returns: The secret's properties.\n        :rtype: ~azure.keyvault.secrets.SecretProperties\n        \"\"\"\n        return self._properties\n\n    @property\n    def value(self) -> Optional[str]:\n        \"\"\"The secret's value.\n\n        :returns: The secret's value.\n        :rtype: str or None\n        \"\"\"\n        return self._value\n\n\nclass KeyVaultSecretIdentifier(object):\n    \"\"\"Information about a KeyVaultSecret parsed from a secret ID.\n\n    :param str source_id: the full original identifier of a secret\n\n    :raises ValueError: if the secret ID is improperly formatted\n\n    Example:\n        .. literalinclude:: ../tests/test_parse_id.py\n            :start-after: [START parse_key_vault_secret_id]\n            :end-before: [END parse_key_vault_secret_id]\n            :language: python\n            :caption: Parse a secret's ID\n            :dedent: 8\n    \"\"\"\n\n    def __init__(self, source_id: str) -> None:\n        self._resource_id = parse_key_vault_id(source_id)\n\n    @property\n    def source_id(self) -> str:\n        return self._resource_id.source_id\n\n    @property\n    def vault_url(self) -> str:\n        return self._resource_id.vault_url\n\n    @property\n    def name(self) -> str:\n        return self._resource_id.name\n\n    @property\n    def version(self) -> Optional[str]:\n        return self._resource_id.version\n\n\nclass DeletedSecret(object):\n    \"\"\"A deleted secret's properties and information about its deletion.\n\n    If soft-delete is enabled, returns information about its recovery as well.\n\n    :param properties: The deleted secret's properties.\n    :type properties: ~azure.keyvault.secrets.SecretProperties\n    :param deleted_date: When the secret was deleted, in UTC.\n    :type deleted_date: ~datetime.datetime or None\n    :param recovery_id: An identifier used to recover the deleted secret.\n    :type recovery_id: str or None\n    :param scheduled_purge_date: When the secret is scheduled to be purged by Key Vault, in UTC.\n    :type scheduled_purge_date: ~datetime.datetime or None\n    \"\"\"\n\n    def __init__(\n        self,\n        properties: SecretProperties,\n        deleted_date: Optional[datetime] = None,\n        recovery_id: Optional[str] = None,\n        scheduled_purge_date: Optional[datetime] = None,\n    ) -> None:\n        self._properties = properties\n        self._deleted_date = deleted_date\n        self._recovery_id = recovery_id\n        self._scheduled_purge_date = scheduled_purge_date\n\n    def __repr__(self) -> str:\n        return f\"<DeletedSecret [{self.id}]>\"[:1024]\n\n    @classmethod\n    def _from_deleted_secret_bundle(cls, deleted_secret_bundle: _models.DeletedSecretBundle) -> \"DeletedSecret\":\n        return cls(\n            properties=SecretProperties._from_secret_bundle(deleted_secret_bundle),  # pylint: disable=protected-access\n            deleted_date=deleted_secret_bundle.deleted_date,\n            recovery_id=deleted_secret_bundle.recovery_id,\n            scheduled_purge_date=deleted_secret_bundle.scheduled_purge_date,\n        )\n\n    @classmethod\n    def _from_deleted_secret_item(cls, deleted_secret_item: _models.DeletedSecretItem) -> \"DeletedSecret\":\n        return cls(\n            properties=SecretProperties._from_secret_item(deleted_secret_item),  # pylint: disable=protected-access\n            deleted_date=deleted_secret_item.deleted_date,\n            recovery_id=deleted_secret_item.recovery_id,\n            scheduled_purge_date=deleted_secret_item.scheduled_purge_date,\n        )\n\n    @property\n    def name(self) -> Optional[str]:\n        \"\"\"The secret's name.\n\n        :returns: The secret's name.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.name\n\n    @property\n    def id(self) -> Optional[str]:\n        \"\"\"The secret's ID.\n\n        :returns: The secret's ID.\n        :rtype: str or None\n        \"\"\"\n        return self._properties.id\n\n    @property\n    def properties(self) -> SecretProperties:\n        \"\"\"The properties of the deleted secret.\n\n        :returns: The properties of the deleted secret.\n        :rtype: ~azure.keyvault.secrets.SecretProperties\n        \"\"\"\n        return self._properties\n\n    @property\n    def deleted_date(self) -> Optional[datetime]:\n        \"\"\"When the secret was deleted, in UTC.\n\n        :returns: When the secret was deleted, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._deleted_date\n\n    @property\n    def recovery_id(self) -> Optional[str]:\n        \"\"\"An identifier used to recover the deleted secret.\n\n        :returns: An identifier used to recover the deleted secret.\n        :rtype: str or None\n        \"\"\"\n        return self._recovery_id\n\n    @property\n    def scheduled_purge_date(self) -> Optional[datetime]:\n        \"\"\"When the secret is scheduled to be purged by Key Vault, in UTC.\n\n        :returns: When the secret is scheduled to be purged by Key Vault, in UTC.\n        :rtype: ~datetime.datetime or None\n        \"\"\"\n        return self._scheduled_purge_date\n",
+      "contentHash": "f9a5c0f93fa6fd82778629ca5bf00c8f380757b3a70501d17e0840e36e2e83ce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_models.py",
+      "startLine": 1,
+      "endLine": 399,
+      "kind": "unknown",
+      "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/__init__.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom typing import Optional\nfrom urllib import parse\n\nfrom .challenge_auth_policy import ChallengeAuthPolicy\nfrom .client_base import KeyVaultClientBase\nfrom .http_challenge import HttpChallenge\nfrom . import http_challenge_cache\n\nHttpChallengeCache = http_challenge_cache  # to avoid aliasing pylint error (C4745)\n\n\n__all__ = [\n    \"ChallengeAuthPolicy\",\n    \"HttpChallenge\",\n    \"HttpChallengeCache\",\n    \"KeyVaultClientBase\",\n]\n\n\nclass KeyVaultResourceId:\n    \"\"\"Represents a Key Vault identifier and its parsed contents.\n\n    :param str source_id: The complete identifier received from Key Vault\n    :param str vault_url: The vault URL\n    :param str name: The name extracted from the ID\n    :param str version: The version extracted from the ID\n    \"\"\"\n\n    def __init__(\n        self,\n        source_id: str,\n        vault_url: str,\n        name: str,\n        version: \"Optional[str]\" = None,\n    ) -> None:\n        self.source_id = source_id\n        self.vault_url = vault_url\n        self.name = name\n        self.version = version\n\n\ndef parse_key_vault_id(source_id: str) -> KeyVaultResourceId:\n    try:\n        parsed_uri = parse.urlparse(source_id)\n    except Exception as exc:\n        raise ValueError(f\"'{source_id}' is not a valid ID\") from exc\n    if not (parsed_uri.scheme and parsed_uri.hostname):\n        raise ValueError(f\"'{source_id}' is not a valid ID\")\n\n    path = list(filter(None, parsed_uri.path.split(\"/\")))\n\n    if len(path) < 2 or len(path) > 3:\n        raise ValueError(f\"'{source_id}' is not a valid ID\")\n\n    vault_url = f\"{parsed_uri.scheme}://{parsed_uri.hostname}\"\n    if parsed_uri.port:\n        vault_url += f\":{parsed_uri.port}\"\n\n    return KeyVaultResourceId(\n        source_id=source_id,\n        vault_url=vault_url,\n        name=path[1],\n        version=path[2] if len(path) == 3 else None,\n    )\n\n\ntry:\n    # pylint:disable=unused-import\n    from .async_challenge_auth_policy import AsyncChallengeAuthPolicy\n    from .async_client_base import AsyncKeyVaultClientBase\n\n    __all__.extend([\"AsyncChallengeAuthPolicy\", \"AsyncKeyVaultClientBase\"])\nexcept (SyntaxError, ImportError):\n    pass\n",
+      "contentHash": "e275a1920e6f5bc25affae62fc697ed3393afb7c90fe83e659498243c1056af6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/__init__.py",
+      "startLine": 1,
+      "endLine": 78,
+      "kind": "unknown",
+      "id": "57ac16a19626284029b4fc6ae7802e907bb8b83c8ff21d3d4099d2a2ce8f80c5"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/_polling_async.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom typing import Any, Callable, cast\n\nfrom azure.core.exceptions import ResourceNotFoundError, HttpResponseError\nfrom azure.core.pipeline import PipelineResponse\nfrom azure.core.pipeline.transport import AsyncHttpTransport\nfrom azure.core.polling import AsyncPollingMethod\n\n\nclass AsyncDeleteRecoverPollingMethod(AsyncPollingMethod):\n    \"\"\"Poller for deleting resources, and recovering deleted resources, in vaults with soft-delete enabled.\n\n    This works by polling for the existence of the deleted or recovered resource. When a resource is deleted, Key Vault\n    immediately removes it from its collection. However, the resource will not immediately appear in the deleted\n    collection. Key Vault will therefore respond 404 to GET requests for the deleted resource; when it responds 2xx,\n    the resource exists in the deleted collection i.e. its deletion is complete.\n\n    Similarly, while recovering a deleted resource, Key Vault will respond 404 to GET requests for the non-deleted\n    resource; when it responds 2xx, the resource exists in the non-deleted collection, i.e. its recovery is complete.\n\n    :param pipeline_response: The operation's original pipeline response.\n    :type pipeline_response: PipelineResponse\n    :param command: An awaitable to invoke when polling.\n    :type command: Callable\n    :param final_resource: The final resource returned by the polling operation.\n    :type final_resource: Any\n    :param bool finished: Whether or not the polling operation is completed.\n    :param int interval: The polling interval, in seconds.\n    \"\"\"\n\n    def __init__(\n        self,\n        pipeline_response: PipelineResponse,\n        command: Callable,\n        final_resource: Any,\n        finished: bool,\n        interval: int = 2,\n    ) -> None:\n        self._pipeline_response = pipeline_response\n        self._command = command\n        self._resource = final_resource\n        self._polling_interval = interval\n        self._finished = finished\n\n    def initialize(self, client, initial_response, deserialization_callback):\n        pass\n\n    async def _update_status(self) -> None:\n        try:\n            await self._command()\n            self._finished = True\n        except ResourceNotFoundError:\n            pass\n        except HttpResponseError as e:\n            # If we are polling on get_deleted_* and we don't have get permissions, we will get\n            # ResourceNotFoundError until the resource is recovered, at which point we'll get a 403.\n            if e.status_code == 403:\n                self._finished = True\n            else:\n                raise\n\n    async def run(self) -> None:\n        while not self.finished():\n            await self._update_status()\n            if not self.finished():\n                # We should always ask the client's transport to sleep, instead of sleeping directly\n                transport: AsyncHttpTransport = cast(AsyncHttpTransport, self._pipeline_response.context.transport)\n                await transport.sleep(self._polling_interval)\n\n    def finished(self) -> bool:\n        return self._finished\n\n    def resource(self) -> Any:\n        return self._resource\n\n    def status(self) -> str:\n        return \"finished\" if self._finished else \"polling\"\n",
+      "contentHash": "d9368e89e86371e3d9d3f76ce33e9e95d3afe0c9980adfaede31a96e58e653ce",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/_polling_async.py",
+      "startLine": 1,
+      "endLine": 80,
+      "kind": "unknown",
+      "id": "170b3396012bee13057e0e530bcac77cf624af902cbaf32e07ad076482f327b7"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/pyproject.toml",
+      "text": "[build-system]\nrequires = [\"setuptools>=61.0.0\", \"wheel\"]  # Requires 61.0.0 for dynamic version\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-keyvault-secrets\"\nauthors = [\n    {name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\"},\n]\ndescription = \"Microsoft Corporation Key Vault Secrets Client Library for Python\"\nkeywords = [\"azure\", \"azure sdk\"]\nrequires-python = \">=3.9\"\nlicense = {text = \"MIT License\"}\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n    \"License :: OSI Approved :: MIT License\",\n]\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.31.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\"version\", \"readme\"]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python/tree/main/sdk\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.keyvault.secrets._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\"samples*\", \"tests*\", \"azure\", \"azure.keyvault\"]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-build]\n\n[tool.uv.sources]\nazure-core = { path = \"../../core/azure-core\" }\nazure-identity = { path = \"../../identity/azure-identity\" }\nazure-keyvault-nspkg = { path = \"../../nspkg/azure-keyvault-nspkg\" }\nazure-sdk-tools = { path = \"../../../eng/tools/azure-sdk-tools\" }\n\n[dependency-groups]\ndev = [\n    \"aiohttp>=3.0\",\n    \"azure-core\",\n    \"azure-identity\",\n    \"azure-keyvault-nspkg\",\n    \"azure-sdk-tools\",\n    \"parameterized>=0.7.3\",\n    \"python-dateutil>=2.8.0\",\n]\n\n[tool.azure-sdk-conda]\nin_bundle = true\nbundle_name = \"azure-keyvault\"\n\n[packaging]\nauto_update = false\n",
+      "contentHash": "f288d442cbb3cc34bbeb623bf76a598345991e0e3544507857605dd48950a7a1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/pyproject.toml"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Secrets\ncommit: 942c8b2fd38b3be3f322e219c97c5c3a75f2e97b\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n- specification/keyvault/data-plane/Secrets/common\n",
+      "contentHash": "2eee98ad347a4e2667eff033de813f6b724bc7a5338259ed7b1e0181d3dd8bb0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-secrets/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "d022d9322a5dc34d806ff81667a604d3f1d74e6fc82f3e82c0fe4798b6a9e20e",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "6a69910bb6cad64db4f8ee8202ec12d827b0488aedb8a96d5754d7da5c0c2462",
+        "category": "Convenience methods",
+        "subtype": "Version-normalizing secret retrieval with public-model conversion",
+        "explanation": "get_secret normalizes a falsy version to an empty string, copies kwargs, conditionally forwards a non-None out_content_type and converts the underlying bundle to KeyVaultSecret. It does not itself convert certificate formats or validate the requested MIME type.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public client outside _generated implements concrete argument normalization and conversion into the separately supplied handwritten facade model, rather than a same-result generated operation.",
+        "symbols": [
+          "SecretClient.get_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 45,
+            "endLine": 53
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 77,
+            "endLine": 86
+          }
+        ]
+      },
+      {
+        "key": "9570e741cb855172bee6462754a2bbedefbd92e7d888d35dffed634b18bcdd77",
+        "category": "Convenience methods",
+        "subtype": "Flattened secret-setting arguments assembled into request models",
+        "explanation": "set_secret constructs SecretAttributes only when enabled, not_before or expires_on is non-None, preserving explicit False; otherwise attributes is None. It builds SecretSetParameters from the flattened inputs, invokes the lower-level operation and projects the bundle into KeyVaultSecret.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated facade explicitly assembles generated-model request objects and applies a separate public-model converter.",
+        "symbols": [
+          "SecretClient.set_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 88,
+            "endLine": 100
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 129,
+            "endLine": 148
+          }
+        ]
+      },
+      {
+        "key": "038e8a850d94555d7f6923e35621330cd9f3698f3034934043825bf0626dee9d",
+        "category": "Convenience methods",
+        "subtype": "Flattened property update with optional attributes and metadata-only result",
+        "explanation": "update_secret_properties conditionally constructs SecretAttributes using non-None tests, builds SecretUpdateParameters for content type/attributes/tags, defaults a falsy version to an empty string and converts the result to SecretProperties rather than exposing the wire bundle.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public facade outside _generated has substantive generated-model assembly and result reshaping in its method body.",
+        "symbols": [
+          "SecretClient.update_secret_properties"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 150,
+            "endLine": 162
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 193,
+            "endLine": 212
+          }
+        ]
+      },
+      {
+        "key": "4642a72f95fa2a5fe60701bd0c998c1e49ed44e863141cff58743d147b9470d6",
+        "category": "Pagination",
+        "subtype": "Secret-page item projection and public page-size option adaptation",
+        "explanation": "list_properties_of_secrets pops max_page_size into the lower-level maxresults argument and supplies a cls callback mapping each returned item to SecretProperties. The lower-level pager remains responsible for continuation; no custom next-link algorithm is supplied.",
+        "pattern": "paged-item-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper provides an executable item-conversion callback and keyword-name adaptation outside the generated operation layer.",
+        "symbols": [
+          "SecretClient.list_properties_of_secrets"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 214,
+            "endLine": 215
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 232,
+            "endLine": 236
+          }
+        ]
+      },
+      {
+        "key": "3ae250c7328ba8c3493c4e9652c389d57ae4f3372a39d469d5b337b02bc6844a",
+        "category": "Pagination",
+        "subtype": "Secret-version page projection into public metadata models",
+        "explanation": "list_properties_of_secret_versions forwards name, adapts max_page_size to maxresults and supplies a callback constructing SecretProperties for each wire item. This is custom page-item shaping, not evidence that SDK continuation handling itself was rewritten.",
+        "pattern": "paged-item-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten facade supplies a concrete model-projection callback and public/lower-level option-name mapping.",
+        "symbols": [
+          "SecretClient.list_properties_of_secret_versions"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 238,
+            "endLine": 239
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 258,
+            "endLine": 263
+          }
+        ]
+      },
+      {
+        "key": "be55b83c67af5e9855e81125a4570c2680371e0d7f661ad3e37ef4183dca3e0a",
+        "category": "Convenience methods",
+        "subtype": "Backup-result value unwrapping as the public byte result",
+        "explanation": "backup_secret returns the lower-level backup result's value under cast(bytes, ...). The cast is a typing operation, not runtime byte conversion, validation, encoding or client-side encryption.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated public wrapper explicitly unwraps the generated result container instead of returning it unchanged.",
+        "symbols": [
+          "SecretClient.backup_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 265,
+            "endLine": 266
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 286,
+            "endLine": 287
+          }
+        ]
+      },
+      {
+        "key": "18a7cd710d8ff550d52d8a00fd11a0e9331fcbff199917d2e516415da1df5a1d",
+        "category": "Convenience methods",
+        "subtype": "Backup bytes packed into restore request and metadata result",
+        "explanation": "restore_secret_backup packs its backup argument into SecretRestoreParameters.secret_bundle_backup, invokes restore_secret and projects the returned bundle into SecretProperties. No local cryptographic restoration or byte decoding is implemented here.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The facade builds a generated request model from a flattened public argument and returns a separately implemented public projection.",
+        "symbols": [
+          "SecretClient.restore_secret_backup"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 289,
+            "endLine": 290
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 310,
+            "endLine": 314
+          }
+        ]
+      },
+      {
+        "key": "f7f2762ba19332e3cfef73f8427fbd8e3fa870ad25876736e6d207607860f832",
+        "category": "LRO / polling",
+        "subtype": "Delete poller initialized from recovery-ID availability and a resource GET",
+        "explanation": "begin_delete_secret defaults the private _polling_interval keyword to two only when None, captures pipeline response plus deserialized body through cls, builds DeletedSecret and creates a get_deleted_secret command. It passes those to DeleteRecoverPollingMethod, setting finished when recovery_id is None, and wraps that strategy in KeyVaultOperationPoller. The sync polling classes are absent, so their result/wait/error semantics are not inferred from docstrings or the supplied async counterpart.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public non-generated client explicitly assembles a resource-specific polling strategy, completion seed and final public resource, beyond merely importing LROPoller.",
+        "symbols": [
+          "SecretClient.begin_delete_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 316,
+            "endLine": 317
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 344,
+            "endLine": 364
+          }
+        ]
+      },
+      {
+        "key": "bef27aadb47dacc80b43610fb7deed397da45f086dd5e601cb5bcb6f5780652a",
+        "category": "Convenience methods",
+        "subtype": "Deleted-secret retrieval projected into the public facade model",
+        "explanation": "get_deleted_secret invokes the lower-level operation and converts its bundle through DeletedSecret._from_deleted_secret_bundle.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The wrapper outside _generated explicitly returns a separate public model implemented in the supplied _models module.",
+        "symbols": [
+          "SecretClient.get_deleted_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 366,
+            "endLine": 367
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 387,
+            "endLine": 388
+          }
+        ]
+      },
+      {
+        "key": "a04bd6b7acba150431f3201f50b457a20bfe598e161bbe6915e09a6581318af8",
+        "category": "Pagination",
+        "subtype": "Deleted-secret page projection and page-size option adaptation",
+        "explanation": "list_deleted_secrets maps max_page_size to maxresults and supplies a cls callback converting wire list items into DeletedSecret. No lower-level continuation implementation is supplied.",
+        "pattern": "paged-item-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Concrete callback-based item reshaping and keyword adaptation are implemented in the public non-generated client.",
+        "symbols": [
+          "SecretClient.list_deleted_secrets"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 390,
+            "endLine": 391
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 408,
+            "endLine": 412
+          }
+        ]
+      },
+      {
+        "key": "0c5953162298d708bc8e87016a4cbdc2dd6ac87122fc6175c993431d149794a3",
+        "category": "LRO / polling",
+        "subtype": "Recovery poller initialized unfinished with a live-secret GET command",
+        "explanation": "begin_recover_deleted_secret defaults a None _polling_interval to two, obtains pipeline response/body through cls, projects the initial result into SecretProperties and passes a partial get_secret command to DeleteRecoverPollingMethod with finished=False and that retained final resource. It returns KeyVaultOperationPoller; the missing sync implementations prevent assertions about result() returning early or exact wait completion rules.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public facade constructs a resource-specific recovery poller with explicit initial state, command and projected resource rather than using an unmodified generated operation result.",
+        "symbols": [
+          "SecretClient.begin_recover_deleted_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 441,
+            "endLine": 442
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 471,
+            "endLine": 490
+          }
+        ]
+      },
+      {
+        "key": "8c4fdbc466921fcc1eff1e37ac90a944b7eeb7382a12505d2ff34ab69170c787",
+        "category": "Model overrides",
+        "subtype": "Public secret metadata construction from generated bundle/item types",
+        "explanation": "SecretProperties stores an attribute object/ID plus content type, key ID, managed state, previous version and tags. Its bundle/item factories construct this public representation from explicit _generated model inputs; bundle kid becomes key_id, and the item factory uses getattr(..., previous_version, None). These factories build a separate object but do not implement a deep copy of referenced attributes/tags.",
+        "pattern": "public-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The module outside _generated explicitly imports wire models and implements separate public-class constructors/factories over them; this is a concrete facade conversion, not generated-type re-export scaffolding.",
+        "symbols": [
+          "SecretProperties.__init__",
+          "SecretProperties._from_secret_bundle",
+          "SecretProperties._from_secret_item"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 9,
+            "endLine": 24
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 29,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "fdc4902aee7655f941aba77c749eaa7bab238100dda548f696152f9ff6e80a4b",
+        "category": "Model overrides",
+        "subtype": "Null-tolerant enabled attribute flattening",
+        "explanation": "SecretProperties.enabled exposes the nested attribute's enabled value when the attribute object is truthy and otherwise returns None.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete property on the non-generated public metadata facade flattens the separately stored generated attribute object.",
+        "symbols": [
+          "SecretProperties.enabled"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 82,
+            "endLine": 89
+          }
+        ]
+      },
+      {
+        "key": "fc51e3b0a1bd9ad3f6a55e4d7965f0ce6f843eb831b687889a05b1c68a0fa987",
+        "category": "Model overrides",
+        "subtype": "Null-tolerant not-before attribute flattening",
+        "explanation": "SecretProperties.not_before forwards the nested attribute's not_before value if the attribute object is truthy, otherwise None; it performs no timestamp conversion.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated facade implements this flattening property over its retained wire attributes.",
+        "symbols": [
+          "SecretProperties.not_before"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 91,
+            "endLine": 98
+          }
+        ]
+      },
+      {
+        "key": "43c7d61bd816ae108d0fca5030bca0e03eac9b0d3b7070edcd660569766f24c6",
+        "category": "Model overrides",
+        "subtype": "expires_on alias over the nested expires attribute",
+        "explanation": "SecretProperties.expires_on returns _attributes.expires when the attribute object is truthy, otherwise None. This is a public name/flattening adaptation, not date normalization.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete property in the non-generated public wrapper aliases the generated attribute member under a different public name.",
+        "symbols": [
+          "SecretProperties.expires_on"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 100,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "9645c1724a74081f3356570e53a63bfd7abaf34e6fe209e253b84cdbfa29da44",
+        "category": "Model overrides",
+        "subtype": "created_on alias over the nested created attribute",
+        "explanation": "SecretProperties.created_on exposes _attributes.created when the attributes object is truthy and returns None otherwise.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public non-generated metadata class implements a renamed flattened accessor over its generated attribute object.",
+        "symbols": [
+          "SecretProperties.created_on"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 109,
+            "endLine": 116
+          }
+        ]
+      },
+      {
+        "key": "f78f016fd079f3c1dae5344d0c4664c3dd608be1f29ab52db49521ee1f7c82eb",
+        "category": "Model overrides",
+        "subtype": "updated_on alias over the nested updated attribute",
+        "explanation": "SecretProperties.updated_on forwards _attributes.updated for a truthy attribute object, otherwise None.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An implemented property outside _generated gives the nested wire attribute a different public name.",
+        "symbols": [
+          "SecretProperties.updated_on"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 118,
+            "endLine": 125
+          }
+        ]
+      },
+      {
+        "key": "d099c58b020a77b949dead426f7b2ee12c8aba9795bf2874f95c56972780f5c3",
+        "category": "Model overrides",
+        "subtype": "Null-tolerant recovery-level attribute flattening",
+        "explanation": "SecretProperties.recovery_level returns the nested attribute's recovery_level when its attribute object is truthy, otherwise None.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated public model supplies an explicit flattened accessor over its generated metadata object.",
+        "symbols": [
+          "SecretProperties.recovery_level"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 139,
+            "endLine": 146
+          }
+        ]
+      },
+      {
+        "key": "6a8b35a2caa05a9bbe671a7078682b5e95f020ad6756cc1f3ceb12a97b30a6e1",
+        "category": "Model overrides",
+        "subtype": "Recoverable-days property guarded for missing model members",
+        "explanation": "recoverable_days checks both attribute-object truthiness and hasattr(..., recoverable_days) before forwarding the value, returning None otherwise. The comment's API-version introduction date is not independently checked.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public wrapper implements a concrete member-availability guard over potentially differing generated attribute models.",
+        "symbols": [
+          "SecretProperties.recoverable_days"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 127,
+            "endLine": 137
+          }
+        ]
+      },
+      {
+        "key": "79ee0846270cea668a2e337e05d3cf819b3f544c8f2487254e7698a655397e49",
+        "category": "Other",
+        "subtype": "Typed resource-ID parsing and derived secret identifier properties",
+        "explanation": "parse_key_vault_id requires a parsed scheme/hostname and two or three nonempty path components, reconstructs vault URL from scheme/hostname/optional port, and returns source/name/optional version in a carrier. It does not check the first component is secrets or require HTTPS. KeyVaultSecretIdentifier delegates to that parser; SecretProperties initializes it for a truthy ID and exposes vault_url/name/version through nullable forwarding. Only urlparse itself is inside the broad exception wrapper, not every subsequent parsed-property access.",
+        "pattern": "resource-id-parsing",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete parser in the non-generated shared module is wired into separately implemented public identifier/metadata classes; this is not inferred from identifier documentation alone.",
+        "symbols": [
+          "parse_key_vault_id",
+          "KeyVaultResourceId",
+          "KeyVaultSecretIdentifier",
+          "SecretProperties.vault_url",
+          "SecretProperties.name",
+          "SecretProperties.version"
+        ],
+        "evidence": [
+          {
+            "id": "57ac16a19626284029b4fc6ae7802e907bb8b83c8ff21d3d4099d2a2ce8f80c5",
+            "startLine": 24,
+            "endLine": 68
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 16,
+            "endLine": 19
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 148,
+            "endLine": 173
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 279,
+            "endLine": 296
+          }
+        ]
+      },
+      {
+        "key": "bd9447ae0f49c2660c79b82d41e2872a443f3b8ae6030483e1eb905767dfa131",
+        "category": "Model overrides",
+        "subtype": "Public secret model composed from metadata and a value",
+        "explanation": "KeyVaultSecret stores SecretProperties and an optional value, builds itself from a generated SecretBundle through the metadata factory, delegates name/id to the metadata and exposes properties/value. It retains the provided objects rather than implementing an explicit deep copy.",
+        "pattern": "public-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public class outside _generated implements its own constructor and wire-to-facade factory with a different composed object shape from the explicitly referenced generated input.",
+        "symbols": [
+          "KeyVaultSecret.__init__",
+          "KeyVaultSecret._from_secret_bundle",
+          "KeyVaultSecret.name",
+          "KeyVaultSecret.id",
+          "KeyVaultSecret.properties",
+          "KeyVaultSecret.value"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 212,
+            "endLine": 214
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 219,
+            "endLine": 260
+          }
+        ]
+      },
+      {
+        "key": "de96b8092b7aff9dc9daf91c1613d5913a211e1575568ebd273e796148faa31a",
+        "category": "Model overrides",
+        "subtype": "Deleted-secret facade combining metadata with recovery information",
+        "explanation": "DeletedSecret stores SecretProperties plus deletion date, recovery ID and scheduled purge date. Its bundle/item factories create metadata through the corresponding SecretProperties factory and copy those recovery fields; name/id delegate to metadata and other properties expose the retained values.",
+        "pattern": "public-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated public class explicitly adapts two generated input model forms into a composed facade, with implemented constructors, conversion factories and accessors.",
+        "symbols": [
+          "DeletedSecret.__init__",
+          "DeletedSecret._from_deleted_secret_bundle",
+          "DeletedSecret._from_deleted_secret_item",
+          "DeletedSecret.name",
+          "DeletedSecret.id",
+          "DeletedSecret.properties",
+          "DeletedSecret.deleted_date",
+          "DeletedSecret.recovery_id",
+          "DeletedSecret.scheduled_purge_date"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 314,
+            "endLine": 324
+          },
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 329,
+            "endLine": 399
+          }
+        ]
+      },
+      {
+        "key": "801b788c7420bb5f8ac2cc066e5203cd477270e5aeac1a7814efeac13b10ba13",
+        "category": "Model overrides",
+        "subtype": "Bounded identifier-based metadata representation",
+        "explanation": "SecretProperties.__repr__ formats its class label and ID and slices the resulting string to 1024 characters.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The independently implemented public metadata class supplies an executable representation override outside _generated.",
+        "symbols": [
+          "SecretProperties.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 26,
+            "endLine": 27
+          }
+        ]
+      },
+      {
+        "key": "8af60aac35f9e8abf2253ad58353ac0adfceb91da2579cb49c69fa09fca80786",
+        "category": "Model overrides",
+        "subtype": "Bounded secret representation including ID rather than value",
+        "explanation": "KeyVaultSecret.__repr__ includes its class label and ID, not the value field, then slices to 1024 characters. This describes this formatter only, not a universal secrecy/redaction guarantee.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated facade implements its own representation override over the composed metadata model.",
+        "symbols": [
+          "KeyVaultSecret.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 216,
+            "endLine": 217
+          }
+        ]
+      },
+      {
+        "key": "f8c62489ff33c79cb13f6eb9a0c8446cf4238873efc314e71cf2c4f4aa89d53c",
+        "category": "Model overrides",
+        "subtype": "Bounded identifier-based deleted-secret representation",
+        "explanation": "DeletedSecret.__repr__ formats its class label and ID, truncating the result to 1024 characters.",
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete representation override is implemented in the separate public facade model outside _generated.",
+        "symbols": [
+          "DeletedSecret.__repr__"
+        ],
+        "evidence": [
+          {
+            "id": "34cccba5ae1da47bdaf1031a9e20b4b03565a6558cf2aefa4d8e37dc6b13a5c9",
+            "startLine": 326,
+            "endLine": 327
+          }
+        ]
+      },
+      {
+        "key": "156bb645951b81fc9960747d57dcbc8b8a3eb1fa4a5b82d050941ed97913099f",
+        "category": "LRO / polling",
+        "subtype": "Async existence polling with 404-pending and 403-complete rules",
+        "explanation": "AsyncDeleteRecoverPollingMethod retains the initial final_resource, response, command, interval and completion seed. Its update awaits command, completes on success or HttpResponseError status 403, leaves ResourceNotFoundError pending and rethrows other HTTP errors. run loops until finished and sleeps through the response context transport between pending updates. resource returns the retained original resource, not the command's return value; status is finished or polling. No deadline/cancellation logic is visible in this class and its public async caller is absent.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated shared module implements an entire concrete AsyncPollingMethod subclass with custom exception-to-state transitions, sleep and resource behavior rather than merely depending on azure-core polling.",
+        "symbols": [
+          "AsyncDeleteRecoverPollingMethod"
+        ],
+        "evidence": [
+          {
+            "id": "170b3396012bee13057e0e530bcac77cf624af902cbaf32e07ad076482f327b7",
+            "startLine": 13,
+            "endLine": 13
+          },
+          {
+            "id": "170b3396012bee13057e0e530bcac77cf624af902cbaf32e07ad076482f327b7",
+            "startLine": 34,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "76f7c00a5a7c8ff50127ef7785d164a1c913bfd2a3f8399ff6da56dc83f58575",
+        "category": "Other",
+        "subtype": "Optional async shared imports guarded against syntax/import failures",
+        "explanation": "The shared module attempts to import its async auth policy/base and extends __all__ only after both imports succeed. SyntaxError or ImportError is caught and ignored. The import-control behavior is visible, but no reason for a particular missing dependency or interpreter failure is inferred.",
+        "pattern": "optional-async-surface-import",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated shared module implements conditional import/error behavior, rather than just an unconditional generated-name re-export list.",
+        "symbols": [
+          "_shared.AsyncChallengeAuthPolicy",
+          "_shared.AsyncKeyVaultClientBase",
+          "_shared.__all__"
+        ],
+        "evidence": [
+          {
+            "id": "57ac16a19626284029b4fc6ae7802e907bb8b83c8ff21d3d4099d2a2ce8f80c5",
+            "startLine": 71,
+            "endLine": 78
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "6a69910bb6cad64db4f8ee8202ec12d827b0488aedb8a96d5754d7da5c0c2462",
+        "status": "accepted",
+        "reason": "The non-generated facade's lines 77-86 conditionally forward out_content_type, normalize the version and construct KeyVaultSecret from the returned bundle; the proposal does not attribute media conversion to the wrapper."
+      },
+      {
+        "key": "9570e741cb855172bee6462754a2bbedefbd92e7d888d35dffed634b18bcdd77",
+        "status": "accepted",
+        "reason": "Lines 129-148 explicitly preserve False through non-None tests, build nested generated request models and project the response into a separate public model. The flattened-arguments pattern is reusable."
+      },
+      {
+        "key": "038e8a850d94555d7f6923e35621330cd9f3698f3034934043825bf0626dee9d",
+        "status": "accepted",
+        "reason": "Lines 193-212 show optional attribute and request-model construction, falsy version normalization and a public SecretProperties projection; these are concrete facade behavior, not inferred generator behavior."
+      },
+      {
+        "key": "4642a72f95fa2a5fe60701bd0c998c1e49ed44e863141cff58743d147b9470d6",
+        "status": "accepted",
+        "reason": "Lines 232-236 adapt max_page_size and supply a concrete page-item mapping callback. The finding correctly avoids claiming custom continuation logic."
+      },
+      {
+        "key": "3ae250c7328ba8c3493c4e9652c389d57ae4f3372a39d469d5b337b02bc6844a",
+        "status": "accepted",
+        "reason": "Lines 258-263 show the independent version-list operation's page-size adaptation and model projection; neither next-link behavior nor generated implementation is inferred."
+      },
+      {
+        "key": "be55b83c67af5e9855e81125a4570c2680371e0d7f661ad3e37ef4183dca3e0a",
+        "status": "accepted",
+        "reason": "Lines 286-287 unwrap backup_result.value in a public bytes-returning method; cast changes only the type annotation and the finding expressly avoids asserting runtime conversion."
+      },
+      {
+        "key": "18a7cd710d8ff550d52d8a00fd11a0e9331fcbff199917d2e516415da1df5a1d",
+        "status": "revised",
+        "reason": "Lines 310-314 support the request packing and public result projection, but convenience-options-unpacking describes unpacking an options object or flattened option set; this method packs one backup value into a request model. The revised pattern names the reusable behavior more precisely.",
+        "finding": {
+          "key": "18a7cd710d8ff550d52d8a00fd11a0e9331fcbff199917d2e516415da1df5a1d",
+          "category": "Convenience methods",
+          "subtype": "Backup bytes packed into restore request and metadata result",
+          "explanation": "restore_secret_backup wraps its backup argument in SecretRestoreParameters.secret_bundle_backup, calls the lower-level restore_secret operation and projects the returned bundle to SecretProperties. This method does not itself decode the backup or perform cryptographic restoration.",
+          "pattern": "request-model-packing",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The public client outside _generated constructs a generated request model from its byte argument and explicitly converts the resulting bundle to the supplied public metadata model.",
+          "symbols": [
+            "SecretClient.restore_secret_backup"
+          ],
+          "evidence": [
+            {
+              "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+              "startLine": 289,
+              "endLine": 290
+            },
+            {
+              "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+              "startLine": 310,
+              "endLine": 314
+            }
+          ]
+        }
+      },
+      {
+        "key": "f7f2762ba19332e3cfef73f8427fbd8e3fa870ad25876736e6d207607860f832",
+        "status": "accepted",
+        "reason": "Lines 344-364 explicitly assemble a delete polling strategy with interval, completion seed, GET command, pipeline response and public resource. The proposal carefully leaves the unsupplied synchronous polling classes' runtime semantics open."
+      },
+      {
+        "key": "bef27aadb47dacc80b43610fb7deed397da45f086dd5e601cb5bcb6f5780652a",
+        "status": "accepted",
+        "reason": "Lines 387-388 call the lower-level operation and project its bundle into the handwritten DeletedSecret facade; this is a distinct typed public wrapper."
+      },
+      {
+        "key": "a04bd6b7acba150431f3201f50b457a20bfe598e161bbe6915e09a6581318af8",
+        "status": "accepted",
+        "reason": "Lines 408-412 map the page-size keyword and individual deleted-secret items, without evidence of custom continuation handling; the proposed pagination subtype accurately scopes this behavior."
+      },
+      {
+        "key": "0c5953162298d708bc8e87016a4cbdc2dd6ac87122fc6175c993431d149794a3",
+        "status": "accepted",
+        "reason": "Lines 471-490 show the recovery operation's distinct unfinished seed, GET command and initial metadata resource. Claims about result and wait are appropriately withheld because synchronous polling implementations are not supplied."
+      },
+      {
+        "key": "8c4fdbc466921fcc1eff1e37ac90a944b7eeb7382a12505d2ff34ab69170c787",
+        "status": "accepted",
+        "reason": "The supplied _models.py imports _generated types and lines 16-52 construct a different public metadata representation from bundle and item fields. The proposal does not mistakenly claim a deep copy."
+      },
+      {
+        "key": "fdc4902aee7655f941aba77c749eaa7bab238100dda548f696152f9ff6e80a4b",
+        "status": "accepted",
+        "reason": "Line 89 implements the nullable forwarding of nested enabled; the separately defined property is a concrete public-model adaptation."
+      },
+      {
+        "key": "fc51e3b0a1bd9ad3f6a55e4d7965f0ce6f843eb831b687889a05b1c68a0fa987",
+        "status": "accepted",
+        "reason": "Line 98 directly forwards not_before from a truthy attributes object or returns None, with no timestamp conversion claimed."
+      },
+      {
+        "key": "43c7d61bd816ae108d0fca5030bca0e03eac9b0d3b7070edcd660569766f24c6",
+        "status": "accepted",
+        "reason": "Line 107 maps the nested expires member to the public expires_on property with a nullable fallback; the alias is directly evidenced."
+      },
+      {
+        "key": "9645c1724a74081f3356570e53a63bfd7abaf34e6fe209e253b84cdbfa29da44",
+        "status": "accepted",
+        "reason": "Line 116 maps nested created to the public created_on accessor, or returns None for missing attributes."
+      },
+      {
+        "key": "f78f016fd079f3c1dae5344d0c4664c3dd608be1f29ab52db49521ee1f7c82eb",
+        "status": "accepted",
+        "reason": "Line 125 maps nested updated to updated_on with a nullable fallback, distinct from the other individually implemented properties."
+      },
+      {
+        "key": "d099c58b020a77b949dead426f7b2ee12c8aba9795bf2874f95c56972780f5c3",
+        "status": "accepted",
+        "reason": "Line 146 explicitly flattens the nested recovery_level attribute into a nullable public property."
+      },
+      {
+        "key": "6a8b35a2caa05a9bbe671a7078682b5e95f020ad6756cc1f3ceb12a97b30a6e1",
+        "status": "accepted",
+        "reason": "Lines 135-137 implement a distinct hasattr guard before forwarding recoverable_days; the finding does not treat the adjacent historical API-version comment as independently verified."
+      },
+      {
+        "key": "79ee0846270cea668a2e337e05d3cf819b3f544c8f2487254e7698a655397e49",
+        "status": "accepted",
+        "reason": "The supplied shared parser validates and decomposes a URI into a carrier; the supplied metadata and identifier classes actually consume it. The proposal correctly confines exception handling to urlparse and avoids claiming HTTPS or resource-kind validation."
+      },
+      {
+        "key": "bd9447ae0f49c2660c79b82d41e2872a443f3b8ae6030483e1eb905767dfa131",
+        "status": "accepted",
+        "reason": "Lines 212-260 show a non-generated public value-plus-properties model, explicit bundle factory and forwarding properties, with no unsupported claim of deep copying."
+      },
+      {
+        "key": "de96b8092b7aff9dc9daf91c1613d5913a211e1575568ebd273e796148faa31a",
+        "status": "accepted",
+        "reason": "Lines 314-399 show the public deleted-secret facade, two distinct conversion factories and forwarding accessors; the grouping captures one composed-model behavior rather than treating simple getters as independent conversions."
+      },
+      {
+        "key": "801b788c7420bb5f8ac2cc066e5203cd477270e5aeac1a7814efeac13b10ba13",
+        "status": "accepted",
+        "reason": "Lines 26-27 implement the bounded SecretProperties representation, independently of its constructor and factories."
+      },
+      {
+        "key": "8af60aac35f9e8abf2253ad58353ac0adfceb91da2579cb49c69fa09fca80786",
+        "status": "accepted",
+        "reason": "Lines 216-217 show the KeyVaultSecret representation using its ID and slicing to 1024; the claim is limited to this formatter, not a universal redaction guarantee."
+      },
+      {
+        "key": "f8c62489ff33c79cb13f6eb9a0c8446cf4238873efc314e71cf2c4f4aa89d53c",
+        "status": "accepted",
+        "reason": "Lines 326-327 implement an independently defined, 1024-character-bounded DeletedSecret representation."
+      },
+      {
+        "key": "156bb645951b81fc9960747d57dcbc8b8a3eb1fa4a5b82d050941ed97913099f",
+        "status": "accepted",
+        "reason": "The supplied asynchronous subclass implements state transitions for successful GET, ResourceNotFoundError and status 403, transport-based interval sleeps, resource retention and status reporting in lines 34-80. No synchronous-class or unseen caller behavior is inferred."
+      },
+      {
+        "key": "76f7c00a5a7c8ff50127ef7785d164a1c913bfd2a3f8399ff6da56dc83f58575",
+        "status": "accepted",
+        "reason": "Lines 71-78 implement a conditional asynchronous public surface: two imports and __all__ extension succeed together or SyntaxError/ImportError is ignored. That control flow is more than a thin re-export; the cause of any import failure remains unknown."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "3c4c2603335d80b7dd1d5a2435b5a649efa1bdfbfe95232e0a06e82a70dd726c",
+        "category": "Convenience methods",
+        "subtype": "Public facade delegates permanent deletion to its underlying operation",
+        "explanation": "SecretClient.purge_deleted_secret exposes a facade method which calls self._client.purge_deleted_secret with the supplied name and kwargs. The supplied body has no local purge algorithm, validation or result conversion.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated SecretClient implements an executable public wrapper around the lower-level operation; whether this thin forwarding alone merits counting as a customization needs independent assessment.",
+        "symbols": [
+          "SecretClient.purge_deleted_secret"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 414,
+            "endLine": 415
+          },
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 438,
+            "endLine": 439
+          }
+        ]
+      },
+      {
+        "key": "f91b5d838d8c1e297af5e4e56f6349aa088a15b0bd1b4fb3efcdd7bedaad17c4",
+        "category": "Convenience methods",
+        "subtype": "Context manager enters the underlying client but returns the public facade",
+        "explanation": "SecretClient.__enter__ invokes self._client.__enter__ and returns self, providing context-manager entry with the public facade as its bound value. The underlying enter implementation and cleanup behavior are not supplied.",
+        "pattern": "client-context-manager-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An executable context-manager method is defined on the public non-generated client, rather than being merely imported from the unseen base class.",
+        "symbols": [
+          "SecretClient.__enter__"
+        ],
+        "evidence": [
+          {
+            "id": "cf6038a47c8e5f6b57c51df484d3e7ece4b54d4ff16d0fd9099cdc97f9e31997",
+            "startLine": 492,
+            "endLine": 494
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only four of 42 eligible files were captured from 99 discovered files. The sync polling implementation, both auth policies/client bases, challenge cache/parser and public async client are explicitly not supplied. No package-wide absence conclusion is made.",
+      "All evidence kinds are unknown. The substantive public facade/projection code lives outside _generated and explicitly references generated wire models/operations; concrete custom polling/parser implementations provide additional signals. The missing generated overlay prevents claims about every ordinary field/getter or exact emitter behavior.",
+      "The async polling subclass is complete but its public integration is not supplied. The sync public methods wire different omitted polling classes; their documented early result()/wait() semantics must not be imported from the async code or treated as tested.",
+      "Auth-related class docs and imports do not establish actual challenge resource verification, credential scopes, retries or cache behavior. These omitted policies are discovery leads, not reviewed auth findings.",
+      "Resource-ID parsing validates scheme/host and path length but not a secrets resource kind, HTTPS or a trusted Key Vault domain. It uses parsed hostname/port rather than preserving the entire original authority and does not explicitly reject query/fragment components. No broader security or service-validation guarantee is inferred.",
+      "The generated model implementations and operation callback contracts are absent. The facade's model/attribute/tag projections do not establish a deep-copy guarantee, wire timestamp conversion, server-side content-type conversion or complete generated error handling.",
+      "Ordinary distributed_trace decorators, direct purge forwarding, context entry forwarding, raw stored-field getters, unconditional shared-name exports and imports are not separately inflated into telemetry/client/customization findings. Representation methods expose an ID in their own output but are not a global redaction claim.",
+      "latestRelease is 4.11.2; pyproject uses a dynamic source version whose file is not supplied. TypeSpec location pins 942c8b2fd38b3be3f322e219c97c5c3a75f2e97b and a shared directory, but no spec contents or SDK execution was supplied. Generator-addressability is prospective, not measured current emitter support.",
+      "This is an AI-reviewed assessment of four captured files from 42 eligible files among 99 discovered files, not verification or exhaustive discovery; uncaptured files cannot support either findings or absence claims.",
+      "The synchronous _shared/_polling.py, shared client bases and challenge-auth implementations, asynchronous public client and other eligible files were not supplied. The synchronous poller's result, wait, errors and termination behavior and the asynchronous poller's use by its caller remain unverified.",
+      "Generated operation and model implementations were not supplied, so generated serialization, pagination, polling and transport behavior cannot be independently characterized; only the shown handwritten call sites and public model construction are assessed.",
+      "The two thin-wrapper omissions are candidate behaviors only and must remain inconclusive pending an independent decision on whether delegation or context-manager adaptation meets the instance threshold."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_client.py",
+      "startLine": 1,
+      "endLine": 494,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "b4e7722a50791967203768f88e06db0d636f01a770d65695dc7a325ee1c4a88a"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_models.py",
+      "startLine": 1,
+      "endLine": 399,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "f9a5c0f93fa6fd82778629ca5bf00c8f380757b3a70501d17e0840e36e2e83ce"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/__init__.py",
+      "startLine": 1,
+      "endLine": 78,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "e275a1920e6f5bc25affae62fc697ed3393afb7c90fe83e659498243c1056af6"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/_polling.py",
+      "startLine": 1,
+      "endLine": 136,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "3b5f6d745c2c9221fd3a556750ae1b77df823ec42657743d5d95bcb6e74c3a41"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/_polling_async.py",
+      "startLine": 1,
+      "endLine": 80,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d9368e89e86371e3d9d3f76ce33e9e95d3afe0c9980adfaede31a96e58e653ce"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/async_challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 304,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "defa7e7aea25fc4e9287fe0292aa8723e4a4a459f4113f4d5ac969e01e3a2918"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/async_client_base.py",
+      "startLine": 1,
+      "endLine": 117,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "cfbb7e0d4dab1ec2b27e94de66c54572db86e9c10093976cda7b99fe0b30c96b"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 394,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "0749e2e1566942b26d8ea7217a16951962610bf890e90218db0620dc193833fc"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/client_base.py",
+      "startLine": 1,
+      "endLine": 162,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "928d15c3ab5cb1b7a5a4162dfdea2f13887c35eb1b716ce40b0f2562713dd0c3"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/http_challenge.py",
+      "startLine": 1,
+      "endLine": 186,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "dede11c6c78d00b79fe20db7b9ef5c3c75e0b99a8238d7ae237c48bc4b9fced7"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/_shared/http_challenge_cache.py",
+      "startLine": 1,
+      "endLine": 112,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "1d5c450fe9a3144079bd589d1d6982d10ecf0d2c7437347eb2a1c220e4e03468"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-secrets/azure/keyvault/secrets/aio/_client.py",
+      "startLine": 1,
+      "endLine": 468,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "684ae8bee9ae71e69fe32d60deed4fae4031138a8e8ec9d7a57e336935680554"
+    }
+  ]
+}

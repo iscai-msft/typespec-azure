@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 1,
+  "id": "7177228f-ebc1-4a63-a266-05022240ae0a",
+  "observedAt": "2026-10-24T04:10:18.000Z",
+  "identity": "dotnet:azure.messaging.webpubsub.chat:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Messaging.WebPubSub.Chat",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "8b22dc7664a3f78201d7531049046cd6ff3d9df0"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 99,
+    "eligibleFiles": 77,
+    "capturedFiles": 7,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/BuiltInChatRoles.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    /// <summary> Built-in roles supported by Web PubSub Chat. </summary>\n    public static class BuiltInChatRoles\n    {\n        /// <summary> The default user role with room creation and room listing permissions. </summary>\n        public const string UserNormal = \"user.normal\";\n\n        /// <summary> The room member role with publish, history, and invite permissions. </summary>\n        public const string RoomMember = \"room.member\";\n\n        /// <summary> The room operator role with all room permissions, including removing users. </summary>\n        public const string RoomOperator = \"room.operator\";\n    }\n}",
+      "contentHash": "b869cd2543e37ee8272d7217816412c4920c10f86514f1fd92b493810fd915fe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/BuiltInChatRoles.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "kind": "unknown",
+      "id": "6e7f85c8df8c930a528be234d8a607952d7b79d276b6d8fe994c513b4eb4d02f"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/ClientAccessUriOptions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    /// <summary>\n    /// Options for generating a client access URI via\n    /// <see cref=\"WebPubSubChatServiceClient.GetClientAccessUri(ClientAccessUriOptions, System.Threading.CancellationToken)\"/>.\n    /// </summary>\n    public class ClientAccessUriOptions\n    {\n        /// <summary>\n        /// Optional user ID to embed in the token. When set, the token is bound to this user.\n        /// </summary>\n        public string UserId { get; set; }\n\n        /// <summary>\n        /// How long the token remains valid. Defaults to one hour.\n        /// </summary>\n        public TimeSpan ExpiresAfter { get; set; } = TimeSpan.FromHours(1);\n    }\n}\n",
+      "contentHash": "378ac07e2407d715b15e8c5ebc8426f1309fad96066dad07ac73cb30f4833829",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/ClientAccessUriOptions.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "unknown",
+      "id": "fc56e86142201ee6955d61cb1cc2eabb9857c84da14cef365925dfc65347e5cd"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/MessageQueryOptions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    /// <summary> Options for querying messages in a conversation. </summary>\n    public class MessageQueryOptions\n    {\n        /// <summary> Gets or sets the latest message ID (exclusive) for pagination. </summary>\n        public string LatestMessageId { get; set; }\n\n        /// <summary> Gets or sets the earliest message ID (exclusive) for pagination. </summary>\n        public string EarliestMessageId { get; set; }\n\n        /// <summary> Gets or sets the maximum number of result items per page. </summary>\n        public int? MaxPageSize { get; set; }\n    }\n}",
+      "contentHash": "706c6595fdca7645486870a2bcdae21800f2eba917995723e5bb2c9e18e026ef",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/MessageQueryOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "kind": "unknown",
+      "id": "4199a8122c3731feb4d3c80770cf5222f9d472759b0638792606bf32c3e82dc1"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient_helpers.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    public partial class WebPubSubChatServiceClient\n    {\n        private static readonly string[] ChatClientRoles = new[]\n        {\n            \"webpubsub.getGroupState\",\n            \"webpubsub.setGroupState\"\n        };\n\n        // Token generation intentionally does not delegate to WebPubSubServiceClient. Doing so would\n        // require a second options instance and a second pipeline, but ClientOptions cannot be copied\n        // losslessly through its public API: reading Transport does not preserve whether it was explicitly\n        // set, and policies added through AddPolicy cannot be enumerated. Retaining the credentials here\n        // lets both chat operations and token generation use the one pipeline built from the caller's options.\n        private readonly AzureKeyCredential _keyCredential;\n        private readonly TokenCredential _tokenCredential;\n\n        /// <summary>\n        /// Generates a client access URI that a client can use to connect to the Web PubSub Chat service.\n        /// The URI includes a JWT access token as a query parameter.\n        /// </summary>\n        /// <param name=\"options\">Options controlling the generated token. Pass <c>null</c> to use defaults.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <returns>A <see cref=\"Uri\"/> that a client can use to connect, with the access token included.</returns>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual Uri GetClientAccessUri(\n            ClientAccessUriOptions options = null,\n            CancellationToken cancellationToken = default)\n        {\n            options ??= new ClientAccessUriOptions();\n            TimeSpan expiresAfter = GetExpiresAfter(options);\n\n            string token = _keyCredential != null\n                ? GenerateClientToken(options, expiresAfter)\n                : RequestClientToken(options, expiresAfter, cancellationToken);\n            return CreateClientAccessUri(token);\n        }\n#pragma warning restore AZC0015\n\n        /// <summary>\n        /// Generates a client access URI that a client can use to connect to the Web PubSub Chat service.\n        /// The URI includes a JWT access token as a query parameter.\n        /// </summary>\n        /// <param name=\"options\">Options controlling the generated token. Pass <c>null</c> to use defaults.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <returns>A <see cref=\"Uri\"/> that a client can use to connect, with the access token included.</returns>\n#pragma warning disable AZC0015 // Unexpected client method return type.\n        public virtual async Task<Uri> GetClientAccessUriAsync(\n            ClientAccessUriOptions options = null,\n            CancellationToken cancellationToken = default)\n        {\n            options ??= new ClientAccessUriOptions();\n            TimeSpan expiresAfter = GetExpiresAfter(options);\n\n            string token = _keyCredential != null\n                ? GenerateClientToken(options, expiresAfter)\n                : await RequestClientTokenAsync(options, expiresAfter, cancellationToken).ConfigureAwait(false);\n            return CreateClientAccessUri(token);\n        }\n#pragma warning restore AZC0015\n\n        private string GenerateClientToken(ClientAccessUriOptions options, TimeSpan expiresAfter)\n        {\n            if (_keyCredential == null)\n            {\n                throw new InvalidOperationException(\"GetClientAccessUri requires the client to be constructed with credentials.\");\n            }\n\n            string endpoint = _endpoint.AbsoluteUri;\n            if (!endpoint.EndsWith(\"/\", StringComparison.Ordinal))\n            {\n                endpoint += \"/\";\n            }\n\n            return WebPubSubClientAccessTokenGenerator.Generate(\n                _keyCredential,\n                $\"{endpoint}{GetRelativeClientEndpoint()}\",\n                DateTimeOffset.UtcNow.Add(expiresAfter),\n                options.UserId,\n                ChatClientRoles);\n        }\n\n        private string RequestClientToken(ClientAccessUriOptions options, TimeSpan expiresAfter, CancellationToken cancellationToken)\n        {\n            EnsureTokenCredential();\n            int minutesToExpire = Math.Max((int)expiresAfter.TotalMinutes, 1);\n            return GenerateClientToken(options.UserId, ChatClientRoles, minutesToExpire, cancellationToken).Value.Token;\n        }\n\n        private async Task<string> RequestClientTokenAsync(ClientAccessUriOptions options, TimeSpan expiresAfter, CancellationToken cancellationToken)\n        {\n            EnsureTokenCredential();\n            int minutesToExpire = Math.Max((int)expiresAfter.TotalMinutes, 1);\n            Response<GenerateClientTokenResult> response = await GenerateClientTokenAsync(options.UserId, ChatClientRoles, minutesToExpire, cancellationToken).ConfigureAwait(false);\n            return response.Value.Token;\n        }\n\n        private Uri CreateClientAccessUri(string token)\n        {\n            UriBuilder clientEndpoint = new UriBuilder(_endpoint)\n            {\n                Scheme = _endpoint.Scheme == \"http\" ? \"ws\" : \"wss\"\n            };\n\n            return new Uri($\"{clientEndpoint}{GetRelativeClientEndpoint()}?access_token={token}\");\n        }\n\n        private string GetRelativeClientEndpoint() => $\"client/hubs/{_hub}\";\n\n        private void EnsureTokenCredential()\n        {\n            if (_tokenCredential == null)\n            {\n                throw new InvalidOperationException(\"GetClientAccessUri requires the client to be constructed with credentials.\");\n            }\n        }\n\n        private static TimeSpan GetExpiresAfter(ClientAccessUriOptions options)\n            => options.ExpiresAfter == default ? TimeSpan.FromHours(1) : options.ExpiresAfter;\n    }\n}\n",
+      "contentHash": "d956a20fff4172a4e0780cbaf1d25d862512ba693e02f9dca55782eb20e8aeaf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient_helpers.cs",
+      "startLine": 1,
+      "endLine": 130,
+      "kind": "unknown",
+      "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    [CodeGenSuppress(\"WebPubSubChatServiceClient\", typeof(Uri), typeof(string), typeof(TokenCredential))]\n    [CodeGenSuppress(\"WebPubSubChatServiceClient\", typeof(Uri), typeof(string), typeof(TokenCredential), typeof(WebPubSubChatServiceClientOptions))]\n    [CodeGenSuppress(\"WebPubSubChatServiceClient\", typeof(HttpPipelinePolicy), typeof(Uri), typeof(string), typeof(WebPubSubChatServiceClientOptions))]\n    [CodeGenSuppress(\"GetMessages\", typeof(string), typeof(string), typeof(string), typeof(int?), typeof(CancellationToken))]\n    [CodeGenSuppress(\"GetMessagesAsync\", typeof(string), typeof(string), typeof(string), typeof(int?), typeof(CancellationToken))]\n    public partial class WebPubSubChatServiceClient\n    {\n        internal virtual Pageable<WebPubSubChatMessage> GetMessages(string conversationId, string latestMessageId, string earliestMessageId, int? maxPageSize, CancellationToken cancellationToken)\n        {\n            Argument.AssertNotNullOrEmpty(conversationId, nameof(conversationId));\n\n            return new WebPubSubChatServiceClientGetMessagesCollectionResultOfT(\n                this,\n                conversationId,\n                latestMessageId,\n                earliestMessageId,\n                maxPageSize,\n                cancellationToken.ToRequestContext(),\n                \"WebPubSubChatServiceClient.GetMessages\");\n        }\n\n        internal virtual AsyncPageable<WebPubSubChatMessage> GetMessagesAsync(string conversationId, string latestMessageId, string earliestMessageId, int? maxPageSize, CancellationToken cancellationToken)\n        {\n            Argument.AssertNotNullOrEmpty(conversationId, nameof(conversationId));\n\n            return new WebPubSubChatServiceClientGetMessagesAsyncCollectionResultOfT(\n                this,\n                conversationId,\n                latestMessageId,\n                earliestMessageId,\n                maxPageSize,\n                cancellationToken.ToRequestContext(),\n                \"WebPubSubChatServiceClient.GetMessages\");\n        }\n\n        /// <summary>\n        /// The hub name this client is connected to.\n        /// </summary>\n        public virtual string Hub => _hub;\n\n        /// <summary> Query messages in a conversation from latest to earliest. </summary>\n        /// <param name=\"conversationId\"> Conversation identifier. </param>\n        /// <param name=\"options\"> Options for querying messages. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token that can be used to cancel the operation. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"conversationId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"conversationId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-success status code. </exception>\n        public virtual Pageable<WebPubSubChatMessage> GetMessages(string conversationId, MessageQueryOptions options = null, CancellationToken cancellationToken = default)\n        {\n            return GetMessages(\n                conversationId,\n                options?.LatestMessageId,\n                options?.EarliestMessageId,\n                options?.MaxPageSize,\n                cancellationToken);\n        }\n\n        /// <summary> Query messages in a conversation from latest to earliest. </summary>\n        /// <param name=\"conversationId\"> Conversation identifier. </param>\n        /// <param name=\"options\"> Options for querying messages. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token that can be used to cancel the operation. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"conversationId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"conversationId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"RequestFailedException\"> Service returned a non-success status code. </exception>\n        public virtual AsyncPageable<WebPubSubChatMessage> GetMessagesAsync(string conversationId, MessageQueryOptions options = null, CancellationToken cancellationToken = default)\n        {\n            return GetMessagesAsync(\n                conversationId,\n                options?.LatestMessageId,\n                options?.EarliestMessageId,\n                options?.MaxPageSize,\n                cancellationToken);\n        }\n\n        /// <summary> Updates a message. </summary>\n        /// <param name=\"conversationId\">Conversation identifier.</param>\n        /// <param name=\"messageId\">Message identifier.</param>\n        /// <param name=\"message\">The message content and creator.</param>\n        /// <param name=\"matchConditions\">Conditions for the request.</param>\n        /// <param name=\"cancellationToken\">The cancellation token that can be used to cancel the operation.</param>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"conversationId\"/>, <paramref name=\"messageId\"/> or <paramref name=\"message\"/> is null.</exception>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"conversationId\"/> or <paramref name=\"messageId\"/> is an empty string.</exception>\n        /// <exception cref=\"RequestFailedException\">Service returned a non-success status code.</exception>\n        /// <returns>The updated message.</returns>\n        public virtual Response<WebPubSubChatMessage> UpdateMessage(\n            string conversationId,\n            string messageId,\n            WebPubSubChatMessage message,\n            MatchConditions matchConditions = default,\n            CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(message, nameof(message));\n\n            using RequestContent content = RequestContent.Create(message);\n            Response response = UpdateMessage(conversationId, messageId, content, matchConditions, cancellationToken.ToRequestContext());\n            return Response.FromValue((WebPubSubChatMessage)response, response);\n        }\n\n        /// <summary> Updates a message. </summary>\n        /// <param name=\"conversationId\">Conversation identifier.</param>\n        /// <param name=\"messageId\">Message identifier.</param>\n        /// <param name=\"message\">The message content and creator.</param>\n        /// <param name=\"matchConditions\">Conditions for the request.</param>\n        /// <param name=\"cancellationToken\">The cancellation token that can be used to cancel the operation.</param>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"conversationId\"/>, <paramref name=\"messageId\"/> or <paramref name=\"message\"/> is null.</exception>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"conversationId\"/> or <paramref name=\"messageId\"/> is an empty string.</exception>\n        /// <exception cref=\"RequestFailedException\">Service returned a non-success status code.</exception>\n        /// <returns>The updated message.</returns>\n        public virtual async Task<Response<WebPubSubChatMessage>> UpdateMessageAsync(\n            string conversationId,\n            string messageId,\n            WebPubSubChatMessage message,\n            MatchConditions matchConditions = default,\n            CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(message, nameof(message));\n\n            using RequestContent content = RequestContent.Create(message);\n            Response response = await UpdateMessageAsync(conversationId, messageId, content, matchConditions, cancellationToken.ToRequestContext()).ConfigureAwait(false);\n            return Response.FromValue((WebPubSubChatMessage)response, response);\n        }\n\n        internal WebPubSubChatServiceClient(HttpPipelinePolicy authenticationPolicy, Uri endpoint, string hub, WebPubSubChatServiceClientOptions options)\n        {\n            Argument.AssertNotNull(endpoint, nameof(endpoint));\n            Argument.AssertNotNullOrEmpty(hub, nameof(hub));\n\n            options ??= new WebPubSubChatServiceClientOptions();\n\n            _endpoint = endpoint;\n            _hub = hub;\n\n            HttpPipelinePolicy[] perCallPolicies = options.ReverseProxyEndpoint == null\n                ? Array.Empty<HttpPipelinePolicy>()\n                : new HttpPipelinePolicy[] { new ReverseProxyPolicy(options.ReverseProxyEndpoint) };\n            HttpPipelinePolicy[] perRetryPolicies = authenticationPolicy == null\n                ? Array.Empty<HttpPipelinePolicy>()\n                : new HttpPipelinePolicy[] { authenticationPolicy };\n            Pipeline = HttpPipelineBuilder.Build(options, perCallPolicies, perRetryPolicies, new ResponseClassifier());\n\n            _apiVersion = options.Version;\n            ClientDiagnostics = new ClientDiagnostics(options, true);\n        }\n\n        /// <summary> Initializes a new instance of WebPubSubChatServiceClient. </summary>\n        /// <param name=\"endpoint\"> Service endpoint. </param>\n        /// <param name=\"hub\"> Target hub name. </param>\n        /// <param name=\"credential\"> A credential used to authenticate to the service. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/>, <paramref name=\"hub\"/> or <paramref name=\"credential\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"hub\"/> is an empty string, and was expected to be non-empty. </exception>\n        public WebPubSubChatServiceClient(Uri endpoint, string hub, TokenCredential credential)\n            : this(endpoint, hub, credential, new WebPubSubChatServiceClientOptions())\n        {\n        }\n\n        /// <summary> Initializes a new instance of WebPubSubChatServiceClient. </summary>\n        /// <param name=\"endpoint\"> Service endpoint. </param>\n        /// <param name=\"hub\"> Target hub name. </param>\n        /// <param name=\"credential\"> A credential used to authenticate to the service. </param>\n        /// <param name=\"options\"> The options for configuring the client. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"endpoint\"/>, <paramref name=\"hub\"/> or <paramref name=\"credential\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"hub\"/> is an empty string, and was expected to be non-empty. </exception>\n        public WebPubSubChatServiceClient(Uri endpoint, string hub, TokenCredential credential, WebPubSubChatServiceClientOptions options)\n            : this(new BearerTokenAuthenticationPolicy(credential, AuthorizationScopes), endpoint, hub, options)\n        {\n            _tokenCredential = credential;\n        }\n\n        /// <summary>\n        /// Initializes a new instance of <see cref=\"WebPubSubChatServiceClient\"/> using a connection string.\n        /// </summary>\n        /// <param name=\"connectionString\">Connection string containing Endpoint and AccessKey.</param>\n        /// <param name=\"hub\">Target hub name, which should start with alphabetic characters and only contain alpha-numeric characters or underscore.</param>\n        public WebPubSubChatServiceClient(string connectionString, string hub)\n            : this(connectionString, hub, new WebPubSubChatServiceClientOptions())\n        {\n        }\n\n        /// <summary>\n        /// Initializes a new instance of <see cref=\"WebPubSubChatServiceClient\"/> using a connection string.\n        /// </summary>\n        /// <param name=\"connectionString\">Connection string containing Endpoint and AccessKey.</param>\n        /// <param name=\"hub\">Target hub name, which should start with alphabetic characters and only contain alpha-numeric characters or underscore.</param>\n        /// <param name=\"options\">The options for configuring the client.</param>\n        public WebPubSubChatServiceClient(string connectionString, string hub, WebPubSubChatServiceClientOptions options)\n            : this(ConnectionStringParser.Parse(connectionString), hub, options)\n        {\n        }\n\n        /// <summary>\n        /// Initializes a new instance of <see cref=\"WebPubSubChatServiceClient\"/> using an endpoint and <see cref=\"AzureKeyCredential\"/>.\n        /// </summary>\n        /// <param name=\"endpoint\">Service endpoint.</param>\n        /// <param name=\"hub\">Target hub name.</param>\n        /// <param name=\"credential\">An <see cref=\"AzureKeyCredential\"/> used to authenticate requests.</param>\n        public WebPubSubChatServiceClient(Uri endpoint, string hub, AzureKeyCredential credential)\n            : this(endpoint, hub, credential, new WebPubSubChatServiceClientOptions())\n        {\n        }\n\n        /// <summary>\n        /// Initializes a new instance of <see cref=\"WebPubSubChatServiceClient\"/> using an endpoint and <see cref=\"AzureKeyCredential\"/>.\n        /// </summary>\n        /// <param name=\"endpoint\">Service endpoint.</param>\n        /// <param name=\"hub\">Target hub name.</param>\n        /// <param name=\"credential\">An <see cref=\"AzureKeyCredential\"/> used to authenticate requests.</param>\n        /// <param name=\"options\">The options for configuring the client.</param>\n        public WebPubSubChatServiceClient(Uri endpoint, string hub, AzureKeyCredential credential, WebPubSubChatServiceClientOptions options)\n            : this(new WebPubSubAuthenticationPolicy(credential ?? throw new ArgumentNullException(nameof(credential))), endpoint, hub, options ?? new WebPubSubChatServiceClientOptions())\n        {\n            _keyCredential = credential;\n        }\n\n        private WebPubSubChatServiceClient((Uri Endpoint, AzureKeyCredential Credential) parsed, string hub, WebPubSubChatServiceClientOptions options)\n            : this(parsed.Endpoint, hub, parsed.Credential, options)\n        {\n        }\n    }\n}\n",
+      "contentHash": "944dd0022b41263ec690d7eb3d39ea19530ba7820a8f00c1cb1ea842058d6e4e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient.cs",
+      "startLine": 1,
+      "endLine": 231,
+      "kind": "unknown",
+      "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientBuilderExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure;\nusing Azure.Core;\nusing Azure.Core.Extensions;\nusing Azure.Messaging.WebPubSub.Chat;\n\nnamespace Microsoft.Extensions.Azure\n{\n    /// <summary>\n    /// Extension methods to add <see cref=\"WebPubSubChatServiceClient\"/> to an Azure client factory builder.\n    /// </summary>\n    public static class WebPubSubChatServiceClientBuilderExtensions\n    {\n        /// <summary>\n        /// Registers a <see cref=\"WebPubSubChatServiceClient\"/> instance with the provided <paramref name=\"connectionString\"/> and <paramref name=\"hub\"/>.\n        /// </summary>\n        /// <param name=\"builder\"> The builder to register with. </param>\n        /// <param name=\"connectionString\"> Connection string for the Web PubSub service instance. </param>\n        /// <param name=\"hub\"> Target hub name. </param>\n        public static IAzureClientBuilder<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions> AddWebPubSubChatServiceClient<TBuilder>(this TBuilder builder, string connectionString, string hub)\n            where TBuilder : IAzureClientFactoryBuilder\n        {\n            return builder.RegisterClientFactory<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions>(options => new WebPubSubChatServiceClient(connectionString, hub, options));\n        }\n\n        /// <summary>\n        /// Registers a <see cref=\"WebPubSubChatServiceClient\"/> instance with the provided <paramref name=\"endpoint\"/> and <paramref name=\"hub\"/>.\n        /// </summary>\n        /// <param name=\"builder\"> The builder to register with. </param>\n        /// <param name=\"endpoint\"> Service endpoint. </param>\n        /// <param name=\"hub\"> Target hub name. </param>\n        public static IAzureClientBuilder<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions> AddWebPubSubChatServiceClient<TBuilder>(this TBuilder builder, Uri endpoint, string hub)\n            where TBuilder : IAzureClientFactoryBuilderWithCredential\n        {\n            return builder.RegisterClientFactory<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions>((options, credential) => new WebPubSubChatServiceClient(endpoint, hub, credential, options));\n        }\n\n        /// <summary>\n        /// Registers a <see cref=\"WebPubSubChatServiceClient\"/> instance with the provided <paramref name=\"endpoint\"/>, <paramref name=\"hub\"/>, and <paramref name=\"credential\"/>.\n        /// </summary>\n        /// <param name=\"builder\"> The builder to register with. </param>\n        /// <param name=\"endpoint\"> Service endpoint. </param>\n        /// <param name=\"hub\"> Target hub name. </param>\n        /// <param name=\"credential\"> A credential used to authenticate to the service. </param>\n        public static IAzureClientBuilder<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions> AddWebPubSubChatServiceClient<TBuilder>(this TBuilder builder, Uri endpoint, string hub, AzureKeyCredential credential)\n            where TBuilder : IAzureClientFactoryBuilder\n        {\n            return builder.RegisterClientFactory<WebPubSubChatServiceClient, WebPubSubChatServiceClientOptions>(options => new WebPubSubChatServiceClient(endpoint, hub, credential, options));\n        }\n    }\n}",
+      "contentHash": "6c4b9a22fe1991fab316b4561fdfa91fc8d56e680403b479bc056b599b02bfbe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 54,
+      "kind": "unknown",
+      "id": "6ced7b7a2f716c97b1291a2a03e425b6e44bcec3f48a2b9ebdd4fd7feb189cfc"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientOptions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\n\nnamespace Azure.Messaging.WebPubSub.Chat\n{\n    public partial class WebPubSubChatServiceClientOptions\n    {\n        /// <summary>\n        /// Gets or sets an optional reverse-proxy endpoint. When set, all requests are routed\n        /// through this endpoint while preserving the original URI for JWT audience claims.\n        /// Must be set before the client is constructed.\n        /// </summary>\n        public Uri ReverseProxyEndpoint { get; set; }\n    }\n}\n",
+      "contentHash": "7530d1c81994b240246d142d62712f4554671266fa5336f6a50f5d4c0b258641",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientOptions.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "kind": "unknown",
+      "id": "645622a016fa863435d41286e554208213e401e71908dd4de8dfcafec76add30"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/README.md",
+      "text": "# Azure Web PubSub Chat client library for .NET\n\nAzure.Messaging.WebPubSub.Chat is a client library for developing .NET applications with rich experience.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.Messaging.WebPubSub.Chat --prerelease\n```\n\n### Prerequisites\n\n- You must have a [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the client\n\nCreate a `WebPubSubChatServiceClient` using the connection string for your Web PubSub resource and the target hub name.\n\n```C# Snippet:WebPubSubChatAuthenticateWithConnectionString\n// <ChatDotNet_AuthenticateWithConnectionString>\nvar client = new WebPubSubChatServiceClient(\"<connection-string>\", \"chat\");\n// </ChatDotNet_AuthenticateWithConnectionString>\n```\n\n## Key concepts\n\n## Examples\n\n### Generate a client access URI\n\n```C# Snippet:WebPubSubChatGenerateClientAccessUri\n// <ChatDotNet_GenerateClientAccessUri>\nUri clientAccessUri = client.GetClientAccessUri(new ClientAccessUriOptions\n{\n    UserId = \"user1\",\n    ExpiresAfter = TimeSpan.FromHours(1),\n});\n// </ChatDotNet_GenerateClientAccessUri>\n```\n\n### Create a room and add a member\n\n```C# Snippet:WebPubSubChatCreateRoomAndMember\n// <ChatDotNet_CreateRoomAndMember>\n// Create (or replace) a room.\nWebPubSubChatRoom room = client.CreateOrReplaceRoom(\"room1\", new WebPubSubChatRoom(\"General\")).Value;\n\n// Create (or replace) a user with a built-in role.\nclient.CreateOrReplaceUser(\"user1\", new WebPubSubHumanChatUser(\"Alice\", BuiltInChatRoles.UserNormal));\n\n// Add the user to the room as a room member.\nclient.CreateOrReplaceRoomMember(\"room1\", \"user1\", new WebPubSubChatRoomMember(BuiltInChatRoles.RoomMember));\n// </ChatDotNet_CreateRoomAndMember>\n```\n\n### Define a custom role from built-in permissions\n\n```C# Snippet:WebPubSubChatDefineCustomRole\n// <ChatDotNet_DefineCustomRole>\nvar role = new WebPubSubChatRole(new[]\n{\n    ChatPermission.RoomPublishMessage,\n    ChatPermission.RoomHistory,\n    ChatPermission.RoomInvite,\n});\n\nclient.CreateOrReplaceRole(\"room.contributor\", role);\n// </ChatDotNet_DefineCustomRole>\n```\n\n### Inspect a built-in role\n\n```C# Snippet:WebPubSubChatInspectBuiltInRole\n// <ChatDotNet_InspectBuiltInRole>\nWebPubSubChatRole memberRole = client.GetRole(BuiltInChatRoles.RoomMember).Value;\n\nConsole.WriteLine($\"{memberRole.Name}: {string.Join(\", \", memberRole.Permissions)}\");\n// </ChatDotNet_InspectBuiltInRole>\n```\n\n### Read message history\n\n```C# Snippet:WebPubSubChatReadMessageHistory\n// <ChatDotNet_ReadMessageHistory>\nWebPubSubChatRoom room = client.GetRoom(\"room1\").Value;\n\nforeach (WebPubSubChatMessage message in client.GetMessages(room.DefaultConversation))\n{\n    Console.WriteLine($\"{message.CreatedBy}: {message.Content.Text}\");\n}\n// </ChatDotNet_ReadMessageHistory>\n```\n\nMore detailed examples are available in the [samples](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/tests/Samples/README.md) folder.\n\n## Troubleshooting\n\n## Next steps\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (for example, label, comment). Follow the instructions provided by the bot. You'll only need to do this action once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any other questions or comments.",
+      "contentHash": "c4462e116ab4a891e7cf373ada5ddf78b7374fa8cb7f5a8f570f4d7d346704fa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/README.md"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/Azure.Messaging.WebPubSub.Chat.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>This is the Azure.Messaging.WebPubSub.Chat client library for developing .NET applications with rich experience.</Description>\n    <AssemblyTitle>SDK Code Generation Azure.Messaging.WebPubSub.Chat</AssemblyTitle>\n    <Version>1.0.0-beta.2</Version>\n    <PackageTags>Azure.Messaging.WebPubSub.Chat</PackageTags>\n    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RawRequestUriBuilder.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TypeFormatters.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RequestHeaderExtensions.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AppContextSwitchHelper.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ClientDiagnostics.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScopeFactory.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScope.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)HttpMessageSanitizer.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TrimmingAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <!--\n      Shared source linked from the sibling Azure.Messaging.WebPubSub package's src/Shared folder.\n      Those files are the single source of truth (owned by Azure.Messaging.WebPubSub) and are\n      compiled into this package so the AzureKeyCredential auth flow stays identical between the two\n      clients. Do NOT copy/fork these files - edit them in Azure.Messaging.WebPubSub/src/Shared and\n      both packages pick up the change. (Linked rather than exposed via InternalsVisibleTo to avoid AZC0011.)\n    -->\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\WebPubSubAuthenticationPolicy.cs\" LinkBase=\"Shared/WebPubSub\" />\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\ReverseProxyPolicy.cs\" LinkBase=\"Shared/WebPubSub\" />\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\JwtBuilder.cs\" LinkBase=\"Shared/WebPubSub\" />\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\WebPubSubClientAccessTokenGenerator.cs\" LinkBase=\"Shared/WebPubSub\" />\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\NS2Bridge.cs\" LinkBase=\"Shared/WebPubSub\" />\n    <Compile Include=\"..\\..\\Azure.Messaging.WebPubSub\\src\\Shared\\ConnectionStringParser.cs\" LinkBase=\"Shared/WebPubSub\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n</Project>\n",
+      "contentHash": "1c6be91fff2c5fe5bf45444715568563c106fb56e5cbed668adf3bec983c026e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/Azure.Messaging.WebPubSub.Chat.csproj"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/tsp-location.yaml",
+      "text": "directory: specification/webpubsub/data-plane/WebPubSubChat\ncommit: de2452e17054b1466f7444079364ec1bf97dfb1a\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-emitter-package.json",
+      "contentHash": "c21cb0fdb69102796b63b79cbd4eb7b0c7b0583a9ab79085be09d14c6a2310b2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "e4acef378ee1290897e449a30d01c5a8f9086a5a1b65bcdb60178cec39c16ccb",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "20492a6789e868a4fc062db2a7d16878ea78b2d31f27dacec180dbdd57a5f1e0",
+        "category": "Auth",
+        "subtype": "Connection-string and credential constructors share a custom pipeline",
+        "explanation": "The partial client suppresses three generated constructors and supplies internal pipeline construction plus token, key and connection-string overloads. The internal constructor validates endpoint/hub, installs an optional imported ReverseProxyPolicy per call and an authentication policy per retry, builds one pipeline and initializes version/diagnostics. Public constructors parse connection strings or choose imported bearer/key authentication policies and retain the corresponding credential fields for access-token helpers. The shared policy implementations are not supplied.",
+        "pattern": "connection-string-auth-pipeline",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial file explicitly uses CodeGenSuppress for constructor signatures and implements their replacements and additional credential overloads.",
+        "symbols": [
+          "WebPubSubChatServiceClient.WebPubSubChatServiceClient"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 13,
+            "endLine": 18
+          },
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 135,
+            "endLine": 229
+          }
+        ]
+      },
+      {
+        "key": "cd22aa8e4d28b2be6b08e9a467622da1288dfa2d0cfa5b9754e4f576053d63e7",
+        "category": "Convenience methods",
+        "subtype": "Public query-options overload over an internal flattened pageable method",
+        "explanation": "The client suppresses the flattened generated GetMessages signature and reimplements it internally with conversation-ID validation and construction of a typed collection-result helper. A public overload unwraps nullable MessageQueryOptions.LatestMessageId, EarliestMessageId and MaxPageSize and forwards them with cancellation. The supplied options class defines those three properties; the collection helper's paging algorithm is absent.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "CodeGenSuppress and concrete replacement/public overload bodies appear in a partial client outside Generated.",
+        "symbols": [
+          "WebPubSubChatServiceClient.GetMessages"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 16,
+            "endLine": 32
+          },
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 60,
+            "endLine": 68
+          },
+          {
+            "id": "4199a8122c3731feb4d3c80770cf5222f9d472759b0638792606bf32c3e82dc1",
+            "startLine": 7,
+            "endLine": 16
+          }
+        ]
+      },
+      {
+        "key": "9f07db923469989d77bd14ec96d3080c20dadda693c87cca9f85ec82aa85f166",
+        "category": "Convenience methods",
+        "subtype": "Asynchronous pageable API unpacks a message-query options object",
+        "explanation": "The suppressed flattened GetMessagesAsync signature is implemented internally with a conversation-ID check and an AsyncPageable collection-result helper. Its public overload unwraps the three nullable MessageQueryOptions properties and forwards cancellation. This measures an API/argument adapter, not a demonstrated custom next-link algorithm.",
+        "pattern": "convenience-options-unpacking",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial explicitly suppresses the generated method and defines both the internal replacement and public options overload.",
+        "symbols": [
+          "WebPubSubChatServiceClient.GetMessagesAsync"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 16,
+            "endLine": 18
+          },
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 34,
+            "endLine": 46
+          },
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 77,
+            "endLine": 85
+          },
+          {
+            "id": "4199a8122c3731feb4d3c80770cf5222f9d472759b0638792606bf32c3e82dc1",
+            "startLine": 7,
+            "endLine": 16
+          }
+        ]
+      },
+      {
+        "key": "1596eebd2d15af805e4a6bf3c1cad9aa932eaa6808b9f0f9deb29a6e2f0de8db",
+        "category": "Other",
+        "subtype": "Read-only client property exposes the configured hub",
+        "explanation": "The custom partial adds a virtual public Hub getter that returns the client's _hub field.",
+        "pattern": "client-context-property",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The property is implemented in the non-Generated partial that also explicitly reshapes generated constructors and operations.",
+        "symbols": [
+          "WebPubSubChatServiceClient.Hub"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 48,
+            "endLine": 51
+          }
+        ]
+      },
+      {
+        "key": "1747116a962c9cce8a6035ae0427447333c78a00772e3bb6df429bf203023f54",
+        "category": "Convenience methods",
+        "subtype": "Typed update overload serializes a model and wraps the protocol response",
+        "explanation": "UpdateMessage validates the supplied model, creates disposable RequestContent from it, forwards conversation/message IDs, match conditions and a converted cancellation context to another UpdateMessage overload, then casts and wraps the response as Response<WebPubSubChatMessage>.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A concrete typed convenience overload is implemented in the custom partial outside Generated; its conversion and delegation body is supplied.",
+        "symbols": [
+          "WebPubSubChatServiceClient.UpdateMessage"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 97,
+            "endLine": 109
+          }
+        ]
+      },
+      {
+        "key": "1f2ff929f43b9a0299005139d7c0312e320c619fc3489f6636dca352eaf7a98b",
+        "category": "Convenience methods",
+        "subtype": "Asynchronous typed update adapter over a content-based overload",
+        "explanation": "UpdateMessageAsync validates the model, creates disposable RequestContent, awaits the content-based overload with IDs, match conditions and converted cancellation context, then casts and wraps the result as Response<WebPubSubChatMessage>.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-Generated partial implements this typed async wrapper rather than merely declaring or re-exporting a generated operation.",
+        "symbols": [
+          "WebPubSubChatServiceClient.UpdateMessageAsync"
+        ],
+        "evidence": [
+          {
+            "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+            "startLine": 121,
+            "endLine": 133
+          }
+        ]
+      },
+      {
+        "key": "64024ac2617862df7f303f63f2167f78f1ea7d5b6bfe52e86626a5587219be97",
+        "category": "Auth",
+        "subtype": "Build a WebSocket URI using locally generated or remotely requested tokens",
+        "explanation": "GetClientAccessUri defaults its options and treats a zero ExpiresAfter as one hour. A retained key credential selects the imported access-token generator with an endpoint/hub audience, user ID, expiration and two fixed group-state roles. Otherwise it requires a retained token credential and calls the service token operation with an integer minute duration clamped to at least one. A helper changes http to ws and other schemes to wss, then interpolates client/hubs/{hub} and access_token into a URI.",
+        "pattern": "client-access-token-uri",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "A non-Generated helper partial adds a concrete public authentication helper and private token/URI composition bodies; it uses credentials retained by the explicitly customized client constructors.",
+        "symbols": [
+          "WebPubSubChatServiceClient.GetClientAccessUri"
+        ],
+        "evidence": [
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 11,
+            "endLine": 25
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 35,
+            "endLine": 46
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 71,
+            "endLine": 97
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 107,
+            "endLine": 128
+          },
+          {
+            "id": "fc56e86142201ee6955d61cb1cc2eabb9857c84da14cef365925dfc65347e5cd",
+            "startLine": 12,
+            "endLine": 22
+          }
+        ]
+      },
+      {
+        "key": "94ae0e3a44e072a4d3e3657cdd5dc8e214b575e11d3fff8a52bc6ee405a71a9f",
+        "category": "Auth",
+        "subtype": "Async access-URI helper switches between local token generation and service issuance",
+        "explanation": "GetClientAccessUriAsync uses default options and a one-hour fallback for zero duration, generates a token synchronously through the shared helper when a key credential exists, otherwise awaits the service token operation after checking a retained token credential and clamping integer expiry minutes to at least one. Both branches use the fixed group-state roles and return a URI assembled by the shared WebSocket-scheme/hub/query helper.",
+        "pattern": "client-access-token-uri",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The handwritten helper partial contains a real asynchronous public method and its supporting token/URI composition code, connected to credential state retained by customized constructors.",
+        "symbols": [
+          "WebPubSubChatServiceClient.GetClientAccessUriAsync"
+        ],
+        "evidence": [
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 11,
+            "endLine": 25
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 57,
+            "endLine": 68
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 71,
+            "endLine": 90
+          },
+          {
+            "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+            "startLine": 99,
+            "endLine": 128
+          },
+          {
+            "id": "fc56e86142201ee6955d61cb1cc2eabb9857c84da14cef365925dfc65347e5cd",
+            "startLine": 12,
+            "endLine": 22
+          }
+        ]
+      },
+      {
+        "key": "9808dbfce490c3bf8666021cff4e3fc8e8a601037a9ff7308f4b3680cbcca1a9",
+        "category": "Auth",
+        "subtype": "Public named constants for built-in authorization roles",
+        "explanation": "BuiltInChatRoles exposes UserNormal, RoomMember and RoomOperator as the strings user.normal, room.member and room.operator. This is a public role-name vocabulary, not code enforcing the documented permissions or the separate group-state roles used for client access tokens.",
+        "pattern": "authorization-role-constants",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The supplied static class is a concrete public addition in src outside Generated, following the supplied .NET source-location guideline; it is not a generated API listing or test.",
+        "symbols": [
+          "BuiltInChatRoles"
+        ],
+        "evidence": [
+          {
+            "id": "6e7f85c8df8c930a528be234d8a607952d7b79d276b6d8fe994c513b4eb4d02f",
+            "startLine": 6,
+            "endLine": 16
+          }
+        ]
+      },
+      {
+        "key": "ba087452cac97845c4a08030633770557702da9f3f3aabd62d9fec3cba82fd73",
+        "category": "Convenience methods",
+        "subtype": "Register credential-specific client factories with an Azure client builder",
+        "explanation": "The three AddWebPubSubChatServiceClient overloads register factories for a connection string, a builder-supplied credential with endpoint/hub, or an explicit AzureKeyCredential. Each forwards the factory's options to the corresponding customized client constructor.",
+        "pattern": "client-factory-registration",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A static extension class outside Generated implements these registration bodies under Microsoft.Extensions.Azure.",
+        "symbols": [
+          "WebPubSubChatServiceClientBuilderExtensions.AddWebPubSubChatServiceClient"
+        ],
+        "evidence": [
+          {
+            "id": "6ced7b7a2f716c97b1291a2a03e425b6e44bcec3f48a2b9ebdd4fd7feb189cfc",
+            "startLine": 10,
+            "endLine": 51
+          }
+        ]
+      },
+      {
+        "key": "def5f6980273cbe7341dbb73d6d12fd17794df8409ea6409d493cfdc9b447398",
+        "category": "Other",
+        "subtype": "Expose an optional reverse-proxy endpoint on client options",
+        "explanation": "The custom options partial adds a public Uri ReverseProxyEndpoint getter/setter. The supplied client constructor reads this option to choose whether to install an imported ReverseProxyPolicy, but the policy's routing and audience-preservation implementation is not supplied.",
+        "pattern": "client-reverse-proxy-option",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The property is a concrete addition in a partial options class outside Generated, and its consumer appears in the explicitly customized client constructor.",
+        "symbols": [
+          "WebPubSubChatServiceClientOptions.ReverseProxyEndpoint"
+        ],
+        "evidence": [
+          {
+            "id": "645622a016fa863435d41286e554208213e401e71908dd4de8dfcafec76add30",
+            "startLine": 8,
+            "endLine": 15
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "20492a6789e868a4fc062db2a7d16878ea78b2d31f27dacec180dbdd57a5f1e0",
+        "status": "revised",
+        "reason": "The suppressed constructors and their replacements substantiate credential-aware pipeline construction. The original pattern ties that reusable shape unnecessarily to connection strings, although the same code also handles token and key credentials. The linked authentication and reverse-proxy policies are only used here; their implementations are not established.",
+        "finding": {
+          "key": "20492a6789e868a4fc062db2a7d16878ea78b2d31f27dacec180dbdd57a5f1e0",
+          "category": "Auth",
+          "subtype": "Credential-aware client constructors compose the authentication pipeline",
+          "explanation": "The partial client suppresses three generated constructor signatures and implements a common constructor that validates endpoint and hub, conditionally adds an imported reverse-proxy policy per call and an authentication policy per retry, builds the pipeline, and initializes version and diagnostics. Other constructors use a bearer policy, parse a connection string through an imported parser, or use an imported key policy; the token/key branches retain their credentials for access-URI generation.",
+          "pattern": "multi-credential-client-construction",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "CodeGenSuppress attributes and concrete constructor bodies in a non-Generated partial establish a handwritten replacement and additional credential constructors, without establishing the behavior of the imported policy implementations.",
+          "symbols": [
+            "WebPubSubChatServiceClient.WebPubSubChatServiceClient"
+          ],
+          "evidence": [
+            {
+              "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+              "startLine": 13,
+              "endLine": 15
+            },
+            {
+              "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+              "startLine": 135,
+              "endLine": 155
+            },
+            {
+              "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+              "startLine": 175,
+              "endLine": 179
+            },
+            {
+              "id": "bac71ef0e6db35187279ae0d9fd3757db3d9cfb129e554c25204d4950a2896d1",
+              "startLine": 197,
+              "endLine": 223
+            }
+          ]
+        }
+      },
+      {
+        "key": "cd22aa8e4d28b2be6b08e9a467622da1288dfa2d0cfa5b9754e4f576053d63e7",
+        "status": "accepted",
+        "reason": "The suppressed flattened method is implemented internally and the public overload forwards the three query-option properties. This is a handwritten API adapter, not evidence of a custom paging algorithm; the known options-unpacking pattern and generator-addressability fit."
+      },
+      {
+        "key": "9f07db923469989d77bd14ec96d3080c20dadda693c87cca9f85ec82aa85f166",
+        "status": "accepted",
+        "reason": "The async method independently implements the same kind of options-unpacking adapter around an internal async pageable method. The cited source supports the signatures and delegation but makes no claim about the absent collection helper's algorithm."
+      },
+      {
+        "key": "1596eebd2d15af805e4a6bf3c1cad9aa932eaa6808b9f0f9deb29a6e2f0de8db",
+        "status": "accepted",
+        "reason": "The non-Generated partial explicitly adds a public virtual Hub getter returning _hub; the location, symbol, category, reusable shape, and plausible generator addressability are supported."
+      },
+      {
+        "key": "1747116a962c9cce8a6035ae0427447333c78a00772e3bb6df429bf203023f54",
+        "status": "accepted",
+        "reason": "The typed public overload validates the model, creates request content, calls the content-based overload and wraps the cast response. This matches the supplied typed-wrapper pattern; behavior of the delegated overload is not asserted."
+      },
+      {
+        "key": "1f2ff929f43b9a0299005139d7c0312e320c619fc3489f6636dca352eaf7a98b",
+        "status": "accepted",
+        "reason": "The async typed overload has its own handwritten body, awaits the content-based operation and wraps its response. Its cited lines support the distinct async method and the known typed-wrapper pattern."
+      },
+      {
+        "key": "64024ac2617862df7f303f63f2167f78f1ea7d5b6bfe52e86626a5587219be97",
+        "status": "revised",
+        "reason": "The supplied code shows the locally generated-token helper passing an endpoint/hub URL to an imported generator, but does not show the generator signature or establish that this argument becomes its token audience. The revised description records the observable argument rather than claiming unverified token contents.",
+        "finding": {
+          "key": "64024ac2617862df7f303f63f2167f78f1ea7d5b6bfe52e86626a5587219be97",
+          "category": "Auth",
+          "subtype": "Compose a client access URI from local key-based or service-issued tokens",
+          "explanation": "GetClientAccessUri uses default options and a one-hour fallback for zero expiry. With a retained key credential, it invokes an imported token generator with an endpoint/hub URL, expiry, user ID and two fixed group-state roles; otherwise it requires a retained token credential and calls GenerateClientToken with expiry minutes clamped to at least one. It then constructs a client/hubs/{hub} URI, selecting ws for an http endpoint and wss otherwise, and appends the token as an access_token query argument.",
+          "pattern": "client-access-token-uri",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "A non-Generated partial implements the public method and its token/URI helper bodies; the behavior of the imported token generator is not supplied.",
+          "symbols": [
+            "WebPubSubChatServiceClient.GetClientAccessUri"
+          ],
+          "evidence": [
+            {
+              "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+              "startLine": 11,
+              "endLine": 16
+            },
+            {
+              "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+              "startLine": 35,
+              "endLine": 45
+            },
+            {
+              "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+              "startLine": 71,
+              "endLine": 105
+            },
+            {
+              "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+              "startLine": 107,
+              "endLine": 117
+            },
+            {
+              "id": "13a0094e796b585ae0b1d0c0588e608e8a588c2599a6af1c2ce5d4400b97dfa8",
+              "startLine": 127,
+              "endLine": 128
+            },
+            {
+              "id": "fc56e86142201ee6955d61cb1cc2eabb9857c84da14cef365925dfc65347e5cd",
+              "startLine": 12,
+              "endLine": 22
+            }
+          ]
+        }
+      },
+      {
+        "key": "94ae0e3a44e072a4d3e3657cdd5dc8e214b575e11d3fff8a52bc6ee405a71a9f",
+        "status": "accepted",
+        "reason": "The independent async entry point and its awaited service-token branch are present; the key branch delegates to the same local helper as the sync method. The explanation limits itself to visible argument flow and URI composition."
+      },
+      {
+        "key": "9808dbfce490c3bf8666021cff4e3fc8e8a601037a9ff7308f4b3680cbcca1a9",
+        "status": "accepted",
+        "reason": "The standalone non-Generated static class adds three public role-name constants. This is an authorization-related public API addition, not proof of enforcement of the documented permissions; encoding such constants in generation is plausible."
+      },
+      {
+        "key": "ba087452cac97845c4a08030633770557702da9f3f3aabd62d9fec3cba82fd73",
+        "status": "accepted",
+        "reason": "All three handwritten extension overloads call RegisterClientFactory with the respective constructor factory and options. The supplied lines justify one client-registration behavior and the general reusable pattern."
+      },
+      {
+        "key": "def5f6980273cbe7341dbb73d6d12fd17794df8409ea6409d493cfdc9b447398",
+        "status": "accepted",
+        "reason": "The non-Generated options partial adds the property, and the separately supplied constructor conditionally installs a ReverseProxyPolicy when it is non-null. Neither the property comment nor the policy call verifies the imported policy's runtime routing or JWT-audience behavior; the proposal explicitly withholds that claim."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Extraction captured seven of 77 eligible source files from 99 discovered files. The generated partials, collection-result helpers and operation bodies are not supplied; this is not exhaustive customization coverage.",
+      "The project links shared authentication, reverse-proxy, JWT, token-generator and connection-string source from a sibling package, but their contents are absent. Their inclusion and invocation do not establish custom cryptographic algorithms, routing guarantees or verified audience preservation in this evidence.",
+      "Client-access URI findings describe the local control flow and string composition. Actual JWT contents, service-issued token behavior, escaping and end-to-end connection behavior were not executed or verified. Their generator addressability remains unclear because the helper combines shared token machinery with specific roles and endpoint conventions.",
+      "The simple query/access-URI option bags and private delegation/validation helpers are included with their consuming public behaviors rather than counted again as independent instances. Same-name overloads are grouped by their actual symbol and source path.",
+      "The source project version is 1.0.0-beta.2 while latestRelease metadata is 1.0.0-beta.1. The README and code comments supply usage or motivation, not independent evidence that a released artifact contains these behaviors or that an alternate pipeline design is impossible.",
+      "Only seven of 77 eligible source files were captured (coverage partial), so these decisions do not establish the absence of other customizations.",
+      "Generated counterparts, collection-result pager implementations, and imported shared authentication, reverse-proxy, parser and token-generator implementations are not supplied; conclusions are restricted to handwritten code and calls visible in the frozen evidence.",
+      "The source comment's explanation for retaining credentials and the reverse-proxy property's description of audience preservation are not independently verified implementation or runtime evidence.",
+      "The release metadata and README are context, not evidence of runtime behavior, provenance of uncaptured symbols, or cross-service recurrence. Accepted and revised findings are AI-reviewed, not human-verified; human overrides remain authoritative."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/BuiltInChatRoles.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "b869cd2543e37ee8272d7217816412c4920c10f86514f1fd92b493810fd915fe"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/ClientAccessUriOptions.cs",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "378ac07e2407d715b15e8c5ebc8426f1309fad96066dad07ac73cb30f4833829"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/MessageQueryOptions.cs",
+      "startLine": 1,
+      "endLine": 18,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "706c6595fdca7645486870a2bcdae21800f2eba917995723e5bb2c9e18e026ef"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient.cs",
+      "startLine": 1,
+      "endLine": 231,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "944dd0022b41263ec690d7eb3d39ea19530ba7820a8f00c1cb1ea842058d6e4e"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 54,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6c4b9a22fe1991fab316b4561fdfa91fc8d56e680403b479bc056b599b02bfbe"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClientOptions.cs",
+      "startLine": 1,
+      "endLine": 17,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7530d1c81994b240246d142d62712f4554671266fa5336f6a50f5d4c0b258641"
+    },
+    {
+      "path": "sdk/webpubsub/Azure.Messaging.WebPubSub.Chat/src/WebPubSubChatServiceClient_helpers.cs",
+      "startLine": 1,
+      "endLine": 130,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d956a20fff4172a4e0780cbaf1d25d862512ba693e02f9dca55782eb20e8aeaf"
+    }
+  ]
+}

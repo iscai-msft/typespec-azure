@@ -1,0 +1,522 @@
+{
+  "schemaVersion": 1,
+  "id": "ec8640c8-048c-45bc-84fc-558da0258805",
+  "observedAt": "2026-10-22T20:52:50.987Z",
+  "identity": "java:azure-ai-vision-imageanalysis:module-v1",
+  "target": {
+    "language": "java",
+    "package": "azure-ai-vision-imageanalysis",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-java",
+    "root": "sdk/vision/azure-ai-vision-imageanalysis"
+  },
+  "commit": "a9177372fbb895222b2377688bb23cd7e769fddb",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "206e5e6faf4e4d30062c23a0d1f95add72f3803b"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 73,
+    "eligibleFiles": 33,
+    "capturedFiles": 13,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/customization/src/main/java/ImageAnalysisCustomization.java",
+      "text": "import com.azure.autorest.customization.ClassCustomization;\nimport com.azure.autorest.customization.Customization;\nimport com.azure.autorest.customization.LibraryCustomization;\nimport com.github.javaparser.javadoc.description.JavadocDescription;\nimport org.slf4j.Logger;\n\n/**\n * This class contains the customization code to customize the TypeSpec generated code for Azure AI Image Analysis.\n */\npublic class ImageAnalysisCustomization extends Customization {\n\n    @Override\n    public void customize(LibraryCustomization customization, Logger logger) {\n        updateClientJavadoc(customization.getClass(\"com.azure.ai.vision.imageanalysis\", \"ImageAnalysisAsyncClient\"),\n            \"async-client-api-key-auth\", \"async-client-entra-id-auth\");\n\n        updateClientJavadoc(customization.getClass(\"com.azure.ai.vision.imageanalysis\", \"ImageAnalysisClient\"),\n            \"sync-client-api-key-auth\", \"sync-client-entra-id-auth\");\n    }\n\n    private void updateClientJavadoc(ClassCustomization clientClass, String apiKeyAuthTag, String entraIdAuthTag) {\n        clientClass.customizeAst(ast -> ast.getClassByName(clientClass.getClassName()).ifPresent(clazz ->\n            clazz.getJavadoc().ifPresent(javadoc -> {\n                String codeSnippetTags = String.format(\"\\n<!-- src_embed com.azure.ai.vision.imageanalysis.%1$s -->\"\n                    + \"\\n<!-- end com.azure.ai.vision.imageanalysis.%1$s -->\"\n                    + \"\\n<!-- src_embed com.azure.ai.vision.imageanalysis.%2$s -->\"\n                    + \"\\n<!-- end com.azure.ai.vision.imageanalysis.%2$s -->\", apiKeyAuthTag, entraIdAuthTag);\n                String javadocDescription = javadoc.getDescription().toText();\n                javadocDescription += codeSnippetTags;\n                javadoc.getDescription().getElements().clear();\n                javadoc.getDescription().getElements()\n                    .addAll(JavadocDescription.parseText(javadocDescription).getElements());\n                clazz.setJavadocComment(javadoc);\n            })));\n    }\n\n\n}\n",
+      "contentHash": "51cb54cf4db7e35dcf84bf4e081f3e823d48cbcaca5f4aa62f68595744d5931f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/customization/src/main/java/ImageAnalysisCustomization.java",
+      "startLine": 1,
+      "endLine": 38,
+      "kind": "handwritten-marker",
+      "id": "99627d1052f57068549f79d03289ed6c168bc9e1537d168ae908c02cbdc1ed3e"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a give image URL.\n     *\n     * @param imageUrl The publicly accessible URL of the image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param options Additional image analysis options.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation on successful completion of {@link Mono}.\n     *\n     * <!-- src_embed com.azure.ai.vision.imageanalysis.async-analysis-from-url -->\n     * <pre>\n     * &#47;&#47;\n     * &#47;&#47; Asynchronous analysis of an image file &#40;https:&#47;&#47;aka.ms&#47;azsdk&#47;image-analysis&#47;sample.jpg&#41;,\n     * &#47;&#47; using all visual features, with all options set. You will likely need fewer visual features\n     * &#47;&#47; and only some &#40;or no&#41; options set.\n     * &#47;&#47;\n     * ImageAnalysisOptions options = new ImageAnalysisOptions&#40;&#41;\n     *     .setLanguage&#40;&quot;en&quot;&#41;\n     *     .setGenderNeutralCaption&#40;true&#41;\n     *     .setSmartCropsAspectRatios&#40;Arrays.asList&#40;0.9, 1.33&#41;&#41;\n     *     .setModelVersion&#40;&quot;latest&quot;&#41;;\n     *\n     * Mono&lt;ImageAnalysisResult&gt; result = client.analyzeFromUrl&#40;\n     *     &quot;https:&#47;&#47;aka.ms&#47;azsdk&#47;image-analysis&#47;sample.jpg&quot;,\n     *     Arrays.asList&#40;\n     *         VisualFeatures.SMART_CROPS,\n     *         VisualFeatures.CAPTION,\n     *         VisualFeatures.DENSE_CAPTIONS,\n     *         VisualFeatures.OBJECTS,\n     *         VisualFeatures.PEOPLE,\n     *         VisualFeatures.READ,\n     *         VisualFeatures.TAGS&#41;,\n     *     options&#41;;\n     * </pre>\n     * <!-- end com.azure.ai.vision.imageanalysis.async-analysis-from-url -->\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<ImageAnalysisResult> analyzeFromUrl(String imageUrl, List<VisualFeatures> visualFeatures,\n        ImageAnalysisOptions options) {\n        return analyzeFromUrlWithResponse(imageUrl, visualFeatures, options, null).map(response -> {\n            return response.getValue();\n        });\n    }",
+      "contentHash": "07b1e72c6d6b5bd76f81865fec263fb05bcb02a8a3a49b3968a33144d235ba20",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "startLine": 538,
+      "endLine": 589,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4e45c9dd99e35dc28f82ebfa0752209ad52808875372a809c9755d025b2155e6"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a given image buffer.\n     *\n     * @param imageData The image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param options Additional image analysis options.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation on successful completion of {@link Mono}.\n     *\n     * <!-- src_embed com.azure.ai.vision.imageanalysis.async-analysis-from-file -->\n     * <pre>\n     * &#47;&#47;\n     * &#47;&#47; Asynchronous analysis of an image file &#40;sample.jpg&#41;, using all visual features,\n     * &#47;&#47; with all options set. You will likely need fewer visual features and only\n     * &#47;&#47; some &#40;or no&#41; options set.\n     * &#47;&#47;\n     * ImageAnalysisOptions options = new ImageAnalysisOptions&#40;&#41;\n     *     .setLanguage&#40;&quot;en&quot;&#41;\n     *     .setGenderNeutralCaption&#40;true&#41;\n     *     .setSmartCropsAspectRatios&#40;Arrays.asList&#40;0.9, 1.33&#41;&#41;\n     *     .setModelVersion&#40;&quot;latest&quot;&#41;;\n     *\n     * Mono&lt;ImageAnalysisResult&gt; result = client.analyze&#40;\n     *     BinaryData.fromFile&#40;new File&#40;&quot;sample.jpg&quot;&#41;.toPath&#40;&#41;&#41;,\n     *     Arrays.asList&#40;\n     *         VisualFeatures.SMART_CROPS,\n     *         VisualFeatures.CAPTION,\n     *         VisualFeatures.DENSE_CAPTIONS,\n     *         VisualFeatures.OBJECTS,\n     *         VisualFeatures.PEOPLE,\n     *         VisualFeatures.READ,\n     *         VisualFeatures.TAGS&#41;,\n     *     options&#41;;\n     * </pre>\n     * <!-- end com.azure.ai.vision.imageanalysis.async-analysis-from-file -->\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<ImageAnalysisResult> analyze(BinaryData imageData, List<VisualFeatures> visualFeatures,\n        ImageAnalysisOptions options) {\n        return analyzeWithResponse(imageData, visualFeatures, options, null).map(response -> {\n            return response.getValue();\n        });\n    }",
+      "contentHash": "a885c9cb2da153cc92593c88a705133b4c5bedc1d43514ab03cc6dd8d63d4f7d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "startLine": 591,
+      "endLine": 642,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e24433a576c8b6eedf5d7a5e55e7d139701dc9285513e4d226f007fea101dc2f"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a give image URL, while allowing customization\n     * of the HTTP request and access to HTTP request and response details. This is not commonly used.\n     *\n     * @param imageUrl The publicly accessible URL of the image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param imageAnalysisOptions Additional image analysis options.\n     * @param requestOptions The options to configure the HTTP request before the HTTP client sends it.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation along with\n     * <a href=\"https://learn.microsoft.com/java/api/com.azure.core.http.rest.response\">Response</a>,\n     * on successful completion of {@link Mono}.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Response<ImageAnalysisResult>> analyzeFromUrlWithResponse(String imageUrl,\n        List<VisualFeatures> visualFeatures, ImageAnalysisOptions imageAnalysisOptions, RequestOptions requestOptions) {\n        List<String> visualFeaturesAsStrings = visualFeatures.stream()\n            .map(paramItemValue -> Objects.toString(paramItemValue, \"\"))\n            .collect(Collectors.toList());\n        Mono<Response<BinaryData>> monoResponse\n            = analyzeFromUrlWithResponse(visualFeaturesAsStrings, BinaryData.fromObject(new ImageUrl(imageUrl)),\n                ImageAnalysisClient.updateRequestOptions(requestOptions, imageAnalysisOptions));\n        return monoResponse.map(response -> {\n            return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n                response.getValue().toObject(ImageAnalysisResult.class));\n        });\n    }",
+      "contentHash": "082ca1b15edcce74fbba957899f7aba30ffdea9eed4251739ec74fc28ea94389",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "startLine": 644,
+      "endLine": 679,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e72c53bd436f798bf6d9c0c28dd639721b9cbec41039f01f1558403eb51a26b1"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a given image buffer, while allowing customization\n     * of the HTTP request and access to HTTP request and response details. This is not commonly used.\n     *\n     * @param imageData The image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param imageAnalysisOptions Additional image analysis options.\n     * @param requestOptions The options to configure the HTTP request before the HTTP client sends it.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation along with\n     * <a href=\"https://learn.microsoft.com/java/api/com.azure.core.http.rest.response\">Response</a>,\n     * on successful completion of {@link Mono}.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Mono<Response<ImageAnalysisResult>> analyzeWithResponse(BinaryData imageData,\n        List<VisualFeatures> visualFeatures, ImageAnalysisOptions imageAnalysisOptions, RequestOptions requestOptions) {\n        List<String> visualFeaturesAsStrings = visualFeatures.stream()\n            .map(paramItemValue -> Objects.toString(paramItemValue, \"\"))\n            .collect(Collectors.toList());\n        Mono<Response<BinaryData>> monoResponse = analyzeFromImageDataWithResponse(visualFeaturesAsStrings, imageData,\n            ImageAnalysisClient.updateRequestOptions(requestOptions, imageAnalysisOptions));\n        return monoResponse.map(response -> {\n            return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n                response.getValue().toObject(ImageAnalysisResult.class));\n        });\n    }",
+      "contentHash": "af47b11068e0d955d90e7db677db64ec31377810f8338857a8e2fcc19c081ba7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "startLine": 681,
+      "endLine": 715,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bd4f111204b56085d7abdd689fc9f42ef56ce737e4bdfb6554a7f2d70a8e17aa"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "text": "    /**\n     * Apply the Image Analysis Options as query parameters on a given RequestOptions object.\n     * Return an updated RequestOptions object.\n     *\n     * @param inputRequestOptions The input request options (can be null).\n     * @param imageAnalysisOptions The Image Analysis Options to apply to the request to be sent (can be null).\n     *\n     * @return An updated RequestOptions with addition query parameters set based on the Image Analysis Options. Can be\n     * null.\n     */\n    static RequestOptions updateRequestOptions(RequestOptions inputRequestOptions,\n        ImageAnalysisOptions imageAnalysisOptions) {\n        RequestOptions outputRequestOptions = inputRequestOptions;\n        if (imageAnalysisOptions != null) {\n            String language = imageAnalysisOptions.getLanguage();\n            Boolean isGenderNeutralCaption = imageAnalysisOptions.isGenderNeutralCaption();\n            List<Double> smartCropsAspectRatios = imageAnalysisOptions.getSmartCropsAspectRatios();\n            String modelVersion = imageAnalysisOptions.getModelVersion();\n            if (language != null\n                || isGenderNeutralCaption != null\n                || smartCropsAspectRatios != null\n                || modelVersion != null) {\n                if (outputRequestOptions == null) {\n                    outputRequestOptions = new RequestOptions();\n                }\n                if (language != null) {\n                    outputRequestOptions.addQueryParam(\"language\", language, false);\n                }\n                if (isGenderNeutralCaption != null) {\n                    outputRequestOptions.addQueryParam(\"gender-neutral-caption\", String.valueOf(isGenderNeutralCaption),\n                        false);\n                }\n                if (smartCropsAspectRatios != null) {\n                    outputRequestOptions.addQueryParam(\"smartcrops-aspect-ratios\",\n                        JacksonAdapter.createDefaultSerializerAdapter()\n                            .serializeIterable(smartCropsAspectRatios, CollectionFormat.CSV),\n                        false);\n                }\n                if (modelVersion != null) {\n                    outputRequestOptions.addQueryParam(\"model-version\", modelVersion, false);\n                }\n            }\n        }\n        return outputRequestOptions;\n    }",
+      "contentHash": "233fb1efd5643b0402b478e38bddfc5debe982aa7dcceb750a8cdc71d6e75b05",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 532,
+      "endLine": 576,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b9e0ea67c32f5c63bacc57779b63e0b0a0a7bcbf730e67d483dab806ac7f7b2d"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a give image URL.\n     *\n     * @param imageUrl The publicly accessible URL of the image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param options Additional image analysis options.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation.\n     *\n     * <!-- src_embed com.azure.ai.vision.imageanalysis.sync-analysis-from-url -->\n     * <pre>\n     * &#47;&#47;\n     * &#47;&#47; Synchronous analysis of an image file &#40;https:&#47;&#47;aka.ms&#47;azsdk&#47;image-analysis&#47;sample.jpg&#41;,\n     * &#47;&#47; using all visual features, with all options set. You will likely need fewer visual features\n     * &#47;&#47; and only some &#40;or no&#41; options set.\n     * &#47;&#47;\n     * ImageAnalysisOptions options = new ImageAnalysisOptions&#40;&#41;\n     *     .setLanguage&#40;&quot;en&quot;&#41;\n     *     .setGenderNeutralCaption&#40;true&#41;\n     *     .setSmartCropsAspectRatios&#40;Arrays.asList&#40;0.9, 1.33&#41;&#41;\n     *     .setModelVersion&#40;&quot;latest&quot;&#41;;\n     *\n     * ImageAnalysisResult result = client.analyzeFromUrl&#40;\n     *     &quot;https:&#47;&#47;aka.ms&#47;azsdk&#47;image-analysis&#47;sample.jpg&quot;,\n     *     Arrays.asList&#40;\n     *         VisualFeatures.SMART_CROPS,\n     *         VisualFeatures.CAPTION,\n     *         VisualFeatures.DENSE_CAPTIONS,\n     *         VisualFeatures.OBJECTS,\n     *         VisualFeatures.PEOPLE,\n     *         VisualFeatures.READ,\n     *         VisualFeatures.TAGS&#41;,\n     *     options&#41;;\n     * </pre>\n     * <!-- end com.azure.ai.vision.imageanalysis.sync-analysis-from-url -->\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public ImageAnalysisResult analyzeFromUrl(String imageUrl, List<VisualFeatures> visualFeatures,\n        ImageAnalysisOptions options) {\n        return analyzeFromUrlWithResponse(imageUrl, visualFeatures, options, null).getValue();\n    }",
+      "contentHash": "a24ed6a5fd28e09fa5bd723c1de68a9bda0097f1854ae3e67da3708445a79bcd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 578,
+      "endLine": 627,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4cc5b74a8d90b169f4da7eb8d527599168d5288be22003db770c0b849ae05b35"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a given image buffer.\n     *\n     * @param imageData The image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param options Additional image analysis options.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation.\n     *\n     * <!-- src_embed com.azure.ai.vision.imageanalysis.sync-analysis-from-file -->\n     * <pre>\n     * &#47;&#47;\n     * &#47;&#47; Synchronous analysis of an image file &#40;sample.jpg&#41;, using all visual features,\n     * &#47;&#47; with all options set. You will likely need fewer visual features and only\n     * &#47;&#47; some &#40;or no&#41; options set.\n     * &#47;&#47;\n     * ImageAnalysisOptions options = new ImageAnalysisOptions&#40;&#41;\n     *     .setLanguage&#40;&quot;en&quot;&#41;\n     *     .setGenderNeutralCaption&#40;true&#41;\n     *     .setSmartCropsAspectRatios&#40;Arrays.asList&#40;0.9, 1.33&#41;&#41;\n     *     .setModelVersion&#40;&quot;latest&quot;&#41;;\n     *\n     * ImageAnalysisResult result = client.analyze&#40;\n     *     BinaryData.fromFile&#40;new File&#40;&quot;sample.jpg&quot;&#41;.toPath&#40;&#41;&#41;,\n     *     Arrays.asList&#40;\n     *         VisualFeatures.SMART_CROPS,\n     *         VisualFeatures.CAPTION,\n     *         VisualFeatures.DENSE_CAPTIONS,\n     *         VisualFeatures.OBJECTS,\n     *         VisualFeatures.PEOPLE,\n     *         VisualFeatures.READ,\n     *         VisualFeatures.TAGS&#41;,\n     *     options&#41;;\n     * </pre>\n     * <!-- end com.azure.ai.vision.imageanalysis.sync-analysis-from-file -->\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public ImageAnalysisResult analyze(BinaryData imageData, List<VisualFeatures> visualFeatures,\n        ImageAnalysisOptions options) {\n        return analyzeWithResponse(imageData, visualFeatures, options, null).getValue();\n    }",
+      "contentHash": "1e926b744160fe7be6dd7d51c966cd4acdb5635a91a3a2c54d0175aa2063eae0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 629,
+      "endLine": 678,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7dd21b3d101a8a62c8c0aae4e3649014a713f6aeb691c65e34a2ead9cd147890"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a given image URL, while allowing customization\n     * of the HTTP request and access to HTTP request and response details. This is not commonly used.\n     *\n     * @param imageUrl The publicly accessible URL of the image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param imageAnalysisOptions Additional image analysis options.\n     * @param requestOptions The options to configure the HTTP request before the HTTP client sends it.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation along with\n     * <a href=\"https://learn.microsoft.com/java/api/com.azure.core.http.rest.response\">Response</a>.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Response<ImageAnalysisResult> analyzeFromUrlWithResponse(String imageUrl,\n        List<VisualFeatures> visualFeatures, ImageAnalysisOptions imageAnalysisOptions, RequestOptions requestOptions) {\n        List<String> visualFeaturesAsStrings = visualFeatures.stream()\n            .map(paramItemValue -> Objects.toString(paramItemValue, \"\"))\n            .collect(Collectors.toList());\n        Response<BinaryData> response = analyzeFromUrlWithResponse(visualFeaturesAsStrings,\n            BinaryData.fromObject(new ImageUrl(imageUrl)), updateRequestOptions(requestOptions, imageAnalysisOptions));\n        return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n            response.getValue().toObject(ImageAnalysisResult.class));\n    }",
+      "contentHash": "7774b1746e6d1719bb262eb43288b94dedc67d015e35363c9f73614e3c2f5b8c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 680,
+      "endLine": 711,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1a2d29a7bc8a8ec2a12c327ec9494dd2fdbb528afb555c00420f4b905435e370"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "text": "    /**\n     * Performs a single Image Analysis operation on a given image buffer, while allowing customization\n     * of the HTTP request and access to HTTP request and response details. This is not commonly used.\n     *\n     * @param imageData The image to analyze.\n     * @param visualFeatures A list of visual features to analyze.\n     * Seven visual features are supported: Caption, DenseCaptions, Read (OCR), Tags, Objects, SmartCrops, and People.\n     * At least one visual feature must be specified.\n     * @param imageAnalysisOptions Additional image analysis options.\n     * @param requestOptions The options to configure the HTTP request before the HTTP client sends it.\n     *\n     * @throws IllegalArgumentException thrown if parameters fail the validation.\n     * @throws HttpResponseException thrown if the request is rejected by server.\n     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.\n     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.\n     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.\n     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.\n     *\n     * @return represents the outcome of an Image Analysis operation along with\n     * <a href=\"https://learn.microsoft.com/java/api/com.azure.core.http.rest.response\">Response</a>.\n     */\n    @ServiceMethod(returns = ReturnType.SINGLE)\n    public Response<ImageAnalysisResult> analyzeWithResponse(BinaryData imageData, List<VisualFeatures> visualFeatures,\n        ImageAnalysisOptions imageAnalysisOptions, RequestOptions requestOptions) {\n        List<String> visualFeaturesAsStrings = visualFeatures.stream()\n            .map(paramItemValue -> Objects.toString(paramItemValue, \"\"))\n            .collect(Collectors.toList());\n        Response<BinaryData> response = analyzeFromImageDataWithResponse(visualFeaturesAsStrings, imageData,\n            updateRequestOptions(requestOptions, imageAnalysisOptions));\n        return new SimpleResponse<>(response.getRequest(), response.getStatusCode(), response.getHeaders(),\n            response.getValue().toObject(ImageAnalysisResult.class));\n    }",
+      "contentHash": "a9840d5f907a807415bdc3fdca635442acd370e9da117bf46e324f71bbdb0b80",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 713,
+      "endLine": 744,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0d07be170c0430b27ff0335f419e1aba6729102b28879450863470adecebed06"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageBoundingBox.java",
+      "text": "    /**\n     * Returns a compact string containing the bounding box values in a style suitable for printing.\n     *\n     * @return a string containing the bounding box values.\n     */\n    public String toString() {\n        return new StringBuilder().append(\"{x=\")\n            .append(this.getX())\n            .append(\", y=\")\n            .append(this.getY())\n            .append(\", width=\")\n            .append(this.getWidth())\n            .append(\", height=\")\n            .append(this.getHeight())\n            .append(\"}\")\n            .toString();\n    }",
+      "contentHash": "cad3c433b60971f974cb370796b2eae01ef8aeef521ff4c838da001c9ce263ef",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageBoundingBox.java",
+      "startLine": 100,
+      "endLine": 116,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5a773a5581a098eddb6451ae1ab450592ff11e8a6fa1133f0c0535b726231a46"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImagePoint.java",
+      "text": "    /**\n     * Returns a compact string containing the image point values in a style suitable for printing.\n     *\n     * @return A string containing the image point values.\n     */\n    public String toString() {\n        return \"(x=\" + this.getX() + \", y=\" + this.getY() + \")\";\n    }",
+      "contentHash": "6495a4b6c0b13cd58b5957c8f55ee69b4f6f753705a229ecb30fb83b46b3b065",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImagePoint.java",
+      "startLine": 67,
+      "endLine": 74,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0ba004adc2ca797fe64e3b910ac2c9b2809c044944e7d2247b26815031a585d2"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageAnalysisOptions.java",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\npackage com.azure.ai.vision.imageanalysis.models;\n\nimport java.util.List;\n\n/**\n *  Options for a single Image Analysis operation.\n */\npublic final class ImageAnalysisOptions {\n\n    String language = null;\n\n    Boolean genderNeutralCaption = null;\n\n    List<Double> smartCropsAspectRatios = null;\n\n    String modelVersion = null;\n\n    /**\n     * Creates an instance of ImageAnalysisOptions class with default analysis options, as specified by the service.\n     * The Language used will be \"en\" (for English).\n     * Gender Neutral Caption is \"false\".\n     * One Smart Crop region with an aspect ratio the service sees fit.\n     * Model version is \"latest\".\n     */\n    public ImageAnalysisOptions() {\n    }\n\n    /**\n     * Sets the desired language for output generation. At the moment this only applies to the \n     * visual feature {@link com.azure.ai.vision.imageanalysis.models.VisualFeatures#TAGS TAGS}.\n     * If this parameter is not specified, the default value is \"en\" for English.\n     * See <a href=\"https://aka.ms/cv-languages\">https://aka.ms/cv-languages</a> for a list of \n     * supported languages and to which visual feature they apply.\n     * \n     * @param language The langauge code to set, as specified in <a href=\"https://aka.ms/cv-languages\">https://aka.ms/cv-languages</a>.\n     * \n     * @return Returns the same concrete type with the appropriate properties updated, to allow for fluent chaining of operations.\n     */\n    public ImageAnalysisOptions setLanguage(String language) {\n        this.language = language;\n        return this;\n    }\n\n    /**\n     * Get the language code\n     * \n     * @return The language code\n     */\n    public String getLanguage() {\n        return this.language;\n    }\n\n    /**\n     * Sets the gender-neutral captioning option for visual \n     * features {@link com.azure.ai.vision.imageanalysis.models.VisualFeatures#CAPTION CAPTION} \n     * and {@link com.azure.ai.vision.imageanalysis.models.VisualFeatures#DENSE_CAPTIONS DENSE_CAPTIONS}.\n     * If this parameter is not specified, the default value is \"false\".\n     * By default captions may contain gender terms (for example: 'man', 'woman', or 'boy', 'girl').\n     * If you set this to \"true\", those will be replaced with gender-neutral terms (for example: 'person' or 'child').\n     * \n     * @param genderNeutralCaption Set to \"true\" to get gender neutral captions.\n     * \n     * @return Returns the same concrete type with the appropriate properties updated, to allow for fluent chaining of operations.\n     */\n    public ImageAnalysisOptions setGenderNeutralCaption(Boolean genderNeutralCaption) {\n        this.genderNeutralCaption = genderNeutralCaption;\n        return this;\n    }\n\n    /**\n     * Get the gender neutral caption selection\n     * \n     * @return The gender neutral caption selection\n     */\n    public Boolean isGenderNeutralCaption() {\n        return this.genderNeutralCaption;\n    }\n\n    /**\n     * Set a list of aspect ratios for the visual \n     * feature {@link com.azure.ai.vision.imageanalysis.models.VisualFeatures#SMART_CROPS SMART_CROPS}.\n     * Aspect ratios are calculated by dividing the target crop width in pixels by the height in pixels.\n     * Supported values are between 0.75 and 1.8 (inclusive).\n     * If this parameter is not specified, the service will return one crop region with an aspect\n     * ratio it sees fit between 0.5 and 2.0 (inclusive).\n     * \n     * @param smartCropsAspectRatios The list of aspect ratios to set.\n     * \n     * @return Returns the same concrete type with the appropriate properties updated, to allow for fluent chaining of operations.\n     */\n    public ImageAnalysisOptions setSmartCropsAspectRatios(List<Double> smartCropsAspectRatios) {\n        this.smartCropsAspectRatios = smartCropsAspectRatios;\n        return this;\n    }\n\n    /**\n     * Get the smart crop aspect rations\n     * \n     * @return The smart crop aspect rations\n     */\n    public List<Double> getSmartCropsAspectRatios() {\n        return this.smartCropsAspectRatios;\n    }\n\n    /**\n     * Set the version of cloud AI-model used for analysis.\n     * The format is the following: 'latest' (default value) or 'YYYY-MM-DD' or 'YYYY-MM-DD-preview', where 'YYYY',\n     * 'MM', 'DD' are the year, month and day associated with the model.\n     * This is not commonly set, as the default always gives the latest AI model with recent improvements.\n     * If however you would like to make sure analysis results do not change over time, set this value to a specific\n     * model version. Note that the model version is available in the Image Analysis Result (see com.azure.ai.vision.imageanalysis.models.ImageAnalysisResult.getModelVersion).\n     * \n     * @param modelVersion The model version to set.\n     * \n     * @return Returns the same concrete type with the appropriate properties updated, to allow for fluent chaining of operations.\n     */\n    public ImageAnalysisOptions setModelVersion(String modelVersion) {\n        this.modelVersion = modelVersion;\n        return this;\n    }\n\n    /**\n     * Get the model version\n     * \n     * @return The model version\n     */\n    public String getModelVersion() {\n        return this.modelVersion;\n    }\n}\n",
+      "contentHash": "d11d9fd814aacc12432c35619db800c007f811cc0c6f3f50de189e190c8a40b2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageAnalysisOptions.java",
+      "startLine": 1,
+      "endLine": 132,
+      "kind": "unknown",
+      "id": "fdd838123b279252826731b1b027015701bd8bc8dbacec7aabea80298e1ddecf"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/customization/pom.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-code-customization-parent</artifactId>\n    <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-code-customization-parent;current} -->\n    <relativePath>../../../parents/azure-code-customization-parent</relativePath>\n  </parent>\n\n  <name>Azure Image Analysis customization</name>\n  <description>This package contains client customization for Azure Image Analysis</description>\n\n  <groupId>com.azure.tools</groupId>\n  <artifactId>azure-ai-image-analysis-customization</artifactId>\n  <version>1.0.0-beta.1</version>\n  <packaging>jar</packaging>\n</project>\n",
+      "contentHash": "ae6d80825128c146e16281f6383b0ca0243996f7eebb4ebddcca97d06a3e8139",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/customization/pom.xml"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/pom.xml",
+      "text": "<!--\n ~ Copyright (c) Microsoft Corporation. All rights reserved.\n ~ Licensed under the MIT License.\n ~ Code generated by Microsoft (R) TypeSpec Code Generator.\n -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>com.azure</groupId>\n    <artifactId>azure-client-sdk-parent</artifactId>\n    <version>1.7.0</version> <!-- {x-version-update;com.azure:azure-client-sdk-parent;current} -->\n    <relativePath>../../parents/azure-client-sdk-parent</relativePath>\n  </parent>\n\n  <groupId>com.azure</groupId>\n  <artifactId>azure-ai-vision-imageanalysis</artifactId>\n  <version>1.1.0-beta.1</version> <!-- {x-version-update;com.azure:azure-ai-vision-imageanalysis;current} -->\n  <packaging>jar</packaging>\n\n  <name>Microsoft Azure SDK for ImageAnalysis</name>\n  <description>This package contains Microsoft Azure ImageAnalysis client library.</description>\n  <url>https://github.com/Azure/azure-sdk-for-java</url>\n\n  <licenses>\n    <license>\n      <name>The MIT License (MIT)</name>\n      <url>http://opensource.org/licenses/MIT</url>\n      <distribution>repo</distribution>\n    </license>\n  </licenses>\n\n  <scm>\n    <url>https://github.com/Azure/azure-sdk-for-java</url>\n    <connection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</connection>\n    <developerConnection>scm:git:git@github.com:Azure/azure-sdk-for-java.git</developerConnection>\n    <tag>HEAD</tag>\n  </scm>\n  <developers>\n    <developer>\n      <id>microsoft</id>\n      <name>Microsoft</name>\n    </developer>\n  </developers>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    <spotbugs.skip>false</spotbugs.skip>\n    <jacoco.skip>true</jacoco.skip>\n  </properties>\n  <dependencies>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core</artifactId>\n      <version>1.60.0</version> <!-- {x-version-update;com.azure:azure-core;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-http-netty</artifactId>\n      <version>1.16.8</version> <!-- {x-version-update;com.azure:azure-core-http-netty;dependency} -->\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-core-test</artifactId>\n      <version>1.27.0-beta.19</version> <!-- {x-version-update;com.azure:azure-core-test;dependency} -->\n      <scope>test</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.azure</groupId>\n      <artifactId>azure-identity</artifactId>\n      <version>1.18.7</version> <!-- {x-version-update;com.azure:azure-identity;dependency} -->\n      <scope>test</scope>\n    </dependency>\n  </dependencies>\n</project>\n",
+      "contentHash": "e49470eb09b74751b0f7d8d727d6a329faefc9b02b71a424e4488b933e18b019",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/pom.xml"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/tsp-location.yaml",
+      "text": "repo: Azure/azure-rest-api-specs\ndirectory: specification/ai/ImageAnalysis\nadditionalDirectories: []\ncommit: 6267b64842af3d744c5b092a3f3beef49729ad6d\n",
+      "contentHash": "d5aa48604d7615e829a4317e8de93eeba86f25cdb357c5fa8a3583bb972b7636",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-java/blob/a9177372fbb895222b2377688bb23cd7e769fddb/sdk/vision/azure-ai-vision-imageanalysis/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "4cbdf0e36d892816986b362ba70a28a05decd93500f0581772fedbbee65bbe5b",
+    "analystModel": "claude-sonnet-5-5",
+    "reviewerModel": "claude-opus-5-5",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "f38addcaaf7a0e91050e7e33b0a56cec53e5eaf9b891c6297b5779a58274b36f",
+        "category": "Other",
+        "subtype": "Javadoc code-snippet injection for client auth samples",
+        "explanation": "The customization script appends src_embed code-snippet tags for API key and Entra ID auth samples to the sync and async client class Javadoc.",
+        "handwrittenRationale": "Customization subclass editing generated class Javadoc via customizeAst.",
+        "symbols": [
+          "ImageAnalysisCustomization.updateClientJavadoc",
+          "ImageAnalysisClient",
+          "ImageAnalysisAsyncClient"
+        ],
+        "evidence": [
+          {
+            "id": "99627d1052f57068549f79d03289ed6c168bc9e1537d168ae908c02cbdc1ed3e",
+            "startLine": 13,
+            "endLine": 35
+          }
+        ],
+        "pattern": "javadoc-snippet-injection",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "364ad55f8d27cb9a2e228374487bcad80025144df06576a24020c06297edbaf9",
+        "category": "Convenience methods",
+        "subtype": "Options-object to query-parameter mapping",
+        "explanation": "The static updateRequestOptions converts ImageAnalysisOptions (language, gender-neutral-caption, smartcrops-aspect-ratios, model-version) into RequestOptions query params.",
+        "handwrittenRationale": "Package-private helper without @Generated, shared by sync and async clients.",
+        "symbols": [
+          "ImageAnalysisClient.updateRequestOptions",
+          "ImageAnalysisOptions"
+        ],
+        "evidence": [
+          {
+            "id": "b9e0ea67c32f5c63bacc57779b63e0b0a0a7bcbf730e67d483dab806ac7f7b2d",
+            "startLine": 542,
+            "endLine": 576
+          }
+        ],
+        "pattern": "convenience-overload-unpacking-options",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "bfff83f18e5717cd48387ddf85f1165fe2336b6db008e31d0d160b45f5c1ec07",
+        "category": "Model overrides",
+        "subtype": "Handwritten ImageAnalysisOptions options bag",
+        "explanation": "ImageAnalysisOptions is a handwritten options class with fluent setters/getters for optional query parameters.",
+        "handwrittenRationale": "Plain class with no @Generated annotations or generated markers.",
+        "symbols": [
+          "ImageAnalysisOptions"
+        ],
+        "evidence": [
+          {
+            "id": "fdd838123b279252826731b1b027015701bd8bc8dbacec7aabea80298e1ddecf",
+            "startLine": 10,
+            "endLine": 132
+          }
+        ],
+        "pattern": "convenience-options-class",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "363eca29d0f46f86135bed09d60d7b88b85148077369fbe550022a2fabd38464",
+        "category": "Convenience methods",
+        "subtype": "Typed analyze/analyzeFromUrl overloads returning ImageAnalysisResult (sync)",
+        "explanation": "Sync client overloads take a List<VisualFeatures> and ImageAnalysisOptions, convert features to strings, build ImageUrl body, and wrap the result in a typed SimpleResponse.",
+        "handwrittenRationale": "Methods lack @Generated and deviate from the generated protocol signature.",
+        "symbols": [
+          "ImageAnalysisClient.analyzeFromUrl",
+          "ImageAnalysisClient.analyze",
+          "ImageAnalysisClient.analyzeFromUrlWithResponse",
+          "ImageAnalysisClient.analyzeWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "4cc5b74a8d90b169f4da7eb8d527599168d5288be22003db770c0b849ae05b35",
+            "startLine": 623,
+            "endLine": 627
+          },
+          {
+            "id": "7dd21b3d101a8a62c8c0aae4e3649014a713f6aeb691c65e34a2ead9cd147890",
+            "startLine": 674,
+            "endLine": 678
+          },
+          {
+            "id": "1a2d29a7bc8a8ec2a12c327ec9494dd2fdbb528afb555c00420f4b905435e370",
+            "startLine": 701,
+            "endLine": 711
+          },
+          {
+            "id": "0d07be170c0430b27ff0335f419e1aba6729102b28879450863470adecebed06",
+            "startLine": 734,
+            "endLine": 744
+          }
+        ],
+        "pattern": "convenience-typed-wrapper-over-protocol",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "da7869400d11749ef3abd3ebef1f73e0cdfb3b3e13b2890a790511a8b4a51ffd",
+        "category": "Convenience methods",
+        "subtype": "Typed analyze/analyzeFromUrl overloads returning ImageAnalysisResult (async)",
+        "explanation": "Async client overloads mirror the sync convenience methods, mapping Mono<Response<BinaryData>> into Mono<Response<ImageAnalysisResult>> and reusing ImageAnalysisClient.updateRequestOptions.",
+        "handwrittenRationale": "Methods lack @Generated and call the sync client static helper.",
+        "symbols": [
+          "ImageAnalysisAsyncClient.analyzeFromUrl",
+          "ImageAnalysisAsyncClient.analyze",
+          "ImageAnalysisAsyncClient.analyzeFromUrlWithResponse",
+          "ImageAnalysisAsyncClient.analyzeWithResponse"
+        ],
+        "evidence": [
+          {
+            "id": "4e45c9dd99e35dc28f82ebfa0752209ad52808875372a809c9755d025b2155e6",
+            "startLine": 583,
+            "endLine": 589
+          },
+          {
+            "id": "e24433a576c8b6eedf5d7a5e55e7d139701dc9285513e4d226f007fea101dc2f",
+            "startLine": 636,
+            "endLine": 642
+          },
+          {
+            "id": "e72c53bd436f798bf6d9c0c28dd639721b9cbec41039f01f1558403eb51a26b1",
+            "startLine": 666,
+            "endLine": 679
+          },
+          {
+            "id": "bd4f111204b56085d7abdd689fc9f42ef56ce737e4bdfb6554a7f2d70a8e17aa",
+            "startLine": 703,
+            "endLine": 715
+          }
+        ],
+        "pattern": "convenience-typed-wrapper-over-protocol",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "24096c39a3345dcce9adf03bf2ce44a4a48ae8bc63ce0fb2c377fe90e3b7e3ca",
+        "category": "Model overrides",
+        "subtype": "Custom toString on ImageBoundingBox",
+        "explanation": "ImageBoundingBox overrides toString to print x, y, width and height.",
+        "handwrittenRationale": "Method has no @Generated annotation.",
+        "symbols": [
+          "ImageBoundingBox.toString"
+        ],
+        "evidence": [
+          {
+            "id": "5a773a5581a098eddb6451ae1ab450592ff11e8a6fa1133f0c0535b726231a46",
+            "startLine": 105,
+            "endLine": 116
+          }
+        ],
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes"
+      },
+      {
+        "key": "16ad47c8fe31ca508f15a52603fb61e95c02707f4a14878ded2993d4d8ccb3e4",
+        "category": "Model overrides",
+        "subtype": "Custom toString on ImagePoint",
+        "explanation": "ImagePoint overrides toString to print \"(x=, y=)\".",
+        "handwrittenRationale": "Method has no @Generated annotation.",
+        "symbols": [
+          "ImagePoint.toString"
+        ],
+        "evidence": [
+          {
+            "id": "0ba004adc2ca797fe64e3b910ac2c9b2809c044944e7d2247b26815031a585d2",
+            "startLine": 72,
+            "endLine": 74
+          }
+        ],
+        "pattern": "model-to-string",
+        "generatorAddressable": "yes"
+      }
+    ],
+    "decisions": [
+      {
+        "key": "f38addcaaf7a0e91050e7e33b0a56cec53e5eaf9b891c6297b5779a58274b36f",
+        "status": "revised",
+        "reason": "Lines 13-35 append src_embed snippet tags to the generated client class Javadoc through customizeAst, which is a real script edit. generatorAddressable changed to unclear: the edit injects library-specific sample snippet markers, and nothing in the evidence shows a TypeSpec construct that would carry them.",
+        "finding": {
+          "key": "f38addcaaf7a0e91050e7e33b0a56cec53e5eaf9b891c6297b5779a58274b36f",
+          "category": "Other",
+          "subtype": "Javadoc code-snippet injection for client auth samples",
+          "explanation": "The customization script appends src_embed code-snippet tags for API key and Entra ID auth samples to the sync and async client class Javadoc.",
+          "handwrittenRationale": "Customization subclass editing generated class Javadoc via customizeAst.",
+          "symbols": [
+            "ImageAnalysisCustomization.updateClientJavadoc",
+            "ImageAnalysisClient",
+            "ImageAnalysisAsyncClient"
+          ],
+          "evidence": [
+            {
+              "id": "99627d1052f57068549f79d03289ed6c168bc9e1537d168ae908c02cbdc1ed3e",
+              "startLine": 13,
+              "endLine": 35
+            }
+          ],
+          "pattern": "javadoc-snippet-injection",
+          "generatorAddressable": "unclear"
+        }
+      },
+      {
+        "key": "364ad55f8d27cb9a2e228374487bcad80025144df06576a24020c06297edbaf9",
+        "status": "accepted",
+        "reason": "Lines 542-576: package-private static helper without @Generated that maps ImageAnalysisOptions getters to language, gender-neutral-caption, smartcrops-aspect-ratios and model-version query parameters on RequestOptions."
+      },
+      {
+        "key": "bfff83f18e5717cd48387ddf85f1165fe2336b6db008e31d0d160b45f5c1ec07",
+        "status": "accepted",
+        "reason": "ImageAnalysisOptions.java lines 10-132 is a plain class with no @Generated members and no generated header, defining a fluent options bag used by the handwritten overloads."
+      },
+      {
+        "key": "363eca29d0f46f86135bed09d60d7b88b85148077369fbe550022a2fabd38464",
+        "status": "accepted",
+        "reason": "Sync analyzeFromUrl/analyze (623-627, 674-678) and the WithResponse overloads (701-711, 734-744) lack @Generated, convert VisualFeatures to strings, call the generated protocol methods and wrap the BinaryData result in a typed SimpleResponse."
+      },
+      {
+        "key": "da7869400d11749ef3abd3ebef1f73e0cdfb3b3e13b2890a790511a8b4a51ffd",
+        "status": "accepted",
+        "reason": "Async overloads at 583-589, 636-642, 666-679 and 703-715 lack @Generated, map Mono<Response<BinaryData>> to typed responses and reuse ImageAnalysisClient.updateRequestOptions; same pattern name as the sync finding."
+      },
+      {
+        "key": "24096c39a3345dcce9adf03bf2ce44a4a48ae8bc63ce0fb2c377fe90e3b7e3ca",
+        "status": "revised",
+        "reason": "Lines 105-116 show a toString without @Generated, matching the guideline example. generatorAddressable changed to unclear: the compact print format is a presentation choice the evidence does not tie to any TypeSpec construct.",
+        "finding": {
+          "key": "24096c39a3345dcce9adf03bf2ce44a4a48ae8bc63ce0fb2c377fe90e3b7e3ca",
+          "category": "Model overrides",
+          "subtype": "Custom toString on ImageBoundingBox",
+          "explanation": "ImageBoundingBox overrides toString to print x, y, width and height.",
+          "handwrittenRationale": "Method has no @Generated annotation.",
+          "symbols": [
+            "ImageBoundingBox.toString"
+          ],
+          "evidence": [
+            {
+              "id": "5a773a5581a098eddb6451ae1ab450592ff11e8a6fa1133f0c0535b726231a46",
+              "startLine": 105,
+              "endLine": 116
+            }
+          ],
+          "pattern": "model-to-string",
+          "generatorAddressable": "unclear"
+        }
+      },
+      {
+        "key": "16ad47c8fe31ca508f15a52603fb61e95c02707f4a14878ded2993d4d8ccb3e4",
+        "status": "revised",
+        "reason": "Lines 72-74 show a toString without @Generated. generatorAddressable changed to unclear for the same reason as the ImageBoundingBox toString finding (custom print format, no TypeSpec construct shown).",
+        "finding": {
+          "key": "16ad47c8fe31ca508f15a52603fb61e95c02707f4a14878ded2993d4d8ccb3e4",
+          "category": "Model overrides",
+          "subtype": "Custom toString on ImagePoint",
+          "explanation": "ImagePoint overrides toString to print \"(x=, y=)\".",
+          "handwrittenRationale": "Method has no @Generated annotation.",
+          "symbols": [
+            "ImagePoint.toString"
+          ],
+          "evidence": [
+            {
+              "id": "0ba004adc2ca797fe64e3b910ac2c9b2809c044944e7d2247b26815031a585d2",
+              "startLine": 72,
+              "endLine": 74
+            }
+          ],
+          "pattern": "model-to-string",
+          "generatorAddressable": "unclear"
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only 13 of 33 eligible files were supplied and excerpts of the clients cover only the convenience methods; @Generated absence is inferred from the visible lines.",
+      "Client excerpts begin at the handwritten methods; the surrounding generated members (with @Generated) are not shown, so the handwritten signal relies on the missing annotation on the cited methods only.",
+      "Only 13 of 33 eligible files were captured; other model or builder files may contain additional unannotated members.",
+      "No @Override annotation is visible on the toString methods; this does not affect classification."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/customization/src/main/java/ImageAnalysisCustomization.java",
+      "startLine": 1,
+      "endLine": 38,
+      "provenance": "Java customization script",
+      "contentHash": "51cb54cf4db7e35dcf84bf4e081f3e823d48cbcaca5f4aa62f68595744d5931f"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisAsyncClient.java",
+      "startLine": 584,
+      "endLine": 704,
+      "provenance": "Java members without @Generated: analyzeFromUrl, analyze, analyzeFromUrlWithResponse, analyzeWithResponse",
+      "contentHash": "9a2fb6c1f4498df94569b22c79509c80f3f0db83479496d373d4db021221be48"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/ImageAnalysisClient.java",
+      "startLine": 542,
+      "endLine": 735,
+      "provenance": "Java members without @Generated: updateRequestOptions, analyzeFromUrl, analyze, analyzeFromUrlWithResponse, analyzeWithResponse",
+      "contentHash": "0b029f830847e8004b1da55010ac73958bd86999ae8ac7a55baee0eff3aabd7f"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageAnalysisOptions.java",
+      "startLine": 1,
+      "endLine": 132,
+      "provenance": "Java handwritten source",
+      "contentHash": "d11d9fd814aacc12432c35619db800c007f811cc0c6f3f50de189e190c8a40b2"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImageBoundingBox.java",
+      "startLine": 105,
+      "endLine": 105,
+      "provenance": "Java members without @Generated: toString",
+      "contentHash": "70c43d55f5a15861fa172a27cc3ec6159518c6f48d9a0dd0e59c7a185a17748b"
+    },
+    {
+      "path": "sdk/vision/azure-ai-vision-imageanalysis/src/main/java/com/azure/ai/vision/imageanalysis/models/ImagePoint.java",
+      "startLine": 72,
+      "endLine": 72,
+      "provenance": "Java members without @Generated: toString",
+      "contentHash": "654abcdf198af6b0ea76d69350105c2e32fa76601fcab92d871151214d8ae3d0"
+    }
+  ]
+}

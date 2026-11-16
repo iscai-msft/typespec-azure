@@ -1,0 +1,414 @@
+{
+  "schemaVersion": 1,
+  "id": "1b194798-f556-4d47-8160-1766216d210c",
+  "observedAt": "2026-10-23T23:40:18.724Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/azsystemevents:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/azsystemevents",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/messaging/eventgrid/azsystemevents"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "04ec96eef9df136fb5b82002b3a75b8a0a707d21"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 36,
+    "eligibleFiles": 12,
+    "capturedFiles": 5,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/custom_events.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azsystemevents\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"strings\"\n)\n\nfunc unmarshalInternalACSMessageChannelEventError(val json.RawMessage, fn string, re **Error) error {\n\tvar realErr *internalACSMessageChannelEventError\n\n\tif err := json.Unmarshal(val, &realErr); err != nil {\n\t\treturn fmt.Errorf(\"struct field %s: %w\", fn, err)\n\t}\n\n\t*re = &Error{\n\t\tCode:    *realErr.ChannelCode,\n\t\tmessage: *realErr.ChannelMessage,\n\t}\n\n\treturn nil\n}\n\nfunc unpackMsg(err internalACSRouterCommunicationError, indent string) string {\n\tsb := strings.Builder{}\n\n\tcode := \"\"\n\tif err.Code != nil {\n\t\tcode = *err.Code\n\t}\n\n\tmessage := \"\"\n\tif err.Message != nil {\n\t\tmessage = *err.Message\n\t}\n\n\tfmt.Fprintf(&sb, \"%sCode: %s\\n%sMessage: %s\\n\", indent, code, indent, message)\n\n\tif len(err.Details) > 0 {\n\t\tfor i, detailErr := range err.Details {\n\t\t\tfmt.Fprintf(&sb, \"%sDetails[%d]:\\n%s\", indent, i, unpackMsg(detailErr, indent+\"  \"))\n\t\t}\n\t}\n\n\tif err.Innererror != nil {\n\t\tfmt.Fprintf(&sb, \"%sInnerError:\\n%s\", indent, unpackMsg(*err.Innererror, indent+\"  \"))\n\t}\n\n\treturn sb.String()\n}\n\nfunc unmarshalInternalACSRouterCommunicationError(val json.RawMessage, fn string, re *[]*Error) error {\n\tvar tmp []internalACSRouterCommunicationError\n\n\tif err := json.Unmarshal(val, &tmp); err != nil {\n\t\treturn fmt.Errorf(\"struct field %s: %w\", fn, err)\n\t}\n\n\tfor _, se := range tmp {\n\t\tcode := \"\"\n\n\t\tif se.Code != nil {\n\t\t\tcode = *se.Code\n\t\t}\n\n\t\te := &Error{\n\t\t\tCode: code,\n\t\t\t// we're going to compress the remainder of these details into a\n\t\t\t// string.\n\t\t\tmessage: unpackMsg(se, \"\"),\n\t\t}\n\n\t\t*re = append(*re, e)\n\t}\n\n\treturn nil\n}\n",
+      "contentHash": "c69e3805150d8e054afec68af0e540250822f38204a29c7ec8c8c55525cfb3bd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/custom_events.go",
+      "startLine": 1,
+      "endLine": 83,
+      "kind": "unknown",
+      "id": "c83a1465ed5f46696438e9e6144a438c36ed3977f8f4ca3a3a3138d75ecb2c71"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/error.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azsystemevents\n\n// Error is an error that is included as part of a system event.\ntype Error struct {\n\t// Code is an error code from the service producing the system event.\n\tCode string\n\n\tmessage string\n}\n\n// Error returns human-readable text describing the error.\nfunc (e *Error) Error() string {\n\treturn e.message\n}\n",
+      "contentHash": "eb3712a195ce89b19d2872344d0202a522aea5806d6144dfb982730fc695fc1e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/error.go",
+      "startLine": 1,
+      "endLine": 20,
+      "kind": "unknown",
+      "id": "f68d2ec3a964e49e339f275773cc806445c6b3cb1e01ee0438308b0bb553b516"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/eventgrid_event.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azsystemevents\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"time\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime/datetime\"\n)\n\n// EventGridEvent - Properties of an event published to an Event Grid topic using the EventGrid Schema.\ntype EventGridEvent struct {\n\t// REQUIRED; Event data specific to the event type.\n\tData any\n\n\t// REQUIRED; The schema version of the data object.\n\tDataVersion *string\n\n\t// REQUIRED; The time (in UTC) the event was generated.\n\tEventTime *time.Time\n\n\t// REQUIRED; The type of the event that occurred.\n\tEventType *string\n\n\t// REQUIRED; An unique identifier for the event.\n\tID *string\n\n\t// REQUIRED; A resource path relative to the topic path.\n\tSubject *string\n\n\t// The resource path of the event source.\n\tTopic *string\n\n\t// READ-ONLY; The schema version of the event metadata.\n\tMetadataVersion *string\n}\n\n// MarshalJSON implements the json.Marshaller interface for type EventGridEvent.\nfunc (e EventGridEvent) MarshalJSON() ([]byte, error) {\n\tobjectMap := make(map[string]any)\n\tpopulateAny(objectMap, \"data\", e.Data)\n\tpopulate(objectMap, \"dataVersion\", e.DataVersion)\n\tpopulateTime[datetime.RFC3339](objectMap, \"eventTime\", e.EventTime, true)\n\tpopulate(objectMap, \"eventType\", e.EventType)\n\tpopulate(objectMap, \"id\", e.ID)\n\tpopulate(objectMap, \"metadataVersion\", e.MetadataVersion)\n\tpopulate(objectMap, \"subject\", e.Subject)\n\tpopulate(objectMap, \"topic\", e.Topic)\n\treturn json.Marshal(objectMap)\n}\n\n// UnmarshalJSON implements the json.Unmarshaller interface for type EventGridEvent.\nfunc (e *EventGridEvent) UnmarshalJSON(data []byte) error {\n\tvar rawMsg map[string]json.RawMessage\n\tif err := json.Unmarshal(data, &rawMsg); err != nil {\n\t\treturn fmt.Errorf(\"unmarshalling type %T: %w\", e, err)\n\t}\n\tfor key, val := range rawMsg {\n\t\tvar err error\n\t\tswitch key {\n\t\tcase \"data\":\n\t\t\te.Data = []byte(val)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"dataVersion\":\n\t\t\terr = unpopulate(val, \"DataVersion\", &e.DataVersion)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"eventTime\":\n\t\t\terr = unpopulateTime[datetime.RFC3339](val, \"EventTime\", &e.EventTime)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"eventType\":\n\t\t\terr = unpopulate(val, \"EventType\", &e.EventType)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"id\":\n\t\t\terr = unpopulate(val, \"ID\", &e.ID)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"metadataVersion\":\n\t\t\terr = unpopulate(val, \"MetadataVersion\", &e.MetadataVersion)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"subject\":\n\t\t\terr = unpopulate(val, \"Subject\", &e.Subject)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"topic\":\n\t\t\terr = unpopulate(val, \"Topic\", &e.Topic)\n\t\t\tdelete(rawMsg, key)\n\t\t}\n\t\tif err != nil {\n\t\t\treturn fmt.Errorf(\"unmarshalling type %T: %w\", e, err)\n\t\t}\n\t}\n\treturn nil\n}\n",
+      "contentHash": "7b2270bfdf6a057f066934630e90cc4a3de344ef6c31c51b3ffcfae704ca0826",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/eventgrid_event.go",
+      "startLine": 1,
+      "endLine": 97,
+      "kind": "unknown",
+      "id": "24b4ccdf8f35cff4017674f3edf4e30e2ae3ea3b555a549d73d1f4bae56cc9c3"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/internal/generate/generate_constants.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\t\"regexp\"\n\t\"sort\"\n\t\"strings\"\n)\n\nconst systemEventsGoFile = \"system_events.go\"\nconst modelsGoFile = \"models.go\"\nconst modelsSerdeGoFile = \"models_serde.go\"\n\nconst header = `//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azsystemevents\n\nconst (\n`\n\nconst footer = `)`\n\ntype constant struct {\n\tConstantName  string\n\tGoType        string\n\tConstantValue string\n}\n\nfunc getConstantValues(modelsGo string) (map[string]constant, error) {\n\tscanner := bufio.NewScanner(strings.NewReader(modelsGo))\n\n\tvar currentComment []string\n\n\tvar comments []struct {\n\t\tText    string\n\t\tForType string\n\t}\n\n\tfor scanner.Scan() {\n\t\tline := scanner.Text()\n\n\t\tif commentText, found := cutPrefix(line, \"// \"); found {\n\t\t\tcurrentComment = append(currentComment, commentText)\n\t\t} else if len(currentComment) > 0 && strings.HasPrefix(line, \"type \") {\n\t\t\tcomments = append(comments, struct {\n\t\t\t\tText    string\n\t\t\t\tForType string\n\t\t\t}{\n\t\t\t\tText:    strings.Join(currentComment, \" \"),\n\t\t\t\tForType: strings.Split(line, \" \")[1],\n\t\t\t})\n\t\t\tcurrentComment = nil\n\t\t}\n\t}\n\n\tconsts := map[string]constant{}\n\t// ex: 'StorageBlobCreatedEventData - Schema of the Data property of an Event for a Microsoft.Storage.BlobCreated event.'\n\t//     'IotHubDeviceConnectedEventData - Event data for Microsoft.Devices.DeviceConnected event.'\n\ttypeRE := regexp.MustCompile(`([^ ]+) -.+?([A-Za-z0-9]+(?:\\.[A-Za-z0-9]+){2,3})`)\n\n\tignoredTypes := []string{\n\t\t\"DeviceConnectionStateEventProperties\",\n\t\t\"DeviceLifeCycleEventProperties\",\n\t\t\"DeviceTelemetryEventProperties\",\n\t\t\"EventGridMQTTClientEventData\",\n\t\t\"MapsGeofenceEventProperties\",\n\t}\n\n\tfor _, comment := range comments {\n\t\tmatches := typeRE.FindStringSubmatch(comment.Text)\n\n\t\tif strings.Contains(comment.Text, \"Schema of the Data\") && len(matches) == 0 {\n\t\t\tignorable := false\n\n\t\t\t// we have a few types that we can ignore - they're not top-level SystemEvents (they're\n\t\t\t// embedded or used by other events).\n\t\t\tfor _, prefix := range ignoredTypes {\n\t\t\t\tif strings.HasPrefix(comment.Text, prefix) {\n\t\t\t\t\tignorable = true\n\t\t\t\t\tbreak\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tif !ignorable {\n\t\t\t\tlog.Fatalf(\"Non-system event type not classified: %q \", comment)\n\t\t\t}\n\t\t}\n\n\t\tif len(matches) == 0 {\n\t\t\tcontinue\n\t\t}\n\n\t\tgoTypeName, stringValue := matches[1], matches[2]\n\t\tconstantName := strings.Replace(goTypeName, \"EventData\", \"\", 1)\n\n\t\tconsts[stringValue] = constant{\n\t\t\tConstantName:  \"Type\" + constantName,\n\t\t\tGoType:        goTypeName,\n\t\t\tConstantValue: stringValue,\n\t\t}\n\t}\n\n\treturn consts, nil\n}\n\nfunc writeConstantsFile(path string, constants map[string]constant) error {\n\twriter, err := os.Create(path)\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tdefer func() {\n\t\t_ = writer.Close()\n\t}()\n\n\tif _, err := writer.Write([]byte(header)); err != nil {\n\t\treturn err\n\t}\n\n\tfor _, key := range sortedKeys(constants) {\n\t\tc := constants[key]\n\n\t\t// ex:\n\t\t// TypeAPIManagementAPICreated Type = \"Microsoft.ApiManagement.APICreated\" // maps to APIManagementAPICreatedEventData\n\t\tbuff := fmt.Sprintf(\"%s = \\\"%s\\\" // maps to %s\\n\", c.ConstantName, c.ConstantValue, c.GoType)\n\t\t_, err := writer.WriteString(buff)\n\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\n\tif _, err := writer.Write([]byte(footer)); err != nil {\n\t\treturn err\n\t}\n\n\tif err := writer.Close(); err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\nfunc sortedKeys[T any](m map[string]T) []string {\n\tvar keys []string\n\tfor k := range m {\n\t\tkeys = append(keys, k)\n\t}\n\n\tsort.Strings(keys)\n\treturn keys\n}\n\n// copy of strings.CutPrefix, which doesn't exist in our oldest support compiler (1.18)\nfunc cutPrefix(s, prefix string) (after string, found bool) {\n\tif !strings.HasPrefix(s, prefix) {\n\t\treturn s, false\n\t}\n\treturn s[len(prefix):], true\n}\n",
+      "contentHash": "dae1fe5d066788b6802f646716ff20e203471cb70f9d6e9fff9f367127b29807",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/internal/generate/generate_constants.go",
+      "startLine": 1,
+      "endLine": 174,
+      "kind": "unknown",
+      "id": "d0dac8c0701190febde2e77250cf86e67e69f435ff6474f1b7b35378fd55d0d3"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/internal/generate/regex_helpers.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"regexp\"\n\t\"strings\"\n)\n\n// DeleteType removes a type from models.go and it's associated marshalling functions from models_serde.go.\nfunc DeleteType(model string) error {\n\tdeleteModelTypeRE := regexp.MustCompile(fmt.Sprintf(`(?s)// %s -.+?\\n}\\n`, model))\n\n\t/* Example:\n\t// MarshalJSON implements the json.Marshaller interface for type AvsClusterEventData.\n\t*/\n\tdeleteModelFuncsRE := regexp.MustCompile(fmt.Sprintf(`(?s)// (UnmarshalJSON|MarshalJSON) implements the (json\\.Unmarshaller|json\\.Marshaller) interface for type %s.+?\\n}\\n`, model))\n\n\terr := Replace(modelsGoFile, fmt.Sprintf(\"Remove model %s\", model), func(s string) (string, error) {\n\t\treturn deleteModelTypeRE.ReplaceAllString(s, \"\"), nil\n\t})\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\treturn Replace(modelsSerdeGoFile, fmt.Sprintf(\"Remove %s serde functions\", model), func(s string) (string, error) {\n\t\treturn deleteModelFuncsRE.ReplaceAllString(s, \"\"), nil\n\t})\n}\n\n// UseCustomUnpopulate replaces the serde code for a type with your own custom unpopulate function\n// Used to handle the cases where we want to convert references to a custom error type to our package level `Error`\n// type.\n// symbolName - the name of the type and the field (ACSMessageReceivedEventData.Error)\n// newFuncCall - the name of the Go function you're replacing the unmarshalling code with. This'll be a real Go\n// function you have defined in custom_events.go, like `unmarshalInternalACSMessageChannelEventError`\nfunc UseCustomUnpopulate(modelsSerdeGo string, symbolName string, newFuncCall string) string {\n\tparts := strings.Split(symbolName, \".\")\n\n\tre := regexp.MustCompile(\n\t\t// ex: 'func (a *AcsAdvancedMessageReceivedEventData) UnmarshalJSON(data []byte) error {'\n\t\t`(?is)(func \\([a-zA-Z]+? \\*` + parts[0] + `\\) UnmarshalJSON\\(data \\[\\]byte\\) error \\{.+?` +\n\t\t\t// ex: 'err = unpopulate(val, \"Content\", &a.Content)'\n\t\t\t`err = )unpopulate(\\(val, \"` + parts[1] + `\")`)\n\n\treturn re.ReplaceAllString(modelsSerdeGo, \"$1 \"+newFuncCall+\"$2\")\n}\n\nfunc Replace(filename string, purpose string, repl func(string) (string, error)) error {\n\tdata, err := os.ReadFile(filename)\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tnewData, err := repl(string(data))\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tif newData == string(data) {\n\t\treturn fmt.Errorf(\"no replacements made for %s\", purpose)\n\t}\n\n\treturn os.WriteFile(filename, []byte(newData), 0600)\n}\n",
+      "contentHash": "f299bca3ad191347e68bbb25a7909d82edcaa8ff90b79fcb4b24410524e549ea",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/internal/generate/regex_helpers.go",
+      "startLine": 1,
+      "endLine": 74,
+      "kind": "unknown",
+      "id": "06d36542ca076dd3b0d42b76280e5fea48f02a7d00cf654b5f9d0c410de50bc8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/azsystemevents\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2\n\tgithub.com/joho/godotenv v1.5.1\n\tgithub.com/stretchr/testify v1.12.1\n)\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect\n\tgo.yaml.in/yaml/v3 v3.0.5 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n)\n",
+      "contentHash": "433b84f5ef7438affb83ec2442c2e6467a4f552c7321c073c03804069443012f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/go.mod"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/README.md",
+      "text": "# Azure Event Grid System Events Module for Go\n\nAzure Event Grid system events are published by Azure services to system topics. The models in this package map to events sent by various Azure services.\n\nKey links:\n- [Source code][source]\n- [API Reference Documentation][godoc]\n- [Product documentation][product_docs]\n- [Samples][godoc_examples]\n\n## Getting started\n\n### Install the package\n\nInstall the Azure Event Grid system events module for Go with `go get`:\n\n```bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/azsystemevents\n```\n\n### Prerequisites\n\n- [Supported](https://aka.ms/azsdk/go/supported-versions) version of Go\n\n# Key concepts\n\nEvent subscriptions can be used to forward events from an [Event Grid system topic][system_topics] to a data source, like [Azure Storage Queues][event_handler_storage_queues]. The payload will be formatted as an array of events, using the event envelope (Cloud Event Schema or Event Grid Schema) configured within the subscription.\n\nTo consume events, use the client package for that service. For example, if the Event Grid subscription uses an an Azure Storage Queue, we would use the [azqeueue](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue) package to consume it.\n\n# Examples\n\nExamples for deserializing system events can be found on [pkg.go.dev][godoc_examples] or in the example*_test.go files in our GitHub repo for [azsystemevents][source].\n\n# Troubleshooting\n\n### Logging\n\nThis module uses the classification-based logging implementation in `azcore`. To enable console logging for all SDK modules, set the environment variable `AZURE_SDK_GO_LOGGING` to `all`. \n\nUse the `azcore/log` package to control log event output.\n\n```go\nimport (\n  \"fmt\"\n  azlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n)\n\n// print log output to stdout\nazlog.SetListener(func(event azlog.Event, s string) {\n    fmt.Printf(\"[%s] %s\\n\", event, s)\n})\n```\n\n# Next steps\n\nMore sample code should go here, along with links out to the appropriate example tests.\n\n## Contributing\nFor details on contributing to this repository, see the [contributing guide][azure_sdk_for_go_contributing].\n\nThis project welcomes contributions and suggestions.  Most contributions require you to agree to a\nContributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us\nthe rights to use your contribution. For details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide\na CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions\nprovided by the bot. You will only need to do this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).\nFor more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or\ncontact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.\n\n### Additional Helpful Links for Contributors  \nMany people all over the world have helped make this project better.  You'll want to check out:\n\n* [What are some good first issues for new contributors to the repo?](https://github.com/azure/azure-sdk-for-go/issues?q=is%3Aopen+is%3Aissue+label%3A%22up+for+grabs%22)\n* [How to build and test your change][azure_sdk_for_go_contributing_developer_guide]\n* [How you can make a change happen!][azure_sdk_for_go_contributing_pull_requests]\n* Frequently Asked Questions (FAQ) and Conceptual Topics in the detailed [Azure SDK for Go wiki](https://github.com/azure/azure-sdk-for-go/wiki).\n\n<!-- ### Community-->\n### Reporting security issues and security bugs\n\nSecurity issues and bugs should be reported privately, via email, to the Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Further information, including the MSRC PGP key, can be found in the [Security TechCenter](https://www.microsoft.com/msrc/faqs-report-an-issue).\n\n### License\n\nAzure SDK for Go is licensed under the [MIT](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/template/aztemplate/LICENSE.txt) license.\n\n<!-- LINKS -->\n[azure_sdk_for_go_contributing]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md\n[azure_sdk_for_go_contributing_developer_guide]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md#developer-guide\n[azure_sdk_for_go_contributing_pull_requests]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md#pull-requests\n[azure_cli]: https://learn.microsoft.com/cli/azure\n[azure_portal]: https://portal.azure.com\n[azure_sub]: https://azure.microsoft.com/free/\n[event_handler_storage_queues]: https://learn.microsoft.com/azure/event-grid/handler-storage-queues\n[event_handlers]: https://learn.microsoft.com/azure/event-grid/overview#event-handlers\n[product_docs]: https://learn.microsoft.com/azure/event-grid/overview\n[system_topics]: https://learn.microsoft.com/azure/event-grid/system-topics\n [source]: https://aka.ms/azsdk/go/systemevents/src\n [godoc_examples]: https://aka.ms/azsdk/go/systemevents/pkg#pkg-examples\n [godoc]: https://aka.ms/azsdk/go/systemevents/pkg\n",
+      "contentHash": "4080213729fa48dc79b3fc892b92f45cb0c4d360a6481b8c146e051b1748aaea",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/README.md"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/tsp-location.yaml",
+      "text": "directory: specification/eventgrid/data-plane/EventGridSystemEvents\ncommit: 5c9da8b0c25eeb1ccefd768a3957f98bc0e26e39\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "667b7ac5258e4bd57a91a5e1a0917fc7acdfc94efe3727859a66c3bfdfd6255d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/azsystemevents/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "548d21fb96efa51b497bc6aee2e1faf72a6a546d72f6ca664f18efd650a11556",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "d70fae0cd3abe65467eff12870def2f428942644e7dcada987b724b3539521c5",
+        "category": "Retry / error handling",
+        "subtype": "Event error wrapper implementing the Go error contract",
+        "explanation": "Defines a public Error struct with a public Code and private message; its Error method returns that stored message unchanged.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete non-test error.go file has no generated header and supplies the error representation constructed by both supplied custom event-error parsers.",
+        "symbols": [
+          "Error",
+          "Error.Error"
+        ],
+        "evidence": [
+          {
+            "id": "f68d2ec3a964e49e339f275773cc806445c6b3cb1e01ee0438308b0bb553b516",
+            "startLine": 9,
+            "endLine": 20
+          }
+        ]
+      },
+      {
+        "key": "63307e34b522281aee4726bd2f9ccfc4060811a4019f92f16a28ee7e5f19be9c",
+        "category": "Retry / error handling",
+        "subtype": "Channel error payload projected into the common event error",
+        "explanation": "JSON-decodes an internal channel-error pointer, wraps decoder failures with the supplied field name, then constructs Error by dereferencing ChannelCode and ChannelMessage. No explicit nil guards precede those dereferences.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "custom_events.go implements this concrete conversion into the supplied common Error type without a generated header; it is not just an internal model declaration.",
+        "symbols": [
+          "unmarshalInternalACSMessageChannelEventError"
+        ],
+        "evidence": [
+          {
+            "id": "c83a1465ed5f46696438e9e6144a438c36ed3977f8f4ca3a3a3138d75ecb2c71",
+            "startLine": 15,
+            "endLine": 28
+          }
+        ]
+      },
+      {
+        "key": "3977a458d6bcbb8c6e4eeee49f4d21e392d84182ee8192f8c79d28a66f3da364",
+        "category": "Retry / error handling",
+        "subtype": "Router error trees flattened into common error messages",
+        "explanation": "Decodes an internal error list, appends common Error values with a top-level code defaulting to empty, and renders each message recursively with Code/Message labels, indexed Details and InnerError sections using increasing indentation.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked custom_events.go explicitly implements both recursive message rendering and conversion into the handwritten Error wrapper.",
+        "symbols": [
+          "unpackMsg",
+          "unmarshalInternalACSRouterCommunicationError"
+        ],
+        "evidence": [
+          {
+            "id": "c83a1465ed5f46696438e9e6144a438c36ed3977f8f4ca3a3a3138d75ecb2c71",
+            "startLine": 30,
+            "endLine": 83
+          }
+        ]
+      },
+      {
+        "key": "3bcc7fa01a7ce8e8fa32584e79e56477f77d1b4d5976f0233a08ecd9c8c22a37",
+        "category": "Serialization",
+        "subtype": "Event envelope JSON property-map encoding",
+        "explanation": "Builds a property map using populateAny for data, populateTime[datetime.RFC3339] for eventTime, and populate for the other envelope fields, including metadataVersion despite its read-only comment, then calls json.Marshal. The populate helpers' omission and encoding details are not supplied.",
+        "pattern": "event-envelope-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "eventgrid_event.go is a non-test Go file without a generated header and implements the envelope's JSON method directly, separately from the models.go/models_serde.go outputs named in the captured generator helpers.",
+        "symbols": [
+          "EventGridEvent.MarshalJSON"
+        ],
+        "evidence": [
+          {
+            "id": "24b4ccdf8f35cff4017674f3edf4e30e2ae3ea3b555a549d73d1f4bae56cc9c3",
+            "startLine": 40,
+            "endLine": 56
+          }
+        ]
+      },
+      {
+        "key": "0de977593bb43b9f817ee53e27f3e13d728e9092dcc0cab5a5f4d6b0f7e21158",
+        "category": "Serialization",
+        "subtype": "Raw event-data bytes retained during envelope decoding",
+        "explanation": "Decodes the envelope as a map of json.RawMessage, stores the data property's JSON bytes as []byte in Data instead of decoding a concrete event model, dispatches recognized envelope fields through unpopulate helpers, and wraps decoding errors with the receiver type. Unrecognized fields are not retained in the receiver.",
+        "pattern": "raw-json-event-payload-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked eventgrid_event.go implements an explicit raw-data assignment inside its own UnmarshalJSON method, not an imported generated event-type dispatcher.",
+        "symbols": [
+          "EventGridEvent.UnmarshalJSON"
+        ],
+        "evidence": [
+          {
+            "id": "24b4ccdf8f35cff4017674f3edf4e30e2ae3ea3b555a549d73d1f4bae56cc9c3",
+            "startLine": 18,
+            "endLine": 20
+          },
+          {
+            "id": "24b4ccdf8f35cff4017674f3edf4e30e2ae3ea3b555a549d73d1f4bae56cc9c3",
+            "startLine": 58,
+            "endLine": 97
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "d70fae0cd3abe65467eff12870def2f428942644e7dcada987b724b3539521c5",
+        "status": "accepted",
+        "reason": "The unmarked, non-test error.go defines a distinct exported error type and its Go error-interface method at the cited lines. The explanation and reusable custom-error-type pattern match the source; generating an error wrapper is plausible, although the specific motivation is unknown."
+      },
+      {
+        "key": "63307e34b522281aee4726bd2f9ccfc4060811a4019f92f16a28ee7e5f19be9c",
+        "status": "revised",
+        "reason": "The cited handwritten function does decode and project channel fields into Error, but custom-error-type describes the separately proposed type, not this conversion. Whether a generator can express this particular channel-field mapping is not established by the supplied TypeSpec context.",
+        "finding": {
+          "key": "63307e34b522281aee4726bd2f9ccfc4060811a4019f92f16a28ee7e5f19be9c",
+          "category": "Retry / error handling",
+          "subtype": "Channel error payload conversion",
+          "explanation": "Decodes an internal channel-error pointer from JSON, wraps decode failures with the field name, and builds Error from dereferenced ChannelCode and ChannelMessage; the function has no explicit nil guards for the decoded pointer or fields.",
+          "pattern": "error-payload-projection",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The non-test custom_events.go has no generated header and directly implements conversion to the separately defined Error type.",
+          "symbols": [
+            "unmarshalInternalACSMessageChannelEventError"
+          ],
+          "evidence": [
+            {
+              "id": "c83a1465ed5f46696438e9e6144a438c36ed3977f8f4ca3a3a3138d75ecb2c71",
+              "startLine": 15,
+              "endLine": 28
+            }
+          ]
+        }
+      },
+      {
+        "key": "3977a458d6bcbb8c6e4eeee49f4d21e392d84182ee8192f8c79d28a66f3da364",
+        "status": "revised",
+        "reason": "The recursive formatting and list conversion are supported, but custom-error-type duplicates the pattern of the separate Error definition rather than describing the reusable tree-flattening behavior. The generator capability for this formatting is not shown.",
+        "finding": {
+          "key": "3977a458d6bcbb8c6e4eeee49f4d21e392d84182ee8192f8c79d28a66f3da364",
+          "category": "Retry / error handling",
+          "subtype": "Recursive error tree rendering into common errors",
+          "explanation": "Decodes a list of internal router errors and appends Error values whose messages recursively render Code, Message, indexed Details, and InnerError with indentation; absent top-level codes become empty strings.",
+          "pattern": "recursive-error-tree-formatting",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The unmarked non-test custom_events.go explicitly implements both the recursive message formatter and the conversion to the package Error type.",
+          "symbols": [
+            "unpackMsg",
+            "unmarshalInternalACSRouterCommunicationError"
+          ],
+          "evidence": [
+            {
+              "id": "c83a1465ed5f46696438e9e6144a438c36ed3977f8f4ca3a3a3138d75ecb2c71",
+              "startLine": 30,
+              "endLine": 83
+            }
+          ]
+        }
+      },
+      {
+        "key": "3bcc7fa01a7ce8e8fa32584e79e56477f77d1b4d5976f0233a08ecd9c8c22a37",
+        "status": "accepted",
+        "reason": "The unmarked non-test file implements the stated JSON map encoder at the cited lines. The event-envelope serialization pattern describes a reusable shape, and generating model serialization is plausible; the unavailable populate implementations limit claims about omitted fields."
+      },
+      {
+        "key": "0de977593bb43b9f817ee53e27f3e13d728e9092dcc0cab5a5f4d6b0f7e21158",
+        "status": "accepted",
+        "reason": "The unmarked non-test file declares Data as any, and its cited decoder stores the data field's raw JSON bytes in Data while handling other named fields separately. The pattern describes reusable raw-payload decoding, and generated model decoding is plausible."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "797ec409b6b0c422b685cdd6ada51a709fc6c30779980a759329073ecf282a7e",
+        "category": "Model overrides",
+        "subtype": "Handwritten event envelope with unconstrained payload",
+        "explanation": "Declares the exported event envelope model with Data of type any and pointer-valued envelope metadata fields, independently of its separately proposed JSON methods.",
+        "pattern": "event-envelope-open-payload-model",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The non-test eventgrid_event.go lacks a generated header and contains the model definition itself; the supplied material does not establish whether a generated counterpart exists or why this model was added.",
+        "symbols": [
+          "EventGridEvent"
+        ],
+        "evidence": [
+          {
+            "id": "24b4ccdf8f35cff4017674f3edf4e30e2ae3ea3b555a549d73d1f4bae56cc9c3",
+            "startLine": 17,
+            "endLine": 42
+          }
+        ]
+      },
+      {
+        "key": "7b1393fa34302c59b0617f0b709d4977910f1d5fa7175b0edc28d974379f59d6",
+        "category": "Other",
+        "subtype": "Generate typed event-name constants from model descriptions",
+        "explanation": "Parses model comments for event names, applies an explicit list of ignored model names, and emits sorted Go event-type constants annotated with the corresponding model names.",
+        "pattern": "model-derived-type-constants",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked non-test internal/generate/generate_constants.go implements this handwritten generator step, but no invocation or resulting system_events.go content is supplied, so its effect on the published library is unconfirmed.",
+        "symbols": [
+          "getConstantValues",
+          "writeConstantsFile"
+        ],
+        "evidence": [
+          {
+            "id": "d0dac8c0701190febde2e77250cf86e67e69f435ff6474f1b7b35378fd55d0d3",
+            "startLine": 69,
+            "endLine": 116
+          },
+          {
+            "id": "d0dac8c0701190febde2e77250cf86e67e69f435ff6474f1b7b35378fd55d0d3",
+            "startLine": 119,
+            "endLine": 155
+          }
+        ]
+      },
+      {
+        "key": "4a2d7dae139438b63f9c493c6975a20527320da766122b47b7d4faba61c3b502",
+        "category": "Model overrides",
+        "subtype": "Post-generation model and serializer removal",
+        "explanation": "Defines a source rewrite that removes a named model declaration from models.go and its JSON methods from models_serde.go.",
+        "pattern": "remove-generated-model",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked non-test internal/generate/regex_helpers.go contains this handwritten post-generation transformation; the supplied evidence has no caller or rewritten output to confirm a specific model was removed.",
+        "symbols": [
+          "DeleteType"
+        ],
+        "evidence": [
+          {
+            "id": "06d36542ca076dd3b0d42b76280e5fea48f02a7d00cf654b5f9d0c410de50bc8",
+            "startLine": 16,
+            "endLine": 35
+          }
+        ]
+      },
+      {
+        "key": "cb30c8be14112af7d3d949ca013af60f18d9383e0448e3e03766bb097e733157",
+        "category": "Serialization",
+        "subtype": "Post-generation substitution of a model field decoder",
+        "explanation": "Defines a source rewrite that replaces a named field's generated unpopulate call in a model JSON decoder with a named custom function call.",
+        "pattern": "replace-generated-field-decoder",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked non-test internal/generate/regex_helpers.go implements a specific serializer rewrite; supplied custom_events.go defines custom decoders, but no invocation or rewritten models_serde.go is present to establish that this helper was used.",
+        "symbols": [
+          "UseCustomUnpopulate"
+        ],
+        "evidence": [
+          {
+            "id": "06d36542ca076dd3b0d42b76280e5fea48f02a7d00cf654b5f9d0c410de50bc8",
+            "startLine": 38,
+            "endLine": 54
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Only five of 12 eligible files were captured from 36 discovered files. The empty named-skips list does not make this exhaustive; no absence of other customizations is established.",
+      "All evidence kinds are unknown. The Go guideline's non-generated-header rule and concrete custom error/envelope implementations support the proposed distinction; generated model definitions, serde helpers and runtime call sites are not supplied.",
+      "The custom channel-error projection dereferences decoded pointers without visible nil guards. The router projection appends to its destination slice and converts structured details to text; no execution, malformed-payload behavior guarantee or lossless structured roundtrip was verified.",
+      "The envelope's populate/unpopulate helpers are not supplied. Their nil handling, omission rules, RFC3339 formatting details and treatment of Data during re-encoding are not inferred from call names alone.",
+      "Captured internal/generate helpers parse model comments into constants, write a constants file, remove model/serde definitions, and rewrite field unpopulation calls, but their entry point, callers, selected model/field operations and resulting generated files are absent. No specific applied generation change was counted from helper definitions alone.",
+      "The constant-file header template itself has no Code generated marker, illustrating that absence of that marker is not universally conclusive for every possible generated output. Its named system_events.go output is not among the captured runtime files.",
+      "No TypeSpec contents, full generated comparison, SDK execution, cross-service recurrence or current emitter capability was measured. Generator addressability is a prospective reusable-shape assessment; latestRelease is 1.1.0 with module-v1 identity.",
+      "Evidence capture is explicitly partial: 5 of 12 eligible files were captured among 36 discovered files. This review assesses only supplied excerpts and cannot establish the absence of other customizations.",
+      "All five evidence items have unknown provenance metadata. Missing generated headers in the complete non-test Go files support handwritten classification under the supplied Go guideline, but no generated baseline or change history independently confirms provenance.",
+      "The supplied generation context lacks models.go, models_serde.go, system_events.go, the generator entry point, and actual TypeSpec declarations. Accordingly the generator-helper omissions remain candidates rather than confirmed modifications to published output, and generator addressability for service-specific error mappings is unresolved.",
+      "The helper implementations called by EventGridEvent's JSON methods are not supplied, so their exact omission/encoding semantics cannot be independently assessed. Accepted decisions are AI-reviewed only, not verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/custom_events.go",
+      "startLine": 1,
+      "endLine": 83,
+      "provenance": "Go custom source",
+      "contentHash": "c69e3805150d8e054afec68af0e540250822f38204a29c7ec8c8c55525cfb3bd"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/error.go",
+      "startLine": 1,
+      "endLine": 20,
+      "provenance": "Go handwritten source",
+      "contentHash": "eb3712a195ce89b19d2872344d0202a522aea5806d6144dfb982730fc695fc1e"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/eventgrid_event.go",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "Go handwritten source",
+      "contentHash": "7b2270bfdf6a057f066934630e90cc4a3de344ef6c31c51b3ffcfae704ca0826"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/internal/generate/generate_constants.go",
+      "startLine": 1,
+      "endLine": 174,
+      "provenance": "Go handwritten source",
+      "contentHash": "dae1fe5d066788b6802f646716ff20e203471cb70f9d6e9fff9f367127b29807"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/azsystemevents/internal/generate/regex_helpers.go",
+      "startLine": 1,
+      "endLine": 74,
+      "provenance": "Go handwritten source",
+      "contentHash": "f299bca3ad191347e68bbb25a7909d82edcaa8ff90b79fcb4b24410524e549ea"
+    }
+  ]
+}

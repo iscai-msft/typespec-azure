@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "id": "4643066b-7c84-4662-b767-63ecda6d681a",
+  "observedAt": "2026-10-22T20:42:57.455Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/monitor/query/azlogs"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "8dd657dbc9f0efd280de7471d1ffbe2c14470a25"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 28,
+    "eligibleFiles": 13,
+    "capturedFiles": 3,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/query/azlogs/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azlogs\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"reflect\"\n\t\"strings\"\n\t\"time\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n}\n\n// NewClient creates a client that accesses Azure Monitor logs data.\nfunc NewClient(credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tif reflect.ValueOf(options.Cloud).IsZero() {\n\t\toptions.Cloud = cloud.AzurePublic\n\t}\n\tc, ok := options.Cloud.Services[ServiceName]\n\tif !ok || c.Audience == \"\" || c.Endpoint == \"\" {\n\t\treturn nil, errors.New(\"provided Cloud field is missing Azure Monitor Logs configuration\")\n\t}\n\n\tauthPolicy := runtime.NewBearerTokenPolicy(credential, []string{c.Audience + \"/.default\"}, nil)\n\tazcoreClient, err := azcore.NewClient(moduleName, version, runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{endpoint: c.Endpoint, internal: azcoreClient, apiVersion: versionsV1}, nil\n}\n\n// ErrorInfo - The code and message for an error.\ntype ErrorInfo struct {\n\t// REQUIRED; A machine readable error code.\n\tCode string\n\n\t// full error message detailing why the operation failed.\n\tdata []byte\n}\n\n// UnmarshalJSON implements the json.Unmarshaller interface for type ErrorInfo.\nfunc (e *ErrorInfo) UnmarshalJSON(data []byte) error {\n\te.data = data\n\tei := struct{ Code string }{}\n\tif err := json.Unmarshal(data, &ei); err != nil {\n\t\treturn fmt.Errorf(\"unmarshalling type %T: %v\", e, err)\n\t}\n\te.Code = ei.Code\n\n\treturn nil\n}\n\n// Error implements a custom error for type ErrorInfo.\nfunc (e *ErrorInfo) Error() string {\n\treturn string(e.data)\n}\n\n// Row of data in a table, types of data used by service specified in ColumnType\ntype Row []any\n\n// TimeInterval specifies the time range over which to query.\n// Use NewTimeInterval() for help formatting.\n// Follows the ISO8601 time interval standard with most common\n// format being startISOTime/endISOTime. ISO8601 durations also supported (ex \"PT2H\" for last two hours).\n// Use UTC for all times.\ntype TimeInterval string\n\n// NewTimeInterval creates a TimeInterval for use in a query.\n// Use UTC for start and end times.\nfunc NewTimeInterval(start time.Time, end time.Time) TimeInterval {\n\treturn TimeInterval(start.Format(time.RFC3339) + \"/\" + end.Format(time.RFC3339))\n}\n\n// Values returns the interval's start and end times if it's in the format startISOTime/endISOTime, else it will return an error.\nfunc (i TimeInterval) Values() (time.Time, time.Time, error) {\n\t// split into different start and end times\n\ttimes := strings.Split(string(i), \"/\")\n\tif len(times) != 2 {\n\t\treturn time.Time{}, time.Time{}, errors.New(\"time interval should be in format startISOTime/endISOTime\")\n\t}\n\tstart, err := time.Parse(time.RFC3339, times[0])\n\tif err != nil {\n\t\treturn time.Time{}, time.Time{}, errors.New(\"error parsing start time\")\n\t}\n\tend, err := time.Parse(time.RFC3339, times[1])\n\tif err != nil {\n\t\treturn time.Time{}, time.Time{}, errors.New(\"error parsing end time\")\n\t}\n\t// return times\n\treturn start, end, nil\n}\n\n// QueryOptions sets server timeout, query statistics and visualization information\ntype QueryOptions struct {\n\t// Set Statistics to true to get logs query execution statistics,\n\t// such as CPU and memory consumption. Defaults to false.\n\tStatistics *bool\n\n\t// Set Visualization to true to get visualization\n\t// data for logs queries. Defaults to false.\n\tVisualization *bool\n\n\t// By default, the Azure Monitor Query service will run your\n\t// query for up to three minutes. To increase the default timeout,\n\t// set Wait to desired number of seconds.\n\t// Max wait time the service will allow is ten minutes (600 seconds).\n\tWait *int\n}\n\n// preferHeader converts QueryOptions from struct to properly formatted sting\n// to be used in the request Prefer Header\nfunc (l QueryOptions) preferHeader() string {\n\tvar options []string\n\tif l.Statistics != nil && *l.Statistics {\n\t\toptions = append(options, \"include-statistics=true\")\n\t}\n\tif l.Visualization != nil && *l.Visualization {\n\t\toptions = append(options, \"include-render=true\")\n\t}\n\tif l.Wait != nil {\n\t\toptions = append(options, fmt.Sprintf(\"wait=%d\", *l.Wait))\n\t}\n\treturn strings.Join(options, \",\")\n}\n",
+      "contentHash": "48c96e1327e781b6e6c291f8f907f628c15ff6b1b8ada15c75bac22fbdc906a6",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/custom_client.go",
+      "startLine": 1,
+      "endLine": 140,
+      "kind": "unknown",
+      "id": "e2837b1be92f200a1bb4c947834db5e34acc097bf6d8606afe7a36eb1e540af9"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"strconv\"\n\t\"strings\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/to\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\"\n)\n\nfunc preferHeaderToQueryOptions(s string) *azlogs.QueryOptions {\n\tvar opts azlogs.QueryOptions\n\tfor _, option := range strings.Split(s, \",\") {\n\t\tswitch {\n\t\tcase strings.HasPrefix(option, \"include-statistics=\"):\n\t\t\tval := strings.TrimPrefix(option, \"include-statistics=\")\n\t\t\tif val == \"true\" {\n\t\t\t\topts.Statistics = to.Ptr(true)\n\t\t\t}\n\t\t\tif val == \"false\" {\n\t\t\t\topts.Statistics = to.Ptr(false)\n\t\t\t}\n\t\tcase strings.HasPrefix(option, \"include-render=\"):\n\t\t\tval := strings.TrimPrefix(option, \"include-render=\")\n\t\t\tif val == \"true\" {\n\t\t\t\topts.Visualization = to.Ptr(true)\n\t\t\t}\n\t\t\tif val == \"false\" {\n\t\t\t\topts.Visualization = to.Ptr(false)\n\t\t\t}\n\t\tcase strings.HasPrefix(option, \"wait=\"):\n\t\t\tval := strings.TrimPrefix(option, \"wait=\")\n\t\t\twait, err := strconv.Atoi(val)\n\t\t\tif err == nil {\n\t\t\t\topts.Wait = &wait\n\t\t\t}\n\t\t}\n\t}\n\treturn &opts\n}\n",
+      "contentHash": "9d64ca6f2b2e0ff17e047aec61279f189b55cb3b5dffe1361dea183a30e54442",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 43,
+      "kind": "unknown",
+      "id": "0b0102d84d5f0800bc5fb1c428a0d9619670ddb9762f4d28e093d1c17337ea4e"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/cloud_config.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azlogs\n\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\"\n\n// Cloud Service Names for Monitor Query Logs, used to identify the respective cloud.ServiceConfiguration\nconst ServiceName cloud.ServiceName = \"query/azlogs\"\n\nfunc init() {\n\tcloud.AzureChina.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://api.loganalytics.azure.cn\",\n\t\tEndpoint: \"https://api.loganalytics.azure.cn\",\n\t}\n\tcloud.AzureGovernment.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://api.loganalytics.us\",\n\t\tEndpoint: \"https://api.loganalytics.us\",\n\t}\n\tcloud.AzurePublic.Services[ServiceName] = cloud.ServiceConfiguration{\n\t\tAudience: \"https://api.loganalytics.io\",\n\t\tEndpoint: \"https://api.loganalytics.io\",\n\t}\n}\n",
+      "contentHash": "54b89d9f4150e272771def9e1eb55f1e9c8fe8f012ef347e570e7b7947e52108",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/cloud_config.go",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "unknown",
+      "id": "1b99f1db7298f6f21864ff19365e18aeca40a850419aae0de4c7d0a93d9ad0f5"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/query/azlogs/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "a79ca61a8e673b8a23ecb81a81b3681eea4162d558ebc748400f9658ee96ffd0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/go.mod"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/README.md",
+      "text": "# Azure Monitor Query Logs client module for Go\n\n* Query logs (this module): execute read-only queries against [Azure Monitor Logs][logs_overview]\n* Query metrics ([query/azmetrics][azmetrics]): execute read-only queries against [Azure Monitor Metrics][metrics_overview]\n* Upload logs ([ingestion/azlogs][ingestion_azlogs]): send custom logs to [Azure Monitor][azure_monitor_overview] using the [Logs Ingestion API][ingestion_overview]\n\n[Source code][source_code] | [Package (pkg.go.dev)][pkg_go] | [REST API documentation][monitor_rest_docs] | [Product documentation][monitor_docs] | [Samples][examples]\n\n## Getting started\n\n### Prerequisites\n\n* [Supported](https://aka.ms/azsdk/go/supported-versions) version of Go - [Install Go](https://go.dev/doc/install)\n* Azure subscription - [Create a free account][azure_sub]\n* To query logs, you need one of the following things:\n  * An [Azure Log Analytics workspace][log_analytics_workspace_create]\n  * The resource ID of an Azure resource (Storage Account, Key Vault, Cosmos DB, etc.)\n\n### Install the packages\n\nInstall the `azlogs` and `azidentity` modules with `go get`:\n\n```bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n\nThe [azidentity][azure_identity] module is used for Azure Active Directory authentication during client construction.\n\n### Authentication\n\nAn authenticated client object is required to execute a query. The examples demonstrate using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate; however, the client accepts any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\nThe clients default to the Azure public cloud. For other cloud configurations, see the [cloud][cloud_documentation] package documentation.\n\n#### Create a client\n\nExample [client][example_client].\n\n## Key concepts\n\n[Azure Monitor Logs][logs_overview] collects and organizes log and performance data from monitored resources. Data from different sources such as platform logs from Azure services, log and performance data from virtual machines agents, and usage and performance data from apps can be consolidated into a single [Azure Log Analytics workspace][log_analytics_workspace]. The various data types can be analyzed together using the [Kusto Query Language][kusto_query_language]. See the [Kusto to SQL cheat sheet][kusto_to_sql] for more information.\n\n### Timespan\n\nIt's best practice to always query with a timespan (type `TimeInterval`) to prevent excessive queries of the entire logs data set. Log queries use the ISO8601 Time Interval Standard. All time should be represented in UTC. If the timespan is included in both the Kusto query string and `Timespan` field, the timespan is the intersection of the two values.\n\nUse the `NewTimeInterval()` method for easy creation.\n\n### Logs query rate limits and throttling\n\nThe Log Analytics service applies throttling when the request rate is too high. Limits, such as the maximum number of rows returned, are also applied on the Kusto queries. For more information, see [Query API][service_limits].\n\nIf you're executing a batch logs query, a throttled request will return a `ErrorInfo` object. That object's `code` value will be `ThrottledError`.\n\n### Advanced logs queries\n\n#### Query multiple workspaces\n\nTo run the same query against multiple Log Analytics workspaces, add the additional workspace ID strings to the `AdditionalWorkspaces` slice in the `QueryBody` struct. \n\nWhen multiple workspaces are included in the query, the logs in the result table are not grouped according to the workspace from which they were retrieved.\n\n#### Increase wait time, include statistics, include visualization\n\nThe `QueryOptions` type is used for advanced logs options.\n\n* By default, your query will run for up to three minutes. To increase the default timeout, set `QueryOptions.Wait` to the desired number of seconds. The maximum wait time is 10 minutes (600 seconds).\n\n* To get logs query execution statistics, such as CPU and memory consumption, set `QueryOptions.Statistics` to `true`.\n\n* To get visualization data for logs queries, set `QueryOptions.Visualization` to `true`.\n\n```go\nazlogs.QueryWorkspaceOptions{\n\t\t\tOptions: &azlogs.QueryOptions{\n\t\t\t\tStatistics:    to.Ptr(true),\n\t\t\t\tVisualization: to.Ptr(true),\n\t\t\t\tWait:          to.Ptr(600),\n\t\t\t},\n\t\t}\n```\n\n## Examples\n\nGet started with our [examples][examples].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a [Contributor License Agreement (CLA)][cla] declaring that you have the right to, and actually do, grant us the rights to use your contribution.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate\nthe PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to\ndo this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see\nthe [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com][coc_contact] with any additional questions or\ncomments.\n\n<!-- LINKS -->\n[azmetrics]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics\n[azure_identity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[cloud_documentation]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud\n[default_cred_ref]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity#defaultazurecredential\n[example_client]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs#example-NewClient\n[examples]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs#pkg-examples\n[ingestion_azlogs]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/ingestion/azlogs\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[kusto_query_language]: https://learn.microsoft.com/azure/data-explorer/kusto/query/\n[kusto_to_sql]: https://learn.microsoft.com/azure/data-explorer/kusto/query/sqlcheatsheet\n[log_analytics_workspace]: https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-workspace-overview\n[log_analytics_workspace_create]: https://learn.microsoft.com/azure/azure-monitor/logs/quick-create-workspace\n[logs_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs\n[metrics_overview]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-platform-metrics\n[monitor_docs]: https://learn.microsoft.com/azure/azure-monitor/\n[monitor_rest_docs]: https://learn.microsoft.com/rest/api/monitor/\n[pkg_go]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azlogs\n[service_limits]: https://learn.microsoft.com/azure/azure-monitor/service-limits#la-query-api\n[source_code]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/monitor/query/azlogs\n[cla]: https://cla.microsoft.com\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n[coc_contact]: mailto:opencode@microsoft.com",
+      "contentHash": "12ed16ee0886f4fb0a62f3f2102f749288bfd1b2d3548f74845cb22e8eb0018a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/README.md"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/tsp-location.yaml",
+      "text": "directory: specification/monitor/Monitor.Query.Logs\ncommit: 5eb500a9a43a9db926840c4a8e2cb3f067bb0c6f\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "f2fa6fc613cf93c205b6299e9fc754b583df7493959c281235b08e80a1c5feb4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/monitor/query/azlogs/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/query/azlogs/cloud_config.go",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "Go handwritten source",
+      "contentHash": "54b89d9f4150e272771def9e1eb55f1e9c8fe8f012ef347e570e7b7947e52108"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/custom_client.go",
+      "startLine": 1,
+      "endLine": 140,
+      "provenance": "Go custom source",
+      "contentHash": "48c96e1327e781b6e6c291f8f907f628c15ff6b1b8ada15c75bac22fbdc906a6"
+    },
+    {
+      "path": "sdk/monitor/query/azlogs/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 43,
+      "provenance": "Go custom source",
+      "contentHash": "9d64ca6f2b2e0ff17e047aec61279f189b55cb3b5dffe1361dea183a30e54442"
+    }
+  ]
+}

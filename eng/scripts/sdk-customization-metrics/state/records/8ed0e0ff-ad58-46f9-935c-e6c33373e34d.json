@@ -1,0 +1,426 @@
+{
+  "schemaVersion": 1,
+  "id": "8ed0e0ff-ad58-46f9-935c-e6c33373e34d",
+  "observedAt": "2026-10-26T15:13:17.306Z",
+  "identity": "javascript:@azure/arm-sitemanager:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/arm-sitemanager",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/sitemanager/arm-sitemanager"
+  },
+  "commit": "ba775712561672cf55288d6f16084939a5f46c5f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "d307fad114710823d3da3b998c8684cf2126974e"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 103,
+    "eligibleFiles": 43,
+    "capturedFiles": 14,
+    "skipped": [
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/classic/sitesBySubscription/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/edgeClient.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/logger.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/models/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/restorePollerHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/cloudSettingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/pagingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/pollingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/urlTemplate.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/edgeContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownVersions } from \"../models/models.js\";\nimport { AzureSupportedClouds, getArmEndpoint } from \"../static-helpers/cloudSettingHelpers.js\";\nimport { Client, ClientOptions, getClient } from \"@azure-rest/core-client\";\nimport { TokenCredential } from \"@azure/core-auth\";\n\n/** Azure Edge Sites Resource Provider management API. */\nexport interface EdgeContext extends Client {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion: string;\n  /** The ID of the target subscription. The value must be an UUID. */\n  subscriptionId: string;\n}\n\n/** Optional parameters for the client. */\nexport interface EdgeClientOptionalParams extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n  /** Specifies the Azure cloud environment for the client. */\n  cloudSetting?: AzureSupportedClouds;\n}\n\n/** Azure Edge Sites Resource Provider management API. */\nexport function createEdge(\n  credential: TokenCredential,\n  subscriptionId: string,\n  options: EdgeClientOptionalParams = {},\n): EdgeContext {\n  const endpointUrl =\n    options.endpoint ?? getArmEndpoint(options.cloudSetting) ?? \"https://management.azure.com\";\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-arm-sitemanager/1.0.1`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [`${endpointUrl}/.default`],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  const apiVersion = options.apiVersion ?? \"2025-06-01\";\n  clientContext.pipeline.addPolicy({\n    name: \"ClientApiVersionPolicy\",\n    sendRequest: (req, next) => {\n      // Use the apiVersion defined in request url directly\n      // Append one if there is no apiVersion and we have one at client options\n      const url = new URL(req.url);\n      if (!url.searchParams.get(\"api-version\")) {\n        req.url = `${req.url}${\n          Array.from(url.searchParams.keys()).length > 0 ? \"&\" : \"?\"\n        }api-version=${apiVersion}`;\n      }\n\n      return next(req);\n    },\n  });\n  return { ...clientContext, apiVersion, subscriptionId } as EdgeContext;\n}\n",
+      "contentHash": "6595996953331fc031508457e6dc1d0645dabc6baee4783ebf0dff7f7118bfad",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/edgeContext.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "kind": "unknown",
+      "id": "80b5c3c91dae8813a93b0b50bbbc35c10e8095349ad41d571dd88fb4fd21ddd1"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { createEdge, type EdgeContext, type EdgeClientOptionalParams } from \"./edgeContext.js\";\n",
+      "contentHash": "37face6bf6477c216339fca2925fa0cd8d12450577037aaeb35b72a8c381ab42",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "kind": "unknown",
+      "id": "88afd41bffe32878a930fcbfad71a15e7fc92b9066c62ba6c9f6a4d01b699c0b"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { listByResourceGroup, $delete, update, createOrUpdate, get } from \"./operations.js\";\nexport {\n  type SitesListByResourceGroupOptionalParams,\n  type SitesDeleteOptionalParams,\n  type SitesUpdateOptionalParams,\n  type SitesCreateOrUpdateOptionalParams,\n  type SitesGetOptionalParams,\n} from \"./options.js\";\n",
+      "contentHash": "fc9fe6a218c3f791f26f83e8d60d31305d947aa1c9256d16cbdf47ed41d99c15",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sites/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "unknown",
+      "id": "ba72d717ca2976c2feba06a97db980a8e324d4c71a09abc6bbdd09a8a45a5aa6"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { EdgeContext as Client } from \"../index.js\";\nimport {\n  Site,\n  siteSerializer,\n  siteDeserializer,\n  errorResponseDeserializer,\n  SiteUpdate,\n  siteUpdateSerializer,\n  _SiteListResult,\n  _siteListResultDeserializer,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport {\n  SitesListByResourceGroupOptionalParams,\n  SitesDeleteOptionalParams,\n  SitesUpdateOptionalParams,\n  SitesCreateOrUpdateOptionalParams,\n  SitesGetOptionalParams,\n} from \"./options.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _listByResourceGroupSend(\n  context: Client,\n  resourceGroupName: string,\n  options: SitesListByResourceGroupOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Edge/sites{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listByResourceGroupDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_SiteListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return _siteListResultDeserializer(result.body);\n}\n\n/** List Site resources by resource group */\nexport function listByResourceGroup(\n  context: Client,\n  resourceGroupName: string,\n  options: SitesListByResourceGroupOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Site> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listByResourceGroupSend(context, resourceGroupName, options),\n    _listByResourceGroupDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n\nexport function _$deleteSend(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  options: SitesDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _$deleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"200\", \"204\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return;\n}\n\n/** Delete a Site */\n/**\n *  @fixme delete is a reserved word that cannot be used as an operation name.\n *         Please add @clientName(\"clientName\") or @clientName(\"<JS-Specific-Name>\", \"javascript\")\n *         to the operation to override the generated name.\n */\nexport async function $delete(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  options: SitesDeleteOptionalParams = { requestOptions: {} },\n): Promise<void> {\n  const result = await _$deleteSend(context, resourceGroupName, siteName, options);\n  return _$deleteDeserialize(result);\n}\n\nexport function _updateSend(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteUpdateSerializer(properties),\n  });\n}\n\nexport async function _updateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Update a Site */\nexport async function update(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesUpdateOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _updateSend(context, resourceGroupName, siteName, properties, options);\n  return _updateDeserialize(result);\n}\n\nexport function _createOrUpdateSend(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  resource: Site,\n  options: SitesCreateOrUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteSerializer(resource),\n  });\n}\n\nexport async function _createOrUpdateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\", \"201\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Create a Site */\nexport function createOrUpdate(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  resource: Site,\n  options: SitesCreateOrUpdateOptionalParams = { requestOptions: {} },\n): PollerLike<OperationState<Site>, Site> {\n  return getLongRunningPoller(context, _createOrUpdateDeserialize, [\"200\", \"201\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _createOrUpdateSend(context, resourceGroupName, siteName, resource, options),\n    resourceLocationConfig: \"azure-async-operation\",\n  }) as PollerLike<OperationState<Site>, Site>;\n}\n\nexport function _getSend(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  options: SitesGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      resourceGroupName: resourceGroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Get a Site */\nexport async function get(\n  context: Client,\n  resourceGroupName: string,\n  siteName: string,\n  options: SitesGetOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _getSend(context, resourceGroupName, siteName, options);\n  return _getDeserialize(result);\n}\n",
+      "contentHash": "647e42ff954ba26ddd1ee176cf15f0f5585e2f177c3e82a46f753387eb14c585",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sites/operations.ts",
+      "startLine": 1,
+      "endLine": 295,
+      "kind": "unknown",
+      "id": "d254b4bb41b680e689020a3c6bb2c77967a590aec198ba3161f410c09b574647"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface SitesListByResourceGroupOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesDeleteOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesUpdateOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface SitesGetOptionalParams extends OperationOptions {}\n",
+      "contentHash": "194384ce415ebf67f6536e90a7e776641622d18d77c1646a1c321850a9d02c38",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sites/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "2f4261c9db60f3436c48c01517f8cb3f6078499b8c5ec5934e3a6ee9b1cb16fd"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { $delete, update, createOrUpdate, get, listByServiceGroup } from \"./operations.js\";\nexport {\n  type SitesByServiceGroupDeleteOptionalParams,\n  type SitesByServiceGroupUpdateOptionalParams,\n  type SitesByServiceGroupCreateOrUpdateOptionalParams,\n  type SitesByServiceGroupGetOptionalParams,\n  type SitesByServiceGroupListByServiceGroupOptionalParams,\n} from \"./options.js\";\n",
+      "contentHash": "e20d36fb6b9cc8be4c6eb6649b698058980d59d9cb1812492e6275e0242e7182",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "unknown",
+      "id": "be5770ffd4630f32ec88c391769974528e7e8ff0044b15a33b002d3cc28ac8a0"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { EdgeContext as Client } from \"../index.js\";\nimport {\n  Site,\n  siteSerializer,\n  siteDeserializer,\n  errorResponseDeserializer,\n  SiteUpdate,\n  siteUpdateSerializer,\n  _SiteListResult,\n  _siteListResultDeserializer,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport {\n  SitesByServiceGroupDeleteOptionalParams,\n  SitesByServiceGroupUpdateOptionalParams,\n  SitesByServiceGroupCreateOrUpdateOptionalParams,\n  SitesByServiceGroupGetOptionalParams,\n  SitesByServiceGroupListByServiceGroupOptionalParams,\n} from \"./options.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _$deleteSend(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  options: SitesByServiceGroupDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.Management/serviceGroups/{servicegroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      servicegroupName: servicegroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _$deleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"200\", \"204\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return;\n}\n\n/** delete Site at SG scope */\n/**\n *  @fixme delete is a reserved word that cannot be used as an operation name.\n *         Please add @clientName(\"clientName\") or @clientName(\"<JS-Specific-Name>\", \"javascript\")\n *         to the operation to override the generated name.\n */\nexport async function $delete(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  options: SitesByServiceGroupDeleteOptionalParams = { requestOptions: {} },\n): Promise<void> {\n  const result = await _$deleteSend(context, servicegroupName, siteName, options);\n  return _$deleteDeserialize(result);\n}\n\nexport function _updateSend(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesByServiceGroupUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.Management/serviceGroups/{servicegroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      servicegroupName: servicegroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteUpdateSerializer(properties),\n  });\n}\n\nexport async function _updateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** update Site at SG scope */\nexport async function update(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesByServiceGroupUpdateOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _updateSend(context, servicegroupName, siteName, properties, options);\n  return _updateDeserialize(result);\n}\n\nexport function _createOrUpdateSend(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  resource: Site,\n  options: SitesByServiceGroupCreateOrUpdateOptionalParams = {\n    requestOptions: {},\n  },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.Management/serviceGroups/{servicegroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      servicegroupName: servicegroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteSerializer(resource),\n  });\n}\n\nexport async function _createOrUpdateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\", \"201\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** create or update Site at SG scope */\nexport function createOrUpdate(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  resource: Site,\n  options: SitesByServiceGroupCreateOrUpdateOptionalParams = {\n    requestOptions: {},\n  },\n): PollerLike<OperationState<Site>, Site> {\n  return getLongRunningPoller(context, _createOrUpdateDeserialize, [\"200\", \"201\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () =>\n      _createOrUpdateSend(context, servicegroupName, siteName, resource, options),\n    resourceLocationConfig: \"azure-async-operation\",\n  }) as PollerLike<OperationState<Site>, Site>;\n}\n\nexport function _getSend(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  options: SitesByServiceGroupGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.Management/serviceGroups/{servicegroupName}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      servicegroupName: servicegroupName,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Get Site at SG scope */\nexport async function get(\n  context: Client,\n  servicegroupName: string,\n  siteName: string,\n  options: SitesByServiceGroupGetOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _getSend(context, servicegroupName, siteName, options);\n  return _getDeserialize(result);\n}\n\nexport function _listByServiceGroupSend(\n  context: Client,\n  servicegroupName: string,\n  options: SitesByServiceGroupListByServiceGroupOptionalParams = {\n    requestOptions: {},\n  },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/providers/Microsoft.Management/serviceGroups/{servicegroupName}/providers/Microsoft.Edge/sites{?api%2Dversion}\",\n    {\n      servicegroupName: servicegroupName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listByServiceGroupDeserialize(\n  result: PathUncheckedResponse,\n): Promise<_SiteListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return _siteListResultDeserializer(result.body);\n}\n\n/** list Site at SG scope */\nexport function listByServiceGroup(\n  context: Client,\n  servicegroupName: string,\n  options: SitesByServiceGroupListByServiceGroupOptionalParams = {\n    requestOptions: {},\n  },\n): PagedAsyncIterableIterator<Site> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listByServiceGroupSend(context, servicegroupName, options),\n    _listByServiceGroupDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "50b731f7407847b13f2baef202ca2f3a8d5fb3f34819da81187193436a943157",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/operations.ts",
+      "startLine": 1,
+      "endLine": 298,
+      "kind": "unknown",
+      "id": "32f236bf9535487b9fa712de1965c13f1ebdf4c32fe49f6a4c9f852bd71afd20"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface SitesByServiceGroupDeleteOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesByServiceGroupUpdateOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesByServiceGroupCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface SitesByServiceGroupGetOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesByServiceGroupListByServiceGroupOptionalParams extends OperationOptions {}\n",
+      "contentHash": "710eeb3bdc5962a721f1c31e2bf437e5acdd29e12beed18fa21b8e00dec7fe89",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "ee905afbf40c76fefa30cac4329433fbe4f5dac3bf81bf9edfc5e218168ed6be"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { $delete, update, createOrUpdate, get, list } from \"./operations.js\";\nexport {\n  type SitesBySubscriptionDeleteOptionalParams,\n  type SitesBySubscriptionUpdateOptionalParams,\n  type SitesBySubscriptionCreateOrUpdateOptionalParams,\n  type SitesBySubscriptionGetOptionalParams,\n  type SitesBySubscriptionListOptionalParams,\n} from \"./options.js\";\n",
+      "contentHash": "3e7e85ea0cec77a39d5ee9670ad74fda16c58bfcd785ec91134fdfb7161fa196",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "unknown",
+      "id": "e145f4049debda905c26d45a12e6f375a500c76a0db0fc9590257085be5593ac"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { EdgeContext as Client } from \"../index.js\";\nimport {\n  Site,\n  siteSerializer,\n  siteDeserializer,\n  errorResponseDeserializer,\n  SiteUpdate,\n  siteUpdateSerializer,\n  _SiteListResult,\n  _siteListResultDeserializer,\n} from \"../../models/models.js\";\nimport {\n  PagedAsyncIterableIterator,\n  buildPagedAsyncIterator,\n} from \"../../static-helpers/pagingHelpers.js\";\nimport { getLongRunningPoller } from \"../../static-helpers/pollingHelpers.js\";\nimport { expandUrlTemplate } from \"../../static-helpers/urlTemplate.js\";\nimport {\n  SitesBySubscriptionDeleteOptionalParams,\n  SitesBySubscriptionUpdateOptionalParams,\n  SitesBySubscriptionCreateOrUpdateOptionalParams,\n  SitesBySubscriptionGetOptionalParams,\n  SitesBySubscriptionListOptionalParams,\n} from \"./options.js\";\nimport {\n  StreamableMethod,\n  PathUncheckedResponse,\n  createRestError,\n  operationOptionsToRequestParameters,\n} from \"@azure-rest/core-client\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\nexport function _$deleteSend(\n  context: Client,\n  siteName: string,\n  options: SitesBySubscriptionDeleteOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({ ...operationOptionsToRequestParameters(options) });\n}\n\nexport async function _$deleteDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"200\", \"204\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return;\n}\n\n/** Delete a Site */\n/**\n *  @fixme delete is a reserved word that cannot be used as an operation name.\n *         Please add @clientName(\"clientName\") or @clientName(\"<JS-Specific-Name>\", \"javascript\")\n *         to the operation to override the generated name.\n */\nexport async function $delete(\n  context: Client,\n  siteName: string,\n  options: SitesBySubscriptionDeleteOptionalParams = { requestOptions: {} },\n): Promise<void> {\n  const result = await _$deleteSend(context, siteName, options);\n  return _$deleteDeserialize(result);\n}\n\nexport function _updateSend(\n  context: Client,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesBySubscriptionUpdateOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteUpdateSerializer(properties),\n  });\n}\n\nexport async function _updateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Update a Site */\nexport async function update(\n  context: Client,\n  siteName: string,\n  properties: SiteUpdate,\n  options: SitesBySubscriptionUpdateOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _updateSend(context, siteName, properties, options);\n  return _updateDeserialize(result);\n}\n\nexport function _createOrUpdateSend(\n  context: Client,\n  siteName: string,\n  resource: Site,\n  options: SitesBySubscriptionCreateOrUpdateOptionalParams = {\n    requestOptions: {},\n  },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: siteSerializer(resource),\n  });\n}\n\nexport async function _createOrUpdateDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\", \"201\", \"202\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Create a Site */\nexport function createOrUpdate(\n  context: Client,\n  siteName: string,\n  resource: Site,\n  options: SitesBySubscriptionCreateOrUpdateOptionalParams = {\n    requestOptions: {},\n  },\n): PollerLike<OperationState<Site>, Site> {\n  return getLongRunningPoller(context, _createOrUpdateDeserialize, [\"200\", \"201\", \"202\"], {\n    updateIntervalInMs: options?.updateIntervalInMs,\n    abortSignal: options?.abortSignal,\n    getInitialResponse: () => _createOrUpdateSend(context, siteName, resource, options),\n    resourceLocationConfig: \"azure-async-operation\",\n  }) as PollerLike<OperationState<Site>, Site>;\n}\n\nexport function _getSend(\n  context: Client,\n  siteName: string,\n  options: SitesBySubscriptionGetOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Edge/sites/{siteName}{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      siteName: siteName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _getDeserialize(result: PathUncheckedResponse): Promise<Site> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return siteDeserializer(result.body);\n}\n\n/** Get a Site */\nexport async function get(\n  context: Client,\n  siteName: string,\n  options: SitesBySubscriptionGetOptionalParams = { requestOptions: {} },\n): Promise<Site> {\n  const result = await _getSend(context, siteName, options);\n  return _getDeserialize(result);\n}\n\nexport function _listSend(\n  context: Client,\n  options: SitesBySubscriptionListOptionalParams = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/subscriptions/{subscriptionId}/providers/Microsoft.Edge/sites{?api%2Dversion}\",\n    {\n      subscriptionId: context.subscriptionId,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _listDeserialize(result: PathUncheckedResponse): Promise<_SiteListResult> {\n  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = errorResponseDeserializer(result.body);\n    throw error;\n  }\n\n  return _siteListResultDeserializer(result.body);\n}\n\n/** List Site resources by subscription ID */\nexport function list(\n  context: Client,\n  options: SitesBySubscriptionListOptionalParams = { requestOptions: {} },\n): PagedAsyncIterableIterator<Site> {\n  return buildPagedAsyncIterator(\n    context,\n    () => _listSend(context, options),\n    _listDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "1e29cdede46d66c1f4c0cdac252d9e2c7fa857375706405e4b20fe10c82d371c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/operations.ts",
+      "startLine": 1,
+      "endLine": 281,
+      "kind": "unknown",
+      "id": "f17b8a4b3f4369a1714f58bde1a97bf72e4b45dd6024ba01085351f7565c5f59"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { OperationOptions } from \"@azure-rest/core-client\";\n\n/** Optional parameters. */\nexport interface SitesBySubscriptionDeleteOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesBySubscriptionUpdateOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesBySubscriptionCreateOrUpdateOptionalParams extends OperationOptions {\n  /** Delay to wait until next poll, in milliseconds. */\n  updateIntervalInMs?: number;\n}\n\n/** Optional parameters. */\nexport interface SitesBySubscriptionGetOptionalParams extends OperationOptions {}\n\n/** Optional parameters. */\nexport interface SitesBySubscriptionListOptionalParams extends OperationOptions {}\n",
+      "contentHash": "a5f5a66847980b0bbae8f326a16d793fcd885e458d126126200ae3144613c0d5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "kind": "unknown",
+      "id": "069716604f3bf8d9ea015a8db0fe0607e72918aee9c24ff3b62f1a1f46a2b05e"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { type SitesOperations } from \"./sites/index.js\";\nexport { type SitesByServiceGroupOperations } from \"./sitesByServiceGroup/index.js\";\nexport { type SitesBySubscriptionOperations } from \"./sitesBySubscription/index.js\";\n",
+      "contentHash": "a03d8bd61db98343387616862ce780d4ae80e17fda63cfd326d1a0e193f93bdb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 6,
+      "kind": "unknown",
+      "id": "ba97ac10385a33b29992caa319d5be93a896ff4fcaf347ece08ecf9fe1ef65c3"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/sites/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { EdgeContext } from \"../../api/edgeContext.js\";\nimport {\n  listByResourceGroup,\n  $delete,\n  update,\n  createOrUpdate,\n  get,\n} from \"../../api/sites/operations.js\";\nimport {\n  SitesListByResourceGroupOptionalParams,\n  SitesDeleteOptionalParams,\n  SitesUpdateOptionalParams,\n  SitesCreateOrUpdateOptionalParams,\n  SitesGetOptionalParams,\n} from \"../../api/sites/options.js\";\nimport { Site, SiteUpdate } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\n/** Interface representing a Sites operations. */\nexport interface SitesOperations {\n  /** List Site resources by resource group */\n  listByResourceGroup: (\n    resourceGroupName: string,\n    options?: SitesListByResourceGroupOptionalParams,\n  ) => PagedAsyncIterableIterator<Site>;\n  /** Delete a Site */\n  /**\n   *  @fixme delete is a reserved word that cannot be used as an operation name.\n   *         Please add @clientName(\"clientName\") or @clientName(\"<JS-Specific-Name>\", \"javascript\")\n   *         to the operation to override the generated name.\n   */\n  delete: (\n    resourceGroupName: string,\n    siteName: string,\n    options?: SitesDeleteOptionalParams,\n  ) => Promise<void>;\n  /** Update a Site */\n  update: (\n    resourceGroupName: string,\n    siteName: string,\n    properties: SiteUpdate,\n    options?: SitesUpdateOptionalParams,\n  ) => Promise<Site>;\n  /** Create a Site */\n  createOrUpdate: (\n    resourceGroupName: string,\n    siteName: string,\n    resource: Site,\n    options?: SitesCreateOrUpdateOptionalParams,\n  ) => PollerLike<OperationState<Site>, Site>;\n  /** Get a Site */\n  get: (\n    resourceGroupName: string,\n    siteName: string,\n    options?: SitesGetOptionalParams,\n  ) => Promise<Site>;\n}\n\nfunction _getSites(context: EdgeContext) {\n  return {\n    listByResourceGroup: (\n      resourceGroupName: string,\n      options?: SitesListByResourceGroupOptionalParams,\n    ) => listByResourceGroup(context, resourceGroupName, options),\n    delete: (resourceGroupName: string, siteName: string, options?: SitesDeleteOptionalParams) =>\n      $delete(context, resourceGroupName, siteName, options),\n    update: (\n      resourceGroupName: string,\n      siteName: string,\n      properties: SiteUpdate,\n      options?: SitesUpdateOptionalParams,\n    ) => update(context, resourceGroupName, siteName, properties, options),\n    createOrUpdate: (\n      resourceGroupName: string,\n      siteName: string,\n      resource: Site,\n      options?: SitesCreateOrUpdateOptionalParams,\n    ) => createOrUpdate(context, resourceGroupName, siteName, resource, options),\n    get: (resourceGroupName: string, siteName: string, options?: SitesGetOptionalParams) =>\n      get(context, resourceGroupName, siteName, options),\n  };\n}\n\nexport function _getSitesOperations(context: EdgeContext): SitesOperations {\n  return {\n    ..._getSites(context),\n  };\n}\n",
+      "contentHash": "e97c01050b5bb0b7ca6b55ed45fded45b0e5bbca78941abe3697ca5d2f6b7b00",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/classic/sites/index.ts",
+      "startLine": 1,
+      "endLine": 92,
+      "kind": "unknown",
+      "id": "d616e497d423cd17428c8b2830048ac4a3a09f9cda367651d5cab89356c007c6"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/sitesByServiceGroup/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { EdgeContext } from \"../../api/edgeContext.js\";\nimport {\n  $delete,\n  update,\n  createOrUpdate,\n  get,\n  listByServiceGroup,\n} from \"../../api/sitesByServiceGroup/operations.js\";\nimport {\n  SitesByServiceGroupDeleteOptionalParams,\n  SitesByServiceGroupUpdateOptionalParams,\n  SitesByServiceGroupCreateOrUpdateOptionalParams,\n  SitesByServiceGroupGetOptionalParams,\n  SitesByServiceGroupListByServiceGroupOptionalParams,\n} from \"../../api/sitesByServiceGroup/options.js\";\nimport { Site, SiteUpdate } from \"../../models/models.js\";\nimport { PagedAsyncIterableIterator } from \"../../static-helpers/pagingHelpers.js\";\nimport { PollerLike, OperationState } from \"@azure/core-lro\";\n\n/** Interface representing a SitesByServiceGroup operations. */\nexport interface SitesByServiceGroupOperations {\n  /** delete Site at SG scope */\n  /**\n   *  @fixme delete is a reserved word that cannot be used as an operation name.\n   *         Please add @clientName(\"clientName\") or @clientName(\"<JS-Specific-Name>\", \"javascript\")\n   *         to the operation to override the generated name.\n   */\n  delete: (\n    servicegroupName: string,\n    siteName: string,\n    options?: SitesByServiceGroupDeleteOptionalParams,\n  ) => Promise<void>;\n  /** update Site at SG scope */\n  update: (\n    servicegroupName: string,\n    siteName: string,\n    properties: SiteUpdate,\n    options?: SitesByServiceGroupUpdateOptionalParams,\n  ) => Promise<Site>;\n  /** create or update Site at SG scope */\n  createOrUpdate: (\n    servicegroupName: string,\n    siteName: string,\n    resource: Site,\n    options?: SitesByServiceGroupCreateOrUpdateOptionalParams,\n  ) => PollerLike<OperationState<Site>, Site>;\n  /** Get Site at SG scope */\n  get: (\n    servicegroupName: string,\n    siteName: string,\n    options?: SitesByServiceGroupGetOptionalParams,\n  ) => Promise<Site>;\n  /** list Site at SG scope */\n  listByServiceGroup: (\n    servicegroupName: string,\n    options?: SitesByServiceGroupListByServiceGroupOptionalParams,\n  ) => PagedAsyncIterableIterator<Site>;\n}\n\nfunction _getSitesByServiceGroup(context: EdgeContext) {\n  return {\n    delete: (\n      servicegroupName: string,\n      siteName: string,\n      options?: SitesByServiceGroupDeleteOptionalParams,\n    ) => $delete(context, servicegroupName, siteName, options),\n    update: (\n      servicegroupName: string,\n      siteName: string,\n      properties: SiteUpdate,\n      options?: SitesByServiceGroupUpdateOptionalParams,\n    ) => update(context, servicegroupName, siteName, properties, options),\n    createOrUpdate: (\n      servicegroupName: string,\n      siteName: string,\n      resource: Site,\n      options?: SitesByServiceGroupCreateOrUpdateOptionalParams,\n    ) => createOrUpdate(context, servicegroupName, siteName, resource, options),\n    get: (\n      servicegroupName: string,\n      siteName: string,\n      options?: SitesByServiceGroupGetOptionalParams,\n    ) => get(context, servicegroupName, siteName, options),\n    listByServiceGroup: (\n      servicegroupName: string,\n      options?: SitesByServiceGroupListByServiceGroupOptionalParams,\n    ) => listByServiceGroup(context, servicegroupName, options),\n  };\n}\n\nexport function _getSitesByServiceGroupOperations(\n  context: EdgeContext,\n): SitesByServiceGroupOperations {\n  return {\n    ..._getSitesByServiceGroup(context),\n  };\n}\n",
+      "contentHash": "aaee32515b53867a5cf7d64198565f37b1582dda4dcdcaf015c9f808c86475bd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/src/classic/sitesByServiceGroup/index.ts",
+      "startLine": 1,
+      "endLine": 100,
+      "kind": "unknown",
+      "id": "a862dbdd69d6809007e1545037af0f8b765de8f303cc445bbec59257b0a0d6da"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/package.json",
+      "text": "{\n  \"name\": \"@azure/arm-sitemanager\",\n  \"version\": \"1.0.1\",\n  \"description\": \"A generated SDK for EdgeClient.\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"sdk-type\": \"mgmt\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/sitemanager/arm-sitemanager\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/sitemanager/arm-sitemanager/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/edgeContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.1\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^3.1.0\",\n    \"@azure/core-rest-pipeline\": \"^1.20.0\",\n    \"@azure/core-util\": \"^1.12.0\",\n    \"@azure/logger\": \"^1.2.0\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p config/tsconfig.samples.json && dev-tool samples publish -f\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \\\"samples-dev/*.ts\\\"\",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"echo skipped\",\n    \"lint:fix\": \"echo skipped\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"test:browser\": \"dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"@azure/arm-sitemanager\",\n    \"productSlugs\": [\n      \"azure\"\n    ],\n    \"disableDocsMs\": true,\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/@azure/arm-sitemanager?view=azure-node-preview\"\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    },\n    \"./api\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/index.d.ts\",\n        \"default\": \"./dist/browser/api/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/index.d.ts\",\n        \"default\": \"./dist/esm/api/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/index.js\"\n      }\n    },\n    \"./api/sitesByServiceGroup\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/sitesByServiceGroup/index.d.ts\",\n        \"default\": \"./dist/browser/api/sitesByServiceGroup/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/sitesByServiceGroup/index.d.ts\",\n        \"default\": \"./dist/esm/api/sitesByServiceGroup/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/sitesByServiceGroup/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/sitesByServiceGroup/index.js\"\n      }\n    },\n    \"./api/sitesBySubscription\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/sitesBySubscription/index.d.ts\",\n        \"default\": \"./dist/browser/api/sitesBySubscription/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/sitesBySubscription/index.d.ts\",\n        \"default\": \"./dist/esm/api/sitesBySubscription/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/sitesBySubscription/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/sitesBySubscription/index.js\"\n      }\n    },\n    \"./api/sites\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/api/sites/index.d.ts\",\n        \"default\": \"./dist/browser/api/sites/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/api/sites/index.d.ts\",\n        \"default\": \"./dist/esm/api/sites/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/api/sites/index.d.ts\",\n        \"default\": \"./dist/commonjs/api/sites/index.js\"\n      }\n    },\n    \"./models\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/models/index.d.ts\",\n        \"default\": \"./dist/browser/models/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/models/index.d.ts\",\n        \"default\": \"./dist/esm/models/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/models/index.d.ts\",\n        \"default\": \"./dist/commonjs/models/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "1479945d8b5d99428e90ec035de579909e140724668d3e964769d30158bb5050",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/package.json"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/README.md",
+      "text": "# Azure Edge client library for JavaScript\n\nThis package contains an isomorphic SDK (runs both in Node.js and in browsers) for Azure Edge client.\n\nAzure Edge Sites Resource Provider management API.\n\nKey links:\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/sitemanager/arm-sitemanager)\n- [Package (NPM)](https://www.npmjs.com/package/@azure/arm-sitemanager)\n- [API reference documentation](https://learn.microsoft.com/javascript/api/@azure/arm-sitemanager?view=azure-node-preview)\n- [Samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/sitemanager/arm-sitemanager/samples)\n\n## Getting started\n\n### Currently supported environments\n\n- [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule)\n- Latest versions of Safari, Chrome, Edge and Firefox.\n\nSee our [support policy](https://github.com/Azure/azure-sdk-for-js/blob/main/SUPPORT.md) for more details.\n\n### Prerequisites\n\n- An [Azure subscription][azure_sub].\n\n### Install the `@azure/arm-sitemanager` package\n\nInstall the Azure Edge client library for JavaScript with `npm`:\n\n```bash\nnpm install @azure/arm-sitemanager\n```\n\n### Create and authenticate a `EdgeClient`\n\nTo create a client object to access the Azure Edge API, you will need the `endpoint` of your Azure Edge resource and a `credential`. The Azure Edge client can use Azure Active Directory credentials to authenticate.\nYou can find the endpoint for your Azure Edge resource in the [Azure Portal][azure_portal].\n\nYou can authenticate with Azure Active Directory using a credential from the [@azure/identity][azure_identity] library or [an existing AAD Token](https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/identity/identity/samples/AzureIdentityExamples.md#authenticating-with-a-pre-fetched-access-token).\n\nTo use the [DefaultAzureCredential][defaultazurecredential] provider shown below, or other credential providers provided with the Azure SDK, please install the `@azure/identity` package:\n\n```bash\nnpm install @azure/identity\n```\n\nYou will also need to **register a new AAD application and grant access to Azure Edge** by assigning the suitable role to your service principal (note: roles such as `\"Owner\"` will not grant the necessary permissions).\n\nFor more information about how to create an Azure AD Application check out [this guide](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).\n\nUsing Node.js and Node-like environments, you can use the `DefaultAzureCredential` class to authenticate the client.\n\n```ts snippet:ReadmeSampleCreateClient_Node\nimport { EdgeClient } from \"@azure/arm-sitemanager\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\n\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new EdgeClient(new DefaultAzureCredential(), subscriptionId);\n```\n\nFor browser environments, use the `InteractiveBrowserCredential` from the `@azure/identity` package to authenticate.\n\n```ts snippet:ReadmeSampleCreateClient_Browser\nimport { InteractiveBrowserCredential } from \"@azure/identity\";\nimport { EdgeClient } from \"@azure/arm-sitemanager\";\n\nconst credential = new InteractiveBrowserCredential({\n  tenantId: \"<YOUR_TENANT_ID>\",\n  clientId: \"<YOUR_CLIENT_ID>\",\n});\nconst subscriptionId = \"00000000-0000-0000-0000-000000000000\";\nconst client = new EdgeClient(credential, subscriptionId);\n```\n\n\n### JavaScript Bundle\nTo use this client library in the browser, first you need to use a bundler. For details on how to do this, please refer to our [bundling documentation](https://aka.ms/AzureSDKBundling).\n\n## Key concepts\n\n### EdgeClient\n\n`EdgeClient` is the primary interface for developers using the Azure Edge client library. Explore the methods on this client object to understand the different features of the Azure Edge service that you can access.\n\n## Troubleshooting\n\n### Logging\n\nEnabling logging may help uncover useful information about failures. In order to see a log of HTTP requests and responses, set the `AZURE_LOG_LEVEL` environment variable to `info`. Alternatively, logging can be enabled at runtime by calling `setLogLevel` in the `@azure/logger`:\n\n```ts snippet:SetLogLevel\nimport { setLogLevel } from \"@azure/logger\";\n\nsetLogLevel(\"info\");\n```\n\nFor more detailed instructions on how to enable logs, you can look at the [@azure/logger package docs](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/core/logger).\n\n## Next steps\n\nPlease take a look at the [samples](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/sitemanager/arm-sitemanager/samples) directory for detailed examples on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n## Related projects\n\n- [Microsoft Azure SDK for JavaScript](https://github.com/Azure/azure-sdk-for-js)\n\n[azure_sub]: https://azure.microsoft.com/free/\n[azure_portal]: https://portal.azure.com\n[azure_identity]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity\n[defaultazurecredential]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/identity/identity#defaultazurecredential\n",
+      "contentHash": "e3e5d36d976e1727c8c55eb551f66ac2c469731c720082bbb55c5e8074b9163f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/README.md"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/tsp-location.yaml",
+      "text": "directory: specification/edge/Microsoft.Edge.Sites.Management\ncommit: cbfe154470792d8aea255885a4a96609603982cc\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "b0aa9be871d71da2ce7a2af5b9f684c83aa4cdd1a2f98e6b8241d190e73eb55f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/ba775712561672cf55288d6f16084939a5f46c5f/sdk/sitemanager/arm-sitemanager/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/edgeContext.ts",
+      "startLine": 1,
+      "endLine": 68,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "6595996953331fc031508457e6dc1d0645dabc6baee4783ebf0dff7f7118bfad"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "37face6bf6477c216339fca2925fa0cd8d12450577037aaeb35b72a8c381ab42"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fc9fe6a218c3f791f26f83e8d60d31305d947aa1c9256d16cbdf47ed41d99c15"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/operations.ts",
+      "startLine": 1,
+      "endLine": 295,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "647e42ff954ba26ddd1ee176cf15f0f5585e2f177c3e82a46f753387eb14c585"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sites/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "194384ce415ebf67f6536e90a7e776641622d18d77c1646a1c321850a9d02c38"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e20d36fb6b9cc8be4c6eb6649b698058980d59d9cb1812492e6275e0242e7182"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/operations.ts",
+      "startLine": 1,
+      "endLine": 298,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "50b731f7407847b13f2baef202ca2f3a8d5fb3f34819da81187193436a943157"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesByServiceGroup/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "710eeb3bdc5962a721f1c31e2bf437e5acdd29e12beed18fa21b8e00dec7fe89"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3e7e85ea0cec77a39d5ee9670ad74fda16c58bfcd785ec91134fdfb7161fa196"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/operations.ts",
+      "startLine": 1,
+      "endLine": 281,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1e29cdede46d66c1f4c0cdac252d9e2c7fa857375706405e4b20fe10c82d371c"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/api/sitesBySubscription/options.ts",
+      "startLine": 1,
+      "endLine": 22,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a5f5a66847980b0bbae8f326a16d793fcd885e458d126126200ae3144613c0d5"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/index.ts",
+      "startLine": 1,
+      "endLine": 6,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a03d8bd61db98343387616862ce780d4ae80e17fda63cfd326d1a0e193f93bdb"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/sites/index.ts",
+      "startLine": 1,
+      "endLine": 92,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e97c01050b5bb0b7ca6b55ed45fded45b0e5bbca78941abe3697ca5d2f6b7b00"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/sitesByServiceGroup/index.ts",
+      "startLine": 1,
+      "endLine": 100,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "aaee32515b53867a5cf7d64198565f37b1582dda4dcdcaf015c9f808c86475bd"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/classic/sitesBySubscription/index.ts",
+      "startLine": 1,
+      "endLine": 76,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "96b7ad441ba8c73fdf9c54924fa0b888da35aa60b5f4dd3c005667e71b6d6e01"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/edgeClient.ts",
+      "startLine": 1,
+      "endLine": 50,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fadd26600ee60881ef7ea6fb9728bb95c197fdd526886521bfb5bea576f295f3"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/index.ts",
+      "startLine": 1,
+      "endLine": 59,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "57155bcfae80f4349e42e7e22b9a0be5b953ab8c04ead731a607dd036b88c16c"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "c60ea9f47889b7a72ade1dd18b7a3a358f12963829446836b756cd740eae9dfa"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 21,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "7cfb91ad0ea4c85ae032174e5a5bfef7fd5ddf3b4edd2b11386fb3a6ebde4b68"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 359,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "702920863058968edfbb88187bfc871f787159f24664bc661d83ecff777664a7"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/restorePollerHelpers.ts",
+      "startLine": 1,
+      "endLine": 164,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "77c8303a4c9809826aec5efa8d3b448a7d404d62155359c4b44371592ed692bb"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/cloudSettingHelpers.ts",
+      "startLine": 1,
+      "endLine": 33,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0af3f85177a4b3e855716544e2c6d1d808f7094c749e7409e63ca88b3dc872c3"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/pagingHelpers.ts",
+      "startLine": 1,
+      "endLine": 241,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "93ed8fb4680898dc8523926e5566e5c486134d37057787468f40e23622596a56"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/pollingHelpers.ts",
+      "startLine": 1,
+      "endLine": 126,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "1d3f51b48d434ba3e332182b1224edaa6687dd7dd4af174c0c1363aeab6277d1"
+    },
+    {
+      "path": "sdk/sitemanager/arm-sitemanager/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 198,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "59ff20346911e80857e5e60fc8f6d8805ac0b3693ba47a43cc2fb963f843456a"
+    }
+  ]
+}

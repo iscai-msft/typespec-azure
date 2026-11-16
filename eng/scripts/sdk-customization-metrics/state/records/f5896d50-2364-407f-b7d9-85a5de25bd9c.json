@@ -1,0 +1,2286 @@
+{
+  "schemaVersion": 1,
+  "id": "f5896d50-2364-407f-b7d9-85a5de25bd9c",
+  "observedAt": "2026-10-23T21:36:40.896Z",
+  "identity": "dotnet:azure.security.keyvault.secrets:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Security.KeyVault.Secrets",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/keyvault/Azure.Security.KeyVault.Secrets"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "f11270440916a22177e2644bc823d21bb29a5ee4"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 121,
+    "eligibleFiles": 84,
+    "capturedFiles": 10,
+    "skipped": [
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClient.cs",
+        "reason": "Review budget; only lines 1-375 sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientBuilderExtensions.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientHostExtensions.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientOptions.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientSettings.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretContentType.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretModelFactory.cs",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretProperties.cs",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Custom/Models/AzureSecurityKeyVaultSecretsContext.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.ClientModel.Primitives;\nusing Azure.Security.KeyVault.Secrets.Models;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    // TODO: Remove this buildable model once https://github.com/Azure/azure-sdk-for-net/issues/63576 is fixed.\n    [ModelReaderWriterBuildable(typeof(SecretBundle))]\n    public partial class AzureSecurityKeyVaultSecretsContext\n    {\n    }\n}\n",
+      "contentHash": "ded215a8643963a41103b416464e14f49ef3e1ce978c005b321e9c5727df402a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Custom/Models/AzureSecurityKeyVaultSecretsContext.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "e451fa02c7fdffeba7b0d3caae7acaf9c2704dda66e6c3b72d36b57fa04207f3"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeletedSecret.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Text.Json;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// Represents a Key Vault secret that has been deleted, allowing it to be recovered, if needed.\n    /// </summary>\n    public class DeletedSecret : KeyVaultSecret\n    {\n        private const string RecoveryIdPropertyName = \"recoveryId\";\n        private const string DeletedOnPropertyName = \"deletedDate\";\n        private const string ScheduledPurgeDatePropertyName = \"scheduledPurgeDate\";\n\n        private static readonly JsonEncodedText s_recoveryIdPropertyNameBytes = JsonEncodedText.Encode(RecoveryIdPropertyName);\n        private static readonly JsonEncodedText s_deletedOnPropertyNameBytes = JsonEncodedText.Encode(DeletedOnPropertyName);\n        private static readonly JsonEncodedText s_scheduledPurgeDatePropertyNameBytes = JsonEncodedText.Encode(ScheduledPurgeDatePropertyName);\n\n        private string _recoveryId;\n\n        internal DeletedSecret(SecretProperties properties = null) : base(properties)\n        {\n        }\n\n        /// <summary>\n        /// Gets a <see cref=\"Uri\"/> of the deleted secret that can be used to recover it.\n        /// </summary>\n        public Uri RecoveryId\n        {\n            get => _recoveryId is null ? null : new Uri(_recoveryId);\n            internal set => _recoveryId = value?.AbsoluteUri;\n        }\n\n        /// <summary>\n        /// Gets a <see cref=\"DateTimeOffset\"/> indicating when the secret was deleted.\n        /// </summary>\n        public DateTimeOffset? DeletedOn { get; internal set; }\n\n        /// <summary>\n        /// Gets a <see cref=\"DateTimeOffset\"/> for when the deleted secret will be purged.\n        /// </summary>\n        public DateTimeOffset? ScheduledPurgeDate { get; internal set; }\n\n        internal override void ReadProperty(JsonProperty prop)\n        {\n            switch (prop.Name)\n            {\n                case RecoveryIdPropertyName:\n                    _recoveryId = prop.Value.GetString();\n                    break;\n\n                case DeletedOnPropertyName:\n                    DeletedOn = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                    break;\n\n                case ScheduledPurgeDatePropertyName:\n                    ScheduledPurgeDate = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                    break;\n\n                default:\n                    base.ReadProperty(prop);\n                    break;\n            }\n        }\n\n        internal override void WriteProperties(Utf8JsonWriter json)\n        {\n            base.WriteProperties(json);\n\n            if (RecoveryId != null)\n            {\n                json.WriteString(s_recoveryIdPropertyNameBytes, RecoveryId.AbsoluteUri);\n            }\n\n            if (DeletedOn.HasValue)\n            {\n                json.WriteNumber(s_deletedOnPropertyNameBytes, DeletedOn.Value.ToUnixTimeSeconds());\n            }\n\n            if (ScheduledPurgeDate.HasValue)\n            {\n                json.WriteNumber(s_scheduledPurgeDatePropertyNameBytes, ScheduledPurgeDate.Value.ToUnixTimeSeconds());\n            }\n        }\n    }\n}\n",
+      "contentHash": "d43aff405e11977443f8a424eb033fa954bd44ab7ca61e8b1b4a9e70c91f01ab",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeletedSecret.cs",
+      "startLine": 1,
+      "endLine": 89,
+      "kind": "unknown",
+      "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeleteSecretOperation.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// A long-running operation for <see cref=\"SecretClient.StartDeleteSecret(string, CancellationToken)\"/> or <see cref=\"SecretClient.StartDeleteSecretAsync(string, CancellationToken)\"/>.\n    /// </summary>\n    public class DeleteSecretOperation : Operation<DeletedSecret>, IOperation\n    {\n        private static readonly TimeSpan s_defaultPollingInterval = TimeSpan.FromSeconds(2);\n\n        private readonly KeyVaultSecretsClient _generated;\n        private readonly OperationInternal _operationInternal;\n        private readonly DeletedSecret _value;\n\n        internal DeleteSecretOperation(KeyVaultSecretsClient generated, ClientDiagnostics diagnostics, Response<DeletedSecret> response)\n        {\n            _generated = generated ?? throw new ArgumentNullException(nameof(generated));\n            _value = response.Value ?? throw new InvalidOperationException(\"The response does not contain a value.\");\n\n            // RecoveryId is only returned when soft-delete is enabled. Without it the\n            // service performs an immediate delete and there is nothing to poll for.\n            if (_value.RecoveryId is null)\n            {\n                _operationInternal = OperationInternal.Succeeded(response.GetRawResponse());\n            }\n            else\n            {\n                _operationInternal = new(this, diagnostics, response.GetRawResponse(), nameof(DeleteSecretOperation), new[] { new KeyValuePair<string, string>(\"secret\", _value.Name) });\n            }\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"DeleteSecretOperation\" /> for mocking. </summary>\n        protected DeleteSecretOperation() {}\n\n        /// <inheritdoc/>\n        public override string Id => _value.Id?.AbsoluteUri ?? string.Empty;\n\n        /// <summary>\n        /// Gets the <see cref=\"DeletedSecret\"/>.\n        /// You should await <see cref=\"WaitForCompletionAsync(CancellationToken)\"/> before attempting to purge or recover a secret in this pending state.\n        /// </summary>\n        /// <remarks>\n        /// Azure Key Vault will return a <see cref=\"DeletedSecret\"/> immediately but may take time to actually delete the secret if soft-delete is enabled.\n        /// </remarks>\n        public override DeletedSecret Value => _value;\n\n        /// <inheritdoc/>\n        public override bool HasCompleted => _operationInternal.HasCompleted;\n\n        /// <inheritdoc/>\n        /// <remarks>\n        /// Always returns <see langword=\"true\"/>. The DELETE call against Key Vault returns the\n        /// <see cref=\"DeletedSecret\"/> immediately (the value is populated from that response),\n        /// even when soft-delete polling has not yet completed. Callers should still await\n        /// <see cref=\"WaitForCompletionAsync(CancellationToken)\"/> before purging or recovering\n        /// the secret if soft-delete is enabled.\n        /// </remarks>\n        public override bool HasValue => true;\n\n        /// <inheritdoc/>\n        public override Response GetRawResponse() => _operationInternal.RawResponse;\n\n        /// <inheritdoc/>\n        public override Response UpdateStatus(CancellationToken cancellationToken = default)\n            => HasCompleted ? GetRawResponse() : _operationInternal.UpdateStatus(cancellationToken);\n\n        /// <inheritdoc/>\n        public override async ValueTask<Response> UpdateStatusAsync(CancellationToken cancellationToken = default)\n            => HasCompleted ? GetRawResponse() : await _operationInternal.UpdateStatusAsync(cancellationToken).ConfigureAwait(false);\n\n        /// <inheritdoc />\n        public override ValueTask<Response<DeletedSecret>> WaitForCompletionAsync(CancellationToken cancellationToken = default) =>\n            this.DefaultWaitForCompletionAsync(s_defaultPollingInterval, cancellationToken);\n\n        /// <inheritdoc />\n        public override ValueTask<Response<DeletedSecret>> WaitForCompletionAsync(TimeSpan pollingInterval, CancellationToken cancellationToken) =>\n            this.DefaultWaitForCompletionAsync(pollingInterval, cancellationToken);\n\n        async ValueTask<OperationState> IOperation.UpdateStateAsync(bool async, CancellationToken cancellationToken)\n        {\n            // Soft-delete semantics: 404 -> still pending, 200 -> deleted.\n            // Use ErrorOptions.NoThrow so the protocol overload surfaces the raw Response\n            // on 404 rather than raising — the LRO maps it back to Pending below.\n            var ctx = new RequestContext { CancellationToken = cancellationToken, ErrorOptions = ErrorOptions.NoThrow };\n            Response response = async\n                ? await _generated.GetDeletedSecretAsync(_value.Name, ctx).ConfigureAwait(false)\n                : _generated.GetDeletedSecret(_value.Name, ctx);\n\n            return response.Status switch\n            {\n                200 or 403 => OperationState.Success(response), // 403 == access denied, but proves the secret is deleted.\n                404        => OperationState.Pending(response),\n                _          => OperationState.Failure(response, new RequestFailedException(response)),\n            };\n        }\n\n        RehydrationToken IOperation.GetRehydrationToken() =>\n            throw new NotSupportedException($\"{nameof(GetRehydrationToken)} is not supported.\");\n    }\n}\n",
+      "contentHash": "5ebddc73db7e0cbfff6f5e970275475e6a534985b1f9b7954b214ac675143364",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeleteSecretOperation.cs",
+      "startLine": 1,
+      "endLine": 109,
+      "kind": "unknown",
+      "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/KeyVaultSecretsClient.Customizations.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    // Customization partial for the generated KeyVaultSecretsClient. Adds a\n    // ctor that accepts a pre-built HttpPipeline (and matching diagnostics +\n    // api-version), so the hand-written SecretClient can pass through the\n    // customer's full SecretClientOptions configuration — AddPolicy entries,\n    // custom Retry, Diagnostics allow-lists, custom Transport, etc. The\n    // legacy hand-written SecretClient built its pipeline directly from\n    // ClientOptions in exactly this way; preserving that path is what makes\n    // the transport swap a no-op for existing customers.\n    internal partial class KeyVaultSecretsClient\n    {\n        internal KeyVaultSecretsClient(\n            Uri endpoint,\n            string apiVersion,\n            HttpPipeline pipeline,\n            ClientDiagnostics diagnostics)\n        {\n            Argument.AssertNotNull(endpoint,    nameof(endpoint));\n            Argument.AssertNotNull(apiVersion,  nameof(apiVersion));\n            Argument.AssertNotNull(pipeline,    nameof(pipeline));\n            Argument.AssertNotNull(diagnostics, nameof(diagnostics));\n\n            _endpoint         = endpoint;\n            _apiVersion       = apiVersion;\n            Pipeline          = pipeline;\n            ClientDiagnostics = diagnostics;\n        }\n    }\n}\n",
+      "contentHash": "a66d77d3ca25aebe6471637fc8caa6991b35fb964a8b14684eb42657b7b94f85",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/KeyVaultSecretsClient.Customizations.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "unknown",
+      "id": "48feadbfbdbee74c5fa1476e0fff6257b4f7a332e1f8cf9abdceb817285f28bc"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/SecretMapper.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing Azure.Security.KeyVault.Secrets.Models;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    // Translates between the generated wire models (under Models/) and the\n    // hand-written customer-facing types (KeyVaultSecret, SecretProperties,\n    // DeletedSecret, etc). Pure functions, no I/O. Mirrors the layering Java's\n    // SecretAsyncClient/secretImpl uses and Python's _generated <-> public\n    // model adapter.\n    internal static class SecretMapper\n    {\n        // ---------- generated -> public ----------\n\n        public static KeyVaultSecret ToKeyVaultSecret(SecretBundle bundle)\n        {\n            if (bundle is null) return null;\n\n            var props = new SecretProperties();\n            PopulateProperties(props, bundle.Id, bundle.ContentType, bundle.Kid,\n                               bundle.Managed, bundle.PreviousVersion, bundle.Attributes, bundle.Tags);\n\n            return new KeyVaultSecret(props) { Value = bundle.Value };\n        }\n\n        public static DeletedSecret ToDeletedSecret(DeletedSecretBundle bundle)\n        {\n            if (bundle is null) return null;\n\n            var props = new SecretProperties();\n            PopulateProperties(props, bundle.Id, bundle.ContentType, bundle.Kid,\n                               bundle.Managed, bundle.PreviousVersion, bundle.Attributes, bundle.Tags);\n\n            var deleted = new DeletedSecret(props)\n            {\n                DeletedOn = bundle.DeletedOn,\n                ScheduledPurgeDate = bundle.ScheduledPurgeOn,\n            };\n            deleted.Value = bundle.Value;\n            if (!string.IsNullOrEmpty(bundle.RecoveryId))\n            {\n                deleted.RecoveryId = new Uri(bundle.RecoveryId);\n            }\n            return deleted;\n        }\n\n        public static SecretProperties ToSecretProperties(SecretItem item)\n        {\n            if (item is null) return null;\n\n            var props = new SecretProperties();\n            PopulateProperties(props, item.Id, item.ContentType, kid: null,\n                               managed: item.Managed, previousVersion: null,\n                               attrs: item.Attributes, tags: item.Tags);\n            return props;\n        }\n\n        public static DeletedSecret ToDeletedSecret(DeletedSecretItem item)\n        {\n            if (item is null) return null;\n\n            var props = new SecretProperties();\n            PopulateProperties(props, item.Id, item.ContentType, kid: null,\n                               managed: item.Managed, previousVersion: null,\n                               attrs: item.Attributes, tags: item.Tags);\n\n            var deleted = new DeletedSecret(props)\n            {\n                DeletedOn = item.DeletedOn,\n                ScheduledPurgeDate = item.ScheduledPurgeOn,\n            };\n            if (!string.IsNullOrEmpty(item.RecoveryId))\n            {\n                deleted.RecoveryId = new Uri(item.RecoveryId);\n            }\n            return deleted;\n        }\n\n        public static byte[] ToBackupBytes(BackupSecretResult backup)\n            => backup?.Value?.ToArray();\n\n        // ---------- public -> generated ----------\n\n        public static SecretSetParameters ToSetParameters(KeyVaultSecret secret)\n        {\n            if (secret is null) throw new ArgumentNullException(nameof(secret));\n\n            // A null `Value` cannot reach this path via the public surface:\n            // KeyVaultSecret(string name, string value) throws ArgumentNullException\n            // when `value` is null (see KeyVaultSecret.cs), and the `Value` setter\n            // on KeyVaultSecret is internal. The generated SecretSetParameters\n            // constructor itself does NOT validate `value`, so we rely on the\n            // public-surface guard above.\n            var p = secret.Properties;\n            var setParams = new SecretSetParameters(secret.Value)\n            {\n                ContentType = p?.ContentType,\n                SecretAttributes = ToWireAttributes(p),\n            };\n            CopyTags(p?.Tags, setParams.Tags);\n            return setParams;\n        }\n\n        // Build the JSON body the service expects for PATCH. We pass through\n        // exactly the fields the customer may have changed (enabled / nbf /\n        // exp / contentType / tags) — the same fields the hand-written\n        // SecretClient writes. Read-only fields are deliberately omitted to\n        // avoid the service rejecting the request.\n        public static System.IO.Stream WriteUpdateBody(SecretProperties properties)\n        {\n            if (properties is null) throw new ArgumentNullException(nameof(properties));\n\n            var ms = new System.IO.MemoryStream();\n            using (var writer = new System.Text.Json.Utf8JsonWriter(ms))\n            {\n                writer.WriteStartObject();\n\n                if (properties.ContentType != null)\n                {\n                    writer.WriteString(\"contentType\", properties.ContentType);\n                }\n\n                bool hasEnabled  = properties.Enabled.HasValue;\n                bool hasNbf      = properties.NotBefore.HasValue;\n                bool hasExp      = properties.ExpiresOn.HasValue;\n                if (hasEnabled || hasNbf || hasExp)\n                {\n                    writer.WriteStartObject(\"attributes\");\n                    if (hasEnabled) writer.WriteBoolean(\"enabled\", properties.Enabled.Value);\n                    if (hasNbf)     writer.WriteNumber(\"nbf\", properties.NotBefore.Value.ToUnixTimeSeconds());\n                    if (hasExp)     writer.WriteNumber(\"exp\", properties.ExpiresOn.Value.ToUnixTimeSeconds());\n                    writer.WriteEndObject();\n                }\n\n                // Match the legacy SecretClient PATCH body exactly: emit a \"tags\" object\n                // only if the customer touched the dictionary (non-null backing store)\n                // *and* it has at least one entry. This avoids replacing the server's\n                // tags with an empty bag when the caller didn't intend to change them.\n                IDictionary<string, string> existingTags = properties.TagsIfSet;\n                if (existingTags is { Count: > 0 })\n                {\n                    writer.WriteStartObject(\"tags\");\n                    foreach (var kvp in existingTags)\n                    {\n                        writer.WriteString(kvp.Key, kvp.Value);\n                    }\n                    writer.WriteEndObject();\n                }\n\n                writer.WriteEndObject();\n            }\n            ms.Position = 0;\n            return ms;\n        }\n\n        public static SecretRestoreParameters ToRestoreParameters(byte[] backup)\n        {\n            if (backup is null) throw new ArgumentNullException(nameof(backup));\n            return new SecretRestoreParameters(BinaryData.FromBytes(backup));\n        }\n\n        // ---------- helpers ----------\n\n        private static void PopulateProperties(SecretProperties props,\n                                               string id,\n                                               string contentType,\n                                               string kid,\n                                               bool? managed,\n                                               string previousVersion,\n                                               SecretAttributesBundle attrs,\n                                               IDictionary<string, string> tags)\n        {\n            if (!string.IsNullOrEmpty(id))\n            {\n                props.Id = new Uri(id);\n                props.ParseId(props.Id);\n            }\n            props.ContentType     = contentType;\n            if (!string.IsNullOrEmpty(kid)) props.KeyId = new Uri(kid);\n            props.Managed         = managed ?? false;\n            props.PreviousVersion = previousVersion;\n\n            if (attrs != null)\n            {\n                props.Enabled         = attrs.Enabled;\n                props.NotBefore       = attrs.NotBefore;\n                props.ExpiresOn       = attrs.Expires;\n                props.CreatedOn       = attrs.Created;\n                props.UpdatedOn       = attrs.Updated;\n                props.RecoverableDays = attrs.RecoverableDays;\n                props.RecoveryLevel   = attrs.RecoveryLevel?.ToString();\n            }\n\n            if (tags != null && tags.Count > 0)\n            {\n                foreach (var kvp in tags)\n                {\n                    props.Tags[kvp.Key] = kvp.Value;\n                }\n            }\n        }\n\n        private static SecretAttributesBundle ToWireAttributes(SecretProperties p)\n        {\n            if (p is null) return null;\n            if (!p.Enabled.HasValue && !p.NotBefore.HasValue && !p.ExpiresOn.HasValue) return null;\n\n            // ctor on generated SecretAttributesBundle accepts only enabled/notBefore/expires\n            // at the \"write\" path; the rest are read-only and never echoed back to the service.\n            return new SecretAttributesBundle\n            {\n                Enabled   = p.Enabled,\n                NotBefore = p.NotBefore,\n                Expires   = p.ExpiresOn,\n            };\n        }\n\n        private static void CopyTags(IDictionary<string, string> source, IDictionary<string, string> dest)\n        {\n            if (source is null || dest is null) return;\n            foreach (var kvp in source)\n            {\n                dest[kvp.Key] = kvp.Value;\n            }\n        }\n    }\n}\n",
+      "contentHash": "63a01a1fdaa9e7a878d99136183a9625e79ba3317855606eccbfa522cef13be1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/SecretMapper.cs",
+      "startLine": 1,
+      "endLine": 231,
+      "kind": "unknown",
+      "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecret.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Text.Json;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// <see cref=\"KeyVaultSecret\"/> is the resource consisting of a value and its <see cref=\"Properties\"/>.\n    /// </summary>\n    public class KeyVaultSecret : IJsonDeserializable, IJsonSerializable\n    {\n        private const string ValuePropertyName = \"value\";\n\n        private static readonly JsonEncodedText s_valuePropertyNameBytes = JsonEncodedText.Encode(ValuePropertyName);\n\n        internal KeyVaultSecret(SecretProperties properties = null)\n        {\n            Properties = properties ?? new SecretProperties();\n        }\n\n        /// <summary>\n        /// Initializes a new instance of the <see cref=\"KeyVaultSecret\"/> class.\n        /// </summary>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"value\">The value of the secret.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> or <paramref name=\"value\"/> is null.</exception>\n        public KeyVaultSecret(string name, string value)\n        {\n            Properties = new SecretProperties(name);\n            Value = value ?? throw new ArgumentNullException(nameof(value));\n        }\n\n        /// <summary>\n        /// Gets the secret identifier.\n        /// </summary>\n        public Uri Id => Properties.Id;\n\n        /// <summary>\n        /// Gets the the name of the secret.\n        /// </summary>\n        public string Name => Properties.Name;\n\n        /// <summary>\n        /// Gets additional properties of the <see cref=\"KeyVaultSecret\"/>.\n        /// </summary>\n        public SecretProperties Properties { get; }\n\n        /// <summary>\n        /// Gets the value of the secret.\n        /// </summary>\n        /// <value>This property is always null for <see cref=\"DeletedSecret\"/>.</value>\n        public string Value { get; internal set; }\n\n        internal virtual void ReadProperty(JsonProperty prop)\n        {\n            switch (prop.Name)\n            {\n                case ValuePropertyName:\n                    Value = prop.Value.GetString();\n                    break;\n\n                default:\n                    Properties.ReadProperty(prop);\n                    break;\n            }\n        }\n\n        internal virtual void WriteProperties(Utf8JsonWriter json)\n        {\n            if (Value != null)\n            {\n                json.WriteString(s_valuePropertyNameBytes, Value);\n            }\n\n            Properties.WriteProperties(json);\n        }\n\n        void IJsonDeserializable.ReadProperties(JsonElement json)\n        {\n            foreach (JsonProperty prop in json.EnumerateObject())\n            {\n                ReadProperty(prop);\n            }\n        }\n\n        void IJsonSerializable.WriteProperties(Utf8JsonWriter json) => WriteProperties(json);\n    }\n}\n",
+      "contentHash": "5b59f69dcdfd538cbc5ee2e022900c1875fa24f1856fea4cfebb2e44a69b9fa2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecret.cs",
+      "startLine": 1,
+      "endLine": 91,
+      "kind": "unknown",
+      "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecretIdentifier.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing Azure.Core;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// Information about a <see cref=\"KeyVaultSecret\"/> parsed from a <see cref=\"Uri\"/>.\n    /// You can use this information when calling methods of a <see cref=\"SecretClient\"/>.\n    /// </summary>\n    public readonly struct KeyVaultSecretIdentifier : IEquatable<KeyVaultSecretIdentifier>\n    {\n        /// <summary>\n        /// Creates a new instance of the <see cref=\"KeyVaultSecretIdentifier\"/> class.\n        /// </summary>\n        /// <param name=\"id\">The <see cref=\"Uri\"/> to a secret or deleted secret.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"id\"/> is not a valid Key Vault secret ID.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"id\"/> is null.</exception>\n        /// <remarks>\n        /// Successfully parsing the given <see cref=\"Uri\"/> does not guarantee that the <paramref name=\"id\"/> is a valid Key Vault secret identifier:\n        /// only that it contains the necessary number of path parts that look like a Key Vault secret identifier. If the <see cref=\"VaultUri\"/> references\n        /// a valid Key Vault, the service will return an error if the <see cref=\"Name\"/> and <see cref=\"Version\"/> do not specify a valid secret.\n        /// </remarks>\n        public KeyVaultSecretIdentifier(Uri id)\n        {\n            Argument.AssertNotNull(id, nameof(id));\n\n            if (KeyVaultIdentifier.TryParse(id, out KeyVaultIdentifier identifier))\n            {\n                SourceId = id;\n                VaultUri = identifier.VaultUri;\n                Name = identifier.Name;\n                Version = identifier.Version;\n            }\n            else\n            {\n                throw new ArgumentException($\"{id} is not a valid secret ID\", nameof(id));\n            }\n        }\n\n        private KeyVaultSecretIdentifier(Uri sourceId, Uri vaultUri, string name, string version)\n        {\n            SourceId = sourceId;\n            VaultUri = vaultUri;\n            Name = name;\n            Version = version;\n        }\n\n        /// <summary>\n        /// Gets the source <see cref=\"Uri\"/> passed to <see cref=\"KeyVaultSecretIdentifier(Uri)\"/>.\n        /// </summary>\n        public Uri SourceId { get; }\n\n        /// <summary>\n        /// Gets the <see cref=\"Uri\"/> of the Key Vault.\n        /// </summary>\n        public Uri VaultUri { get; }\n\n        /// <summary>\n        /// Gets the name of the secret.\n        /// </summary>\n        public string Name { get; }\n\n        /// <summary>\n        /// Gets the optional version of the secret.\n        /// </summary>\n        public string Version { get; }\n\n        /// <summary>\n        /// Tries to create a new instance of the <see cref=\"KeyVaultSecretIdentifier\"/> from the given <paramref name=\"id\"/>.\n        /// </summary>\n        /// <param name=\"id\">A <see cref=\"Uri\"/> to a Key Vault secret with or without a version.</param>\n        /// <param name=\"identifier\">A <see cref=\"KeyVaultSecretIdentifier\"/> from the given <paramref name=\"id\"/> if valid; otherwise, an empty structure if invalid.</param>\n        /// <returns>True if the <see cref=\"Uri\"/> contains a <see cref=\"VaultUri\"/>, <see cref=\"Name\"/>, and optional <see cref=\"Version\"/>; otherwise, false.</returns>\n        /// <remarks>\n        /// Successfully parsing the given <see cref=\"Uri\"/> does not guarantee that the <paramref name=\"id\"/> is a valid Key Vault secret identifier:\n        /// only that it contains the necessary number of path parts that look like a Key Vault secret identifier. If the <see cref=\"VaultUri\"/> references\n        /// a valid Key Vault, the service will return an error if the <see cref=\"Name\"/> and <see cref=\"Version\"/> do not specify a valid secret.\n        /// </remarks>\n        public static bool TryCreate(Uri id, out KeyVaultSecretIdentifier identifier)\n        {\n            if (KeyVaultIdentifier.TryParse(id, out KeyVaultIdentifier value))\n            {\n                identifier = new KeyVaultSecretIdentifier(value.Id, value.VaultUri, value.Name, value.Version);\n                return true;\n            }\n\n            identifier = default;\n            return false;\n        }\n\n        /// <inheritdoc/>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override bool Equals(object obj) =>\n            obj is KeyVaultSecretIdentifier other && Equals(other);\n\n        /// <inheritdoc/>\n        public bool Equals(KeyVaultSecretIdentifier other) =>\n            SourceId == other.SourceId;\n\n        /// <inheritdoc/>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override int GetHashCode() =>\n            SourceId?.GetHashCode() ?? 0;\n\n        /// <inheritdoc/>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public override string ToString() =>\n            base.ToString();\n    }\n}\n",
+      "contentHash": "0b53349afec2a898235cfe16eebd9917b6843156ef68bdad74d4c5eb2b447018",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecretIdentifier.cs",
+      "startLine": 1,
+      "endLine": 114,
+      "kind": "unknown",
+      "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/RecoverDeletedSecretOperation.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// A long-running operation for <see cref=\"SecretClient.StartRecoverDeletedSecret(string, CancellationToken)\"/> or <see cref=\"SecretClient.StartRecoverDeletedSecretAsync(string, CancellationToken)\"/>.\n    /// </summary>\n    public class RecoverDeletedSecretOperation : Operation<SecretProperties>, IOperation\n    {\n        private static readonly TimeSpan s_defaultPollingInterval = TimeSpan.FromSeconds(2);\n\n        private readonly KeyVaultSecretsClient _generated;\n        private readonly OperationInternal _operationInternal;\n        private readonly SecretProperties _value;\n\n        internal RecoverDeletedSecretOperation(KeyVaultSecretsClient generated, ClientDiagnostics diagnostics, Response<SecretProperties> response)\n        {\n            _generated = generated ?? throw new ArgumentNullException(nameof(generated));\n            _value = response.Value ?? throw new InvalidOperationException(\"The response does not contain a value.\");\n            _operationInternal = new(this, diagnostics, response.GetRawResponse(), nameof(RecoverDeletedSecretOperation), new[] { new KeyValuePair<string, string>(\"secret\", _value.Name) });\n        }\n\n        /// <summary> Initializes a new instance of <see cref=\"RecoverDeletedSecretOperation\" /> for mocking. </summary>\n        protected RecoverDeletedSecretOperation() {}\n\n        /// <inheritdoc/>\n        public override string Id => _value.Id?.AbsoluteUri ?? string.Empty;\n\n        /// <summary>\n        /// Gets the <see cref=\"SecretProperties\"/> of the secret being recovered.\n        /// You should await <see cref=\"WaitForCompletionAsync(CancellationToken)\"/> before attempting to use a secret in this pending state.\n        /// </summary>\n        /// <remarks>\n        /// Azure Key Vault will return a <see cref=\"SecretProperties\"/> immediately but may take time to actually recover the deleted secret if soft-delete is enabled.\n        /// </remarks>\n        public override SecretProperties Value => _value;\n\n        /// <inheritdoc/>\n        public override bool HasCompleted => _operationInternal.HasCompleted;\n\n        /// <inheritdoc/>\n        /// <remarks>\n        /// Always returns <see langword=\"true\"/>. The recover call returns the\n        /// <see cref=\"SecretProperties\"/> immediately (the value is populated from that response),\n        /// even when soft-delete polling has not yet completed. Callers should still await\n        /// <see cref=\"WaitForCompletionAsync(CancellationToken)\"/> before using the recovered\n        /// secret if soft-delete is enabled.\n        /// </remarks>\n        public override bool HasValue => true;\n\n        /// <inheritdoc/>\n        public override Response GetRawResponse() => _operationInternal.RawResponse;\n\n        /// <inheritdoc/>\n        public override Response UpdateStatus(CancellationToken cancellationToken = default)\n            => HasCompleted ? GetRawResponse() : _operationInternal.UpdateStatus(cancellationToken);\n\n        /// <inheritdoc/>\n        public override async ValueTask<Response> UpdateStatusAsync(CancellationToken cancellationToken = default)\n            => HasCompleted ? GetRawResponse() : await _operationInternal.UpdateStatusAsync(cancellationToken).ConfigureAwait(false);\n\n        /// <inheritdoc />\n        public override ValueTask<Response<SecretProperties>> WaitForCompletionAsync(CancellationToken cancellationToken = default) =>\n            this.DefaultWaitForCompletionAsync(s_defaultPollingInterval, cancellationToken);\n\n        /// <inheritdoc />\n        public override ValueTask<Response<SecretProperties>> WaitForCompletionAsync(TimeSpan pollingInterval, CancellationToken cancellationToken) =>\n            this.DefaultWaitForCompletionAsync(pollingInterval, cancellationToken);\n\n        async ValueTask<OperationState> IOperation.UpdateStateAsync(bool async, CancellationToken cancellationToken)\n        {\n            var ctx = new RequestContext { CancellationToken = cancellationToken, ErrorOptions = ErrorOptions.NoThrow };\n            Response response = async\n                ? await _generated.GetSecretAsync(_value.Name, secretVersion: null, outContentType: default, context: ctx).ConfigureAwait(false)\n                : _generated.GetSecret(_value.Name, secretVersion: null, outContentType: default, context: ctx);\n\n            return response.Status switch\n            {\n                200 or 403 => OperationState.Success(response), // 403 == access denied, but proves the secret was recovered.\n                404        => OperationState.Pending(response),\n                _          => OperationState.Failure(response, new RequestFailedException(response)),\n            };\n        }\n\n        RehydrationToken IOperation.GetRehydrationToken() =>\n            throw new NotSupportedException($\"{nameof(GetRehydrationToken)} is not supported.\");\n    }\n}\n",
+      "contentHash": "e3c99a1265ed6421ee7c316e786b99272c962d26290e324e3994b355cf2cadf3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/RecoverDeletedSecretOperation.cs",
+      "startLine": 1,
+      "endLine": 96,
+      "kind": "unknown",
+      "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretAttributes.cs",
+      "text": "﻿// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Text.Json;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    internal struct SecretAttributes\n    {\n        private const string EnabledPropertyName = \"enabled\";\n        private const string NotBeforePropertyName = \"nbf\";\n        private const string ExpiresPropertyName = \"exp\";\n        private const string CreatedPropertyName = \"created\";\n        private const string UpdatedPropertyName = \"updated\";\n        private const string RecoverableDaysPropertyName = \"recoverableDays\";\n        private const string RecoveryLevelPropertyName = \"recoveryLevel\";\n\n        private static readonly JsonEncodedText s_enabledPropertyNameBytes = JsonEncodedText.Encode(EnabledPropertyName);\n        private static readonly JsonEncodedText s_notBeforePropertyNameBytes = JsonEncodedText.Encode(NotBeforePropertyName);\n        private static readonly JsonEncodedText s_expiresPropertyNameBytes = JsonEncodedText.Encode(ExpiresPropertyName);\n\n        public bool? Enabled { get; set; }\n\n        public DateTimeOffset? NotBefore { get; set; }\n\n        public DateTimeOffset? ExpiresOn { get; set; }\n\n        public DateTimeOffset? CreatedOn { get; internal set; }\n\n        public DateTimeOffset? UpdatedOn { get; internal set; }\n\n        public int? RecoverableDays { get; internal set; }\n\n        public string RecoveryLevel { get; internal set; }\n\n        internal void ReadProperties(JsonElement json)\n        {\n            foreach (JsonProperty prop in json.EnumerateObject())\n            {\n                switch (prop.Name)\n                {\n                    case EnabledPropertyName:\n                        Enabled = prop.Value.GetBoolean();\n                        break;\n\n                    case NotBeforePropertyName:\n                        NotBefore = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                        break;\n\n                    case ExpiresPropertyName:\n                        ExpiresOn = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                        break;\n\n                    case CreatedPropertyName:\n                        CreatedOn = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                        break;\n\n                    case UpdatedPropertyName:\n                        UpdatedOn = DateTimeOffset.FromUnixTimeSeconds(prop.Value.GetInt64());\n                        break;\n\n                    case RecoverableDaysPropertyName:\n                        RecoverableDays = prop.Value.GetInt32();\n                        break;\n\n                    case RecoveryLevelPropertyName:\n                        RecoveryLevel = prop.Value.GetString();\n                        break;\n                }\n            }\n        }\n\n        internal void WriteProperties(Utf8JsonWriter json)\n        {\n            if (Enabled.HasValue)\n            {\n                json.WriteBoolean(s_enabledPropertyNameBytes, Enabled.Value);\n            }\n\n            if (NotBefore.HasValue)\n            {\n                json.WriteNumber(s_notBeforePropertyNameBytes, NotBefore.Value.ToUnixTimeSeconds());\n            }\n\n            if (ExpiresOn.HasValue)\n            {\n                json.WriteNumber(s_expiresPropertyNameBytes, ExpiresOn.Value.ToUnixTimeSeconds());\n            }\n\n            // Created is read-only don't serialize\n            // Updated is read-only don't serialize\n            // RecoverableDays is read-only don't serialize\n            // RecoveryLevel is read-only don't serialize\n        }\n    }\n}\n",
+      "contentHash": "1d5763f7cd23a5aa2c9043460ccaa0e9c2ab1164937233946bc821686718f59b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretAttributes.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "kind": "unknown",
+      "id": "a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClient.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.ComponentModel;\nusing System.Diagnostics.CodeAnalysis;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Azure.Security.KeyVault.Secrets.Models;\n\nnamespace Azure.Security.KeyVault.Secrets\n{\n    /// <summary>\n    /// The SecretClient provides synchronous and asynchronous methods to manage <see cref=\"KeyVaultSecret\"/> in the Azure Key Vault. The client\n    /// supports creating, retrieving, updating, deleting, purging, backing up, restoring, and listing <see cref=\"KeyVaultSecret\"/>.\n    /// The client also supports listing <see cref=\"DeletedSecret\"/> for a soft-delete enabled Azure Key Vault.\n    /// </summary>\n    /// <remarks>\n    /// Internally, all transport — request building, response parsing, paging, model\n    /// (de)serialization, and LRO polling — is delegated to the TypeSpec-generated\n    /// <c>KeyVaultSecretsClient</c> (internal). Public method signatures, return\n    /// types, exception contracts and recorded HTTP traffic match every previously\n    /// shipped version of this package. Reuse clients and call <see cref=\"Dispose\"/>\n    /// when their lifetime ends. The legacy hand-written transport (KeyVaultPipeline,\n    /// SecretBackup, JSON read/write methods on the model classes) is no longer\n    /// invoked.\n    /// </remarks>\n    [CallerShouldAudit(\"https://aka.ms/azsdk/callershouldaudit/security-keyvault-secrets\")]\n    public class SecretClient : IDisposable\n    {\n        private const string OTelSecretNameKey    = \"az.keyvault.secret.name\";\n        private const string OTelSecretVersionKey = \"az.keyvault.secret.version\";\n\n        private readonly Uri _vaultUri;\n        private readonly KeyVaultSecretsClient _generated;\n        private readonly ClientDiagnostics _diagnostics;\n        private DisposableHttpPipeline _ownedPipeline;\n\n        /// <summary>For mocking.</summary>\n        protected SecretClient() { }\n\n        /// <summary>Initializes a new instance of the <see cref=\"SecretClient\"/> class.</summary>\n        public SecretClient(Uri vaultUri, TokenCredential credential)\n            : this(vaultUri, credential, null) { }\n\n        /// <summary>Initializes a new instance of the <see cref=\"SecretClient\"/> class.</summary>\n        public SecretClient(Uri vaultUri, TokenCredential credential, SecretClientOptions options)\n        {\n            Argument.AssertNotNull(vaultUri, nameof(vaultUri));\n            Argument.AssertNotNull(credential, nameof(credential));\n\n            options ??= new SecretClientOptions();\n            _vaultUri    = vaultUri;\n            _diagnostics = new ClientDiagnostics(options);\n\n            // Build the HttpPipeline directly from the customer's SecretClientOptions\n            // (which extends ClientOptions). This is the legacy SecretClient construction\n            // path. Doing it this way picks up *everything* the customer configured —\n            // AddPolicy entries (per-call + per-retry), custom RetryPolicy / RetryOptions,\n            // Transport, Diagnostics.LoggedHeaderNames + LoggedQueryParameters,\n            // ApplicationId — automatically. None of those need explicit copy code, and\n            // future fields added to ClientOptions are picked up for free.\n            //\n            // The challenge-based auth policy is the same one the legacy SecretClient\n            // used so recordings remain byte-identical.\n            var authPolicy = new ChallengeBasedAuthenticationPolicy(\n                credential, options.DisableChallengeResourceVerification);\n\n            _ownedPipeline = HttpPipelineBuilder.Build(\n                options,\n                perCallPolicies: Array.Empty<HttpPipelinePolicy>(),\n                perRetryPolicies: [authPolicy],\n                transportOptions: new HttpPipelineTransportOptions(),\n                responseClassifier: null);\n\n            _generated = new KeyVaultSecretsClient(\n                vaultUri,\n                MapApiVersion(options.Version),\n                _ownedPipeline,\n                _diagnostics);\n        }\n\n        /// <summary>Initializes a new instance of the <see cref=\"SecretClient\"/> class from settings.</summary>\n        [Experimental(\"SCME0002\")]\n        public SecretClient(SecretClientSettings settings)\n            : this(\n                (settings ?? throw new ArgumentNullException(nameof(settings))).VaultUri,\n                settings.CredentialProvider as TokenCredential,\n                settings.Options) { }\n\n        /// <summary>The vault URI used to construct this client.</summary>\n        public virtual Uri VaultUri => _vaultUri;\n\n        /// <summary>\n        /// Releases the HTTP pipeline resources owned by this client.\n        /// </summary>\n        /// <remarks>\n        /// Reuse the client for its intended lifetime and dispose it after its operations, including long-running\n        /// operations and pageable enumeration, have completed. Caller-provided transports and credentials are not disposed.\n        /// </remarks>\n        public virtual void Dispose()\n        {\n            Interlocked.Exchange(ref _ownedPipeline, null)?.Dispose();\n            GC.SuppressFinalize(this);\n        }\n\n#pragma warning disable AZC0002 // Client method should have Optional CancellationToken.\n        /// <summary>\n        /// Get a specified secret from a given key vault.\n        /// </summary>\n        /// <remarks>\n        /// The get operation is applicable to any secret stored in Azure Key Vault.\n        /// This operation requires the secrets/get permission.\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"version\">The version of the secret.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual async Task<Response<KeyVaultSecret>> GetSecretAsync(string name, string version, CancellationToken cancellationToken) =>\n            await GetSecretAsync(name, version, null, cancellationToken).ConfigureAwait(false);\n#pragma warning restore AZC0002\n\n        /// <summary>\n        /// Get a specified secret from a given key vault.\n        /// </summary>\n        /// <remarks>\n        /// The get operation is applicable to any secret stored in Azure Key Vault.\n        /// This operation requires the secrets/get permission.\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"version\">The version of the secret.</param>\n        /// <param name=\"outContentType\">The content type in which the certificate will be returned. If a supported format is specified, the certificate content is converted to the requested format.\n        /// Currently, only PFX to PEM conversion is supported. If an unsupported format is specified, the request is rejected. If not specified, the certificate is returned in its original\n        /// format without conversion.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual async Task<Response<KeyVaultSecret>> GetSecretAsync(string name, string version = null, SecretContentType? outContentType = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(name, nameof(name));\n            using DiagnosticScope scope = _diagnostics.CreateScope($\"{nameof(SecretClient)}.{nameof(GetSecret)}\");\n            scope.AddAttribute(OTelSecretNameKey, name);\n            scope.AddAttribute(OTelSecretVersionKey, version);\n            scope.Start();\n            try\n            {\n                Response raw = await _generated.GetSecretAsync(name, version, outContentType?.ToString(),\n                    new RequestContext { CancellationToken = cancellationToken }).ConfigureAwait(false);\n                return Response.FromValue(DeserializeKeyVaultSecret(raw), raw);\n            }\n            catch (Exception e) { scope.Failed(e); throw; }\n        }\n\n#pragma warning disable AZC0002 // Client method should have an optional CancellationToken.\n        /// <summary>\n        /// Get a specified secret from a given key vault.\n        /// </summary>\n        /// <remarks>\n        /// The get operation is applicable to any secret stored in Azure Key Vault.\n        /// This operation requires the secrets/get permission.\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"version\">The version of the secret.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Response<KeyVaultSecret> GetSecret(string name, string version, CancellationToken cancellationToken) =>\n            GetSecret(name, version, null, cancellationToken);\n#pragma warning restore AZC0002\n\n        /// <summary>\n        /// Get a specified secret from a given key vault.\n        /// </summary>\n        /// <remarks>\n        /// The get operation is applicable to any secret stored in Azure Key Vault.\n        /// This operation requires the secrets/get permission.\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"version\">The version of the secret.</param>\n        /// <param name=\"outContentType\">The content type in which the certificate will be returned. If a supported format is specified, the certificate content is converted to the requested format.\n        /// Currently, only PFX to PEM conversion is supported. If an unsupported format is specified, the request is rejected. If not specified, the certificate is returned in its original\n        /// format without conversion.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual Response<KeyVaultSecret> GetSecret(string name, string version = null, SecretContentType? outContentType = null, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(name, nameof(name));\n            using DiagnosticScope scope = _diagnostics.CreateScope($\"{nameof(SecretClient)}.{nameof(GetSecret)}\");\n            scope.AddAttribute(OTelSecretNameKey, name);\n            scope.AddAttribute(OTelSecretVersionKey, version);\n            scope.Start();\n            try\n            {\n                Response raw = _generated.GetSecret(name, version, outContentType?.ToString(),\n                    new RequestContext { CancellationToken = cancellationToken });\n                return Response.FromValue(DeserializeKeyVaultSecret(raw), raw);\n            }\n            catch (Exception e) { scope.Failed(e); throw; }\n        }\n\n        /// <summary>\n        /// Lists the properties of all enabled and disabled versions of the specified secret. You can use the returned <see cref=\"SecretProperties.Name\"/> and <see cref=\"SecretProperties.Version\"/> in subsequent calls to <see cref=\"GetSecretAsync(string, string, SecretContentType?, CancellationToken)\"/>.\n        /// </summary>\n        /// <remarks>\n        /// <para>\n        /// The full secret identifier and attributes are provided in the response. No\n        /// values are returned for the secrets. This operations requires the\n        /// secrets/list permission.\n        /// </para>\n        /// <para>\n        /// Managed secrets may also be listed. They contain the certificate and private key for certificates stored in Key Vault.\n        /// </para>\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual AsyncPageable<SecretProperties> GetPropertiesOfSecretVersionsAsync(string name, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(name, nameof(name));\n            return MapAsyncPageable(\n                _generated.GetSecretVersionsAsync(name, maxresults: default, cancellationToken: cancellationToken),\n                SecretMapper.ToSecretProperties,\n                $\"{nameof(SecretClient)}.{nameof(GetPropertiesOfSecretVersions)}\");\n        }\n\n        /// <summary>\n        /// Lists the properties of all enabled and disabled versions of the specified secret. You can use the returned <see cref=\"SecretProperties.Name\"/> and <see cref=\"SecretProperties.Version\"/> in subsequent calls to <see cref=\"GetSecret(string, string, SecretContentType?, CancellationToken)\"/>.\n        /// </summary>\n        /// <remarks>\n        /// <para>\n        /// The full secret identifier and attributes are provided in the response. No\n        /// values are returned for the secrets. This operations requires the\n        /// secrets/list permission.\n        /// </para>\n        /// <para>\n        /// Managed secrets may also be listed. They contain the certificate and private key for certificates stored in Key Vault.\n        /// </para>\n        /// </remarks>\n        /// <param name=\"name\">The name of the secret.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentException\"><paramref name=\"name\"/> is an empty string.</exception>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"name\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual Pageable<SecretProperties> GetPropertiesOfSecretVersions(string name, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(name, nameof(name));\n            return MapPageable(\n                _generated.GetSecretVersions(name, maxresults: default, cancellationToken: cancellationToken),\n                SecretMapper.ToSecretProperties,\n                $\"{nameof(SecretClient)}.{nameof(GetPropertiesOfSecretVersions)}\");\n        }\n\n        /// <summary>\n        /// Lists the properties of all enabled and disabled secrets in the specified vault. You can use the returned <see cref=\"SecretProperties.Name\"/> in subsequent calls to <see cref=\"GetSecretAsync(string, string, SecretContentType?, CancellationToken)\"/>.\n        /// </summary>\n        /// <remarks>\n        /// The Get Secrets operation is applicable to the entire vault. However, only\n        /// the base secret identifier and its attributes are provided in the response.\n        /// Individual secret versions are not listed in the response. This operation\n        /// requires the secrets/list permission.\n        /// </remarks>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual AsyncPageable<SecretProperties> GetPropertiesOfSecretsAsync(CancellationToken cancellationToken = default)\n            => MapAsyncPageable(\n                _generated.GetSecretsAsync(maxresults: default, cancellationToken: cancellationToken),\n                SecretMapper.ToSecretProperties,\n                $\"{nameof(SecretClient)}.{nameof(GetPropertiesOfSecrets)}\");\n\n        /// <summary>\n        /// Lists the properties of all enabled and disabled secrets in the specified vault. You can use the returned <see cref=\"SecretProperties.Name\"/> in subsequent calls to <see cref=\"GetSecret(string, string, SecretContentType?, CancellationToken)\"/>.\n        /// </summary>\n        /// <remarks>\n        /// The Get Secrets operation is applicable to the entire vault. However, only\n        /// the base secret identifier and its attributes are provided in the response.\n        /// Individual secret versions are not listed in the response. This operation\n        /// requires the secrets/list permission.\n        /// </remarks>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual Pageable<SecretProperties> GetPropertiesOfSecrets(CancellationToken cancellationToken = default)\n            => MapPageable(\n                _generated.GetSecrets(maxresults: default, cancellationToken: cancellationToken),\n                SecretMapper.ToSecretProperties,\n                $\"{nameof(SecretClient)}.{nameof(GetPropertiesOfSecrets)}\");\n\n        /// <summary>\n        /// Updates the attributes associated with a specified secret.\n        /// </summary>\n        /// <remarks>\n        /// The update operation changes specified attributes of an existing stored\n        /// secret. Attributes that are not specified in the request are left\n        /// unchanged. The value of a secret itself cannot be changed. This operation\n        /// requires the secrets/set permission.\n        /// </remarks>\n        /// <param name=\"properties\">The secret object with updated properties.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"properties\"/> or <see cref=\"SecretProperties.Version\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual async Task<Response<SecretProperties>> UpdateSecretPropertiesAsync(SecretProperties properties, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(properties, nameof(properties));\n            // Match the legacy behavior: a SecretProperties without a Version (e.g. one\n            // constructed via the (string name) ctor instead of received from the server)\n            // surfaces the same ArgumentNullException the hand-written pipeline used to\n            // produce when AppendPath(null) ran. Legacy ParamName was \"Version\", not\n            // \"properties.Version\" — preserve the exact contract.\n            Argument.AssertNotNull(properties.Version, nameof(properties.Version));\n\n            using DiagnosticScope scope = _diagnostics.CreateScope($\"{nameof(SecretClient)}.{nameof(UpdateSecretProperties)}\");\n            scope.AddAttribute(OTelSecretNameKey, properties.Name);\n            scope.AddAttribute(OTelSecretVersionKey, properties.Version);\n            scope.Start();\n            try\n            {\n                using RequestContent content = RequestContent.Create(SecretMapper.WriteUpdateBody(properties));\n                Response raw = await _generated.UpdateSecretAsync(properties.Name, content, properties.Version,\n                    new RequestContext { CancellationToken = cancellationToken }).ConfigureAwait(false);\n                return Response.FromValue(DeserializeSecretProperties(raw), raw);\n            }\n            catch (Exception e) { scope.Failed(e); throw; }\n        }\n\n        /// <summary>\n        /// Updates the attributes associated with a specified secret.\n        /// </summary>\n        /// <remarks>\n        /// The update operation changes specified attributes of an existing stored\n        /// secret. Attributes that are not specified in the request are left\n        /// unchanged. The value of a secret itself cannot be changed. This operation\n        /// requires the secrets/set permission.\n        /// </remarks>\n        /// <param name=\"properties\">The secret object with updated properties.</param>\n        /// <param name=\"cancellationToken\">A <see cref=\"CancellationToken\"/> controlling the request lifetime.</param>\n        /// <exception cref=\"ArgumentNullException\"><paramref name=\"properties\"/> or <see cref=\"SecretProperties.Version\"/> is null.</exception>\n        /// <exception cref=\"RequestFailedException\">The server returned an error. See <see cref=\"Exception.Message\"/> for details returned from the server.</exception>\n        public virtual Response<SecretProperties> UpdateSecretProperties(SecretProperties properties, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(properties, nameof(properties));\n            Argument.AssertNotNull(properties.Version, nameof(properties.Version));\n\n            using DiagnosticScope scope = _diagnostics.CreateScope($\"{nameof(SecretClient)}.{nameof(UpdateSecretProperties)}\");\n            scope.AddAttribute(OTelSecretNameKey, properties.Name);\n            scope.AddAttribute(OTelSecretVersionKey, properties.Version);\n            scope.Start();\n            try\n            {\n                using RequestContent content = RequestContent.Create(SecretMapper.WriteUpdateBody(properties));\n                Response raw = _generated.UpdateSecret(properties.Name, content, properties.Version,\n                    new RequestContext { CancellationToken = cancellationToken });\n                return Response.FromValue(DeserializeSecretProperties(raw), raw);\n            }\n            catch (Exception e) { scope.Failed(e); throw; }\n        }\n\n        /// <summary>\n        /// Sets a secret in a specified key vault.\n        /// </summary>\n        /// <remarks>\n        /// The set operation adds a secret to the Azure Key Vault. If the named secret\n        /// already exists, Azure Key Vault creates a new version of that secret. This\n        /// operation requires the secrets/set permission.\n        /// </remarks>",
+      "contentHash": "3f2c222ae6fd4ca9e82c7d5d3131e82f3a82c43853bbc97e9c48d5ae36b07a4c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClient.cs",
+      "startLine": 1,
+      "endLine": 375,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/perf/Azure.Security.KeyVault.Secrets.Perf.csproj",
+      "text": "﻿<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"System.Linq.AsyncEnumerable\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <ProjectReference Include=\"..\\src\\Azure.Security.KeyVault.Secrets.csproj\" />\n    <ProjectReference Include=\"..\\..\\..\\..\\common\\Perf\\Azure.Test.Perf\\Azure.Test.Perf.csproj\" />\n    <ProjectReference Include=\"..\\..\\..\\core\\Azure.Core.TestFramework\\src\\Azure.Core.TestFramework.csproj\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <Compile Include=\"..\\..\\Azure.Security.KeyVault.Shared\\tests\\KeyVaultTestEnvironment.cs\" LinkBase=\"Shared\" />\n  </ItemGroup>\n</Project>\n",
+      "contentHash": "36f9dd7b119401ffbbe26c2567c5799024786f9eda0aef629487bdfc47d22f83",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/perf/Azure.Security.KeyVault.Secrets.Perf.csproj"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Azure.Security.KeyVault.Secrets.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>This is the Microsoft Azure Key Vault Secrets client library</Description>\n    <AssemblyTitle>Microsoft Azure.Security.KeyVault.Secrets client library</AssemblyTitle>\n    <Version>4.12.0-beta.4</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>4.11.0</ApiCompatVersion>\n    <PackageTags>Microsoft Azure Key Vault Secrets;$(PackageCommonTags)</PackageTags>\n\n    <TargetFrameworks>$(RequiredTargetFrameworks)</TargetFrameworks>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n    <IncludeOperationsSharedSource>true</IncludeOperationsSharedSource>\n  </PropertyGroup>\n\n  <Import Project=\"..\\..\\Azure.Security.KeyVault.Shared\\src\\Azure.Security.KeyVault.Shared.projitems\" Label=\"Shared\" />\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared\\Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureEventSource.cs\" LinkBase=\"Shared\\Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ArrayBufferWriter.cs\" LinkBase=\"Shared\\Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)CallerShouldAuditAttribute.cs\" LinkBase=\"Shared\\Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared\\Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)Argument.cs\" LinkBase=\"Shared\\Core\" />\n  </ItemGroup>\n\n</Project>\n",
+      "contentHash": "09a9ecc556dfe43766cb75e8e0cca4363b98f3227179761dd9ae2e5210a568a5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Azure.Security.KeyVault.Secrets.csproj"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Secrets\ncommit: 538e38e10d30e578597d26ae404902bdd331fbe6\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n- specification/keyvault/data-plane/Secrets/common\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-emitter-package.json\n",
+      "contentHash": "a27217daea52ce1f5f1e37e84a4b1d08659a592aa2f00e1f2a1049ff4966e911",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/keyvault/Azure.Security.KeyVault.Secrets/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "276c453796c619ce9e61e971a7bd02d99df8b51805918746021493c94f91273a",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "90ce850b4fb94505df00074d5edf6de9d1405e85f277d3f530415f14e716e77b",
+        "category": "Serialization",
+        "subtype": "Model reader/writer buildable type registration",
+        "explanation": "Registers SecretBundle as ModelReaderWriterBuildable on AzureSecurityKeyVaultSecretsContext.",
+        "pattern": "model-reader-writer-buildable-registration",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The src/Custom context carries an explicit buildable attribute; its generation metadata is substantive despite the empty partial body.",
+        "symbols": [
+          "AzureSecurityKeyVaultSecretsContext"
+        ],
+        "evidence": [
+          {
+            "id": "e451fa02c7fdffeba7b0d3caae7acaf9c2704dda66e6c3b72d36b57fa04207f3",
+            "startLine": 10,
+            "endLine": 13
+          }
+        ]
+      },
+      {
+        "key": "6fb051e7e6c3de85df2ce0d32792b34e9c908922c73bd8b9ea75c2953b01796b",
+        "category": "Model overrides",
+        "subtype": "Deleted secret constructor forwarding optional properties",
+        "explanation": "Adds an internal DeletedSecret constructor forwarding an optional SecretProperties object to KeyVaultSecret.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model constructor initializer is in non-generated src, treated as handwritten by the .NET guideline.",
+        "symbols": [
+          "DeletedSecret.DeletedSecret(SecretProperties)"
+        ],
+        "evidence": [
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 24,
+            "endLine": 26
+          }
+        ]
+      },
+      {
+        "key": "3189d6b98d0cf3b5e2986e0b11c803b346db0a2448875c89cd0c24c1e27cbf6d",
+        "category": "Model overrides",
+        "subtype": "String-backed recovery URI accessor",
+        "explanation": "Converts a stored recovery ID string into Uri on get and stores the assigned URI's AbsoluteUri through an internal setter.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This implemented model property is outside Generated.",
+        "symbols": [
+          "DeletedSecret.RecoveryId"
+        ],
+        "evidence": [
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 31,
+            "endLine": 35
+          }
+        ]
+      },
+      {
+        "key": "409d3b90e96baf0704bbea2ca0fdb7322dd3d0aadd795c22b674fe60262a93df",
+        "category": "Serialization",
+        "subtype": "Deleted secret recovery and epoch-date JSON reading",
+        "explanation": "Reads recoveryId as a string and deletedDate/scheduledPurgeDate as Unix-second timestamps, delegating other properties to the base model.",
+        "pattern": "custom-model-json-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete ReadProperty override is in a non-generated model.",
+        "symbols": [
+          "DeletedSecret.ReadProperty"
+        ],
+        "evidence": [
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 14,
+            "endLine": 16
+          },
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 47,
+            "endLine": 67
+          }
+        ]
+      },
+      {
+        "key": "b57129cfbd6bd95c020906ea2f87b4f52b62011f67fd8827ad263aafd6f9d93d",
+        "category": "Serialization",
+        "subtype": "Conditional recovery URI and epoch-date JSON writing",
+        "explanation": "Writes base properties first, then non-null recovery URI and present deleted/purge timestamps as Unix seconds.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The implemented override is under non-generated src.",
+        "symbols": [
+          "DeletedSecret.WriteProperties"
+        ],
+        "evidence": [
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 69,
+            "endLine": 87
+          }
+        ]
+      },
+      {
+        "key": "ba579de21cdaa665df9d026315a336a9c44f13c8ffa66e56c8851f08b9a7bff6",
+        "category": "LRO / polling",
+        "subtype": "Delete operation completes immediately without recovery ID",
+        "explanation": "Retains the generated client and initial DeletedSecret, rejecting missing inputs/value; creates an already-succeeded operation when RecoveryId is null, otherwise an OperationInternal with secret-name diagnostics.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete constructor is in src/DeleteSecretOperation.cs outside Generated.",
+        "symbols": [
+          "DeleteSecretOperation.DeleteSecretOperation(KeyVaultSecretsClient, ClientDiagnostics, Response<DeletedSecret>)"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 24,
+            "endLine": 39
+          }
+        ]
+      },
+      {
+        "key": "dd95ae7f6bf83978b4cdffa8f6b733c88b9e00082c6e71d438f6157fed6fff0b",
+        "category": "LRO / polling",
+        "subtype": "Secret URI exposed as operation ID",
+        "explanation": "Returns the initial secret value's absolute ID URI or an empty string as the operation ID.",
+        "pattern": "lro-operation-id",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The Id expression is implemented in a non-generated poller.",
+        "symbols": [
+          "DeleteSecretOperation.Id"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 45,
+            "endLine": 45
+          }
+        ]
+      },
+      {
+        "key": "4f8b65530974c3ed49b20f4221e6a44821cb04f50b624ab22283963c1ee4095f",
+        "category": "LRO / polling",
+        "subtype": "Initial deleted value available before polling completion",
+        "explanation": "Value returns the initial DeletedSecret and HasValue always returns true independently of completion.",
+        "pattern": "lro-early-result-value",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "These explicit value semantics are in non-generated src.",
+        "symbols": [
+          "DeleteSecretOperation.Value",
+          "DeleteSecretOperation.HasValue"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 54,
+            "endLine": 54
+          },
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 67,
+            "endLine": 67
+          }
+        ]
+      },
+      {
+        "key": "c422726e1d7d23dd4079274d2aecd1c9059936bff22e4b9bba1194f703d364ff",
+        "category": "LRO / polling",
+        "subtype": "OperationInternal completion and raw response delegation",
+        "explanation": "Exposes OperationInternal.HasCompleted and its RawResponse through poller accessors.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The delegation expressions are in a non-generated operation class.",
+        "symbols": [
+          "DeleteSecretOperation.HasCompleted",
+          "DeleteSecretOperation.GetRawResponse"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 57,
+            "endLine": 57
+          },
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 70,
+            "endLine": 70
+          }
+        ]
+      },
+      {
+        "key": "1d4b315231bc5028c86ad520ad6897680a9abf1a78935b2219d897c72fcde873",
+        "category": "LRO / polling",
+        "subtype": "Completion-short-circuited synchronous update",
+        "explanation": "Returns the last response when complete, otherwise delegates synchronous status update with cancellation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The override is implemented outside Generated.",
+        "symbols": [
+          "DeleteSecretOperation.UpdateStatus"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 73,
+            "endLine": 74
+          }
+        ]
+      },
+      {
+        "key": "5d08dbeafb2535361860200c1b0095d1159a04dd6159f1b7282bda905a7a1cab",
+        "category": "LRO / polling",
+        "subtype": "Completion-short-circuited asynchronous update",
+        "explanation": "Returns the current response when complete or awaits OperationInternal.UpdateStatusAsync with cancellation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This override is in the non-generated poller.",
+        "symbols": [
+          "DeleteSecretOperation.UpdateStatusAsync"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 77,
+            "endLine": 78
+          }
+        ]
+      },
+      {
+        "key": "e7600b4a62de741aac827a64ac000a6e3a53217358f3c50fa600f9556b3fd35f",
+        "category": "LRO / polling",
+        "subtype": "Two-second default asynchronous wait",
+        "explanation": "Delegates to DefaultWaitForCompletionAsync using a two-second interval and caller cancellation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The interval and explicit overload are in non-generated src.",
+        "symbols": [
+          "DeleteSecretOperation.WaitForCompletionAsync(CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 18,
+            "endLine": 18
+          },
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 81,
+            "endLine": 82
+          }
+        ]
+      },
+      {
+        "key": "04fc5c9eb50435dd6c79c1fe1c9cc82bf5e346d758a169d468c3a09cef54e36d",
+        "category": "LRO / polling",
+        "subtype": "Caller-selected asynchronous polling interval",
+        "explanation": "Forwards the explicit polling interval and cancellation token to DefaultWaitForCompletionAsync.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit overload is in a non-generated operation.",
+        "symbols": [
+          "DeleteSecretOperation.WaitForCompletionAsync(TimeSpan, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 85,
+            "endLine": 86
+          }
+        ]
+      },
+      {
+        "key": "dcafca69d8282988457eabf56d505f08d9fdf6a92803222ae92a4a3bacc9f554",
+        "category": "LRO / polling",
+        "subtype": "Deleted-resource GET with 404 pending and 200/403 success",
+        "explanation": "Polls GetDeletedSecret synchronously or asynchronously with NoThrow context and cancellation; maps 200/403 to success, 404 to pending and other statuses to failure with RequestFailedException.",
+        "pattern": "lro-resource-state-status-mapping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit IOperation state hook is implemented outside Generated.",
+        "symbols": [
+          "DeleteSecretOperation.IOperation.UpdateStateAsync"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 88,
+            "endLine": 104
+          }
+        ]
+      },
+      {
+        "key": "4e3f731b906731f89e0cd3b14bf92770c849ef178e640278a05f624ee5655581",
+        "category": "LRO / polling",
+        "subtype": "Explicit unsupported operation rehydration",
+        "explanation": "The IOperation rehydration-token method throws NotSupportedException.",
+        "pattern": "lro-rehydration-not-supported",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit throwing interface implementation is non-generated source.",
+        "symbols": [
+          "DeleteSecretOperation.IOperation.GetRehydrationToken"
+        ],
+        "evidence": [
+          {
+            "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+            "startLine": 106,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "2b668cbac1060f7eb2ef5f36049cb7578fc72833b20406f6169c781de48b4594",
+        "category": "Convenience methods",
+        "subtype": "Generated client accepts prebuilt pipeline and diagnostics",
+        "explanation": "Validates endpoint, API version, pipeline and diagnostics, then stores them in the internal client.",
+        "pattern": "prebuilt-pipeline-client-constructor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A non-generated customization partial explicitly adds the constructor to KeyVaultSecretsClient.",
+        "symbols": [
+          "KeyVaultSecretsClient.KeyVaultSecretsClient(Uri, string, HttpPipeline, ClientDiagnostics)"
+        ],
+        "evidence": [
+          {
+            "id": "48feadbfbdbee74c5fa1476e0fff6257b4f7a332e1f8cf9abdceb817285f28bc",
+            "startLine": 17,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "4802e931781b1e9608a4f5e521f8abf81e5a4c9ee5216c4ea30002d0f6eebad5",
+        "category": "Model overrides",
+        "subtype": "Wire secret bundle to public secret model",
+        "explanation": "Returns null for a null bundle; otherwise populates public properties and constructs KeyVaultSecret with the wire value.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete adapter is in non-generated src/Internal.",
+        "symbols": [
+          "SecretMapper.ToKeyVaultSecret"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 19,
+            "endLine": 28
+          }
+        ]
+      },
+      {
+        "key": "d2a213a49f3f5d63b7ab451f40043af91cc6a53604e513c108eb1bd81139a6f3",
+        "category": "Model overrides",
+        "subtype": "Deleted bundle to public deleted secret",
+        "explanation": "Converts a non-null deleted bundle into public properties and DeletedSecret, copying value, deletion/purge dates and a nonempty recovery ID as Uri.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The mapper is implemented under src outside Generated.",
+        "symbols": [
+          "SecretMapper.ToDeletedSecret(DeletedSecretBundle)"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 30,
+            "endLine": 49
+          }
+        ]
+      },
+      {
+        "key": "263b8b1f26912fb449318b65c0e3dd82901cb551a3ea05969c89d96286774755",
+        "category": "Model overrides",
+        "subtype": "Wire listing item to public secret properties",
+        "explanation": "Converts a non-null SecretItem into SecretProperties, using null key ID and previous version while copying its other supplied metadata.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The mapper body is in non-generated Internal source.",
+        "symbols": [
+          "SecretMapper.ToSecretProperties"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 51,
+            "endLine": 60
+          }
+        ]
+      },
+      {
+        "key": "a175c45341519e3f9d51464577f4c319c954070922ab33add5901fb3b3a577ba",
+        "category": "Model overrides",
+        "subtype": "Deleted listing item to public model without value",
+        "explanation": "Converts a non-null deleted listing item to DeletedSecret with metadata, deletion/purge dates and optional recovery URI, without assigning a secret value.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The distinct overload is implemented outside Generated.",
+        "symbols": [
+          "SecretMapper.ToDeletedSecret(DeletedSecretItem)"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 62,
+            "endLine": 81
+          }
+        ]
+      },
+      {
+        "key": "6a8d37ba957f61cea80dd19796226e6f2281e93a4f5c7f641bdb83b048996612",
+        "category": "Model overrides",
+        "subtype": "Wire backup BinaryData to byte array",
+        "explanation": "Returns the backup value as a byte array, or null when the backup/value is null.",
+        "pattern": "binarydata-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The conversion helper is explicitly implemented in non-generated Internal source.",
+        "symbols": [
+          "SecretMapper.ToBackupBytes"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 83,
+            "endLine": 84
+          }
+        ]
+      },
+      {
+        "key": "87ece7fae1ec1559c410d641938357c9614c73dba374b2d9d9b5269dac14db40",
+        "category": "Model overrides",
+        "subtype": "Public secret to wire set request",
+        "explanation": "Rejects a null secret, constructs SecretSetParameters from Value, sets content type and writable attributes, and copies tags.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The request adapter body is in non-generated src/Internal.",
+        "symbols": [
+          "SecretMapper.ToSetParameters"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 88,
+            "endLine": 106
+          }
+        ]
+      },
+      {
+        "key": "f9f853a23365ba3af71268af25032da0a8e053087502084e821e70600282a9e6",
+        "category": "Serialization",
+        "subtype": "Writable-field PATCH body with nonempty initialized tags only",
+        "explanation": "Writes non-null contentType, present enabled/nbf/exp attributes with Unix-second dates, and tags only when TagsIfSet has entries; rewinds and returns the stream. Read-only metadata and empty/unset tags are not emitted.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated mapper explicitly writes this JSON body.",
+        "symbols": [
+          "SecretMapper.WriteUpdateBody"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 113,
+            "endLine": 158
+          }
+        ]
+      },
+      {
+        "key": "1540f8efdef78222fe0e9f70a043ede87c72eda8ac445ca61b10e5b7253cc222",
+        "category": "Model overrides",
+        "subtype": "Backup bytes to wire restore parameters",
+        "explanation": "Rejects a null byte array and constructs SecretRestoreParameters with BinaryData.FromBytes.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The adapter is implemented outside Generated.",
+        "symbols": [
+          "SecretMapper.ToRestoreParameters"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 160,
+            "endLine": 164
+          }
+        ]
+      },
+      {
+        "key": "85e7236dc005891a476870323231bb5449e811be0a53dca25b07fc0d5d7dae4f",
+        "category": "Model overrides",
+        "subtype": "Wire metadata conversion into public properties",
+        "explanation": "Converts nonempty identifier/key strings to Uri, parses the secret ID, defaults null managed to false, copies version/content type, maps optional attributes and copies nonempty tag entries.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This non-generated helper has substantive property mapping logic.",
+        "symbols": [
+          "SecretMapper.PopulateProperties"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 168,
+            "endLine": 205
+          }
+        ]
+      },
+      {
+        "key": "84839691ca528692eb3d1ce28cca1502ab2f78320eb8e3a7c1868b11830f11df",
+        "category": "Model overrides",
+        "subtype": "Omit empty attribute request and exclude read-only fields",
+        "explanation": "Returns null for absent properties or when enabled/not-before/expiry are all absent; otherwise constructs a wire attribute bundle with only those three fields.",
+        "pattern": "wire-public-model-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The helper is explicitly implemented in non-generated src.",
+        "symbols": [
+          "SecretMapper.ToWireAttributes"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 207,
+            "endLine": 220
+          }
+        ]
+      },
+      {
+        "key": "11e4edc0002e07e200d3b318b81bea711f9e8637ef65cd7ffa4843b7412bab38",
+        "category": "Model overrides",
+        "subtype": "Null-aware dictionary copying",
+        "explanation": "Copies each source tag into the destination dictionary unless either dictionary is null.",
+        "pattern": "model-dictionary-copy",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The helper body is in the non-generated mapper.",
+        "symbols": [
+          "SecretMapper.CopyTags"
+        ],
+        "evidence": [
+          {
+            "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+            "startLine": 222,
+            "endLine": 229
+          }
+        ]
+      },
+      {
+        "key": "8af3471b0bebe4542a6623a1d58070fb46d9fb3148bb48e4b9cbfaed1316a46c",
+        "category": "Model overrides",
+        "subtype": "Internal secret construction with default properties",
+        "explanation": "Retains supplied SecretProperties or creates a new properties instance when null.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The model constructor body is in non-generated src.",
+        "symbols": [
+          "KeyVaultSecret.KeyVaultSecret(SecretProperties)"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 18,
+            "endLine": 21
+          }
+        ]
+      },
+      {
+        "key": "6b816732108ac784aa3990a8b8e59f53f5f5e00cd18a4c8127bd1d157f94a507",
+        "category": "Model overrides",
+        "subtype": "Public name/value secret construction",
+        "explanation": "Constructs SecretProperties with the supplied name and retains the supplied value, rejecting a null value.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The implemented public model constructor is outside Generated.",
+        "symbols": [
+          "KeyVaultSecret.KeyVaultSecret(string, string)"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 30,
+            "endLine": 34
+          }
+        ]
+      },
+      {
+        "key": "3c9d34c55be3e5130c4d87d8c5582acfee2ac4c03206ef6deaaea2d1f081f32a",
+        "category": "Model overrides",
+        "subtype": "Secret identifier projected from properties",
+        "explanation": "Exposes Properties.Id through the secret's Id getter.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The forwarding property is implemented in a non-generated model.",
+        "symbols": [
+          "KeyVaultSecret.Id"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 39,
+            "endLine": 39
+          }
+        ]
+      },
+      {
+        "key": "672f09e69d198bb2b0fb8e7cda684dee94917309a7a18f2f4a6d2b77a8b70957",
+        "category": "Model overrides",
+        "subtype": "Secret name projected from properties",
+        "explanation": "Exposes Properties.Name through the secret's Name getter.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The forwarding getter is in non-generated src.",
+        "symbols": [
+          "KeyVaultSecret.Name"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 44,
+            "endLine": 44
+          }
+        ]
+      },
+      {
+        "key": "122fd8f19db57333dc28e337d265513b7f0efe3d49c98a5f4e58faf0ecdd7adb",
+        "category": "Serialization",
+        "subtype": "Read secret value and delegate other JSON properties",
+        "explanation": "Reads the value property as a string and passes other properties to SecretProperties.ReadProperty.",
+        "pattern": "custom-model-json-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete reader is in non-generated src.",
+        "symbols": [
+          "KeyVaultSecret.ReadProperty"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 14,
+            "endLine": 14
+          },
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 57,
+            "endLine": 69
+          }
+        ]
+      },
+      {
+        "key": "bf34dc044001148b0064990acf6adc3a41e4face7304cfc26faeab0ba145d4cf",
+        "category": "Serialization",
+        "subtype": "Optional secret value JSON and delegated property writing",
+        "explanation": "Writes value only when non-null and delegates remaining output to Properties.WriteProperties.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The writer body is implemented outside Generated.",
+        "symbols": [
+          "KeyVaultSecret.WriteProperties"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 71,
+            "endLine": 79
+          }
+        ]
+      },
+      {
+        "key": "2f67680e9553f85f2eba0a56fe563ca938de47ac8ea4ec5756cadcc7ab90dee2",
+        "category": "Serialization",
+        "subtype": "Enumerated JSON model deserialization dispatch",
+        "explanation": "Implements IJsonDeserializable by enumerating JSON object properties and invoking the virtual ReadProperty hook.",
+        "pattern": "custom-model-json-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit interface method is implemented in the non-generated model.",
+        "symbols": [
+          "KeyVaultSecret.IJsonDeserializable.ReadProperties"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 81,
+            "endLine": 87
+          }
+        ]
+      },
+      {
+        "key": "020ceaadd9129a226629f24c7b03ad6384b420c9ecf0ff4b22351641c218f87d",
+        "category": "Serialization",
+        "subtype": "Interface serialization forwarded to virtual model writer",
+        "explanation": "Implements IJsonSerializable by forwarding to the model's WriteProperties method.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit interface forwarding method is non-generated source.",
+        "symbols": [
+          "KeyVaultSecret.IJsonSerializable.WriteProperties"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 89,
+            "endLine": 89
+          }
+        ]
+      },
+      {
+        "key": "904e95eca92caa9ab9100bcdc6c7f1d767ac7156ec4c998a56db7460209e0e8c",
+        "category": "Convenience methods",
+        "subtype": "Secret URI identifier parsing constructor",
+        "explanation": "Rejects null URI, delegates parsing to KeyVaultIdentifier.TryParse, retains source/vault/name/version on success and throws ArgumentException on failure.",
+        "pattern": "resource-identifier-parser",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The readonly struct constructor is implemented outside Generated.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.KeyVaultSecretIdentifier(Uri)"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 27,
+            "endLine": 42
+          }
+        ]
+      },
+      {
+        "key": "e3c8626ad737164e8531c9d31cc84bbda1741829442ebc9a3437414a90bcbbe9",
+        "category": "Model overrides",
+        "subtype": "Internal parsed identifier component construction",
+        "explanation": "Constructs the identifier from source URI, vault URI, name and version without reparsing those components.",
+        "pattern": "model-alternate-constructors",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The private constructor body is non-generated src.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.KeyVaultSecretIdentifier(Uri, Uri, string, string)"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 44,
+            "endLine": 50
+          }
+        ]
+      },
+      {
+        "key": "b05ae4601dda192212d019d603125bd9f8e47c04af8b0d9a4f0a80947c16db8d",
+        "category": "Convenience methods",
+        "subtype": "Try-pattern secret URI identifier parser",
+        "explanation": "Uses KeyVaultIdentifier.TryParse, returning a component-built identifier and true on success or default and false otherwise.",
+        "pattern": "resource-identifier-parser",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This public helper is implemented under non-generated src.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.TryCreate"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 83,
+            "endLine": 93
+          }
+        ]
+      },
+      {
+        "key": "96c96fbe7c983dd6ad0615d82698c82c2360482445a24e551e195199e87f3ff6",
+        "category": "Model overrides",
+        "subtype": "Source URI based identifier equality",
+        "explanation": "Implements object and typed equality by comparing SourceId values.",
+        "pattern": "model-value-equality",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The equality methods are explicitly implemented outside Generated.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.Equals(object)",
+          "KeyVaultSecretIdentifier.Equals(KeyVaultSecretIdentifier)"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 95,
+            "endLine": 102
+          }
+        ]
+      },
+      {
+        "key": "c62e92ec53026bc8d0bb6af8a9dbc8c52c90c4133c539f374dae26ce609d1fa9",
+        "category": "Model overrides",
+        "subtype": "Source URI hash with default fallback",
+        "explanation": "Returns SourceId.GetHashCode or zero for a null source URI and marks the method EditorBrowsable(Never).",
+        "pattern": "model-value-hash-code",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The hash override is in the non-generated identifier struct.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.GetHashCode"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 104,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "ddd2f99ae888cbbded741c0e8a335b3249f8983f07a1c55c415bd7acd364ce8e",
+        "category": "Model overrides",
+        "subtype": "Editor-hidden base string representation",
+        "explanation": "Overrides ToString to return base.ToString and marks it EditorBrowsable(Never), rather than formatting the source URI.",
+        "pattern": "hide-object-members",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The override and attribute are explicitly present in non-generated src.",
+        "symbols": [
+          "KeyVaultSecretIdentifier.ToString"
+        ],
+        "evidence": [
+          {
+            "id": "5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317",
+            "startLine": 109,
+            "endLine": 112
+          }
+        ]
+      },
+      {
+        "key": "a26f0799ef3a6434e85742a5d97fe1908f614207a15358048be151bd3d62cea5",
+        "category": "LRO / polling",
+        "subtype": "Recovery operation retains initial properties and diagnostics",
+        "explanation": "Validates the generated client and initial response value, retains SecretProperties and initializes OperationInternal with the raw response and secret-name diagnostic attribute.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The constructor body is in the non-generated recovery operation.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.RecoverDeletedSecretOperation(KeyVaultSecretsClient, ClientDiagnostics, Response<SecretProperties>)"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 24,
+            "endLine": 29
+          }
+        ]
+      },
+      {
+        "key": "c054c2859205d7a7788779cf5ccf01e05fe8a28a7a4e01fd0588defaed1c2a2a",
+        "category": "LRO / polling",
+        "subtype": "Recovery operation exposes secret URI ID",
+        "explanation": "Returns the initial properties' absolute ID URI or an empty string as Id.",
+        "pattern": "lro-operation-id",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The Id override is implemented outside Generated.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.Id"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 35,
+            "endLine": 35
+          }
+        ]
+      },
+      {
+        "key": "8c1e9854d701e77c9a4fcafeed43ef6eda3a01369975512b616e78eada88ed12",
+        "category": "LRO / polling",
+        "subtype": "Initial recovery properties available before completion",
+        "explanation": "Returns the retained SecretProperties as Value and unconditionally reports HasValue=true independently of completion.",
+        "pattern": "lro-early-result-value",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit value semantics are in a non-generated poller.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.Value",
+          "RecoverDeletedSecretOperation.HasValue"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 44,
+            "endLine": 44
+          },
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 57,
+            "endLine": 57
+          }
+        ]
+      },
+      {
+        "key": "327b35c85cde1f7dee8ff0eb3c1c285ebe49c964349353b0322318cccd62f5a2",
+        "category": "LRO / polling",
+        "subtype": "Recovery completion and raw-response delegation",
+        "explanation": "Exposes OperationInternal.HasCompleted and RawResponse through the public operation facade.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The accessor expressions are implemented outside Generated.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.HasCompleted",
+          "RecoverDeletedSecretOperation.GetRawResponse"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 47,
+            "endLine": 47
+          },
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 60,
+            "endLine": 60
+          }
+        ]
+      },
+      {
+        "key": "3e8c657ba96bfb9ce92cb33943bafd6e67466c057d09343518321d2ee9baf948",
+        "category": "LRO / polling",
+        "subtype": "Recovery synchronous update with completion short circuit",
+        "explanation": "Returns the retained response when complete and otherwise delegates status update with cancellation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit override is non-generated source.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.UpdateStatus"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 63,
+            "endLine": 64
+          }
+        ]
+      },
+      {
+        "key": "73016a0567e65c74612cd2972ba862234281f8f66900474c81a2fc269fde037d",
+        "category": "LRO / polling",
+        "subtype": "Recovery asynchronous update with completion short circuit",
+        "explanation": "Returns the retained response when complete and otherwise awaits the internal status updater with cancellation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The asynchronous override is outside Generated.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.UpdateStatusAsync"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 67,
+            "endLine": 68
+          }
+        ]
+      },
+      {
+        "key": "52c412463499a9fdbdddee953f3d44f261ed7762de19d8632e1ca3094ec6dfe5",
+        "category": "LRO / polling",
+        "subtype": "Two-second default recovery polling interval",
+        "explanation": "Forwards a two-second default polling interval and cancellation token to DefaultWaitForCompletionAsync.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The interval and forwarding overload are explicitly implemented outside Generated.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.WaitForCompletionAsync(CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 18,
+            "endLine": 18
+          },
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 71,
+            "endLine": 72
+          }
+        ]
+      },
+      {
+        "key": "dd894956c44e2309d80dbe20eda642eb83fb21e4ee7358f8982b58291afa02c6",
+        "category": "LRO / polling",
+        "subtype": "Caller-selected recovery polling interval",
+        "explanation": "Forwards an explicit interval and cancellation token to DefaultWaitForCompletionAsync.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This overload is non-generated source.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.WaitForCompletionAsync(TimeSpan, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 75,
+            "endLine": 76
+          }
+        ]
+      },
+      {
+        "key": "afa7814f84903336318f6cb4dd5f37598dfcb09dac402405f52b8c71450344cc",
+        "category": "LRO / polling",
+        "subtype": "Secret GET with 404 pending and 200/403 success",
+        "explanation": "Polls GetSecret with null version and default output content type under NoThrow context, synchronously or asynchronously; maps 200/403 to success, 404 to pending and other statuses to failure.",
+        "pattern": "lro-resource-state-status-mapping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit state hook and status switch are in non-generated src.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.IOperation.UpdateStateAsync"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 78,
+            "endLine": 91
+          }
+        ]
+      },
+      {
+        "key": "83fd45628bcd5f95aa53d0fb65deabe0ee5a7de9cf468722db42c07568eb5a81",
+        "category": "LRO / polling",
+        "subtype": "Explicit unsupported recovery rehydration",
+        "explanation": "Throws NotSupportedException from the IOperation rehydration-token method.",
+        "pattern": "lro-rehydration-not-supported",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The throwing interface implementation is outside Generated.",
+        "symbols": [
+          "RecoverDeletedSecretOperation.IOperation.GetRehydrationToken"
+        ],
+        "evidence": [
+          {
+            "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+            "startLine": 93,
+            "endLine": 94
+          }
+        ]
+      },
+      {
+        "key": "8be379b55cda9a295766cdc9afacf284c8e841c8ac78236f379e891443b680f0",
+        "category": "Serialization",
+        "subtype": "Secret attributes wire names and Unix-second date reading",
+        "explanation": "Reads enabled, nbf, exp, created, updated, recoverableDays and recoveryLevel, converting numeric timestamps from Unix seconds and ignoring unmatched properties.",
+        "pattern": "custom-model-json-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The internal attributes reader has a concrete implementation outside Generated.",
+        "symbols": [
+          "SecretAttributes.ReadProperties"
+        ],
+        "evidence": [
+          {
+            "id": "a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f",
+            "startLine": 11,
+            "endLine": 17
+          },
+          {
+            "id": "a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f",
+            "startLine": 37,
+            "endLine": 72
+          }
+        ]
+      },
+      {
+        "key": "ae8e4212cc087f56181d30fb010a0b8081767251e82ec8e19bf07e556dbb7773",
+        "category": "Serialization",
+        "subtype": "Writable-only secret attributes serialization",
+        "explanation": "Writes enabled, nbf and exp only when present, using Unix seconds for dates; omits created, updated, recoverableDays and recoveryLevel.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The writer is explicitly implemented in non-generated src.",
+        "symbols": [
+          "SecretAttributes.WriteProperties"
+        ],
+        "evidence": [
+          {
+            "id": "a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f",
+            "startLine": 74,
+            "endLine": 95
+          }
+        ]
+      },
+      {
+        "key": "7a0fb9dffdbb52c3e3ef421055c8e3de7d328dd56c37d648e63e1327d48a734b",
+        "category": "Convenience methods",
+        "subtype": "Defaulted secret client construction",
+        "explanation": "Delegates the URI/credential constructor with null options to the full constructor.",
+        "pattern": "client-constructor-default-options",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit constructor initializer is in non-generated SecretClient.cs.",
+        "symbols": [
+          "SecretClient.SecretClient(Uri, TokenCredential)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 45,
+            "endLine": 46
+          }
+        ]
+      },
+      {
+        "key": "2867e55d0e80b139da3ac555d320cb76d7b89930ed8d0d59a6275b884c3c65de",
+        "category": "Auth",
+        "subtype": "Challenge authentication and owned pipeline passed to internal client",
+        "explanation": "Validates URI/credential, defaults options, creates diagnostics and challenge auth using DisableChallengeResourceVerification, builds an owned pipeline from options and passes it with mapped API version to KeyVaultSecretsClient.",
+        "pattern": "auth-policy-client-construction",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public non-generated client has a substantive pipeline constructor and delegates transport to its internal client.",
+        "symbols": [
+          "SecretClient.SecretClient(Uri, TokenCredential, SecretClientOptions)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 49,
+            "endLine": 82
+          }
+        ]
+      },
+      {
+        "key": "d06baa10f28e2737a2555adf5baa87f5014926708633180f79cb44bdf2865523",
+        "category": "Convenience methods",
+        "subtype": "Experimental settings constructor",
+        "explanation": "Rejects null settings and delegates with VaultUri, CredentialProvider cast to TokenCredential and settings.Options, marking the constructor experimental.",
+        "pattern": "client-settings-constructor-adapter",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit constructor adapter is non-generated src.",
+        "symbols": [
+          "SecretClient.SecretClient(SecretClientSettings)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 86,
+            "endLine": 91
+          }
+        ]
+      },
+      {
+        "key": "8b71699a95325049f9e09a525973434ece36134f4f654db85d166d95a2bdc3d9",
+        "category": "Convenience methods",
+        "subtype": "Expose retained vault URI",
+        "explanation": "Returns the constructor-retained vault URI through a virtual public property.",
+        "pattern": "client-endpoint-property",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The property expression is in the non-generated public client.",
+        "symbols": [
+          "SecretClient.VaultUri"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 94,
+            "endLine": 94
+          }
+        ]
+      },
+      {
+        "key": "3ef7d4d0f39859bf9c33de8f1798606ff62fffa7f8d5110afe4dd6252a630176",
+        "category": "Other",
+        "subtype": "Atomic owned pipeline disposal",
+        "explanation": "Atomically clears the owned pipeline, disposes the exchanged instance if present and suppresses finalization.",
+        "pattern": "owned-client-pipeline-disposal",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The IDisposable client implements this resource lifecycle method outside Generated.",
+        "symbols": [
+          "SecretClient.Dispose"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 103,
+            "endLine": 107
+          }
+        ]
+      },
+      {
+        "key": "b94d3fd4a7a7534203cc320f49c2bf0bb632ddf949ae1df4c88cefa9e13f2063",
+        "category": "Convenience methods",
+        "subtype": "Editor-hidden asynchronous overload omitting output content type",
+        "explanation": "Forwards the legacy three-argument GetSecretAsync overload to the four-argument overload with null output content type.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The compatibility adapter and EditorBrowsable attribute are non-generated source.",
+        "symbols": [
+          "SecretClient.GetSecretAsync(string, string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 123,
+            "endLine": 125
+          }
+        ]
+      },
+      {
+        "key": "96c90bb629262dab145a5794f2c0c8ffc08d4735eeeb1e95cbd05e3f1c36fe22",
+        "category": "Convenience methods",
+        "subtype": "Traced asynchronous protocol response to public secret adapter",
+        "explanation": "Validates name, starts a name/version-attributed scope, calls the internal async operation with optional output content type converted to string and cancellation context, and wraps DeserializeKeyVaultSecret's result with the raw response.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This complete public adapter body is outside Generated.",
+        "symbols": [
+          "SecretClient.GetSecretAsync(string, string, SecretContentType?, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 144,
+            "endLine": 158
+          }
+        ]
+      },
+      {
+        "key": "80ef0335dfc50b290afcf6607ef972b4716493cd9c9c06b2c0838518fc80da50",
+        "category": "Convenience methods",
+        "subtype": "Editor-hidden synchronous overload omitting output content type",
+        "explanation": "Forwards the three-argument synchronous GetSecret overload with null output content type.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit compatibility adapter is in non-generated src.",
+        "symbols": [
+          "SecretClient.GetSecret(string, string, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 174,
+            "endLine": 176
+          }
+        ]
+      },
+      {
+        "key": "f4a76348138a63193f2f2c14d5af7fdfaf5ff67952a493d27ab6f6ae6d3a5168",
+        "category": "Convenience methods",
+        "subtype": "Traced synchronous protocol response to public secret adapter",
+        "explanation": "Validates name, starts a name/version-attributed scope, calls the internal operation with optional output content type and cancellation context, and pairs the deserialized public secret with the raw response; marks failures before rethrow.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete operation wrapper is non-generated src.",
+        "symbols": [
+          "SecretClient.GetSecret(string, string, SecretContentType?, CancellationToken)"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 195,
+            "endLine": 209
+          }
+        ]
+      },
+      {
+        "key": "2e03679a4f6630c2f046b6b43a34b076ed5771b031281642b495e5cc9fdb2e6b",
+        "category": "Pagination",
+        "subtype": "Generated version paging to public property paging",
+        "explanation": "Validates name and passes generated async version paging, the SecretMapper property adapter and diagnostic name to MapAsyncPageable.",
+        "pattern": "next-link-handling",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This public paging adapter is implemented outside Generated.",
+        "symbols": [
+          "SecretClient.GetPropertiesOfSecretVersionsAsync"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 229,
+            "endLine": 236
+          }
+        ]
+      },
+      {
+        "key": "b1ca3e14f60e00609c232dfdcc97408d310e8bca679a2a9ce0eb2fa60904ef3a",
+        "category": "Pagination",
+        "subtype": "Synchronous generated version paging to public properties",
+        "explanation": "Validates name and maps generated version paging through SecretMapper.ToSecretProperties using MapPageable and a diagnostic operation name.",
+        "pattern": "next-link-handling",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete non-generated client adapter is supplied.",
+        "symbols": [
+          "SecretClient.GetPropertiesOfSecretVersions"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 256,
+            "endLine": 263
+          }
+        ]
+      },
+      {
+        "key": "18d6697eae53f3755014b074aa2aa6855f126afb2b4d05274105330f0e097cc7",
+        "category": "Pagination",
+        "subtype": "Asynchronous generated secret listing to public properties",
+        "explanation": "Passes generated async secret paging with default maxresults and caller cancellation to MapAsyncPageable with the public property mapper and diagnostic name.",
+        "pattern": "next-link-handling",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The implemented adapter is non-generated src.",
+        "symbols": [
+          "SecretClient.GetPropertiesOfSecretsAsync"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 276,
+            "endLine": 280
+          }
+        ]
+      },
+      {
+        "key": "953bbafd694e7c60ccab7e4c6b50daefc592194da54a7cd010c8d09b5bdb5c22",
+        "category": "Pagination",
+        "subtype": "Synchronous generated secret listing to public properties",
+        "explanation": "Passes generated secret paging with default maxresults and cancellation to MapPageable with SecretMapper.ToSecretProperties and a diagnostic name.",
+        "pattern": "next-link-handling",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The public adapter expression is outside Generated.",
+        "symbols": [
+          "SecretClient.GetPropertiesOfSecrets"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 293,
+            "endLine": 297
+          }
+        ]
+      },
+      {
+        "key": "37609a81b92843081f3862b14bbb67a12677a7f7da1656b8ecae04473cbc5b02",
+        "category": "Convenience methods",
+        "subtype": "Version-validated asynchronous public-model update wrapper",
+        "explanation": "Rejects null properties/version, traces name/version, serializes the mapper's update stream into RequestContent, awaits the internal update with cancellation context and wraps deserialized properties with the response.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The full public wrapper body is implemented in non-generated src.",
+        "symbols": [
+          "SecretClient.UpdateSecretPropertiesAsync"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 312,
+            "endLine": 334
+          }
+        ]
+      },
+      {
+        "key": "3f31d0a9536bcbfc506bd7384a57729d4434ee3930844a1647f6d4249947d33c",
+        "category": "Convenience methods",
+        "subtype": "Version-validated synchronous public-model update wrapper",
+        "explanation": "Rejects null properties/version, starts name/version diagnostics, serializes the custom update body and invokes the internal update with cancellation context, returning deserialized properties and marking failures before rethrow.",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated public client implements this wrapper directly.",
+        "symbols": [
+          "SecretClient.UpdateSecretProperties"
+        ],
+        "evidence": [
+          {
+            "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+            "startLine": 349,
+            "endLine": 366
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "90ce850b4fb94505df00074d5edf6de9d1405e85f277d3f530415f14e716e77b",
+        "status": "accepted",
+        "reason": "The non-generated Custom context applies ModelReaderWriterBuildable to SecretBundle at e451fa02c7fdffeba7b0d3caae7acaf9c2704dda66e6c3b72d36b57fa04207f3:9-12; the attribute has an effect despite the empty body. The TODO suggests, but does not prove, a generator gap."
+      },
+      {
+        "key": "6fb051e7e6c3de85df2ce0d32792b34e9c908922c73bd8b9ea75c2953b01796b",
+        "status": "rejected",
+        "reason": "DeletedSecret's internal forwarding constructor at e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949:24-26 is scaffolding for the proposed SecretMapper adapters, not a separate alternative public model construction behavior."
+      },
+      {
+        "key": "3189d6b98d0cf3b5e2986e0b11c803b346db0a2448875c89cd0c24c1e27cbf6d",
+        "status": "revised",
+        "reason": "The getter/setter are substantive but convert string to Uri rather than aliasing another model property; generator support is not demonstrated by this evidence.",
+        "finding": {
+          "key": "3189d6b98d0cf3b5e2986e0b11c803b346db0a2448875c89cd0c24c1e27cbf6d",
+          "category": "Model overrides",
+          "subtype": "String-backed URI model property",
+          "explanation": "DeletedSecret.RecoveryId exposes a Uri, materializing it from a stored string and storing assigned values as AbsoluteUri.",
+          "pattern": "model-string-uri-accessor",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented property in src/DeletedSecret.cs outside Generated.",
+          "symbols": [
+            "DeletedSecret.RecoveryId"
+          ],
+          "evidence": [
+            {
+              "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+              "startLine": 22,
+              "endLine": 35
+            }
+          ]
+        }
+      },
+      {
+        "key": "409d3b90e96baf0704bbea2ca0fdb7322dd3d0aadd795c22b674fe60262a93df",
+        "status": "inconclusive",
+        "reason": "The non-generated JSON reader implements the described conversions at e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949:47-67, but SecretClient's supplied remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 say legacy model JSON methods are no longer invoked. Call sites beyond the excerpt are unavailable."
+      },
+      {
+        "key": "b57129cfbd6bd95c020906ea2f87b4f52b62011f67fd8827ad263aafd6f9d93d",
+        "status": "inconclusive",
+        "reason": "The writer exists at e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949:69-87, but the supplied SecretClient remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 say legacy model JSON methods are no longer invoked; no complete call graph is supplied."
+      },
+      {
+        "key": "ba579de21cdaa665df9d026315a336a9c44f13c8ffa66e56c8851f08b9a7bff6",
+        "status": "accepted",
+        "reason": "At dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:24-39, non-generated DeleteSecretOperation has a meaningful conditional: absent RecoveryId creates an already-succeeded operation instead of starting polling."
+      },
+      {
+        "key": "dd95ae7f6bf83978b4cdffa8f6b733c88b9e00082c6e71d438f6157fed6fff0b",
+        "status": "accepted",
+        "reason": "The non-generated operation exposes the secret's absolute URI (or empty string) as Id at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:45."
+      },
+      {
+        "key": "4f8b65530974c3ed49b20f4221e6a44821cb04f50b624ab22283963c1ee4095f",
+        "status": "accepted",
+        "reason": "The non-generated operation supplies the initial DeletedSecret as Value and reports HasValue even while polling, at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:54-67."
+      },
+      {
+        "key": "c422726e1d7d23dd4079274d2aecd1c9059936bff22e4b9bba1194f703d364ff",
+        "status": "rejected",
+        "reason": "HasCompleted and GetRawResponse at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:57,70 merely forward OperationInternal state; they are not distinct customization behavior beyond the proposed handwritten poller."
+      },
+      {
+        "key": "1d4b315231bc5028c86ad520ad6897680a9abf1a78935b2219d897c72fcde873",
+        "status": "rejected",
+        "reason": "UpdateStatus at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:73-74 is the standard completion short-circuit/delegation of this operation, not a separate customization instance."
+      },
+      {
+        "key": "5d08dbeafb2535361860200c1b0095d1159a04dd6159f1b7282bda905a7a1cab",
+        "status": "rejected",
+        "reason": "UpdateStatusAsync at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:77-78 is the asynchronous counterpart of standard poller state delegation, not a distinct behavior."
+      },
+      {
+        "key": "e7600b4a62de741aac827a64ac000a6e3a53217358f3c50fa600f9556b3fd35f",
+        "status": "accepted",
+        "reason": "The non-generated operation explicitly selects a two-second default interval at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:18,81-82; this differs from mere forwarding of an explicit caller interval."
+      },
+      {
+        "key": "04fc5c9eb50435dd6c79c1fe1c9cc82bf5e346d758a169d468c3a09cef54e36d",
+        "status": "rejected",
+        "reason": "The explicit-interval overload at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:85-86 simply forwards an interval, as part of the same wait API; it does not add independently customized polling behavior."
+      },
+      {
+        "key": "dcafca69d8282988457eabf56d505f08d9fdf6a92803222ae92a4a3bacc9f554",
+        "status": "revised",
+        "reason": "The status mapping is real, but accepting 403 as proof of deletion is tied to this resource's semantics, not demonstrated to be generator-addressable across services.",
+        "finding": {
+          "key": "dcafca69d8282988457eabf56d505f08d9fdf6a92803222ae92a4a3bacc9f554",
+          "category": "LRO / polling",
+          "subtype": "Deleted-resource status polling",
+          "explanation": "DeleteSecretOperation polls GetDeletedSecret with NoThrow: 200/403 complete, 404 remains pending and other responses fail.",
+          "pattern": "lro-resource-state-status-mapping",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "Explicit IOperation.UpdateStateAsync implementation in src/DeleteSecretOperation.cs outside Generated.",
+          "symbols": [
+            "DeleteSecretOperation.IOperation.UpdateStateAsync"
+          ],
+          "evidence": [
+            {
+              "id": "dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6",
+              "startLine": 88,
+              "endLine": 104
+            }
+          ]
+        }
+      },
+      {
+        "key": "4e3f731b906731f89e0cd3b14bf92770c849ef178e640278a05f624ee5655581",
+        "status": "rejected",
+        "reason": "The mandatory IOperation rehydration hook throws NotSupportedException at dcdf0f7c7f43bee60e3604c0c76a737ba1b60212599a69e59e0970f223e681d6:106-107; a standard unimplemented interface capability is not separately demonstrated customization."
+      },
+      {
+        "key": "2b668cbac1060f7eb2ef5f36049cb7578fc72833b20406f6169c781de48b4594",
+        "status": "revised",
+        "reason": "This is internal generated-client construction rather than a public convenience method, and evidence does not establish whether generators generally support injecting a prebuilt pipeline.",
+        "finding": {
+          "key": "2b668cbac1060f7eb2ef5f36049cb7578fc72833b20406f6169c781de48b4594",
+          "category": "Other",
+          "subtype": "Prebuilt pipeline constructor for internal generated client",
+          "explanation": "The internal KeyVaultSecretsClient partial accepts an existing HttpPipeline, diagnostics and API version and assigns them to the generated client's fields and properties.",
+          "pattern": "prebuilt-pipeline-client-constructor",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Concrete constructor added in src/Internal/KeyVaultSecretsClient.Customizations.cs outside Generated.",
+          "symbols": [
+            "KeyVaultSecretsClient.KeyVaultSecretsClient(Uri, string, HttpPipeline, ClientDiagnostics)"
+          ],
+          "evidence": [
+            {
+              "id": "48feadbfbdbee74c5fa1476e0fff6257b4f7a332e1f8cf9abdceb817285f28bc",
+              "startLine": 16,
+              "endLine": 34
+            }
+          ]
+        }
+      },
+      {
+        "key": "4802e931781b1e9608a4f5e521f8abf81e5a4c9ee5216c4ea30002d0f6eebad5",
+        "status": "accepted",
+        "reason": "SecretMapper.ToKeyVaultSecret at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:19-28 builds a customer-facing model from a generated SecretBundle; this is not generated model code."
+      },
+      {
+        "key": "d2a213a49f3f5d63b7ab451f40043af91cc6a53604e513c108eb1bd81139a6f3",
+        "status": "accepted",
+        "reason": "SecretMapper.ToDeletedSecret(DeletedSecretBundle) at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:30-49 adapts a distinct deleted-bundle response including optional recovery URI and timestamps."
+      },
+      {
+        "key": "263b8b1f26912fb449318b65c0e3dd82901cb551a3ea05969c89d96286774755",
+        "status": "accepted",
+        "reason": "SecretMapper.ToSecretProperties at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:51-60 maps generated listing items to a customer-facing model."
+      },
+      {
+        "key": "a175c45341519e3f9d51464577f4c319c954070922ab33add5901fb3b3a577ba",
+        "status": "accepted",
+        "reason": "SecretMapper.ToDeletedSecret(DeletedSecretItem) at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:62-81 handles the distinct deleted-list-item form without a secret value."
+      },
+      {
+        "key": "6a8d37ba957f61cea80dd19796226e6f2281e93a4f5c7f641bdb83b048996612",
+        "status": "revised",
+        "reason": "The method converts a generated BinaryData-containing result to byte[]; it is not a model accessor, and the source alone does not prove a general generator feature could replace it.",
+        "finding": {
+          "key": "6a8d37ba957f61cea80dd19796226e6f2281e93a4f5c7f641bdb83b048996612",
+          "category": "Serialization",
+          "subtype": "Backup BinaryData to byte array conversion",
+          "explanation": "SecretMapper.ToBackupBytes extracts the backup result's BinaryData value as byte[] or returns null when absent.",
+          "pattern": "binarydata-to-byte-array",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Concrete conversion in src/Internal/SecretMapper.cs outside Generated.",
+          "symbols": [
+            "SecretMapper.ToBackupBytes"
+          ],
+          "evidence": [
+            {
+              "id": "21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5",
+              "startLine": 83,
+              "endLine": 84
+            }
+          ]
+        }
+      },
+      {
+        "key": "87ece7fae1ec1559c410d641938357c9614c73dba374b2d9d9b5269dac14db40",
+        "status": "accepted",
+        "reason": "SecretMapper.ToSetParameters at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:88-106 translates a public secret and writable properties to generated request parameters; supported by concrete non-generated code."
+      },
+      {
+        "key": "f9f853a23365ba3af71268af25032da0a8e053087502084e821e70600282a9e6",
+        "status": "accepted",
+        "reason": "SecretMapper.WriteUpdateBody explicitly composes the PATCH JSON, conditional attributes and nonempty tags at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:113-158. The code, rather than its comments, supports the described behavior."
+      },
+      {
+        "key": "1540f8efdef78222fe0e9f70a043ede87c72eda8ac445ca61b10e5b7253cc222",
+        "status": "accepted",
+        "reason": "SecretMapper.ToRestoreParameters at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:160-164 translates the public byte[] backup input to generated BinaryData request parameters."
+      },
+      {
+        "key": "85e7236dc005891a476870323231bb5449e811be0a53dca25b07fc0d5d7dae4f",
+        "status": "rejected",
+        "reason": "SecretMapper.PopulateProperties at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:168-205 is the shared implementation of the already proposed wire-to-public adapters, not another independent customization instance."
+      },
+      {
+        "key": "84839691ca528692eb3d1ce28cca1502ab2f78320eb8e3a7c1868b11830f11df",
+        "status": "rejected",
+        "reason": "SecretMapper.ToWireAttributes at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:207-220 is called by the already proposed ToSetParameters conversion; counting its implementation separately double-counts the same request adaptation."
+      },
+      {
+        "key": "11e4edc0002e07e200d3b318b81bea711f9e8637ef65cd7ffa4843b7412bab38",
+        "status": "rejected",
+        "reason": "SecretMapper.CopyTags at 21174cb0c17cceadf0e873cda301d1fbd89a1739f137980a2a7f7a72c87237c5:222-229 is a generic helper for the proposed ToSetParameters adapter, not a separate SDK-facing behavior."
+      },
+      {
+        "key": "8af3471b0bebe4542a6623a1d58070fb46d9fb3148bb48e4b9cbfaed1316a46c",
+        "status": "rejected",
+        "reason": "KeyVaultSecret's internal constructor at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:18-21 only supplies default properties for the already proposed public-model adapter, not an independent API customization."
+      },
+      {
+        "key": "6b816732108ac784aa3990a8b8e59f53f5f5e00cd18a4c8127bd1d157f94a507",
+        "status": "accepted",
+        "reason": "The public KeyVaultSecret(name,value) constructor at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:30-34 establishes the custom public model's construction and value validation."
+      },
+      {
+        "key": "3c9d34c55be3e5130c4d87d8c5582acfee2ac4c03206ef6deaaea2d1f081f32a",
+        "status": "accepted",
+        "reason": "KeyVaultSecret.Id at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:39 projects a public identifier from its Properties, a handwritten public model member."
+      },
+      {
+        "key": "672f09e69d198bb2b0fb8e7cda684dee94917309a7a18f2f4a6d2b77a8b70957",
+        "status": "accepted",
+        "reason": "KeyVaultSecret.Name at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:44 projects a public name from its Properties independently of Id."
+      },
+      {
+        "key": "122fd8f19db57333dc28e337d265513b7f0efe3d49c98a5f4e58faf0ecdd7adb",
+        "status": "inconclusive",
+        "reason": "KeyVaultSecret.ReadProperty exists at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:57-69, but SecretClient remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 say legacy model JSON read/write methods are not invoked; other consumers were not supplied."
+      },
+      {
+        "key": "bf34dc044001148b0064990acf6adc3a41e4face7304cfc26faeab0ba145d4cf",
+        "status": "inconclusive",
+        "reason": "The non-generated writer at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:71-79 exists, but supplied SecretClient remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 identify legacy model JSON methods as no longer invoked; external uses are unknown."
+      },
+      {
+        "key": "2f67680e9553f85f2eba0a56fe563ca938de47ac8ea4ec5756cadcc7ab90dee2",
+        "status": "rejected",
+        "reason": "The IJsonDeserializable loop at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:81-87 is dispatch scaffolding for the already proposed ReadProperty behavior, whose active use is itself inconclusive."
+      },
+      {
+        "key": "020ceaadd9129a226629f24c7b03ad6384b420c9ecf0ff4b22351641c218f87d",
+        "status": "rejected",
+        "reason": "IJsonSerializable.WriteProperties at 4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5:89 just forwards to the already proposed writer, not a second instance."
+      },
+      {
+        "key": "904e95eca92caa9ab9100bcdc6c7f1d767ac7156ec4c998a56db7460209e0e8c",
+        "status": "accepted",
+        "reason": "The public KeyVaultSecretIdentifier(Uri) constructor at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:27-42 exposes parsed secret identifiers through a handwritten API."
+      },
+      {
+        "key": "e3c8626ad737164e8531c9d31cc84bbda1741829442ebc9a3437414a90bcbbe9",
+        "status": "rejected",
+        "reason": "The private KeyVaultSecretIdentifier component constructor at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:44-50 is solely an implementation detail of the proposed TryCreate method, not another alternate public construction API."
+      },
+      {
+        "key": "b05ae4601dda192212d019d603125bd9f8e47c04af8b0d9a4f0a80947c16db8d",
+        "status": "accepted",
+        "reason": "KeyVaultSecretIdentifier.TryCreate at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:83-93 exposes a distinct nonthrowing public identifier-parsing API."
+      },
+      {
+        "key": "96c96fbe7c983dd6ad0615d82698c82c2360482445a24e551e195199e87f3ff6",
+        "status": "accepted",
+        "reason": "The handwritten KeyVaultSecretIdentifier equality implementations at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:95-102 define equality by SourceId rather than independent component values."
+      },
+      {
+        "key": "c62e92ec53026bc8d0bb6af8a9dbc8c52c90c4133c539f374dae26ce609d1fa9",
+        "status": "rejected",
+        "reason": "KeyVaultSecretIdentifier.GetHashCode at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:104-107 is the required matching implementation of the already proposed SourceId-based equality behavior, not a distinct customization."
+      },
+      {
+        "key": "ddd2f99ae888cbbded741c0e8a335b3249f8983f07a1c55c415bd7acd364ce8e",
+        "status": "rejected",
+        "reason": "The hidden ToString at 5fc4206de601e1398425923af29fd627ab41b58480f779b5d2a782839c8d6317:109-112 merely calls base.ToString; no custom string representation is implemented."
+      },
+      {
+        "key": "a26f0799ef3a6434e85742a5d97fe1908f614207a15358048be151bd3d62cea5",
+        "status": "rejected",
+        "reason": "RecoverDeletedSecretOperation's constructor at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:24-29 performs standard initial value validation and OperationInternal setup; unlike the delete constructor, it has no separate branch behavior."
+      },
+      {
+        "key": "c054c2859205d7a7788779cf5ccf01e05fe8a28a7a4e01fd0588defaed1c2a2a",
+        "status": "accepted",
+        "reason": "RecoverDeletedSecretOperation.Id at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:35 exposes the recovery result's URI as an operation ID in non-generated source."
+      },
+      {
+        "key": "8c1e9854d701e77c9a4fcafeed43ef6eda3a01369975512b616e78eada88ed12",
+        "status": "accepted",
+        "reason": "RecoverDeletedSecretOperation.Value and HasValue at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:44-57 expose initial recovery properties even while completion remains pending."
+      },
+      {
+        "key": "327b35c85cde1f7dee8ff0eb3c1c285ebe49c964349353b0322318cccd62f5a2",
+        "status": "rejected",
+        "reason": "The HasCompleted/GetRawResponse accessors at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:47,60 simply forward OperationInternal state, not another independently customized behavior."
+      },
+      {
+        "key": "3e8c657ba96bfb9ce92cb33943bafd6e67466c057d09343518321d2ee9baf948",
+        "status": "rejected",
+        "reason": "UpdateStatus at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:63-64 short-circuits completion and forwards the standard poller update, not a standalone customization."
+      },
+      {
+        "key": "73016a0567e65c74612cd2972ba862234281f8f66900474c81a2fc269fde037d",
+        "status": "rejected",
+        "reason": "UpdateStatusAsync at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:67-68 is the asynchronous counterpart of the standard poller update delegation."
+      },
+      {
+        "key": "52c412463499a9fdbdddee953f3d44f261ed7762de19d8632e1ca3094ec6dfe5",
+        "status": "accepted",
+        "reason": "The recovery operation's two-second default wait is selected explicitly at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:18,71-72, unlike its ordinary caller-interval forwarding overload."
+      },
+      {
+        "key": "dd894956c44e2309d80dbe20eda642eb83fb21e4ee7358f8982b58291afa02c6",
+        "status": "rejected",
+        "reason": "The explicit recovery wait overload at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:75-76 forwards its caller's interval, part of the same polling API rather than a separate behavior."
+      },
+      {
+        "key": "afa7814f84903336318f6cb4dd5f37598dfcb09dac402405f52b8c71450344cc",
+        "status": "revised",
+        "reason": "This is concrete recovery-state polling, but the success interpretation of 403 is service-specific; no general generator support is demonstrated.",
+        "finding": {
+          "key": "afa7814f84903336318f6cb4dd5f37598dfcb09dac402405f52b8c71450344cc",
+          "category": "LRO / polling",
+          "subtype": "Recovered-resource status polling",
+          "explanation": "RecoverDeletedSecretOperation polls GetSecret without a version under NoThrow; 200/403 complete, 404 remains pending and other responses fail.",
+          "pattern": "lro-resource-state-status-mapping",
+          "generatorAddressable": "no",
+          "handwrittenRationale": "Explicit IOperation.UpdateStateAsync implementation in src/RecoverDeletedSecretOperation.cs outside Generated.",
+          "symbols": [
+            "RecoverDeletedSecretOperation.IOperation.UpdateStateAsync"
+          ],
+          "evidence": [
+            {
+              "id": "460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7",
+              "startLine": 78,
+              "endLine": 91
+            }
+          ]
+        }
+      },
+      {
+        "key": "83fd45628bcd5f95aa53d0fb65deabe0ee5a7de9cf468722db42c07568eb5a81",
+        "status": "rejected",
+        "reason": "The required IOperation rehydration hook at 460ca9221872ff8609256efe5db57079a6dd833d408f0a529610ee059a0421a7:93-94 only throws NotSupportedException, not a separately implemented SDK customization."
+      },
+      {
+        "key": "8be379b55cda9a295766cdc9afacf284c8e841c8ac78236f379e891443b680f0",
+        "status": "inconclusive",
+        "reason": "SecretAttributes.ReadProperties at a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f:37-72 implements the described legacy JSON conversion, but supplied SecretClient remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 say legacy model JSON methods are not invoked; uses elsewhere were not supplied."
+      },
+      {
+        "key": "ae8e4212cc087f56181d30fb010a0b8081767251e82ec8e19bf07e556dbb7773",
+        "status": "inconclusive",
+        "reason": "SecretAttributes.WriteProperties at a9cf704529ba77da1503578c95d64db63eb986e054a50dc9b2f6be3506ae4c2f:74-95 implements the described writer, but the supplied SecretClient remarks at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:20-28 say the legacy JSON writer path is no longer invoked; other consumers are unshown."
+      },
+      {
+        "key": "7a0fb9dffdbb52c3e3ef421055c8e3de7d328dd56c37d648e63e1327d48a734b",
+        "status": "rejected",
+        "reason": "SecretClient(Uri,TokenCredential) at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:45-46 only forwards null options into the already proposed main constructor; there is no separate behavior to count."
+      },
+      {
+        "key": "2867e55d0e80b139da3ac555d320cb76d7b89930ed8d0d59a6275b884c3c65de",
+        "status": "revised",
+        "reason": "The concrete auth policy is an existing ChallengeBasedAuthenticationPolicy assembled into a customer-configured pipeline, not a new policy; a cross-service generator feature is not established by this excerpt.",
+        "finding": {
+          "key": "2867e55d0e80b139da3ac555d320cb76d7b89930ed8d0d59a6275b884c3c65de",
+          "category": "Auth",
+          "subtype": "Challenge-auth pipeline assembly with customer options",
+          "explanation": "SecretClient constructs a pipeline from SecretClientOptions with a challenge-based per-retry authentication policy, then injects it and diagnostics into the internal generated client.",
+          "pattern": "challenge-auth-pipeline-construction",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented constructor in src/SecretClient.cs outside Generated; the generated client's companion constructor is separately cited in its proposal.",
+          "symbols": [
+            "SecretClient.SecretClient(Uri, TokenCredential, SecretClientOptions)"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 49,
+              "endLine": 82
+            }
+          ]
+        }
+      },
+      {
+        "key": "d06baa10f28e2737a2555adf5baa87f5014926708633180f79cb44bdf2865523",
+        "status": "accepted",
+        "reason": "The non-generated SecretClient(SecretClientSettings) at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:86-91 is a distinct experimental public settings-based construction API."
+      },
+      {
+        "key": "8b71699a95325049f9e09a525973434ece36134f4f654db85d166d95a2bdc3d9",
+        "status": "rejected",
+        "reason": "SecretClient.VaultUri at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:94 merely exposes a constructor-retained field as part of the public client, with no independently customized behavior."
+      },
+      {
+        "key": "3ef7d4d0f39859bf9c33de8f1798606ff62fffa7f8d5110afe4dd6252a630176",
+        "status": "accepted",
+        "reason": "SecretClient.Dispose at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:103-107 explicitly owns and atomically disposes its internally constructed pipeline; this is a distinct lifecycle behavior."
+      },
+      {
+        "key": "b94d3fd4a7a7534203cc320f49c2bf0bb632ddf949ae1df4c88cefa9e13f2063",
+        "status": "revised",
+        "reason": "The legacy overload is a public API compatibility shape, but it does not directly wrap the generated protocol method and generator addressability is unproven.",
+        "finding": {
+          "key": "b94d3fd4a7a7534203cc320f49c2bf0bb632ddf949ae1df4c88cefa9e13f2063",
+          "category": "Convenience methods",
+          "subtype": "Legacy asynchronous get overload without content type",
+          "explanation": "The EditorBrowsable(Never) GetSecretAsync(name,version,token) overload delegates to the public content-type overload with null content type.",
+          "pattern": "legacy-overload-compatibility",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Explicit public overload in src/SecretClient.cs outside Generated.",
+          "symbols": [
+            "SecretClient.GetSecretAsync(string, string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 123,
+              "endLine": 125
+            }
+          ]
+        }
+      },
+      {
+        "key": "96c90bb629262dab145a5794f2c0c8ffc08d4735eeeb1e95cbd05e3f1c36fe22",
+        "status": "accepted",
+        "reason": "The non-generated typed GetSecretAsync wrapper at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:144-158 translates its content type, invokes the internal operation and returns a public secret with diagnostics; tracing is part of this instance."
+      },
+      {
+        "key": "80ef0335dfc50b290afcf6607ef972b4716493cd9c9c06b2c0838518fc80da50",
+        "status": "revised",
+        "reason": "This is a public legacy overload shape rather than direct protocol wrapping; evidence does not establish generator support.",
+        "finding": {
+          "key": "80ef0335dfc50b290afcf6607ef972b4716493cd9c9c06b2c0838518fc80da50",
+          "category": "Convenience methods",
+          "subtype": "Legacy synchronous get overload without content type",
+          "explanation": "The EditorBrowsable(Never) GetSecret(name,version,token) overload delegates to the public content-type overload with null content type.",
+          "pattern": "legacy-overload-compatibility",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Explicit public overload in src/SecretClient.cs outside Generated.",
+          "symbols": [
+            "SecretClient.GetSecret(string, string, CancellationToken)"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 174,
+              "endLine": 176
+            }
+          ]
+        }
+      },
+      {
+        "key": "f4a76348138a63193f2f2c14d5af7fdfaf5ff67952a493d27ab6f6ae6d3a5168",
+        "status": "accepted",
+        "reason": "The non-generated typed GetSecret wrapper at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:195-209 invokes the internal operation and converts its raw response to a customer-facing model, with tracing integrated into the method."
+      },
+      {
+        "key": "2e03679a4f6630c2f046b6b43a34b076ed5771b031281642b495e5cc9fdb2e6b",
+        "status": "revised",
+        "reason": "The code maps generated pages' item type to public properties; it does not itself implement next-link handling.",
+        "finding": {
+          "key": "2e03679a4f6630c2f046b6b43a34b076ed5771b031281642b495e5cc9fdb2e6b",
+          "category": "Pagination",
+          "subtype": "Asynchronous version-page item adaptation",
+          "explanation": "The public async versions method maps generated version pages to SecretProperties using SecretMapper.ToSecretProperties.",
+          "pattern": "page-item-model-adapter",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented public wrapper in src/SecretClient.cs outside Generated; generated paging is only delegated to.",
+          "symbols": [
+            "SecretClient.GetPropertiesOfSecretVersionsAsync"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 229,
+              "endLine": 236
+            }
+          ]
+        }
+      },
+      {
+        "key": "b1ca3e14f60e00609c232dfdcc97408d310e8bca679a2a9ce0eb2fa60904ef3a",
+        "status": "revised",
+        "reason": "This adapts generated page items, not next links; generator support cannot be established from the supplied wrapper.",
+        "finding": {
+          "key": "b1ca3e14f60e00609c232dfdcc97408d310e8bca679a2a9ce0eb2fa60904ef3a",
+          "category": "Pagination",
+          "subtype": "Synchronous version-page item adaptation",
+          "explanation": "The public sync versions method maps generated version pages to SecretProperties using SecretMapper.ToSecretProperties.",
+          "pattern": "page-item-model-adapter",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented public wrapper in src/SecretClient.cs outside Generated.",
+          "symbols": [
+            "SecretClient.GetPropertiesOfSecretVersions"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 256,
+              "endLine": 263
+            }
+          ]
+        }
+      },
+      {
+        "key": "18d6697eae53f3755014b074aa2aa6855f126afb2b4d05274105330f0e097cc7",
+        "status": "revised",
+        "reason": "The wrapper adapts generated async listing-page values, not next-link mechanics; generator addressability is unknown.",
+        "finding": {
+          "key": "18d6697eae53f3755014b074aa2aa6855f126afb2b4d05274105330f0e097cc7",
+          "category": "Pagination",
+          "subtype": "Asynchronous secret-page item adaptation",
+          "explanation": "The public async secrets listing maps generated pages to SecretProperties via SecretMapper.ToSecretProperties.",
+          "pattern": "page-item-model-adapter",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented public wrapper in src/SecretClient.cs outside Generated.",
+          "symbols": [
+            "SecretClient.GetPropertiesOfSecretsAsync"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 276,
+              "endLine": 280
+            }
+          ]
+        }
+      },
+      {
+        "key": "953bbafd694e7c60ccab7e4c6b50daefc592194da54a7cd010c8d09b5bdb5c22",
+        "status": "revised",
+        "reason": "The wrapper converts page items rather than implementing custom next-link rules; generator addressability is not evidenced.",
+        "finding": {
+          "key": "953bbafd694e7c60ccab7e4c6b50daefc592194da54a7cd010c8d09b5bdb5c22",
+          "category": "Pagination",
+          "subtype": "Synchronous secret-page item adaptation",
+          "explanation": "The public sync secrets listing maps generated pages to SecretProperties via SecretMapper.ToSecretProperties.",
+          "pattern": "page-item-model-adapter",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "Implemented public wrapper in src/SecretClient.cs outside Generated.",
+          "symbols": [
+            "SecretClient.GetPropertiesOfSecrets"
+          ],
+          "evidence": [
+            {
+              "id": "248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c",
+              "startLine": 293,
+              "endLine": 297
+            }
+          ]
+        }
+      },
+      {
+        "key": "37609a81b92843081f3862b14bbb67a12677a7f7da1656b8ecae04473cbc5b02",
+        "status": "accepted",
+        "reason": "SecretClient.UpdateSecretPropertiesAsync at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:312-334 wraps an internal update with a public model, custom request body, validation, response conversion and tracing; the body writer is separately located in SecretMapper."
+      },
+      {
+        "key": "3f31d0a9536bcbfc506bd7384a57729d4434ee3930844a1647f6d4249947d33c",
+        "status": "accepted",
+        "reason": "SecretClient.UpdateSecretProperties at 248d21f48356ac3a392181855440b8b02e048620b830e3333bcbc381ec4f2d1c:349-366 is the separate synchronous public-model wrapper with version validation, custom request body and raw response conversion."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "c7d65fab14e748f47d9b817686beaa796f072f6bc1cfd3da8ae3f31c44703aa5",
+        "category": "Model overrides",
+        "subtype": "Public deletion and purge date properties",
+        "explanation": "DeletedSecret exposes DeletedOn and ScheduledPurgeDate as nullable public timestamps with internal setters; whether their model shape should be separately counted requires independent assessment.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Concrete public properties in src/DeletedSecret.cs outside Generated.",
+        "symbols": [
+          "DeletedSecret.DeletedOn",
+          "DeletedSecret.ScheduledPurgeDate"
+        ],
+        "evidence": [
+          {
+            "id": "e9a50173cf06d03f935ef35372457f8ef3f20a933cbd5fae9d73a0ba9ed2f949",
+            "startLine": 37,
+            "endLine": 46
+          }
+        ]
+      },
+      {
+        "key": "1ab1fb2d41b278b84fed4a2fced79c6b7b60075aeb5261b5b13767dab452ff26",
+        "category": "Model overrides",
+        "subtype": "Customer-facing secret properties and value",
+        "explanation": "KeyVaultSecret exposes a SecretProperties object and a string Value with an internal setter; whether this public model shape is independently countable requires review.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "Public members of a non-generated model in src/KeyVaultSecret.cs.",
+        "symbols": [
+          "KeyVaultSecret.Properties",
+          "KeyVaultSecret.Value"
+        ],
+        "evidence": [
+          {
+            "id": "4ee4f4f38da1028112c8d036805cbe26d915a2a307bd96fbf5e575b1b9fc54b5",
+            "startLine": 47,
+            "endLine": 54
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Partial capture contains 10 of 84 eligible files among 121 discovered files. SecretClient ends at line 375 in documentation before the set-secret implementation. Later operations, disposal dependencies, private mapper/deserializer implementations and public begin/delete/recover entry points are not supplied.",
+      "The constructor instantiates a shared challenge authentication policy, but its implementation is absent. Findings establish wiring and the forwarded verification option, not challenge parsing, cross-origin guarantees or token issuance behavior.",
+      "SecretClient invokes MapApiVersion, DeserializeKeyVaultSecret, DeserializeSecretProperties, MapPageable and MapAsyncPageable, whose implementations lie outside the supplied excerpt. No complete paging/continuation, deserialization algorithm or API-version mapping is inferred from these calls.",
+      "The source includes a generated-client transport layer plus legacy JSON interfaces/read-write model methods. The client remarks say legacy JSON transport is no longer invoked, but full call sites are absent. Legacy method findings describe existing handwritten implementation, not proof that current public requests execute that path.",
+      "The get-secret wrapper forwards output content type to the internal operation. PFX/PEM conversion mentioned in comments is not implemented in the supplied wrapper and is not counted as local cryptographic or content-conversion logic.",
+      "The deletion/recovery pollers classify HTTP 403 as success and HTTP 404 as pending. These are measured source mappings, not proof that every access-denied response establishes the resource's real state. Shared OperationInternal and default wait helpers were not supplied or run.",
+      "SecretProperties and generated wire model definitions are absent. Mapper null guards and assignments are observed, but comments about all valid public values, historical byte-identical traffic and preservation of every client option are not independently established.",
+      "The project version is 4.12.0-beta.4 while inventory latestRelease is 4.12.0-beta.3. Protected empty mocking constructors are excluded; the context's explicit buildable registration is counted rather than treating its empty body as behavior.",
+      "No SDK compilation, live service access, runtime serialization, cancellation or client-resource ownership validation was performed. These are analyst proposals from commit-pinned evidence, not human-verified results.",
+      "Partial extraction: 10 of 84 eligible files were captured; SecretClient.cs ends at line 375 and eight named files were not sent. No package-wide presence or absence conclusion follows.",
+      "Generated counterparts, call sites beyond the excerpt and actual emitted API are not supplied. Several legacy JSON paths are described in the supplied SecretClient remarks as no longer invoked; their active use cannot be resolved from this request.",
+      "Generator addressability is a judgment about possible generalization, not measured generator capability; no cross-service recurrence or runtime behavior was tested. Accepted findings are AI-reviewed, not human-verified.",
+      "The supplied text contains a release label of 4.12.0-beta.3 while the included project file declares 4.12.0-beta.4; this review does not resolve release/version provenance."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Custom/Models/AzureSecurityKeyVaultSecretsContext.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "ded215a8643963a41103b416464e14f49ef3e1ce978c005b321e9c5727df402a"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeleteSecretOperation.cs",
+      "startLine": 1,
+      "endLine": 109,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "5ebddc73db7e0cbfff6f5e970275475e6a534985b1f9b7954b214ac675143364"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/DeletedSecret.cs",
+      "startLine": 1,
+      "endLine": 89,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d43aff405e11977443f8a424eb033fa954bd44ab7ca61e8b1b4a9e70c91f01ab"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/KeyVaultSecretsClient.Customizations.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a66d77d3ca25aebe6471637fc8caa6991b35fb964a8b14684eb42657b7b94f85"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/Internal/SecretMapper.cs",
+      "startLine": 1,
+      "endLine": 231,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "63a01a1fdaa9e7a878d99136183a9625e79ba3317855606eccbfa522cef13be1"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecret.cs",
+      "startLine": 1,
+      "endLine": 91,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "5b59f69dcdfd538cbc5ee2e022900c1875fa24f1856fea4cfebb2e44a69b9fa2"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/KeyVaultSecretIdentifier.cs",
+      "startLine": 1,
+      "endLine": 114,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "0b53349afec2a898235cfe16eebd9917b6843156ef68bdad74d4c5eb2b447018"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/RecoverDeletedSecretOperation.cs",
+      "startLine": 1,
+      "endLine": 96,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e3c99a1265ed6421ee7c316e786b99272c962d26290e324e3994b355cf2cadf3"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretAttributes.cs",
+      "startLine": 1,
+      "endLine": 97,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1d5763f7cd23a5aa2c9043460ccaa0e9c2ab1164937233946bc821686718f59b"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClient.cs",
+      "startLine": 1,
+      "endLine": 928,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f9963dd4e949d25d45d4e4c3bbd87e2ac3dc358e6c518da03a6b5871b6cd32ef"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientBuilderExtensions.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "4b0f38bbdfde3c14bb925eb740c1180e40dd42b1c85eb5b6223bb54864385045"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientHostExtensions.cs",
+      "startLine": 1,
+      "endLine": 70,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6d54626796f305d771bcb1f41c61a15184a6aa69408ef5880ca18c655fc804a2"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientOptions.cs",
+      "startLine": 1,
+      "endLine": 111,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "ca5529ddcf52965c84e15ef0494f0e0cf64a4f65d2c64baa65ca8a10063f0d63"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretClientSettings.cs",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1ca3fdf9df2a8f879bc18609a24d4959042f1f8f256475bb198bf5c84e4c7f6c"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretContentType.cs",
+      "startLine": 1,
+      "endLine": 71,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1cf1e0a6ecf30e7c916faeecb67a9dca5ed3dc1fffee1ba299aa9761eb0895b9"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretModelFactory.cs",
+      "startLine": 1,
+      "endLine": 159,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7d5bac29c7c5087d57cbbeadc6149a6139d6867fe99a75809116bd5d9342d746"
+    },
+    {
+      "path": "sdk/keyvault/Azure.Security.KeyVault.Secrets/src/SecretProperties.cs",
+      "startLine": 1,
+      "endLine": 257,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "d8e5b48f2df3315038bde8aa9cc7e23e98f4a836e27673b8a75e851afbf70a56"
+    }
+  ]
+}

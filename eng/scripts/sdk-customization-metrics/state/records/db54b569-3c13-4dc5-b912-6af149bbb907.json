@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "id": "db54b569-3c13-4dc5-b912-6af149bbb907",
+  "observedAt": "2026-10-24T02:55:52.826Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/security/keyvault/azkeys"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "50cb15486ed2fd60678a08d28ed37632909753e8"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 37,
+    "eligibleFiles": 13,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/security/keyvault/azkeys/custom_client.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage azkeys\n\n// this file contains handwritten additions to the generated code\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\n// ClientOptions contains optional settings for Client.\ntype ClientOptions struct {\n\tazcore.ClientOptions\n\n\t// DisableChallengeResourceVerification controls whether the policy requires the\n\t// authentication challenge resource to match the Key Vault or Managed HSM domain.\n\t// See https://aka.ms/azsdk/blog/vault-uri for more information.\n\tDisableChallengeResourceVerification bool\n}\n\n// NewClient creates a client that accesses a Key Vault's keys. You should validate that vaultURL\n// references a valid Key Vault or Managed HSM. See https://aka.ms/azsdk/blog/vault-uri for details.\nfunc NewClient(vaultURL string, credential azcore.TokenCredential, options *ClientOptions) (*Client, error) {\n\tif options == nil {\n\t\toptions = &ClientOptions{}\n\t}\n\tauthPolicy := internal.NewKeyVaultChallengePolicy(\n\t\tcredential,\n\t\t&internal.KeyVaultChallengePolicyOptions{\n\t\t\tDisableChallengeResourceVerification: options.DisableChallengeResourceVerification,\n\t\t},\n\t)\n\tazcoreClient, err := azcore.NewClient(moduleName, version, runtime.PipelineOptions{\n\t\tAPIVersion: runtime.APIVersionOptions{\n\t\t\tLocation: runtime.APIVersionLocationQueryParam,\n\t\t\tName:     \"api-version\",\n\t\t},\n\t\tPerRetry: []policy.Policy{authPolicy},\n\t\tTracing: runtime.TracingOptions{\n\t\t\tNamespace: \"Microsoft.KeyVault\",\n\t\t},\n\t}, &options.ClientOptions)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Client{vaultBaseUrl: vaultURL, internal: azcoreClient}, nil\n}\n\n// ID is a key's unique ID, containing its version, if any, and name.\ntype ID string\n\n// Name of the key.\nfunc (i *ID) Name() string {\n\t_, name, _ := internal.ParseID((*string)(i))\n\treturn *name\n}\n\n// Version of the key. This returns an empty string when the ID contains no version.\nfunc (i *ID) Version() string {\n\t_, _, version := internal.ParseID((*string)(i))\n\tif version == nil {\n\t\treturn \"\"\n\t}\n\treturn *version\n}\n",
+      "contentHash": "838d780bce573ed81930ed3ddb9cec867eff6cb3514a704c5197675e4a1345dd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azkeys/custom_client.go",
+      "startLine": 1,
+      "endLine": 69,
+      "kind": "unknown",
+      "id": "53866a3665a01e949de5c8485a2b753c0d42222e7470f9c39dbff16e144a5aac"
+    },
+    {
+      "path": "sdk/security/keyvault/azkeys/fake/custom_server.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage fake\n\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal\"\n)\n\nfunc init() {\n\tserverTransportInterceptor = &internal.FakeChallenge{}\n}\n",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azkeys/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "49bcb3df821d6e6212613550eec282d68ae3e2b851b522b5b8ebb2c41a2e7f50"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/security/keyvault/azkeys/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal v1.2.0\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "994729c5db38bbe99e9294c085134b8da8d2d6fbf48e2012d3466a58e9dda66f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azkeys/go.mod"
+    },
+    {
+      "path": "sdk/security/keyvault/azkeys/README.md",
+      "text": "# Azure Key Vault Keys client module for Go\n\n* Cryptographic key management (this module) - create, store, and control access to the keys used to encrypt your data\n* Managed HSM administration ([azadmin](https://aka.ms/azsdk/go/keyvault-admin/docs)) - role-based access control (RBAC), settings, and vault-level backup and restore options\n* Certificate management ([azcertificates](https://aka.ms/azsdk/go/keyvault-certificates/docs)) - create, manage, and deploy public and private SSL/TLS certificates\n* Secrets management ([azsecrets](https://aka.ms/azsdk/go/keyvault-secrets/docs)) - securely store and control access to tokens, passwords, certificates, API keys, and other secrets\n\n[Source code][key_client_src] | [Package (pkg.go.dev)][goget_azkeys] | [Product documentation][keyvault_docs] | [Samples][keys_samples]\n\n## Getting started\n\n### Install packages\n\nInstall `azkeys` and `azidentity` with `go get`:\n```Bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys\ngo get github.com/Azure/azure-sdk-for-go/sdk/azidentity\n```\n[azidentity][azure_identity] is used for Azure Active Directory authentication as demonstrated below.\n\n### Prerequisites\n\n* An [Azure subscription][azure_sub]\n* A supported Go version (the Azure SDK supports the two most recent Go releases)\n* A key vault. If you need to create one, see the Key Vault documentation for instructions on doing so in the [Azure Portal][azure_keyvault_portal] or with the [Azure CLI][azure_keyvault_cli].\n\n### Authentication\n\nThis document demonstrates using [azidentity.NewDefaultAzureCredential][default_cred_ref] to authenticate. This credential type works in both local development and production environments. We recommend using a [managed identity][managed_identity] in production.\n\n[Client][client_docs] accepts any [azidentity][azure_identity] credential. See the [azidentity][azure_identity] documentation for more information about other credential types.\n\n#### Create a client\n\nConstructing the client requires your vault's URL, which you can get from the Azure CLI or the Azure Portal.\n\n```go\nimport (\n\t\"github.com/Azure/azure-sdk-for-go/sdk/azidentity\"\n\t\"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys\"\n)\n\nfunc main() {\n\tcred, err := azidentity.NewDefaultAzureCredential(nil)\n\tif err != nil {\n\t\t// TODO: handle error\n\t}\n\n\tclient, err := azkeys.NewClient(\"https://<TODO: your vault name>.vault.azure.net\", cred, nil)\n\tif err != nil {\n\t\t// TODO: handle error\n\t}\n}\n```\n\n## Key concepts\n\n### Keys\n\nAzure Key Vault can create and store RSA and elliptic curve keys. Both can optionally be protected by hardware security modules (HSMs). Azure Key Vault can also perform cryptographic operations with them. For more information about keys and supported operations and algorithms, see the [Key Vault documentation](https://learn.microsoft.com/azure/key-vault/keys/about-keys).\n\n[Client][client_docs] can create keys in the vault, get existing keys from the vault, update key metadata, and delete keys, as shown in the examples below.\n\n## Examples\n\nGet started with our [examples][keys_samples].\n\n## Troubleshooting\n\n### Error Handling\n\nAll methods which send HTTP requests return `*azcore.ResponseError` when these requests fail. `ResponseError` has error details and the raw response from Key Vault.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore\"\n\nresp, err := client.GetKey(context.Background(), \"keyName\", nil)\nif err != nil {\n    var httpErr *azcore.ResponseError\n    if errors.As(err, &httpErr) {\n        // TODO: investigate httpErr\n    } else {\n        // TODO: not an HTTP error\n    }\n}\n```\n\n### Logging\n\nThis module uses the logging implementation in `azcore`. To turn on logging for all Azure SDK modules, set `AZURE_SDK_GO_LOGGING` to `all`. By default the logger writes to stderr. Use the `azcore/log` package to control log output. For example, logging only HTTP request and response events, and printing them to stdout:\n\n```go\nimport azlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n\n// Print log events to stdout\nazlog.SetListener(func(cls azlog.Event, msg string) {\n\tfmt.Println(msg)\n})\n\n// Includes only requests and responses in logs\nazlog.SetEvents(azlog.EventRequest, azlog.EventResponse)\n```\n\n### Accessing `http.Response`\n\nYou can access the raw `*http.Response` returned by Key Vault using the `runtime.WithCaptureResponse` method and a context passed to any client method.\n\n```go\nimport \"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime\"\n\nvar response *http.Response\nctx := runtime.WithCaptureResponse(context.TODO(), &response)\n_, err = client.GetKey(ctx, \"keyName\", nil)\nif err != nil {\n    // TODO: handle error\n}\n// TODO: do something with response\n```\n\n###  Additional Documentation\n\nFor more extensive documentation on Azure Key Vault, see the [API reference documentation][reference_docs].\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][code_of_conduct]. For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact opencode@microsoft.com with any additional questions or comments.\n\n\n[azure_identity]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity\n[azure_keyvault_cli]: https://learn.microsoft.com/azure/key-vault/general/quick-create-cli\n[azure_keyvault_portal]: https://learn.microsoft.com/azure/key-vault/general/quick-create-portal\n[azure_sub]: https://azure.microsoft.com/free/\n[default_cred_ref]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#NewDefaultAzureCredential\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[keyvault_docs]: https://learn.microsoft.com/azure/key-vault/\n[goget_azkeys]: https://aka.ms/azsdk/go/keyvault-keys/docs\n[reference_docs]: https://aka.ms/azsdk/go/keyvault-keys/docs\n[client_docs]: https://aka.ms/azsdk/go/keyvault-keys/docs#Client\n[key_client_src]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/security/keyvault/azkeys/client.go\n[keys_samples]: https://aka.ms/azsdk/go/keyvault-keys/docs#pkg-examples\n[managed_identity]: https://learn.microsoft.com/azure/active-directory/managed-identities-azure-resources/overview\n\n\n",
+      "contentHash": "28fcb86588b62a26606f8e9f36d9b81ee8e1c07e5ef63d7d4d0a8eaa2c63e2d0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azkeys/README.md"
+    },
+    {
+      "path": "sdk/security/keyvault/azkeys/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Keys\ncommit: 1ee7876db31daed0abe0265485856f9244f4ebf6\nrepo: Azure/azure-rest-api-specs",
+      "contentHash": "fc8fefc75f06f825914ac32ddc7c5707e4cae160f22bba0635c290f43dc5c2a1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/security/keyvault/azkeys/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "4e78bce7d3242eade2009671812578d299a98c85eb0ed62845e65caba75ad21d",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "370d04b6a29f4d1f7b932376592c61951ca1d501c2b1beefefe29172bea0ddba",
+        "category": "Auth",
+        "subtype": "Construct a client with shared challenge-policy wiring",
+        "explanation": "NewClient defaults nil options, passes the verification-disable flag to a shared Key Vault challenge policy and installs it per retry. The same body configures the api-version query-parameter location and Microsoft.KeyVault tracing namespace, forwards embedded core options, propagates core construction errors and stores vaultURL unchanged. No local URL validation or policy implementation is supplied.",
+        "pattern": "challenge-auth-policy-wiring",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete custom_client.go has no generated header, explicitly identifies handwritten additions and contains executable construction outside generated code, matching the supplied Go rule.",
+        "symbols": [
+          "NewClient",
+          "ClientOptions.DisableChallengeResourceVerification"
+        ],
+        "evidence": [
+          {
+            "id": "53866a3665a01e949de5c8485a2b753c0d42222e7470f9c39dbff16e144a5aac",
+            "startLine": 15,
+            "endLine": 50
+          }
+        ]
+      },
+      {
+        "key": "7748d27c84a6734ca65bea61ba222f397749f671d43d531bd2df07ded564af89",
+        "category": "Convenience methods",
+        "subtype": "Expose the parsed name component of a named-string key ID",
+        "explanation": "ID.Name converts the receiver to a string pointer, calls internal.ParseID and directly dereferences the returned name pointer. The helper's parsing grammar, malformed-ID behavior and pointer guarantees are not supplied.",
+        "pattern": "id-component-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete non-generated custom_client.go implements this additional method on its named-string ID type.",
+        "symbols": [
+          "ID.Name"
+        ],
+        "evidence": [
+          {
+            "id": "53866a3665a01e949de5c8485a2b753c0d42222e7470f9c39dbff16e144a5aac",
+            "startLine": 53,
+            "endLine": 60
+          }
+        ]
+      },
+      {
+        "key": "235c144c8ac739f6b0c12c7aa101484aa8e3f33d0e8e1550398f30ca5c8aa8ad",
+        "category": "Convenience methods",
+        "subtype": "Expose an optional parsed key-ID version with an empty fallback",
+        "explanation": "ID.Version calls internal.ParseID and returns an empty string when the returned version pointer is nil, otherwise its value. This local fallback does not establish how the uncaptured parser handles malformed or nil input IDs.",
+        "pattern": "id-component-accessor",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten custom_client.go source implements a distinct public version accessor rather than only declaring an ID alias.",
+        "symbols": [
+          "ID.Version"
+        ],
+        "evidence": [
+          {
+            "id": "53866a3665a01e949de5c8485a2b753c0d42222e7470f9c39dbff16e144a5aac",
+            "startLine": 62,
+            "endLine": 69
+          }
+        ]
+      },
+      {
+        "key": "f39f6c9910cefdea0a80ceff6b93a48cf687e33bfd7d438b224d2803110892bc",
+        "category": "Other",
+        "subtype": "Install a shared fake-server transport interceptor during initialization",
+        "explanation": "The fake package's init function assigns a new internal.FakeChallenge to serverTransportInterceptor. This is captured integration wiring in the shipped fake subpackage, not a demonstrated challenge implementation or real-client authentication policy.",
+        "pattern": "fake-server-interceptor-wiring",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "fake/custom_server.go is a complete custom-named non-test Go source file without a generated header, qualifying under the supplied Go convention.",
+        "symbols": [
+          "fake.init"
+        ],
+        "evidence": [
+          {
+            "id": "49bcb3df821d6e6212613550eec282d68ae3e2b851b522b5b8ebb2c41a2e7f50",
+            "startLine": 4,
+            "endLine": 12
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "370d04b6a29f4d1f7b932376592c61951ca1d501c2b1beefefe29172bea0ddba",
+        "status": "accepted",
+        "reason": "The non-generated, explicitly handwritten custom_client.go defines both the challenge-verification option and NewClient, which constructs and installs the shared challenge policy per retry. The proposal describes wiring, not an unshown policy implementation or URL validation; the reusable wiring shape and generator-addressable possibility are reasonable."
+      },
+      {
+        "key": "7748d27c84a6734ca65bea61ba222f397749f671d43d531bd2df07ded564af89",
+        "status": "accepted",
+        "reason": "The handwritten file defines ID.Name, which invokes the shared ID parser and returns the dereferenced name; its citation includes the named ID declaration and method. The proposal appropriately leaves the parser's unseen guarantees unresolved."
+      },
+      {
+        "key": "235c144c8ac739f6b0c12c7aa101484aa8e3f33d0e8e1550398f30ca5c8aa8ad",
+        "status": "accepted",
+        "reason": "The handwritten ID.Version method visibly converts a nil parsed version to an empty string and otherwise returns the value. This is a separate public accessor from ID.Name, and the proposal does not attribute unshown parser behavior to it."
+      },
+      {
+        "key": "f39f6c9910cefdea0a80ceff6b93a48cf687e33bfd7d438b224d2803110892bc",
+        "status": "rejected",
+        "reason": "The fake subpackage's init only installs a fake-server transport interceptor. Despite the non-generated custom file, the supplied lines do not demonstrate a customization of the production SDK client, public API, or service behavior; a test fake's integration wiring is not itself a counted SDK customization."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Partial coverage: only two of 13 eligible files among 37 discovered files were captured. Both supplied files are complete, but the skipped list is empty and does not explain the other eligible sources; zero collection errors is not exhaustive discovery.",
+      "Evidence metadata is unknown. The custom_ filename convention, lack of generated headers and explicit handwritten-additions comment in custom_client.go support provenance under the supplied Go rule, not a before/after generator comparison.",
+      "Generated Client declarations/operations, moduleName/version constants, internal.ParseID, shared Key Vault challenge-policy implementation and core runtime behavior are absent. Their behavior cannot be inferred from dependency declarations or imported names.",
+      "The public constructor stores the input vault URL without a local validation call; documentation asks the caller to validate it. No actual URL/domain validation, credential validation or challenge security behavior was executed or established here.",
+      "The fake interceptor is executable SDK subpackage integration rather than a _test.go/example, but neither its declaration/consumer nor internal.FakeChallenge implementation is supplied. No challenge exchange or test-only policy semantics are claimed.",
+      "README examples describe intended use and go.mod lists dependencies; neither supplies further implementation evidence. Library metadata calls the module stable while latestRelease is beta.1; no release-state conclusion is derived. Generator addressability is plausibility only.",
+      "Only two of 13 eligible Go files were captured; the evidence cannot establish whether additional customizations exist in uncaptured files.",
+      "The shared internal.ParseID and challenge-policy implementations and the fake server's surrounding use are not supplied, so their semantics and generation provenance cannot be independently assessed.",
+      "The custom_client.go comment and lack of a generated header support handwritten provenance for the cited methods; evidence kind is marked unknown and no separate generation diff is provided. Accepted decisions are AI-reviewed, not human-verified.",
+      "The ID type declaration alone does not show a separate model override beyond the cited public accessors, and NewClient's API-version/tracing configuration shares the same source symbol as the reviewed constructor behavior."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/security/keyvault/azkeys/custom_client.go",
+      "startLine": 1,
+      "endLine": 69,
+      "provenance": "Go custom source",
+      "contentHash": "838d780bce573ed81930ed3ddb9cec867eff6cb3514a704c5197675e4a1345dd"
+    },
+    {
+      "path": "sdk/security/keyvault/azkeys/fake/custom_server.go",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Go custom source",
+      "contentHash": "23533192aa0b6ee8346aea16952e132aa8f8a93aaa44e1562b50c7aac211c465"
+    }
+  ]
+}

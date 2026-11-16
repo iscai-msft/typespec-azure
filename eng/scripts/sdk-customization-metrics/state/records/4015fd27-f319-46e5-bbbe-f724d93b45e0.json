@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 1,
+  "id": "4015fd27-f319-46e5-bbbe-f724d93b45e0",
+  "observedAt": "2026-10-27T12:28:31.608Z",
+  "identity": "dotnet:azure.resourcemanager.subscription:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.Subscription",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/subscription/Azure.ResourceManager.Subscription"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "e8a6b034ede0032037ad5d28abbdc98fcf8e0a93"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 134,
+    "eligibleFiles": 111,
+    "capturedFiles": 4,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/AzureResourceManagerSubscriptionContext.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.ClientModel.Primitives;\nusing Azure.ResourceManager.Models;\n\nnamespace Azure.ResourceManager.Subscription\n{\n    [ModelReaderWriterBuildable(typeof(ResponseError))]\n    public partial class AzureResourceManagerSubscriptionContext\n    {\n    }\n}\n",
+      "contentHash": "98b2fdbb55b4405e31eccbbaa3033a59d30e148c1609b5271654e8d4927a2d94",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/AzureResourceManagerSubscriptionContext.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "kind": "handwritten-marker",
+      "id": "180f813f08e280aae4171774c6cf8bf3991a8ab31b7b1b7bd1262237454b70f4"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/BillingAccountPolicyCollection.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Globalization;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing Azure.ResourceManager.Resources;\n\n// BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this collection class back to ensure the SDK backwards compatibility.\n// TODO: Further check with service team whether this is a real singleton resource or just a normal resource. If it's former, we need mark this class as obsolete. If it's the latter, we should remove this collection class after service update the TypeSpec definition to make it a normal resource.\nnamespace Azure.ResourceManager.Subscription\n{\n    /// <summary>\n    /// A class representing a collection of <see cref=\"BillingAccountPolicyResource\"/> and their operations.\n    /// Each <see cref=\"BillingAccountPolicyResource\"/> in the collection will belong to the same instance of <see cref=\"TenantResource\"/>.\n    /// To get a <see cref=\"BillingAccountPolicyCollection\"/> instance call the GetBillingAccountPolicies method from an instance of <see cref=\"TenantResource\"/>.\n    /// </summary>\n    [EditorBrowsable(EditorBrowsableState.Never)]\n    public partial class BillingAccountPolicyCollection : ArmCollection\n    {\n        private readonly ClientDiagnostics _billingAccountPoliciesResponsesClientDiagnostics;\n        private readonly BillingAccountPoliciesResponses _billingAccountPoliciesResponsesRestClient;\n\n        /// <summary> Initializes a new instance of the <see cref=\"BillingAccountPolicyCollection\"/> class for mocking. </summary>\n        protected BillingAccountPolicyCollection()\n        {\n        }\n\n        /// <summary> Initializes a new instance of the <see cref=\"BillingAccountPolicyCollection\"/> class. </summary>\n        /// <param name=\"client\"> The client parameters to use in these operations. </param>\n        /// <param name=\"id\"> The identifier of the parent resource that is the target of operations. </param>\n        internal BillingAccountPolicyCollection(ArmClient client, ResourceIdentifier id) : base(client, id)\n        {\n            _billingAccountPoliciesResponsesClientDiagnostics = new ClientDiagnostics(\"Azure.ResourceManager.Subscription\", BillingAccountPolicyResource.ResourceType.Namespace, Diagnostics);\n            TryGetApiVersion(BillingAccountPolicyResource.ResourceType, out string billingAccountPolicyBillingAccountApiVersion);\n            _billingAccountPoliciesResponsesRestClient = new BillingAccountPoliciesResponses(_billingAccountPoliciesResponsesClientDiagnostics, Pipeline, Diagnostics.ApplicationId, Endpoint, billingAccountPolicyBillingAccountApiVersion ?? \"2025-11-01-preview\");\n#if DEBUG\n            ValidateResourceId(Id);\n#endif\n        }\n\n        internal static void ValidateResourceId(ResourceIdentifier id)\n        {\n            if (id.ResourceType != TenantResource.ResourceType)\n                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, \"Invalid resource type {0} expected {1}\", id.ResourceType, TenantResource.ResourceType), nameof(id));\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual async Task<Response<BillingAccountPolicyResource>> GetAsync(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.Get\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                if (response.Value == null)\n                {\n                    throw new RequestFailedException(response.GetRawResponse());\n                }\n                return Response.FromValue(new BillingAccountPolicyResource(Client, response.Value), response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual Response<BillingAccountPolicyResource> Get(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.Get\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = Pipeline.ProcessMessage(message, context);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                if (response.Value == null)\n                {\n                    throw new RequestFailedException(response.GetRawResponse());\n                }\n                return Response.FromValue(new BillingAccountPolicyResource(Client, response.Value), response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Checks to see if the resource exists in azure.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual async Task<Response<bool>> ExistsAsync(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.Exists\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                return Response.FromValue(response.Value != null, response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Checks to see if the resource exists in azure.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual Response<bool> Exists(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.Exists\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = Pipeline.ProcessMessage(message, context);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                return Response.FromValue(response.Value != null, response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Tries to get details for this resource from the service.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual async Task<NullableResponse<BillingAccountPolicyResource>> GetIfExistsAsync(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.GetIfExists\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                if (response.Value == null)\n                {\n                    return new NoValueResponse<BillingAccountPolicyResource>(response.GetRawResponse());\n                }\n                return Response.FromValue(new BillingAccountPolicyResource(Client, response.Value), response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary>\n        /// Tries to get details for this resource from the service.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Default Api Version</term>\n        /// <description>2021-10-01</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        public virtual NullableResponse<BillingAccountPolicyResource> GetIfExists(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNullOrEmpty(billingAccountId, nameof(billingAccountId));\n\n            using DiagnosticScope scope = _billingAccountPoliciesResponsesClientDiagnostics.CreateScope(\"BillingAccountPolicyCollection.GetIfExists\");\n            scope.Start();\n            try\n            {\n                RequestContext context = new RequestContext\n                {\n                    CancellationToken = cancellationToken\n                };\n                HttpMessage message = _billingAccountPoliciesResponsesRestClient.CreateGetPolicyRequest(billingAccountId, context);\n                Response result = Pipeline.ProcessMessage(message, context);\n                Response<BillingAccountPolicyData> response = Response.FromValue(BillingAccountPolicyData.FromResponse(result), result);\n                if (response.Value == null)\n                {\n                    return new NoValueResponse<BillingAccountPolicyResource>(response.GetRawResponse());\n                }\n                return Response.FromValue(new BillingAccountPolicyResource(Client, response.Value), response.GetRawResponse());\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n    }\n}\n",
+      "contentHash": "453ed57f2f78f2edcef670938b7f88dd294eac10fe78d4ce4a22fafe773fa206",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/BillingAccountPolicyCollection.cs",
+      "startLine": 1,
+      "endLine": 364,
+      "kind": "handwritten-marker",
+      "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/MockableSubscriptionTenantResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\nnamespace Azure.ResourceManager.Subscription.Mocking\n{\n    public partial class MockableSubscriptionTenantResource : ArmResource\n    {\n        /// <summary> Gets a collection of BillingAccountPolicyResources in the TenantResource. </summary>\n        /// <returns> An object representing collection of BillingAccountPolicyResources and their operations over a BillingAccountPolicyResource. </returns>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual BillingAccountPolicyCollection GetBillingAccountPolicies()\n        {\n            return GetCachedClient(client => new BillingAccountPolicyCollection(client, Id));\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [ForwardsClientCalls]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual async Task<Response<BillingAccountPolicyResource>> GetBillingAccountPolicyAsync(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            return await GetBillingAccountPolicies().GetAsync(billingAccountId, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// </summary>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"billingAccountId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [ForwardsClientCalls]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public virtual Response<BillingAccountPolicyResource> GetBillingAccountPolicy(string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            return GetBillingAccountPolicies().Get(billingAccountId, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "2fa4f1d689a1f9c0d5020eef8e9b4b7d00f7e4cc920250e216ebdaea808cb026",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/MockableSubscriptionTenantResource.cs",
+      "startLine": 1,
+      "endLine": 83,
+      "kind": "handwritten-marker",
+      "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/SubscriptionExtensions.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing System;\nusing System.ComponentModel;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.ResourceManager.Resources;\nusing Azure.ResourceManager.Subscription.Mocking;\n\nnamespace Azure.ResourceManager.Subscription\n{\n    public static partial class SubscriptionExtensions\n    {\n        /// <summary>\n        /// Gets a collection of BillingAccountPolicyResources in the TenantResource.\n        /// <item>\n        /// <term>Mocking</term>\n        /// <description>To mock this method, please mock <see cref=\"MockableSubscriptionTenantResource.GetBillingAccountPolicies()\"/> instead.</description>\n        /// </item>\n        /// </summary>\n        /// <param name=\"tenantResource\"> The <see cref=\"TenantResource\" /> instance the method will execute against. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tenantResource\"/> is null. </exception>\n        /// <returns> An object representing collection of BillingAccountPolicyResources and their operations over a BillingAccountPolicyResource. </returns>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static BillingAccountPolicyCollection GetBillingAccountPolicies(this TenantResource tenantResource)\n        {\n            Argument.AssertNotNull(tenantResource, nameof(tenantResource));\n\n            return GetMockableSubscriptionTenantResource(tenantResource).GetBillingAccountPolicies();\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// <item>\n        /// <term>Mocking</term>\n        /// <description>To mock this method, please mock <see cref=\"MockableSubscriptionTenantResource.GetBillingAccountPolicyAsync(string,CancellationToken)\"/> instead.</description>\n        /// </item>\n        /// </summary>\n        /// <param name=\"tenantResource\"> The <see cref=\"TenantResource\" /> instance the method will execute against. </param>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tenantResource\"/> or <paramref name=\"billingAccountId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [ForwardsClientCalls]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static async Task<Response<BillingAccountPolicyResource>> GetBillingAccountPolicyAsync(this TenantResource tenantResource, string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(tenantResource, nameof(tenantResource));\n\n            return await GetMockableSubscriptionTenantResource(tenantResource).GetBillingAccountPolicyAsync(billingAccountId, cancellationToken).ConfigureAwait(false);\n        }\n\n        /// <summary>\n        /// Get Billing Account Policy.\n        /// <list type=\"bullet\">\n        /// <item>\n        /// <term>Request Path</term>\n        /// <description>/providers/Microsoft.Billing/billingAccounts/{billingAccountId}/providers/Microsoft.Subscription/policies/default</description>\n        /// </item>\n        /// <item>\n        /// <term>Operation Id</term>\n        /// <description>BillingAccount_GetPolicy</description>\n        /// </item>\n        /// <item>\n        /// <term>Resource</term>\n        /// <description><see cref=\"BillingAccountPolicyResource\"/></description>\n        /// </item>\n        /// </list>\n        /// <item>\n        /// <term>Mocking</term>\n        /// <description>To mock this method, please mock <see cref=\"MockableSubscriptionTenantResource.GetBillingAccountPolicy(string,CancellationToken)\"/> instead.</description>\n        /// </item>\n        /// </summary>\n        /// <param name=\"tenantResource\"> The <see cref=\"TenantResource\" /> instance the method will execute against. </param>\n        /// <param name=\"billingAccountId\"> Billing Account Id. </param>\n        /// <param name=\"cancellationToken\"> The cancellation token to use. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"tenantResource\"/> or <paramref name=\"billingAccountId\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"billingAccountId\"/> is an empty string, and was expected to be non-empty. </exception>\n        // BillingAccountPolicy is a singleton resource defined in TypeSpec but not in the swagger. So add this function back to ensure the SDK backwards compatibility.\n        [ForwardsClientCalls]\n        [EditorBrowsable(EditorBrowsableState.Never)]\n        public static Response<BillingAccountPolicyResource> GetBillingAccountPolicy(this TenantResource tenantResource, string billingAccountId, CancellationToken cancellationToken = default)\n        {\n            Argument.AssertNotNull(tenantResource, nameof(tenantResource));\n\n            return GetMockableSubscriptionTenantResource(tenantResource).GetBillingAccountPolicy(billingAccountId, cancellationToken);\n        }\n    }\n}\n",
+      "contentHash": "09a89325d22849a8453076fb07e57b0d9b00110db16bc799487d65f1987a4314",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/SubscriptionExtensions.cs",
+      "startLine": 1,
+      "endLine": 109,
+      "kind": "handwritten-marker",
+      "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/README.md",
+      "text": "# Microsoft Azure Subscription management client library for .NET\n\nThis library supports managing Microsoft Azure Subscription resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started \n\n### Install the package\n\nInstall the Microsoft Azure Subscription management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.Subscription\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/",
+      "contentHash": "ca83a8b578fcb2ecf89856d556d2139961e4cb70eb7a5978c51c698bc5359e71",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/README.md"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Azure.ResourceManager.Subscription.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.2.0-beta.1</Version>\n    <!--The ApiCompatVersion is managed automatically and should not generally be modified manually.-->\n    <ApiCompatVersion>1.1.2</ApiCompatVersion>\n    <PackageId>Azure.ResourceManager.Subscription</PackageId>\n    <Description>Microsoft Azure Resource Manager client SDK for Azure resource provider Microsoft.Subscription.</Description>\n    <PackageTags>azure;management;arm;resource manager;subscription</PackageTags>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "dcd5b054e025b34d588e8ca30b0f31f7abbd2a750e6922bcc2690839d9e65ba5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/src/Azure.ResourceManager.Subscription.csproj"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/tsp-location.yaml",
+      "text": "directory: specification/subscription/resource-manager/Microsoft.Subscription/Subscription\ncommit: e393681748e363e5165b1cb59fef025ac96cd27f\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\n",
+      "contentHash": "f7ca7433d348a7bfb67c3752c3b8317aeead9b48ac6a97ee8f1bcdbd401582f0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/subscription/Azure.ResourceManager.Subscription/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "183fbceab2a5cf0b7b330f11790369fd8e5300634fa8de6ed366e092ab87fd01",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "44f50b11c6b0c80aef14ec63cb5d15a101d525a8c141a109f94d4faa22ae38aa",
+        "category": "Serialization",
+        "subtype": "explicit-buildable-model-registration",
+        "explanation": "AzureResourceManagerSubscriptionContext explicitly carries ModelReaderWriterBuildable(typeof(ResponseError)); this is active buildable-model metadata despite the empty partial class body.",
+        "pattern": "model-reader-writer-registration",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The active registration attribute is supplied in Custom outside Generated, with a handwritten marker; a configurable context registration list is plausibly generatable without proving its unseen generated implementation.",
+        "symbols": ["AzureResourceManagerSubscriptionContext"],
+        "evidence": [
+          {
+            "id": "180f813f08e280aae4171774c6cf8bf3991a8ab31b7b1b7bd1262237454b70f4",
+            "startLine": 9,
+            "endLine": 10
+          }
+        ]
+      },
+      {
+        "key": "f97ef00dd483af934bcdef01eeba74b6768b9d66f8f9b427d2401e17aaf271df",
+        "category": "Convenience methods",
+        "subtype": "hidden-cached-tenant-collection-factory",
+        "explanation": "The hidden virtual GetBillingAccountPolicies accessor uses GetCachedClient to construct BillingAccountPolicyCollection with the supplied client and current Id. The collection constructor initializes diagnostics and its REST client, using TryGetApiVersion with a 2025-11-01-preview fallback; tenant resource-type validation is invoked only under DEBUG.",
+        "pattern": "cached-subclient-factory",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete cached accessor and matching collection construction/validation bodies are in Custom outside Generated; the complete construction path is supplied rather than inferred from a method name. Scoped cached collection creation and configurable API-version defaults are plausible generator features.",
+        "symbols": [
+          "MockableSubscriptionTenantResource.GetBillingAccountPolicies",
+          "BillingAccountPolicyCollection.BillingAccountPolicyCollection(ArmClient,ResourceIdentifier)",
+          "BillingAccountPolicyCollection.ValidateResourceId"
+        ],
+        "evidence": [
+          {
+            "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d",
+            "startLine": 19,
+            "endLine": 23
+          },
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 38,
+            "endLine": 46
+          },
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 48,
+            "endLine": 52
+          }
+        ]
+      },
+      {
+        "key": "25032cc0635b11fea486c7432952eeff463759e4b7de17903b8bc57abad938b8",
+        "category": "Convenience methods",
+        "subtype": "required-get-response-to-arm-resource",
+        "explanation": "Get/GetAsync validate billingAccountId, create and process a request using CreateGetPolicyRequest, parse BillingAccountPolicyData and wrap it in BillingAccountPolicyResource. A null parsed response value instead throws RequestFailedException from the raw response. Both methods start a diagnostic scope and mark/rethrow failures.",
+        "pattern": "response-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both complete operation bodies are supplied in the Custom BillingAccountPolicyCollection implementation outside Generated with no generation header, alongside explicit retained collection wiring. Resource response projection and null-result policy are plausibly generatable; historical restoration claims in comments are not independently established.",
+        "symbols": [
+          "BillingAccountPolicyCollection.Get",
+          "BillingAccountPolicyCollection.GetAsync"
+        ],
+        "evidence": [
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 79,
+            "endLine": 105
+          },
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 132,
+            "endLine": 158
+          }
+        ]
+      },
+      {
+        "key": "77e1f4768c97c9f0ec74a985bc8563f602c5da9289346ae891e1cf5ec3eaf4e9",
+        "category": "Convenience methods",
+        "subtype": "parsed-response-value-to-existence-boolean",
+        "explanation": "Exists/ExistsAsync validate billingAccountId, process CreateGetPolicyRequest and parse BillingAccountPolicyData, then return response.Value != null with the raw response. The bodies have no explicit HTTP-status-to-false branch and mark/rethrow exceptions through their diagnostic scopes.",
+        "pattern": "response-value-existence-check",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit existence-result conversion is in the complete Custom collection operation pair outside Generated; a generator could plausibly provide null-model-to-boolean convenience operations. This is not a claim that HTTP 404 is converted to false.",
+        "symbols": [
+          "BillingAccountPolicyCollection.Exists",
+          "BillingAccountPolicyCollection.ExistsAsync"
+        ],
+        "evidence": [
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 185,
+            "endLine": 207
+          },
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 234,
+            "endLine": 256
+          }
+        ]
+      },
+      {
+        "key": "b2bf3b0383bf2bb96b1de104756aa707c87c4e0ba1d3681a228ba9adcd87e8ec",
+        "category": "Convenience methods",
+        "subtype": "optional-get-no-value-response-adapter",
+        "explanation": "GetIfExists/GetIfExistsAsync validate billingAccountId and process/parse the policy request. If the parsed value is null they return NoValueResponse<BillingAccountPolicyResource>; otherwise they construct a BillingAccountPolicyResource and preserve the raw response. Exceptions are marked and rethrown, not explicitly translated from an HTTP status.",
+        "pattern": "response-model-projection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both complete nullable-result projection bodies occur in the Custom collection implementation outside Generated; configurable optional-resource response adapters are plausibly generatable without establishing parser or pipeline behavior.",
+        "symbols": [
+          "BillingAccountPolicyCollection.GetIfExists",
+          "BillingAccountPolicyCollection.GetIfExistsAsync"
+        ],
+        "evidence": [
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 283,
+            "endLine": 309
+          },
+          {
+            "id": "e21eda19395c9be9d3987ccc311583bdef50e5cde788cdeda94f1dfd9d9aa1a0",
+            "startLine": 336,
+            "endLine": 362
+          }
+        ]
+      },
+      {
+        "key": "c35068f99fe8755f0e08936611085e07e2f4055d265c3bff581c1ad4f8cd9e7c",
+        "category": "Convenience methods",
+        "subtype": "hidden-mockable-resource-get-forwarders",
+        "explanation": "The hidden ForwardsClientCalls virtual GetBillingAccountPolicy/GetBillingAccountPolicyAsync methods call Get/GetAsync on GetBillingAccountPolicies(), passing billingAccountId and cancellationToken. The async method awaits with ConfigureAwait(false); neither forwarding body performs its own identifier validation.",
+        "pattern": "backward-compatibility-shim",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The two complete attributed forwarding bodies are concrete Custom resource extensions outside Generated, not empty virtual stubs; a reusable mockable facade could plausibly provide these adapters without proving a historical API baseline.",
+        "symbols": [
+          "MockableSubscriptionTenantResource.GetBillingAccountPolicy",
+          "MockableSubscriptionTenantResource.GetBillingAccountPolicyAsync"
+        ],
+        "evidence": [
+          {
+            "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d",
+            "startLine": 47,
+            "endLine": 52
+          },
+          {
+            "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d",
+            "startLine": 76,
+            "endLine": 81
+          }
+        ]
+      },
+      {
+        "key": "8d4641540d35d7a183cd8758eddbe2494de91bbd36171f36d5282204b0503159",
+        "category": "Convenience methods",
+        "subtype": "hidden-tenant-collection-extension-forwarder",
+        "explanation": "The hidden static GetBillingAccountPolicies extension null-checks its TenantResource receiver and delegates through GetMockableSubscriptionTenantResource(tenantResource) to GetBillingAccountPolicies().",
+        "pattern": "backward-compatibility-shim",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete receiver-validation and mockable delegation body is supplied in the Custom static extensions partial outside Generated; generating resource extension facade methods is a plausible reusable opportunity.",
+        "symbols": ["SubscriptionExtensions.GetBillingAccountPolicies"],
+        "evidence": [
+          {
+            "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+            "startLine": 29,
+            "endLine": 35
+          }
+        ]
+      },
+      {
+        "key": "79d4fdf2a4dd5c5202877c37d8eda5a176d8b7396a6ff4409fa3ddd92e003f3f",
+        "category": "Convenience methods",
+        "subtype": "hidden-tenant-get-extension-forwarders",
+        "explanation": "The hidden ForwardsClientCalls static GetBillingAccountPolicy/GetBillingAccountPolicyAsync extensions null-check the TenantResource receiver and forward billingAccountId and cancellationToken to the corresponding mockable methods. The async extension awaits with ConfigureAwait(false); these bodies do not themselves validate billingAccountId.",
+        "pattern": "backward-compatibility-shim",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Both complete public extension bodies and their explicit receiver validation/delegation are Custom source outside Generated; resource extension facades are plausibly generatable without assuming the missing mockable-helper implementation.",
+        "symbols": [
+          "SubscriptionExtensions.GetBillingAccountPolicy",
+          "SubscriptionExtensions.GetBillingAccountPolicyAsync"
+        ],
+        "evidence": [
+          {
+            "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+            "startLine": 64,
+            "endLine": 71
+          },
+          {
+            "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+            "startLine": 100,
+            "endLine": 107
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "44f50b11c6b0c80aef14ec63cb5d15a101d525a8c141a109f94d4faa22ae38aa",
+        "status": "accepted",
+        "reason": "The Custom partial context carries an active ModelReaderWriterBuildable attribute for ResponseError, rather than only an empty class. Serialization registration is the observed behavior; a generator could plausibly emit the registration, but no generated implementation is shown."
+      },
+      {
+        "key": "f97ef00dd483af934bcdef01eeba74b6768b9d66f8f9b427d2401e17aaf271df",
+        "status": "accepted",
+        "reason": "The Custom accessor actually calls GetCachedClient to construct the collection, whose constructor configures diagnostics, a REST client and an API-version fallback, with resource-ID validation only under DEBUG. These are parts of the supplied collection-access path; its comments do not independently establish a historical compatibility need."
+      },
+      {
+        "key": "25032cc0635b11fea486c7432952eeff463759e4b7de17903b8bc57abad938b8",
+        "status": "accepted",
+        "reason": "The two Custom Get bodies create and process a request, parse a data model, throw for a null parsed value and wrap a non-null value as a resource. The cited bodies support the synchronous/asynchronous pair and response-model projection, without proving any behavior of the unseen parser."
+      },
+      {
+        "key": "77e1f4768c97c9f0ec74a985bc8563f602c5da9289346ae891e1cf5ec3eaf4e9",
+        "status": "accepted",
+        "reason": "The Custom Exists pair returns a boolean derived from the parsed response.Value, not explicitly from HTTP status. Its distinct response-value-existence-check pattern avoids incorrectly claiming that a 404 becomes false."
+      },
+      {
+        "key": "b2bf3b0383bf2bb96b1de104756aa707c87c4e0ba1d3681a228ba9adcd87e8ec",
+        "status": "accepted",
+        "reason": "Both Custom GetIfExists bodies explicitly turn a null parsed model into NoValueResponse and a non-null model into a resource response. They do not show whether an HTTP error reaches that branch, so the explanation appropriately confines itself to parsed-value behavior."
+      },
+      {
+        "key": "c35068f99fe8755f0e08936611085e07e2f4055d265c3bff581c1ad4f8cd9e7c",
+        "status": "revised",
+        "reason": "The handwritten mockable resource methods demonstrably forward to collection Get/GetAsync, but the catalog's backward-compatibility-shim definition presumes an established retired or changed API. The source comments claim compatibility without supplying the prior API; use a behavior-based pattern instead.",
+        "finding": {
+          "key": "c35068f99fe8755f0e08936611085e07e2f4055d265c3bff581c1ad4f8cd9e7c",
+          "category": "Convenience methods",
+          "subtype": "hidden-mockable-resource-get-forwarders",
+          "explanation": "The hidden ForwardsClientCalls virtual GetBillingAccountPolicy/GetBillingAccountPolicyAsync methods call Get/GetAsync on GetBillingAccountPolicies(), passing billingAccountId and cancellationToken. The async method awaits with ConfigureAwait(false); neither forwarding body performs its own identifier validation.",
+          "pattern": "mockable-resource-forwarder",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The two complete attributed forwarding bodies are concrete Custom resource extensions outside Generated, not empty virtual stubs; a reusable mockable facade could plausibly provide these adapters without proving a historical API baseline.",
+          "symbols": [
+            "MockableSubscriptionTenantResource.GetBillingAccountPolicy",
+            "MockableSubscriptionTenantResource.GetBillingAccountPolicyAsync"
+          ],
+          "evidence": [
+            {
+              "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d",
+              "startLine": 47,
+              "endLine": 52
+            },
+            {
+              "id": "73ca1fa17f84d9688d538b25edaf715d0805fab3d59d1a00a7357d9ef87c924d",
+              "startLine": 76,
+              "endLine": 81
+            }
+          ]
+        }
+      },
+      {
+        "key": "8d4641540d35d7a183cd8758eddbe2494de91bbd36171f36d5282204b0503159",
+        "status": "revised",
+        "reason": "The Custom static extension clearly checks its receiver and forwards through a mockable resource, but the compatibility-shim catalog definition is narrower than the observed behavior: no prior public surface is supplied. Label the reusable extension facade instead.",
+        "finding": {
+          "key": "8d4641540d35d7a183cd8758eddbe2494de91bbd36171f36d5282204b0503159",
+          "category": "Convenience methods",
+          "subtype": "hidden-tenant-collection-extension-forwarder",
+          "explanation": "The hidden static GetBillingAccountPolicies extension null-checks its TenantResource receiver and delegates through GetMockableSubscriptionTenantResource(tenantResource) to GetBillingAccountPolicies().",
+          "pattern": "mockable-resource-extension-forwarder",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The complete receiver-validation and mockable delegation body is supplied in the Custom static extensions partial outside Generated; generating resource extension facade methods is a plausible reusable opportunity.",
+          "symbols": ["SubscriptionExtensions.GetBillingAccountPolicies"],
+          "evidence": [
+            {
+              "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+              "startLine": 29,
+              "endLine": 35
+            }
+          ]
+        }
+      },
+      {
+        "key": "79d4fdf2a4dd5c5202877c37d8eda5a176d8b7396a6ff4409fa3ddd92e003f3f",
+        "status": "revised",
+        "reason": "The two Custom extension methods are actual forwarding implementations, but the compatibility-shim catalog definition would imply a retired or changed public API not verified by this capture. The behavior-based extension-forwarder pattern fits both methods without adopting the historical comment as fact.",
+        "finding": {
+          "key": "79d4fdf2a4dd5c5202877c37d8eda5a176d8b7396a6ff4409fa3ddd92e003f3f",
+          "category": "Convenience methods",
+          "subtype": "hidden-tenant-get-extension-forwarders",
+          "explanation": "The hidden ForwardsClientCalls static GetBillingAccountPolicy/GetBillingAccountPolicyAsync extensions null-check the TenantResource receiver and forward billingAccountId and cancellationToken to the corresponding mockable methods. The async extension awaits with ConfigureAwait(false); these bodies do not themselves validate billingAccountId.",
+          "pattern": "mockable-resource-extension-forwarder",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Both complete public extension bodies and their explicit receiver validation/delegation are Custom source outside Generated; resource extension facades are plausibly generatable without assuming the missing mockable-helper implementation.",
+          "symbols": [
+            "SubscriptionExtensions.GetBillingAccountPolicy",
+            "SubscriptionExtensions.GetBillingAccountPolicyAsync"
+          ],
+          "evidence": [
+            {
+              "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+              "startLine": 64,
+              "endLine": 71
+            },
+            {
+              "id": "a5443964a7ee9de0ffb5534a571568139306afb4113a27a689bd13dc5b81f693",
+              "startLine": 100,
+              "endLine": 107
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only four of 111 eligible files out of 134 discovered were captured. Empty skipped/errors arrays do not establish exhaustive coverage or package-wide absence.",
+      "The complete Custom collection contains generated-like ARM plumbing, but its non-Generated location, absence of generation headers, concrete public collection/extension wiring and explicit restoration comments provide handwritten signals. No generated or historical baseline verifies those comments' TypeSpec-versus-Swagger singleton or backward-compatibility assertions.",
+      "REST request construction, BillingAccountPolicyData.FromResponse, pipeline failure handling, generated resource definitions and GetMockableSubscriptionTenantResource are not supplied. In particular, existence/optional-get behavior on HTTP 404 is not established by null-value branches; neither actual parser nullability nor runtime request success is proven.",
+      "The collection constructor fallback is 2025-11-01-preview, while operation documentation states a 2021-10-01 default. The supplied TryGetApiVersion lookup can select another version, so neither the historical documentation nor the fallback alone establishes the effective runtime API version.",
+      "The project declares Version 1.2.0-beta.1 and ApiCompatVersion 1.1.2, while latestRelease is 1.1.2. These values and a pinned TypeSpec location are generation context, not independently verified publication history. GeneratorAddressable values express plausible generalization rather than confirmed present support.",
+      "Coverage is partial: four of 111 eligible files were captured from 134 discovered files. No package-wide absence or completeness conclusion follows from this bounded sample; skipped and errors are empty.",
+      "Generated partial definitions, the REST request builder, the data parser, the pipeline and the mockable-resource helper are not supplied. No claims about their status-code handling, generated support or runtime behavior outside the displayed bodies are established.",
+      "Source comments attribute the restored collection and forwarding surface to TypeSpec versus Swagger differences and backward compatibility, but no prior API, Swagger definition or TypeSpec declaration is captured to verify that history.",
+      "The collection constructor's fallback API version is 2025-11-01-preview while its operation XML comments name 2021-10-01 as the default. The supplied source does not resolve that discrepancy or establish which version a given client selects.",
+      "Generator addressability is a plausible future opportunity, not a measured reduction or verification of current generator capabilities. Accepted and revised decisions are AI-reviewed, not human-verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/AzureResourceManagerSubscriptionContext.cs",
+      "startLine": 1,
+      "endLine": 13,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "98b2fdbb55b4405e31eccbbaa3033a59d30e148c1609b5271654e8d4927a2d94"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/BillingAccountPolicyCollection.cs",
+      "startLine": 1,
+      "endLine": 364,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "453ed57f2f78f2edcef670938b7f88dd294eac10fe78d4ce4a22fafe773fa206"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/MockableSubscriptionTenantResource.cs",
+      "startLine": 1,
+      "endLine": 83,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "2fa4f1d689a1f9c0d5020eef8e9b4b7d00f7e4cc920250e216ebdaea808cb026"
+    },
+    {
+      "path": "sdk/subscription/Azure.ResourceManager.Subscription/src/Custom/Extensions/SubscriptionExtensions.cs",
+      "startLine": 1,
+      "endLine": 109,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "09a89325d22849a8453076fb07e57b0d9b00110db16bc799487d65f1987a4314"
+    }
+  ]
+}

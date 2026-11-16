@@ -1,0 +1,373 @@
+{
+  "schemaVersion": 1,
+  "id": "7908d5c9-8e74-46cb-809c-a485b7381453",
+  "observedAt": "2026-10-24T03:33:37.745Z",
+  "identity": "go:github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces:module-v1",
+  "target": {
+    "language": "go",
+    "package": "github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-go",
+    "root": "sdk/messaging/eventgrid/aznamespaces"
+  },
+  "commit": "262a142c72660da3a0aac19491cb12c29e842a57",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "705f630a6be62d04cc02fff9eb88f35c34c15c0b"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 30,
+    "eligibleFiles": 16,
+    "capturedFiles": 3,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/custom_models.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\npackage aznamespaces\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n)\n\n// Error - The error object.\ntype Error struct {\n\t// REQUIRED; One of a server-defined set of error codes.\n\tCode *string\n\n\t// REQUIRED; A human-readable representation of the error.\n\tMessage *string\n}\n\n// Error implements the error interface for type Error.\n// Note that the message contents are not contractual and can change over time.\nfunc (e *Error) Error() string {\n\tif e.Message == nil {\n\t\treturn \"\"\n\t}\n\n\treturn *e.Message\n}\n\n// MarshalJSON implements the json.Marshaller interface for type Error.\nfunc (e Error) MarshalJSON() ([]byte, error) {\n\tobjectMap := make(map[string]any)\n\tpopulate(objectMap, \"code\", e.Code)\n\n\tpopulate(objectMap, \"message\", e.Message)\n\n\treturn json.Marshal(objectMap)\n}\n\n// UnmarshalJSON implements the json.Unmarshaller interface for type Error.\nfunc (e *Error) UnmarshalJSON(data []byte) error {\n\tvar rawMsg map[string]json.RawMessage\n\tif err := json.Unmarshal(data, &rawMsg); err != nil {\n\t\treturn fmt.Errorf(\"unmarshalling type %T: %v\", e, err)\n\t}\n\tfor key, val := range rawMsg {\n\t\tvar err error\n\t\tswitch key {\n\t\tcase \"code\":\n\t\t\terr = unpopulate(val, \"Code\", &e.Code)\n\t\t\tdelete(rawMsg, key)\n\t\tcase \"message\":\n\t\t\terr = unpopulate(val, \"Message\", &e.Message)\n\t\t\tdelete(rawMsg, key)\n\t\t}\n\t\tif err != nil {\n\t\t\treturn fmt.Errorf(\"unmarshalling type %T: %v\", e, err)\n\t\t}\n\t}\n\treturn nil\n}\n",
+      "contentHash": "b1a9996d98b74f4e4c93f4706258c1dc8167278bdbd30f798b1aa97c0c8b6af5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/custom_models.go",
+      "startLine": 1,
+      "endLine": 64,
+      "kind": "unknown",
+      "id": "ebf41afb2cf2ff37e1a8ce278670c094890d3b620ea5393375e6dec5a4ddded6"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/internal/generate/generate.go",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\npackage main\n\nimport (\n\t\"bytes\"\n\t\"fmt\"\n\t\"os\"\n\t\"regexp\"\n\n\t\"github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces/internal/generate/gopls\"\n)\n\nfunc main() {\n\tfmt.Printf(\"checkRequestMethods...\\n\")\n\tif err := checkRequestMethods(); err != nil {\n\t\tpanic(err)\n\t}\n\n\tfmt.Printf(\"deleteModels...\\n\")\n\tif err := deleteModels(); err != nil {\n\t\tpanic(err)\n\t}\n\n\tfmt.Printf(\"injectClientData...\\n\")\n\tif err := injectClientData(); err != nil {\n\t\tpanic(err)\n\t}\n\n\tfmt.Printf(\"exportPublicSymbols...\\n\")\n\tif err := renameSymbols(); err != nil {\n\t\tpanic(err)\n\t}\n\n\tfmt.Printf(\"useAZCoreCloudEvent...\\n\")\n\tif err := useAZCoreCloudEvent(); err != nil {\n\t\tpanic(err)\n\t}\n\n\t// fix result types\n\tfmt.Printf(\"fix result types...\\n\")\n\tif err := fixResultTypes(); err != nil {\n\t\tpanic(err)\n\t}\n}\n\nfunc useAZCoreCloudEvent() error {\n\tif err := replaceAllInFile(\"models.go\", regexp.MustCompile(`(?m)^\\s+Event \\*CloudEvent$`), []byte(\"\\tEvent messaging.CloudEvent\")); err != nil {\n\t\treturn err\n\t}\n\n\tif err := replaceAllInFile(\"sender_client.go\", regexp.MustCompile(`(?m)event CloudEvent`), []byte(\"\\tevent *messaging.CloudEvent\")); err != nil {\n\t\treturn err\n\t}\n\n\tif err := replaceAllInFile(\"sender_client.go\", regexp.MustCompile(`(?m)events \\[\\]CloudEvent`), []byte(\"\\tevents []*messaging.CloudEvent\")); err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\nfunc deleteModels() error {\n\tmodels := \"CloudEvent|InnerError|PublishResult\"\n\n\tif err := replaceAllInFile(\n\t\t\"models_serde.go\",\n\t\tregexp.MustCompile(\n\t\t\tfmt.Sprintf(`(?s)// (Unmarshal|Marshal)JSON implements the json\\.(Unmarshaller|Marshaller) interface for type (%s).+?\\n}`, models)), nil); err != nil {\n\t\treturn fmt.Errorf(\"failed to remove marshaller/unmarshaller for %s: %w\", models, err)\n\t}\n\n\tif err := replaceAllInFile(\n\t\t\"models.go\",\n\t\tregexp.MustCompile(fmt.Sprintf(`(?s)// (%s).+?type (%s) struct.+?\\n}`, models, models)), nil); err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\n// injectClientData adds our senderData and receiverData structs as\n// fields for their respective clients. We stash some data in there\n// for our client methods to use later.\nfunc injectClientData() error {\n\tdata, err := os.ReadFile(\"sender_client.go\")\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tnewData := bytes.Replace(data, []byte(\"type SenderClient struct {\"), []byte(\"type SenderClient struct {\\ndata senderData\\n\"), 1)\n\n\tif bytes.Equal(data, newData) {\n\t\treturn fmt.Errorf(\"failed applying senderData patch\")\n\t}\n\n\tif err := os.WriteFile(\"sender_client.go\", newData, 0600); err != nil {\n\t\treturn err\n\t}\n\n\tdata, err = os.ReadFile(\"receiver_client.go\")\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tnewData = bytes.Replace(data, []byte(\"type ReceiverClient struct {\"), []byte(\"type ReceiverClient struct {\\ndata receiverData\\n\"), 1)\n\n\tif bytes.Equal(data, newData) {\n\t\treturn fmt.Errorf(\"failed applying receiverData patch\")\n\t}\n\n\tif err := os.WriteFile(\"receiver_client.go\", newData, 0600); err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\nfunc checkRequestMethods() error {\n\ttypesToFlatten := map[string]bool{\n\t\t// these were customized to already be unexported within the TypeSpec\n\t\t// by unexporting the individual client methods.\n\t\t\"AcknowledgeEventsOptions\": true,\n\t\t\"RejectEventsOptions\":      true,\n\t\t\"ReleaseEventsOptions\":     true,\n\t}\n\n\t// these are actually models, not options\n\tmodelSymbols, err := gopls.SymbolsSlice(\"models.go\")\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tfor _, sym := range modelSymbols {\n\t\tif sym.Type != gopls.SymbolTypeStruct || !typesToFlatten[sym.Name] {\n\t\t\tcontinue\n\t\t}\n\n\t\tif len(sym.Children) != 1 || sym.Children[0].Name != \"LockTokens\" {\n\t\t\treturn fmt.Errorf(\"Type %s contains more than just LockTokens (%#v), check to see if the Receiver or Sender signatures need to be adjusted\", sym.Name, sym.Children)\n\t\t}\n\t}\n\n\treturn nil\n}\n\n// we specifically override the visiblity of the normal service operations because we\n// have to do mods like removing the topic and subscription parameters, or making some\n// parameters positional instead of being in a struct argument.\nfunc renameSymbols() error {\n\t// find all the things we need to rename\n\tif err := renameStructs(\"responses.go\", regexp.MustCompile(`^(?:ReceiverClient|SenderClient)(.+)$`), \"$1\"); err != nil {\n\t\treturn fmt.Errorf(\"failed to rename ReceiverClient/SenderClient prefixed types in responses.go\")\n\t}\n\n\tif err := renameStructs(\"options.go\", regexp.MustCompile(`^(?:ReceiverClient|SenderClient)(.+)$`), \"$1\"); err != nil {\n\t\treturn fmt.Errorf(\"failed to rename ReceiverClient/SenderClient prefixed types in options.go\")\n\t}\n\n\tre := regexp.MustCompile(`(?m)^func \\(client \\*SenderClient\\) (SendEvent|SendEvents)\\(`)\n\n\tif err := replaceAllInFile(\"sender_client.go\", re, []byte(\"func (client *SenderClient) internal$1(\")); err != nil {\n\t\treturn fmt.Errorf(\"failed to rename SendEvent/SendEvents to be internal: %w\", err)\n\t}\n\n\tre = regexp.MustCompile(`(?m)^func \\(client \\*ReceiverClient\\) (AcknowledgeEvents|ReceiveEvents|ReleaseEvents|RejectEvents|RenewEventLocks)\\(`)\n\tif err := replaceAllInFile(\"receiver_client.go\", re, []byte(\"func (client *ReceiverClient) internal$1(\")); err != nil {\n\t\treturn fmt.Errorf(\"failed to rename Receiver functions to be internal: %w\", err)\n\t}\n\n\treturn nil\n}\n\nfunc renameStructs(file string, re *regexp.Regexp, replace string) error {\n\tsymbols, err := gopls.SymbolsSlice(file)\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\t// we do it in reverse order so we can do all the renames without reloading the file\n\t// since our positions should not shift.\n\tfor i := len(symbols) - 1; i >= 0; i-- {\n\t\tif symbols[i].Type != gopls.SymbolTypeStruct {\n\t\t\tcontinue\n\t\t}\n\n\t\treplaced := re.ReplaceAllString(symbols[i].Name, replace)\n\n\t\tif replaced == symbols[i].Name {\n\t\t\tcontinue\n\t\t}\n\n\t\tfmt.Printf(\"Renaming %s -> %s\\n\", symbols[i].Name, replaced)\n\n\t\tif err := gopls.Rename(symbols[i], replaced); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\n\treturn nil\n}\n\nfunc replaceAllInFile(file string, re *regexp.Regexp, replacement []byte) error {\n\toldBytes, err := os.ReadFile(file)\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tnewBytes := re.ReplaceAll(oldBytes, replacement)\n\n\tif bytes.Equal(oldBytes, newBytes) {\n\t\treturn fmt.Errorf(\"no changes in %s\", file)\n\t}\n\n\tif err := os.WriteFile(file, newBytes, 0600); err != nil {\n\t\treturn err\n\t}\n\n\treturn nil\n}\n\nfunc fixResultTypes() error {\n\tsymbols, err := gopls.SymbolsSlice(\"models.go\")\n\n\tif err != nil {\n\t\treturn err\n\t}\n\n\trenames := map[string]string{\n\t\t\"AcknowledgeResult\": \"AcknowledgeEventsResult\",\n\t\t\"ReceiveResult\":     \"ReceiveEventsResult\",\n\t\t\"RejectResult\":      \"RejectEventsResult\",\n\t\t\"ReleaseResult\":     \"ReleaseEventsResult\",\n\t\t\"RenewLocksResult\":  \"RenewEventLocksResult\",\n\t}\n\n\tfor i := len(symbols) - 1; i >= 0; i-- {\n\t\tnewName := renames[symbols[i].Name]\n\n\t\tif newName == \"\" {\n\t\t\tcontinue\n\t\t}\n\n\t\tif err := gopls.Rename(symbols[i], newName); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\n\t{\n\t\tre := regexp.MustCompile(`(?s)if err := runtime.UnmarshalAsJSON\\(resp, &result.PublishResult\\); err != nil \\{.+?return result, nil`)\n\t\tdata, err := os.ReadFile(\"sender_client.go\")\n\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\n\t\tnewData := re.ReplaceAll(data, []byte(\"return result, nil\"))\n\n\t\tnewData = bytes.Replace(newData, []byte(`sendEventHandleResponse(resp *http.Response)`), []byte(`sendEventHandleResponse(_ *http.Response)`), 1)\n\t\tnewData = bytes.Replace(newData, []byte(`sendEventsHandleResponse(resp *http.Response)`), []byte(`sendEventsHandleResponse(_ *http.Response)`), 1)\n\n\t\tif err := os.WriteFile(\"sender_client.go\", newData, 0600); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\n\t{\n\t\tdata, err := os.ReadFile(\"responses.go\")\n\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\n\t\tre := regexp.MustCompile(`(?s)// The result of the Publish operation.\\s+PublishResult`)\n\n\t\tnewData := re.ReplaceAll(data, nil)\n\n\t\tif err := os.WriteFile(\"responses.go\", newData, 0600); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\n\treturn nil\n}\n",
+      "contentHash": "90691b17f82a642244cd0d495932d7d56fc847f941e2b852660d0cd57b2d6dd5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/internal/generate/generate.go",
+      "startLine": 1,
+      "endLine": 289,
+      "kind": "unknown",
+      "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/internal/generate/gopls/gopls.go",
+      "text": "//go:build go1.18\n// +build go1.18\n\n// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License. See License.txt in the project root for license information.\n\npackage gopls\n\nimport (\n\t\"bufio\"\n\t\"bytes\"\n\t\"fmt\"\n\t\"os\"\n\t\"os/exec\"\n\t\"regexp\"\n\t\"strconv\"\n\t\"strings\"\n)\n\n// SymbolType maps to the second field in the `gopls symbols` output.\ntype SymbolType string\n\nconst (\n\tSymbolTypeConstant SymbolType = \"Constant\"\n\tSymbolTypeClass    SymbolType = \"Class\" // (ex: ACSRouterJobStatus, from 'type ACSRouterJobStatus string')\n\tSymbolTypeStruct   SymbolType = \"Struct\"\n\tSymbolTypeField    SymbolType = \"Field\"\n\tSymbolTypeFunction SymbolType = \"Function\"\n\tSymbolTypeMethod   SymbolType = \"Method\" // ex: '(*WebBackupOperationCompletedEventData).UnmarshalJSON'\n)\n\ntype Symbol struct {\n\tName string\n\tType SymbolType\n\n\t// Position is a start and end range for a symbol\n\t// ex: 36:2-36:7\n\t// (line 36, columns 2 - 7)\n\tPosition string\n\n\tFile string\n\n\tParent   *Symbol\n\tChildren []*Symbol\n}\n\n// ex: 36:2-36:7\nvar posRE = regexp.MustCompile(`(\\d+):(\\d+)-(\\d+):(\\d+)`)\n\n// StartLine returns the starting line for this symbol.\nfunc (s Symbol) StartLine() (int64, error) {\n\tvar matches = posRE.FindStringSubmatch(s.Position)\n\n\tif matches == nil {\n\t\treturn 0, fmt.Errorf(\"couldn't parse position %q\", s.Position)\n\t}\n\n\treturn strconv.ParseInt(matches[1], 10, 64)\n}\n\n// Rename renames a given symbol to a new name. This naming will propagate\n// throughout, including references to the type, the type name itself and\n// any comments that contain the type name in godoc's reference format\n// with '[typename]'.\nfunc Rename(sym *Symbol, newName string) error {\n\tcmd := exec.Command(\"gopls\", \"rename\", \"-w\", sym.File+\":\"+sym.Position, newName)\n\n\tcmd.Stdout = os.Stdout\n\tcmd.Stderr = os.Stderr\n\n\tif err := cmd.Run(); err != nil {\n\t\treturn fmt.Errorf(\"failed to rename %s -> %s in %s: %w\", sym.Name, newName, sym.File, err)\n\t}\n\n\treturn nil\n}\n\nfunc SymbolsSlice(filename string) ([]*Symbol, error) {\n\tif _, err := os.Stat(filename); err != nil {\n\t\treturn nil, err\n\t}\n\n\t// ex: PossibleRecordingChannelTypeValues Function 1003:6-1003:40\n\tcmd := exec.Command(\"gopls\", \"symbols\", filename)\n\tstdout := &bytes.Buffer{}\n\tcmd.Stdout = stdout\n\tcmd.Stderr = os.Stderr\n\n\tif err := cmd.Run(); err != nil {\n\t\treturn nil, fmt.Errorf(\"failed getting symbols for %s: %w\", filename, err)\n\t}\n\n\tallBytes := stdout.Bytes()\n\n\tscanner := bufio.NewScanner(bytes.NewReader(allBytes))\n\n\tvar symbols []*Symbol\n\tvar prevParent *Symbol\n\n\tfor scanner.Scan() {\n\t\t// ex:\n\t\t//\n\t\t// Top level types are listed like this:\n\t\t// RecordingFormatTypeMp3 Constant 1030:2-1030:24\n\t\t//\n\t\t// Fields are listed like this - skipping those for now since I'm mostly concerned with\n\t\t// renaming types.\n\t\t//         Address Field 5379:2-5379:9\n\n\t\tvar fields []string\n\n\t\tisChild := false\n\n\t\tif len(scanner.Text()) > 0 && scanner.Text()[0] == '\\t' {\n\t\t\t// this is a field - we'll add it and \"parent\" it to the last non-field symbol before it\n\t\t\t// (and clip out the first char, which is a tab)\n\t\t\tfields = strings.Split(scanner.Text()[1:], \" \")\n\t\t\tisChild = true\n\t\t} else {\n\t\t\tfields = strings.Split(scanner.Text(), \" \")\n\t\t}\n\n\t\tif len(fields) != 3 {\n\t\t\treturn nil, fmt.Errorf(\"failed to parse %q into three fields, got %d\", scanner.Text(), len(fields))\n\t\t}\n\n\t\tsym := Symbol{\n\t\t\tName:     fields[0],\n\t\t\tType:     SymbolType(fields[1]),\n\t\t\tPosition: fields[2],\n\t\t\tFile:     filename,\n\t\t}\n\n\t\tif isChild {\n\t\t\tsym.Parent = prevParent\n\t\t\tprevParent.Children = append(prevParent.Children, &sym)\n\t\t}\n\n\t\tsymbols = append(symbols, &sym)\n\n\t\tif sym.Type == SymbolTypeStruct {\n\t\t\tprevParent = &sym\n\t\t}\n\t}\n\n\treturn symbols, nil\n}\n",
+      "contentHash": "d7c5046f198a6d92cbd92ea416287265cd5fc0798e07a0457dc3e8e9d08c02ef",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/internal/generate/gopls/gopls.go",
+      "startLine": 1,
+      "endLine": 147,
+      "kind": "unknown",
+      "id": "616eda84a6aee37e6e61cf26bba40fb4af25fb967a2e7d5a6013421f87dc8abd"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/go.mod",
+      "text": "module github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0\n)\n\nrequire (\n\t// test dependencies\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0 // indirect\n\tgithub.com/joho/godotenv v1.5.1\n\tgithub.com/stretchr/testify v1.12.0\n)\n\nrequire (\n\tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 // indirect\n\tgithub.com/golang-jwt/jwt/v5 v5.3.1 // indirect\n\tgithub.com/google/uuid v1.6.0 // indirect\n\tgithub.com/kylelemons/godebug v1.1.0 // indirect\n\tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n\tgolang.org/x/crypto v0.55.0 // indirect\n\tgolang.org/x/net v0.58.0 // indirect\n\tgolang.org/x/sync v0.22.0 // indirect\n\tgolang.org/x/sys v0.47.0 // indirect\n\tgolang.org/x/text v0.41.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n",
+      "contentHash": "bd402b3f0b31ab9a5492177811e3f737c785b41bff757d1a08898f5a6fa04578",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/go.mod"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/README.md",
+      "text": "# Azure Event Grid Namespaces Client Module for Go\n\n[Azure Event Grid](https://learn.microsoft.com/azure/event-grid/overview) is a highly scalable, fully managed Pub Sub message distribution service that offers flexible message consumption patterns. For more information about Event Grid see: [link](https://learn.microsoft.com/azure/event-grid/overview).\n\nThis client module allows you to publish events and receive events using the [Pull delivery](https://learn.microsoft.com/azure/event-grid/pull-delivery-overview) API.\n\n> NOTE: This client does not work with Event Grid Basic. Use the [azeventgrid.Client][godoc_egbasic_client] in the `azeventgrid` package instead.\n\nKey links:\n- [Source code][source]\n- [API Reference Documentation][godoc]\n- [Product documentation](https://azure.microsoft.com/services/event-grid/)\n- [Samples][godoc_examples]\n\n## Getting started\n\n### Install the package\n\nInstall the Azure Event Grid Namespaces client module for Go with `go get`:\n\n```bash\ngo get github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces\n```\n\n### Prerequisites\n\n- [Supported](https://aka.ms/azsdk/go/supported-versions) version of Go\n- An [Azure subscription](https://azure.microsoft.com/free/)\n- An [Event Grid namespace][ms_namespace]. You can create an Event Grid namespace using the [Azure Portal][ms_create_namespace].\n- An [Event Grid namespace topic][ms_topic]. You can create an Event Grid namespace topic using the [Azure Portal][ms_create_topic].\n\n### Authenticate the client\n\nEvent Grid Namespaces clients (SenderClient and ReceiverClient) authenticate using a TokenCredential, provided by the [`azidentity` module](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/tree/main/sdk/azidentity), or using a shared key credential. \n\nUsing a TokenCredential:\n* **SenderClient**: [NewSenderClient example][godoc_example_newsender].\n* **ReceiverClient**: [NewReceiverClient example][godoc_example_newreceiver].\n\nUsing a shared key:\n* **SenderClient**: [NewSenderClientWithSharedKeyCredential example][godoc_example_newsender_sharedkey].\n* **ReceiverClient**: [NewReceiverClientWithSharedKeyCredential example][godoc_example_newreceiver_sharedkey].\n\n# Key concepts\n\nAn Event Grid namespace is a container for multiple types of resources, including [**namespace topics**][ms_topic]:\n- A [**namespace topic**][ms_topic] contains CloudEvents that you publish, via [SenderClient.SendEvents][godoc_send].\n- A [**topic subscription**][ms_subscription], associated with a single topic, can be used to receive events via [ReceiverClient.ReceiveEvents][godoc_receive].\n\nNamespaces also offer access using MQTT, although that is not covered in this package.\n\n# Examples\n\nExamples for various scenarios can be found on [pkg.go.dev][godoc_examples] or in the example*_test.go files in our GitHub repo for [aznamespaces][source].\n\n# Troubleshooting\n\n### Logging\n\nThis module uses the classification-based logging implementation in `azcore`. To enable console logging for all SDK modules, set the environment variable `AZURE_SDK_GO_LOGGING` to `all`. \n\nUse the `azcore/log` package to control log event output.\n\n```go\nimport (\n  \"fmt\"\n  azlog \"github.com/Azure/azure-sdk-for-go/sdk/azcore/log\"\n)\n\n// print log output to stdout\nazlog.SetListener(func(event azlog.Event, s string) {\n    fmt.Printf(\"[%s] %s\\n\", event, s)\n})\n```\n\n# Next steps\n\nMore sample code should go here, along with links out to the appropriate example tests.\n\n## Contributing\nFor details on contributing to this repository, see the [contributing guide][azure_sdk_for_go_contributing].\n\nThis project welcomes contributions and suggestions.  Most contributions require you to agree to a\nContributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us\nthe rights to use your contribution. For details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide\na CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions\nprovided by the bot. You will only need to do this once across all repos using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).\nFor more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or\ncontact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.\n\n### Additional Helpful Links for Contributors  \nMany people all over the world have helped make this project better.  You'll want to check out:\n\n* [What are some good first issues for new contributors to the repo?](https://github.com/azure/azure-sdk-for-go/issues?q=is%3Aopen+is%3Aissue+label%3A%22up+for+grabs%22)\n* [How to build and test your change][azure_sdk_for_go_contributing_developer_guide]\n* [How you can make a change happen!][azure_sdk_for_go_contributing_pull_requests]\n* Frequently Asked Questions (FAQ) and Conceptual Topics in the detailed [Azure SDK for Go wiki](https://github.com/azure/azure-sdk-for-go/wiki).\n\n<!-- ### Community-->\n### Reporting security issues and security bugs\n\nSecurity issues and bugs should be reported privately, via email, to the Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Further information, including the MSRC PGP key, can be found in the [Security TechCenter](https://www.microsoft.com/msrc/faqs-report-an-issue).\n\n### License\n\nAzure SDK for Go is licensed under the [MIT](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/template/aztemplate/LICENSE.txt) license.\n\n<!-- LINKS -->\n[azure_sdk_for_go_contributing]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md\n[azure_sdk_for_go_contributing_developer_guide]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md#developer-guide\n[azure_sdk_for_go_contributing_pull_requests]: https://github.com/Azure/azure-sdk-for-go/blob/main/CONTRIBUTING.md#pull-requests\n[source]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/messaging/eventgrid/aznamespaces\n[godoc]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces\n[godoc_send]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#SenderClient.SendEvents\n[godoc_receive]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#ReceiverClient.ReceiveEvents\n[godoc_examples]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#pkg-examples\n[godoc_example_newsender_sharedkey]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#example-NewSenderClientWithSharedKeyCredential\n[godoc_example_newreceiver_sharedkey]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#example-NewReceiverClientWithSharedKeyCredential\n[godoc_example_newsender]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#example-NewSenderClient\n[godoc_example_newreceiver]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#example-NewReceiverClient\n[godoc_egbasic_client]: https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/eventgrid/aznamespaces#Client\n[ms_namespace]: https://learn.microsoft.com/azure/event-grid/concepts-pull-delivery#namespaces\n[ms_topic]: https://learn.microsoft.com/azure/event-grid/concepts-pull-delivery#namespace-topics\n[ms_subscription]: https://learn.microsoft.com/azure/event-grid/concepts-pull-delivery#event-subscriptions\n[ms_create_namespace]: https://learn.microsoft.com/azure/event-grid/create-view-manage-namespaces\n[ms_create_topic]: https://learn.microsoft.com/azure/event-grid/create-view-manage-namespace-topics\n",
+      "contentHash": "556ba65cf007e007cacd40ba5e0b67bf33078efc4dbd2c76eb04ee448c1b56ac",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/README.md"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/tsp-location.yaml",
+      "text": "directory: specification/eventgrid/Azure.Messaging.EventGrid\ncommit: 8d6deb81acb126a071f6f7dbf18d87a49a82e7e2\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "5416063d6a30a63d4dd10bb36e24504ea0cba35f5e9f188efcf108d2b7b813db",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-go/blob/262a142c72660da3a0aac19491cb12c29e842a57/sdk/messaging/eventgrid/aznamespaces/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "85b12374998f1c4bf5144e2fb91865343c73d1e23112b134829ba416458a432e",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "5029f132d6c73ec9ef927d17fb827f3622c3ea9782cf0520c8606b233430fd0c",
+        "category": "Retry / error handling",
+        "subtype": "Expose a handwritten error model through the Go error interface",
+        "explanation": "custom_models.go declares Error with Code and Message pointers. Error.Error returns an empty string for a nil Message and otherwise dereferences it, implementing the error-interface message surface without a separate nil-receiver guard.",
+        "pattern": "custom-error-type",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This is non-test custom_ Go source without a generated header or zz_ name, qualifying under the supplied Go owner convention.",
+        "symbols": [
+          "Error.Error"
+        ],
+        "evidence": [
+          {
+            "id": "ebf41afb2cf2ff37e1a8ce278670c094890d3b620ea5393375e6dec5a4ddded6",
+            "startLine": 14,
+            "endLine": 31
+          }
+        ]
+      },
+      {
+        "key": "92710e03aac04ec00491b6054101ae7dba0240d370b297579015fd2cd3326069",
+        "category": "Serialization",
+        "subtype": "Marshal the custom error through explicit code and message wire keys",
+        "explanation": "Error.MarshalJSON allocates an object map, passes Code and Message to populate under lowercase wire names and marshals that map with encoding/json. The uncaptured populate helper determines how pointer/nil values enter the map.",
+        "pattern": "custom-model-json-serialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete JSON method belongs to the non-generated custom_models.go source under the Go guideline.",
+        "symbols": [
+          "Error.MarshalJSON"
+        ],
+        "evidence": [
+          {
+            "id": "ebf41afb2cf2ff37e1a8ce278670c094890d3b620ea5393375e6dec5a4ddded6",
+            "startLine": 33,
+            "endLine": 41
+          }
+        ]
+      },
+      {
+        "key": "d181cd18874a84afc2b3eb6d5b7b77eec91c273cec86047c4868eaec44f458ae",
+        "category": "Serialization",
+        "subtype": "Decode recognized error wire fields through shared unpopulation helpers",
+        "explanation": "Error.UnmarshalJSON decodes a RawMessage map, switches on code/message, calls unpopulate for the corresponding pointer fields and returns formatted parse/field errors. Other keys are not assigned or preserved on the Error struct by this body; helper decoding semantics are absent.",
+        "pattern": "custom-model-json-deserialization",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The custom-named non-test file supplies the method and has no generated ownership header, meeting the supplied Go convention.",
+        "symbols": [
+          "Error.UnmarshalJSON"
+        ],
+        "evidence": [
+          {
+            "id": "ebf41afb2cf2ff37e1a8ce278670c094890d3b620ea5393375e6dec5a4ddded6",
+            "startLine": 43,
+            "endLine": 64
+          }
+        ]
+      },
+      {
+        "key": "aec3491eaedc1a558e59bbeca7ee08d6c38123541b4298260bd51b5d86f5bc41",
+        "category": "Model overrides",
+        "subtype": "Request replacement of generated CloudEvent references with a shared messaging type",
+        "explanation": "useAZCoreCloudEvent requests edits changing models.go Event from *CloudEvent to messaging.CloudEvent, and sender arguments from CloudEvent/[]CloudEvent to *messaging.CloudEvent/[]*messaging.CloudEvent. The shared-type replacement requests are visible; successful execution and resulting imports/types are not supplied.",
+        "pattern": "model-type-replacement",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated internal/generate tool contains concrete service-library source-edit calls, rather than merely a dependency on a shared model.",
+        "symbols": [
+          "useAZCoreCloudEvent"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 47,
+            "endLine": 61
+          }
+        ]
+      },
+      {
+        "key": "41c9055479953f857281fa81ca47cb1e690bf9c685669652668bd0f62bde5480",
+        "category": "Model overrides",
+        "subtype": "Request removal of three generated models and their JSON methods",
+        "explanation": "deleteModels targets CloudEvent, InnerError and PublishResult, applying regex removals to their MarshalJSON/UnmarshalJSON implementations in models_serde.go and struct declarations in models.go. The requests remove surface rather than establishing the models' emitted replacements or runtime use.",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The handwritten generation tool explicitly performs these source-removal operations; its main invokes this customization step.",
+        "symbols": [
+          "deleteModels"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 63,
+            "endLine": 80
+          }
+        ]
+      },
+      {
+        "key": "c82b15b28b7f9c0b0e2afffed6c13d39311d8e3069221cef23b87c6d3e6831dd",
+        "category": "Other",
+        "subtype": "Request insertion of private sender and receiver state fields",
+        "explanation": "injectClientData reads each generated client file, inserts data senderData or data receiverData immediately inside the named client struct, errors when the expected replacement makes no change and writes the edited source. The data-type declarations and consumers are not captured.",
+        "pattern": "client-state-injection",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated customization tool contains literal struct-field insertion and explicit file writes, not only comments describing desired state.",
+        "symbols": [
+          "injectClientData"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 82,
+            "endLine": 119
+          }
+        ]
+      },
+      {
+        "key": "4b5cdcb4db4079e235f3ad7ff1f5df7f436504b3e13e86ed94e524415020b555",
+        "category": "Other",
+        "subtype": "Request shortened generated type names and unexported protocol operations",
+        "explanation": "renameSymbols removes ReceiverClient/SenderClient prefixes from response/option structs through renameStructs. It also rewrites sender SendEvent/SendEvents and five receiver operation names with an internal prefix. These edits are grouped on the actual script function; the handwritten public replacements mentioned in comments are not supplied.",
+        "pattern": "hide-generated-surface",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The customization tool explicitly invokes symbol renames and method-name replacements against generated client files; renameStructs and the supplied gopls helper show how renaming is requested.",
+        "symbols": [
+          "renameSymbols"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 150,
+            "endLine": 175
+          },
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 177,
+            "endLine": 205
+          }
+        ]
+      },
+      {
+        "key": "ff9a7e0454ff1a95e12c787a5664f2507bf9328344bdd0131b1c63ab27a29cbf",
+        "category": "Model overrides",
+        "subtype": "Request result-type renames and removal of publish response payload handling",
+        "explanation": "fixResultTypes maps five result model names to operation-specific names via gopls. It then requests removal of PublishResult JSON-unmarshal/return blocks in sender handlers, changes two handler response parameters to ignored parameters and removes the embedded PublishResult member from responses.go. The script is supplied, not the resulting handlers or response declarations.",
+        "pattern": "generated-result-shaping",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The non-generated postprocessing tool contains concrete rename, text-replacement and file-write operations changing the generated result surface.",
+        "symbols": [
+          "fixResultTypes"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 227,
+            "endLine": 289
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "5029f132d6c73ec9ef927d17fb827f3622c3ea9782cf0520c8606b233430fd0c",
+        "status": "accepted",
+        "reason": "The unmarked custom_models.go declares Error and its Error() method at the cited lines; the nil-Message handling and returned message are directly visible. This is a handwritten error-interface implementation, and the reusable custom-error-type pattern is plausibly generator-addressable. The code does not guard a nil receiver, as the proposal notes."
+      },
+      {
+        "key": "92710e03aac04ec00491b6054101ae7dba0240d370b297579015fd2cd3326069",
+        "status": "accepted",
+        "reason": "The non-generated custom_models.go contains the complete MarshalJSON body with explicit lowercase wire keys and json.Marshal. The proposal correctly leaves populate's nil and pointer behavior unresolved; custom model JSON serialization is a reusable, plausibly generator-addressable shape."
+      },
+      {
+        "key": "d181cd18874a84afc2b3eb6d5b7b77eec91c273cec86047c4868eaec44f458ae",
+        "status": "accepted",
+        "reason": "The cited handwritten UnmarshalJSON method decodes a RawMessage map, processes only code and message, and returns formatted errors. The method does not store unknown fields; the uncaptured unpopulate implementation prevents conclusions about detailed field decoding."
+      },
+      {
+        "key": "aec3491eaedc1a558e59bbeca7ee08d6c38123541b4298260bd51b5d86f5bc41",
+        "status": "accepted",
+        "reason": "The unmarked generation postprocessor directly specifies three replacements of CloudEvent references with messaging.CloudEvent in generated source. This supports the handwritten model-type replacement operation, not a claim that resulting files or imports were inspected; its reusable shape is plausibly generator-addressable."
+      },
+      {
+        "key": "41c9055479953f857281fa81ca47cb1e690bf9c685669652668bd0f62bde5480",
+        "status": "accepted",
+        "reason": "The handwritten deleteModels function explicitly targets three named model declarations and their JSON methods for removal. This is an attempted generated-surface deletion distinct from the shared-type substitution, although the resulting files and exact number of replacements are unavailable."
+      },
+      {
+        "key": "c82b15b28b7f9c0b0e2afffed6c13d39311d8e3069221cef23b87c6d3e6831dd",
+        "status": "accepted",
+        "reason": "The cited handwritten postprocessor inserts a private data field into each of the two client structs and checks each string replacement before writing. The shape is a reusable client-state injection that a generator could plausibly express; the actual state definitions and consumers are not supplied."
+      },
+      {
+        "key": "4b5cdcb4db4079e235f3ad7ff1f5df7f436504b3e13e86ed94e524415020b555",
+        "status": "revised",
+        "reason": "The proposal combines two independent behaviors: shortening generated option/response type names and making generated client operations unexported. Preserve this finding for the directly shown method-visibility rewrite under renameSymbols, and report the distinct type-renaming operation as an omission with its own source symbol. Comments about handwritten public replacements do not establish their implementations.",
+        "finding": {
+          "key": "4b5cdcb4db4079e235f3ad7ff1f5df7f436504b3e13e86ed94e524415020b555",
+          "category": "Other",
+          "subtype": "Request unexporting generated sender and receiver operations",
+          "explanation": "renameSymbols rewrites two SenderClient method declarations and five ReceiverClient method declarations with internal-prefixed names, restricting the generated public operation surface; the intended replacement methods are not captured.",
+          "pattern": "hide-generated-surface",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The unmarked, non-test internal/generate/generate.go explicitly postprocesses named generated client files with method-name replacements.",
+          "symbols": [
+            "renameSymbols"
+          ],
+          "evidence": [
+            {
+              "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+              "startLine": 163,
+              "endLine": 171
+            }
+          ]
+        }
+      },
+      {
+        "key": "ff9a7e0454ff1a95e12c787a5664f2507bf9328344bdd0131b1c63ab27a29cbf",
+        "status": "accepted",
+        "reason": "The single handwritten fixResultTypes postprocessing step explicitly maps five result type names and attempts to remove PublishResult decoding and response membership. Model/result-surface shaping is supported by its cited body; the emitted result, replacement count and presence of the target strings are not established by this snippet."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "cbf0c6c226d658e88843f0eb2ff3106fb2cd0d6daacb72326914ddf98e9ea599",
+        "category": "Model overrides",
+        "subtype": "Request shortening generated response and option type names",
+        "explanation": "renameSymbols calls renameStructs on responses.go and options.go to strip ReceiverClient and SenderClient prefixes from matching struct names; renameStructs obtains struct symbols and invokes gopls.Rename on each matching declaration.",
+        "pattern": "generated-type-name-shortening",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The unmarked, non-test generation postprocessor contains concrete gopls-based source renames targeting the generated response and option files, separate from its client-method visibility rewrites.",
+        "symbols": [
+          "renameStructs"
+        ],
+        "evidence": [
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 153,
+            "endLine": 160
+          },
+          {
+            "id": "043033e53c79a7cd74027d9ab6c34c248c61833c834339a34e3488c36556864c",
+            "startLine": 177,
+            "endLine": 205
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Coverage is partial: three of 16 eligible files from 30 discovered files are captured. No skips/errors does not establish exhaustive discovery or absence of other customization.",
+      "All evidence metadata says unknown. Non-test custom_ and internal generation-tool source without generated headers qualifies under the supplied Go owner convention; no separate emitted-code diff is available. The error JSON bodies are template-like, but the owner rule identifies this custom file rather than generated helpers as handwritten.",
+      "The generation tool shows requested edits, not proof that it ran, matched current inputs, compiled or produced the shipped output. Its generated target files, replacement public clients, senderData/receiverData declarations and shared messaging.CloudEvent type are absent.",
+      "The custom Error's populate/unpopulate helpers are not supplied. Exact nil omission, conversion, validation and operation-to-error integration are therefore unresolved.",
+      "The script's main, regex/file utilities, reverse-order rename loop and gopls subprocess/symbol-parsing helpers support the source transformations and are not additional customization instances. checkRequestMethods only validates an expected LockTokens-only shape; it does not itself flatten an API.",
+      "Source-edit operations in one actual script function are grouped rather than assigned fabricated target-symbol identities. Generated-type removal and shared-CloudEvent reference substitution are separate visible editing steps, not proof of runtime replacement success.",
+      "Comments reference TypeSpec visibility changes and intended convenience APIs, but those spec edits and clients are not supplied. README credential and send/receive examples and go.mod dependencies are context, not additional authentication, batching or paging findings.",
+      "No SDK or generation tool was executed. Generator addressability is plausible for shared types, naming/visibility, state hooks and serializers, not evidence of existing support.",
+      "Only three of 16 eligible source files were captured; this partial scan cannot establish absence or completeness of library customizations.",
+      "The resulting generated source, senderData and receiverData definitions, handwritten public client methods, populate/unpopulate helpers, and execution results of the postprocessing script are not supplied; findings about source edits describe requested transformations rather than verified emitted API or runtime behavior.",
+      "checkRequestMethods checks an expected model shape but does not itself alter SDK behavior; the supplied gopls helper is generic postprocessing infrastructure, not an additional independently counted SDK customization.",
+      "The type-name shortening omission is a candidate pending separate review, not accepted or human-verified. Accepted and revised decisions are AI-reviewed only, subject to human override."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/custom_models.go",
+      "startLine": 1,
+      "endLine": 64,
+      "provenance": "Go custom source",
+      "contentHash": "b1a9996d98b74f4e4c93f4706258c1dc8167278bdbd30f798b1aa97c0c8b6af5"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/internal/generate/generate.go",
+      "startLine": 1,
+      "endLine": 289,
+      "provenance": "Go handwritten source",
+      "contentHash": "90691b17f82a642244cd0d495932d7d56fc847f941e2b852660d0cd57b2d6dd5"
+    },
+    {
+      "path": "sdk/messaging/eventgrid/aznamespaces/internal/generate/gopls/gopls.go",
+      "startLine": 1,
+      "endLine": 147,
+      "provenance": "Go handwritten source",
+      "contentHash": "d7c5046f198a6d92cbd92ea416287265cd5fc0798e07a0457dc3e8e9d08c02ef"
+    }
+  ]
+}

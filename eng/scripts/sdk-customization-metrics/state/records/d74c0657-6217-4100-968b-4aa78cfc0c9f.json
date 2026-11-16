@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "id": "d74c0657-6217-4100-968b-4aa78cfc0c9f",
+  "observedAt": "2026-10-22T20:42:54.451Z",
+  "identity": "javascript:@azure/monitor-ingestion:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/monitor-ingestion",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/monitor/monitor-ingestion"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "6489e3061a91c5fdc84a6202bf265a6f983af948"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 95,
+    "eligibleFiles": 33,
+    "capturedFiles": 13,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  createLogsIngestion,\n  type LogsIngestionContext,\n  type LogsIngestionClientOptions,\n} from \"./logsIngestionContext.js\";\nexport { upload } from \"./operations.js\";\nexport type { LogsUploadOptions } from \"./options.js\";\n",
+      "contentHash": "9cf997f089f7ddaeea100ef989a081db9d4e7f46303c0e4f1a7159651f88c8e4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown",
+      "id": "777e987b86fe1d77208ba627982e8e061bc11a3da1fca90756a820d5dc74703e"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/logsIngestionContext.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownMonitorAudience, KnownVersions } from \"../models/models.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential } from \"@azure/core-auth\";\n\n/** Azure Monitor data collection client. */\nexport interface LogsIngestionContext extends Client {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion: string;\n}\n\n/** Optional parameters for the client. */\nexport interface LogsIngestionClientOptions extends ClientOptions {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion?: string;\n\n  /**\n   * The Audience to use for authentication with Microsoft Entra ID. The\n   * audience is not considered when using a shared key.\n   * {@link KnownMonitorAudience} can be used interchangeably with audience\n   */\n  audience?: string;\n}\n\n/** Azure Monitor data collection client. */\nexport function createLogsIngestion(\n  endpoint: string,\n  tokenCredential: TokenCredential,\n  options: LogsIngestionClientOptions = {},\n): LogsIngestionContext {\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? String(endpoint);\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-monitor-ingestion/1.2.1`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const scope: string = options?.audience\n    ? `${options.audience}/.default`\n    : `${KnownMonitorAudience.AzurePublicCloud}/.default`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: scope ? [scope] : options.credentials?.scopes,\n    },\n  };\n  const clientContext = getClient(endpointUrl, tokenCredential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  const apiVersion = options.apiVersion ?? \"2023-01-01\";\n  clientContext.pipeline.addPolicy({\n    name: \"ClientApiVersionPolicy\",\n    sendRequest: (req, next) => {\n      // Use the apiVersion defined in request url directly\n      // Append one if there is no apiVersion and we have one at client options\n      const url = new URL(req.url);\n      if (!url.searchParams.get(\"api-version\")) {\n        req.url = `${req.url}${\n          Array.from(url.searchParams.keys()).length > 0 ? \"&\" : \"?\"\n        }api-version=${apiVersion}`;\n      }\n\n      return next(req);\n    },\n  });\n  return { ...clientContext, apiVersion } as LogsIngestionContext;\n}\n",
+      "contentHash": "87edd39b5b0e836074c7b61b7d9ac5e71e275cb83d3c73e81d526aafd4296f64",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/api/logsIngestionContext.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "kind": "unknown",
+      "id": "0d27c75443937a849679f128493889ad0c24cfce4cac68c75e9e00fd0c94580b"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/operations.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { LogsIngestionContext as Client } from \"./index.js\";\nimport type { LogsUploadOptions } from \"./options.js\";\nimport { expandUrlTemplate } from \"../static-helpers/urlTemplate.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _uploadSend(\n  context: Client,\n  ruleId: string,\n  streamName: string,\n  body: Record<string, any>[],\n  options: LogsUploadOptions = { requestOptions: {} },\n): StreamableMethod {\n  const path = expandUrlTemplate(\n    \"/dataCollectionRules/{ruleId}/streams/{stream}{?api%2Dversion}\",\n    {\n      ruleId: ruleId,\n      stream: streamName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      ...(options?.contentEncoding !== undefined\n        ? { \"Content-Encoding\": options?.contentEncoding }\n        : {}),\n      ...(options?.clientRequestId !== undefined\n        ? { \"x-ms-client-request-id\": options?.clientRequestId }\n        : {}),\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: body.map((p: any) => {\n      return p;\n    }),\n  });\n}\n\nexport async function _uploadDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"204\"];\n  if (!expectedStatuses.includes(result.status)) {\n    throw createRestError(result);\n  }\n\n  return;\n}\n\n/** Ingestion API used to directly ingest data using Data Collection Rules. */\nexport async function upload(\n  context: Client,\n  ruleId: string,\n  streamName: string,\n  body: Record<string, any>[],\n  options: LogsUploadOptions = { requestOptions: {} },\n): Promise<void> {\n  const result = await _uploadSend(context, ruleId, streamName, body, options);\n  return _uploadDeserialize(result);\n}\n",
+      "contentHash": "bb9bec94e9e68537ffefef5cdb23df5a1253b82dbbccb9d083f763cf8591a8a1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 66,
+      "kind": "unknown",
+      "id": "e693e84ccb8fad5e92479b0861eb18ec8b0c0278fee61e44e800e090f351d2a6"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport type { LogsUploadFailure } from \"../models/models.js\";\n\n/** Optional parameters. */\nexport interface LogsUploadOptions extends OperationOptions {\n  /** The content encoding of the request body which is always 'gzip'. */\n  contentEncoding?: string;\n  /** An opaque, globally-unique, client-generated string identifier for the request. */\n  clientRequestId?: string;\n  /**\n   * Concurrency of parallel requests. Must be greater than or equal to 1.\n   * The default value is 1.\n   */\n  maxConcurrency?: number;\n  /**\n   * Callback function for error handling when logs fail to upload\n   * @param uploadLogsError - This is the {@link LogsUploadFailure} object\n   * @returns void\n   */\n  onError?: (uploadLogsError: LogsUploadFailure) => void;\n}\n",
+      "contentHash": "c5ef8d327adf85403ae269b2075ac5f50d50d27a6edaa431d8b604b1d98105fb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 24,
+      "kind": "unknown",
+      "id": "cb09af3186c64f3aa300af25923cbe1111c3e0031d04b1f66a62351b9155eaae"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/gZippingPolicy.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { PipelinePolicy } from \"@azure/core-rest-pipeline\";\nimport * as zlib from \"zlib\";\nimport { promisify } from \"node:util\";\nconst gzip = promisify(zlib.gzip);\n\n/**\n * Name of the {@link gZippingPolicy}\n */\nexport const gZippingPolicyName = \"GzippingPolicy\";\n\nexport const GZippingPolicy: PipelinePolicy = {\n  name: gZippingPolicyName,\n  sendRequest: async (req, next) => {\n    if (req.body) {\n      const buffer = await gzipping(req.body as string | ArrayBuffer | NodeJS.ArrayBufferView);\n      req.body = buffer;\n    }\n    return next(req);\n  },\n};\n\nfunction gzipping(body: string | ArrayBuffer | NodeJS.ArrayBufferView): Promise<Buffer> {\n  return gzip(body);\n}\n",
+      "contentHash": "cf6fba9b2ad1273f709c0c512b574843247f1696e7d34373be5678c622770104",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/gZippingPolicy.ts",
+      "startLine": 1,
+      "endLine": 27,
+      "kind": "unknown",
+      "id": "d6951ef6a9a1cbc1ce6cef53ad4fa02eb3e51df59311c52f8b4fb566890db27b"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { LogsIngestionClient } from \"./logsIngestionClient.js\";\nexport {\n  KnownVersions,\n  KnownMonitorAudience,\n  AggregateLogsUploadErrorName,\n  isAggregateLogsUploadError,\n  AggregateLogsUploadError,\n  type LogsUploadFailure,\n} from \"./models/index.js\";\nexport type { LogsIngestionClientOptions, LogsUploadOptions } from \"./api/index.js\";\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n",
+      "contentHash": "be72f2cf9cdcbe3d395cfd3909ffcc85411acb20f18a6bb033cd9b981397628c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/index.ts",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "unknown",
+      "id": "7ae1a0c3dea33678c6910cd330f53b70bcf78b908691004796e8fab717fa07b3"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/logsIngestionClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { LogsIngestionContext, LogsIngestionClientOptions } from \"./api/index.js\";\nimport { createLogsIngestion } from \"./api/index.js\";\nimport type { LogsUploadOptions } from \"./api/options.js\";\nimport { upload } from \"./api/operations.js\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport type { LogsUploadFailure } from \"./models/models.js\";\nimport { AggregateLogsUploadError } from \"./models/models.js\";\nimport { isError } from \"@azure/core-util\";\nimport { GZippingPolicy } from \"./gZippingPolicy.js\";\nimport { concurrentRun } from \"./utils/concurrentPoolHelper.js\";\nimport { splitDataToChunks } from \"./utils/splitDataToChunksHelper.js\";\nexport type { LogsIngestionClientOptions } from \"./api/logsIngestionContext.js\";\n\nconst DEFAULT_MAX_CONCURRENCY = 5;\n\n/**\n * Client for Monitor Logs Ingestion\n */\nexport class LogsIngestionClient {\n  private _client: LogsIngestionContext;\n  /** The pipeline used by this client to make requests */\n  public readonly pipeline: Pipeline;\n\n  /**\n   * Construct a MonitorIngestionClient that can be used to query logs using the Log Analytics Query language.\n   *\n   * @param tokenCredential - A token credential.\n   * @param options - Options for the MonitorIngestionClient.\n   */\n  constructor(\n    endpoint: string,\n    tokenCredential: TokenCredential,\n    options?: LogsIngestionClientOptions,\n  ) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createLogsIngestion(endpoint, tokenCredential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n    this.pipeline.addPolicy(GZippingPolicy);\n  }\n\n  /**\n   * Uploads logs to Monitor Resource\n   * @param ruleId - The immutable Id of the Data Collection Rule resource.\n   * @param streamName - The streamDeclaration name as defined in the Data Collection Rule.\n   * @param logs - An array of objects matching the schema defined by the provided stream.\n   * @param options - The options parameters.\n   * See error response code and error response message for more detail.\n   */\n  async upload(\n    ruleId: string,\n    streamName: string,\n    logs: Record<string, unknown>[],\n    options?: LogsUploadOptions,\n  ): Promise<void> {\n    // TODO: Do we need to worry about memory issues when loading data for 100GB ?? JS max allocation is 1 or 2GB\n\n    // This splits logs into 1MB chunks\n    const chunkArray = splitDataToChunks(logs);\n    const concurrency = Math.max(options?.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY, 1);\n\n    const uploadResultErrors: Array<LogsUploadFailure> = [];\n    await concurrentRun(\n      concurrency,\n      chunkArray,\n      async (eachChunk: Record<string, unknown>[]): Promise<void> => {\n        try {\n          await upload(this._client, ruleId, streamName, eachChunk, {\n            contentEncoding: \"gzip\",\n            abortSignal: options?.abortSignal,\n          });\n        } catch (e: unknown) {\n          if (options?.onError) {\n            options.onError({\n              failedLogs: eachChunk,\n              cause: isError(e) ? e : new Error(e as string),\n            });\n          }\n          uploadResultErrors.push({\n            cause: isError(e) ? e : new Error(e as string),\n            failedLogs: eachChunk,\n          });\n        }\n      },\n      options?.abortSignal,\n    );\n    if (uploadResultErrors.length > 0) {\n      throw new AggregateLogsUploadError(uploadResultErrors);\n    }\n    return Promise.resolve();\n  }\n}\n",
+      "contentHash": "d2b3dbef334b21474c993a4c16cb60e882ba21f183d868c3086e8d6c4dbbfc65",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/logsIngestionClient.ts",
+      "startLine": 1,
+      "endLine": 101,
+      "kind": "unknown",
+      "id": "772c7e345c13d7ba52c814f32744727125ca853ed406a2a02c68a888d91303af"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/models/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  KnownVersions,\n  KnownMonitorAudience,\n  AggregateLogsUploadErrorName,\n  isAggregateLogsUploadError,\n  AggregateLogsUploadError,\n  type LogsUploadFailure,\n} from \"./models.js\";\n",
+      "contentHash": "09c1f160eff8a094c62512f79218124c71b074e7f2b9f0de1c22ae6ef2647031",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "unknown",
+      "id": "c1783ce6a96390d6a047beb17f9c1734abb724df0468dba3f5e20e61ca80caa4"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/models/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\nimport { isError } from \"@azure/core-util\";\n\n/** Service API versions */\nexport enum KnownVersions {\n  /** The 2023-01-01 API version. */\n  V20230101 = \"2023-01-01\",\n}\n\n/**\n * Known values for Monitor Audience\n */\nexport enum KnownMonitorAudience {\n  /**\n   * Audience for Azure China\n   */\n  AzureChina = \"https://monitor.azure.cn\",\n  /**\n   * Audience for Azure Government\n   */\n  AzureGovernment = \"https://monitor.azure.us\",\n  /**\n   * Audience for Azure Public\n   */\n  AzurePublicCloud = \"https://monitor.azure.com\",\n}\n\n/**\n * Error for each log upload request to service\n */\nexport interface LogsUploadFailure {\n  /**\n   * List of failed logs\n   */\n  failedLogs: Record<string, unknown>[];\n  /**\n   * Error for failed logs\n   */\n  cause: Error;\n}\n\n/**\n * Aggregate Upload Logs Error Name\n */\nexport const AggregateLogsUploadErrorName = \"AggregateLogsUploadError\";\n\n/**\n * Aggregate Error type for upload function\n */\nexport class AggregateLogsUploadError extends Error {\n  /**\n   * List of {@link LogsUploadFailure} returned from\n   * individual upload requests to service\n   */\n  errors: LogsUploadFailure[];\n\n  /**\n   *\n   * @param errors - list of {@link LogsUploadFailure}\n   * @param errorMessage - error message\n   */\n  constructor(errors: LogsUploadFailure[], errorMessage?: string) {\n    super(`${errorMessage}\\n}`);\n    this.errors = errors;\n    this.name = AggregateLogsUploadErrorName;\n  }\n}\n\n/**\n * Typeguard for AggregateUploadLogsError\n * @param e - Something caught by a catch clause.\n */\nexport function isAggregateLogsUploadError(e: unknown): e is AggregateLogsUploadError {\n  if (e instanceof AggregateLogsUploadError) {\n    return true;\n  }\n  return isError(e) && e.name === AggregateLogsUploadErrorName;\n}\n",
+      "contentHash": "4f7884d5a6250df8fe9b10b86017bb3b940037dd830b2bef6e95604dcf165428",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 79,
+      "kind": "unknown",
+      "id": "3915d583e7b4300dab71e86628c9085972cca154fa12096c6ea7f5986cf6e369"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/static-helpers/urlTemplate.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n// ---------------------\n// interfaces\n// ---------------------\ninterface ValueOptions {\n  isFirst: boolean; // is first value in the expression\n  op?: string; // operator\n  varValue?: any; // variable value\n  varName?: string; // variable name\n  modifier?: string; // modifier e.g *\n  reserved?: boolean; // if true we'll keep reserved words with not encoding\n}\n\nexport interface UrlTemplateOptions {\n  // if set to true, reserved characters will not be encoded\n  allowReserved?: boolean;\n}\n\n// ---------------------\n// helpers\n// ---------------------\nfunction encodeComponent(val: string, reserved?: boolean, op?: string): string {\n  return (reserved ?? op === \"+\") || op === \"#\"\n    ? encodeReservedComponent(val)\n    : encodeRFC3986URIComponent(val);\n}\n\nfunction encodeReservedComponent(str: string): string {\n  return str\n    .split(/(%[0-9A-Fa-f]{2})/g)\n    .map((part) => (!/%[0-9A-Fa-f]/.test(part) ? encodeURI(part) : part))\n    .join(\"\");\n}\n\nfunction encodeRFC3986URIComponent(str: string): string {\n  return encodeURIComponent(str).replace(\n    /[!'()*]/g,\n    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,\n  );\n}\n\nfunction isDefined(val: any): boolean {\n  return val !== undefined && val !== null;\n}\n\nfunction getNamedAndIfEmpty(op?: string): [boolean, string] {\n  return [!!op && [\";\", \"?\", \"&\"].includes(op), !!op && [\"?\", \"&\"].includes(op) ? \"=\" : \"\"];\n}\n\nfunction getFirstOrSep(op?: string, isFirst = false): string {\n  if (isFirst) {\n    return !op || op === \"+\" ? \"\" : op;\n  } else if (!op || op === \"+\" || op === \"#\") {\n    return \",\";\n  } else if (op === \"?\") {\n    return \"&\";\n  } else {\n    return op;\n  }\n}\n\nfunction getExpandedValue(option: ValueOptions): string {\n  let isFirst = option.isFirst;\n  const { op, varName, varValue: value, reserved } = option;\n  const vals: string[] = [];\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      // prepare the following parts: separator, varName, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (named && varName) {\n        vals.push(`${encodeURIComponent(varName)}`);\n        if (val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      const val = value[key];\n      if (!isDefined(val)) {\n        continue;\n      }\n      // prepare the following parts: separator, key, value\n      vals.push(`${getFirstOrSep(op, isFirst)}`);\n      if (key) {\n        vals.push(`${encodeURIComponent(key)}`);\n        if (named && val === \"\") {\n          vals.push(ifEmpty);\n        } else {\n          vals.push(\"=\");\n        }\n      }\n      vals.push(encodeComponent(val, reserved, op));\n      isFirst = false;\n    }\n  }\n  return vals.join(\"\");\n}\n\nfunction getNonExpandedValue(option: ValueOptions): string | undefined {\n  const { op, varName, varValue: value, isFirst, reserved } = option;\n  const vals: string[] = [];\n  const first = getFirstOrSep(op, isFirst);\n  const [named, ifEmpty] = getNamedAndIfEmpty(op);\n  if (named && varName) {\n    vals.push(encodeComponent(varName, reserved, op));\n    if (value === \"\") {\n      if (!ifEmpty) {\n        vals.push(ifEmpty);\n      }\n      return !vals.join(\"\") ? undefined : `${first}${vals.join(\"\")}`;\n    }\n    vals.push(\"=\");\n  }\n\n  const items = [];\n  if (Array.isArray(value)) {\n    for (const val of value.filter(isDefined)) {\n      items.push(encodeComponent(val, reserved, op));\n    }\n  } else if (typeof value === \"object\") {\n    for (const key of Object.keys(value)) {\n      if (!isDefined(value[key])) {\n        continue;\n      }\n      items.push(encodeRFC3986URIComponent(key));\n      items.push(encodeComponent(value[key], reserved, op));\n    }\n  }\n  vals.push(items.join(\",\"));\n  return !vals.join(\",\") ? undefined : `${first}${vals.join(\"\")}`;\n}\n\nfunction getVarValue(option: ValueOptions): string | undefined {\n  const { op, varName, modifier, isFirst, reserved, varValue: value } = option;\n\n  if (!isDefined(value)) {\n    return undefined;\n  } else if ([\"string\", \"number\", \"boolean\"].includes(typeof value)) {\n    let val = value.toString();\n    const [named, ifEmpty] = getNamedAndIfEmpty(op);\n    const vals: string[] = [getFirstOrSep(op, isFirst)];\n    if (named && varName) {\n      // No need to encode varName considering it is already encoded\n      vals.push(varName);\n      if (val === \"\") {\n        vals.push(ifEmpty);\n      } else {\n        vals.push(\"=\");\n      }\n    }\n    if (modifier && modifier !== \"*\") {\n      val = val.substring(0, parseInt(modifier, 10));\n    }\n    vals.push(encodeComponent(val, reserved, op));\n    return vals.join(\"\");\n  } else if (modifier === \"*\") {\n    return getExpandedValue(option);\n  } else {\n    return getNonExpandedValue(option);\n  }\n}\n\n// ---------------------------------------------------------------------------------------------------\n// This is an implementation of RFC 6570 URI Template: https://datatracker.ietf.org/doc/html/rfc6570.\n// ---------------------------------------------------------------------------------------------------\nexport function expandUrlTemplate(\n  template: string,\n  context: Record<string, any>,\n  option?: UrlTemplateOptions,\n): string {\n  return template.replace(/\\{([^{}]+)\\}|([^{}]+)/g, (_, expr, text) => {\n    if (!expr) {\n      return encodeReservedComponent(text);\n    }\n    let op;\n    let expressionToParse = expr;\n    if ([\"+\", \"#\", \".\", \"/\", \";\", \"?\", \"&\"].includes(expressionToParse[0])) {\n      op = expressionToParse[0];\n      expressionToParse = expressionToParse.slice(1);\n    }\n    const varList = expressionToParse.split(/,/g);\n    const result = [];\n    for (const varSpec of varList) {\n      const varMatch = /([^:*]*)(?::(\\d+)|(\\*))?/.exec(varSpec);\n      if (!varMatch || !varMatch[1]) {\n        continue;\n      }\n      const varValue = getVarValue({\n        isFirst: result.length === 0,\n        op,\n        varValue: context[varMatch[1]],\n        varName: varMatch[1],\n        modifier: varMatch[2] || varMatch[3],\n        reserved: option?.allowReserved,\n      });\n      if (varValue) {\n        result.push(varValue);\n      }\n    }\n    return result.join(\"\");\n  });\n}\n",
+      "contentHash": "d7277961b69420f95147a659c23df696cbabd0f7101ecc2c392ae21febf5d55b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 211,
+      "kind": "unknown",
+      "id": "590451bdde068e511d5a5bf7c7de1545423d5bbe1881580210a951beae94596f"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/concurrentPoolHelper.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\n\nexport async function concurrentRun<T>(\n  maxConcurrency: number,\n  inputData: Array<T>,\n  callback: (args: T) => Promise<void>,\n  abortSignal?: AbortSignalLike,\n): Promise<void> {\n  const dataQueue = [...inputData].reverse();\n  const promises: Array<Promise<void>> = [];\n\n  function removePromise(p: Promise<void>): void {\n    void promises.splice(promises.indexOf(p), 1);\n  }\n  while (dataQueue.length) {\n    while (dataQueue.length && promises.length < maxConcurrency) {\n      const worker = dataQueue.pop();\n      const promise = callback(worker!);\n      void promise.finally(() => removePromise(promise));\n      promises.push(promise);\n    }\n    if (promises.length === maxConcurrency) {\n      await Promise.race(promises);\n    }\n    if (abortSignal?.aborted) {\n      await Promise.all(promises);\n      return;\n    }\n  }\n  await Promise.all(promises);\n}\n",
+      "contentHash": "e5b5c5fceb1ed4b1316f0a5b7253d201cab8ee8264fda0841745886d2c6189c1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/utils/concurrentPoolHelper.ts",
+      "startLine": 1,
+      "endLine": 34,
+      "kind": "unknown",
+      "id": "070e75c88e8d7b75bc419b298df39a6e15cd17ee548a6ed58498080ff9b8c0f3"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/getBinarySize.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { stringToUint8Array } from \"@azure/core-util\";\n\nexport function getBinarySize(\n  text: string | ArrayBuffer | ArrayBufferView | SharedArrayBuffer,\n): number {\n  if (typeof text === \"string\") {\n    return stringToUint8Array(text, \"utf-8\").byteLength;\n  }\n  return text.byteLength;\n}\n",
+      "contentHash": "988dee062fa1203d4130c539315ab1f43d86a29931b538ef0cc713931db8d57c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/utils/getBinarySize.ts",
+      "startLine": 1,
+      "endLine": 13,
+      "kind": "unknown",
+      "id": "0ff14a1f25148900e7353da9fe8fbf0b89c52f2138e343c152e757099b08c9d8"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/splitDataToChunksHelper.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { getBinarySize } from \"./getBinarySize.js\";\n\n/**\n * @internal\n */\nexport function splitDataToChunks(logs: Record<string, unknown>[]): Record<string, unknown>[][] {\n  let chunk: Record<string, unknown>[] = [];\n  const chunkArray: Record<string, unknown>[][] = [];\n  let size = 0;\n  const maxBytes = 1000000;\n  for (const element of logs) {\n    const elementSize = getBinarySize(JSON.stringify(element));\n    if (size + elementSize < maxBytes) {\n      chunk.push(element);\n      size += elementSize;\n    } else {\n      if (chunk.length) chunkArray.push(chunk);\n      chunk = [element];\n      size = elementSize;\n    }\n  }\n\n  if (chunk.length) {\n    chunkArray.push(chunk);\n  }\n\n  return chunkArray;\n}\n",
+      "contentHash": "f45a63332b9dfd4e05c935f4d4523bdff42432b83d277121cb79757a5a99ea0b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/src/utils/splitDataToChunksHelper.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "kind": "unknown",
+      "id": "f86a4d598989fc24d192bb77376d28894ae54a3072a4246b29b56b5306081606"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/monitor/monitor-ingestion/package.json",
+      "text": "{\n  \"name\": \"@azure/monitor-ingestion\",\n  \"version\": \"1.2.1\",\n  \"description\": \"Azure Monitor Ingestion library\",\n  \"keywords\": [\n    \"azure\",\n    \"cloud\",\n    \"typescript\"\n  ],\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/monitor/monitor-ingestion/README.md\",\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/monitor/monitor-ingestion\"\n  },\n  \"license\": \"MIT\",\n  \"author\": \"Microsoft Corporation\",\n  \"sideEffects\": false,\n  \"type\": \"module\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"dev-tool samples run samples-dev\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* temp types *.tgz *.log\",\n    \"execute:samples\": \"echo Obsolete\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"generate:client\": \"autorest --typescript ./swagger/README.md\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.4.0\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"pako\": \"^3.0.1\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/monitor-query-logs\": \"^1.0.0\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/api/logsIngestionContext.ts\",\n        \"prefix\": \"const userAgentInfo\"\n      }\n    ]\n  },\n  \"//sampleConfiguration\": {\n    \"skipFolder\": false,\n    \"disableDocsMs\": true,\n    \"productName\": \"Monitor Ingestion\",\n    \"productSlugs\": [],\n    \"apiRefLink\": \"https://learn.microsoft.com/javascript/api/\",\n    \"requiredResources\": {\n      \"Azure Monitor\": \"https://learn.microsoft.com/azure/azure-monitor/\"\n    }\n  },\n  \"sdk-type\": \"client\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "5e3884ece7e670910b835c229668be24db4f0e2acef94015e9edf98294770cf4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/package.json"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/README.md",
+      "text": "# Azure Monitor Ingestion client library for JS\n\nThe Azure Monitor Ingestion client library is used to send custom logs to [Azure Monitor][azure_monitor_overview] using the [Logs Ingestion API][ingestion_overview].\n\nThis library allows you to send data from virtually any source to supported built-in tables or to custom tables that you create in Log Analytics workspace. You can even extend the schema of built-in tables with custom columns.\n\n**Resources:**\n\n- [Source code](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/monitor/monitor-ingestion/src)\n- [Package (NPM)](https://www.npmjs.com/)\n- [Service documentation][azure_monitor_overview]\n- [Change log](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/monitor/monitor-ingestion/CHANGELOG.md)\n\n## Getting started\n\n### Prerequisites\n\n- An [Azure subscription](https://azure.microsoft.com/free)\n- A [Data Collection Endpoint](https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview)\n- A [Data Collection Rule](https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview)\n- A [Log Analytics workspace](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-workspace-overview)\n\n### Install the package\n\nInstall the Azure Monitor Ingestion client library for JS with [npm](https://www.npmjs.com/):\n\n```bash\nnpm install @azure/monitor-ingestion\n```\n\n### Authenticate the client\n\nAn authenticated client is required to ingest data. To authenticate, create an instance of a [TokenCredential](https://learn.microsoft.com/javascript/api/@azure/core-auth/tokencredential?view=azure-node-latest) class (see [@azure/identity](https://www.npmjs.com/package/@azure/identity) for `DefaultAzureCredential` and other `TokenCredential` implementations). Pass it to the constructor of your client class.\n\nTo authenticate, the following example uses `DefaultAzureCredential` from the [@azure/identity](https://www.npmjs.com/package/@azure/identity) package:\n\n```ts snippet:ReadmeSampleCreateClient_TokenCredential\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { LogsIngestionClient } from \"@azure/monitor-ingestion\";\n\nconst logsIngestionEndpoint = \"https://<my-endpoint>.azure.com\";\n\nconst credential = new DefaultAzureCredential();\nconst logsIngestionClient = new LogsIngestionClient(logsIngestionEndpoint, credential);\n```\n\n#### Configure client for Azure sovereign cloud\n\nBy default, the client is configured to use the Azure Public Cloud. To use a sovereign cloud instead, provide the correct endpoint and audience value when instantiating the client. For example:\n\n```ts snippet:ReadmeSampleCreateClient_TokenCredential_SovereignCloud\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { LogsIngestionClient } from \"@azure/monitor-ingestion\";\n\nconst logsIngestionEndpoint = \"https://<my-endpoint>.azure.cn\";\n\nconst credential = new DefaultAzureCredential();\nconst logsIngestionClient = new LogsIngestionClient(logsIngestionEndpoint, credential, {\n  audience: \"https://api.loganalytics.azure.cn/.default\",\n});\n```\n\n## Key concepts\n\n### Data Collection Endpoint\n\nData Collection Endpoints (DCEs) allow you to uniquely configure ingestion settings for Azure Monitor. [This\narticle][data_collection_endpoint] provides an overview of data collection endpoints including their contents and\nstructure and how you can create and work with them.\n\n### Data Collection Rule\n\nData collection rules (DCR) define data collected by Azure Monitor and specify how and where that data should be sent or\nstored. The REST API call must specify a DCR to use. A single DCE can support multiple DCRs, so you can specify a\ndifferent DCR for different sources and target tables.\n\nThe DCR must understand the structure of the input data and the structure of the target table. If the two don't match,\nit can use a transformation to convert the source data to match the target table. You may also use the transform to\nfilter source data and perform any other calculations or conversions.\n\nFor more details, refer to [Data collection rules in Azure Monitor][data_collection_rule].For information on how to retrieve a DCR ID, see [this tutorial][data_collection_rule_tutorial].\n\n### Log Analytics workspace tables\n\nCustom logs can send data to any custom table that you create and to certain built-in tables in your Log Analytics\nworkspace. The target table must exist before you can send data to it. The following built-in tables are currently supported:\n\n- [CommonSecurityLog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/commonsecuritylog)\n- [SecurityEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/securityevent)\n- [Syslog](https://learn.microsoft.com/azure/azure-monitor/reference/tables/syslog)\n- [WindowsEvents](https://learn.microsoft.com/azure/azure-monitor/reference/tables/windowsevent)\n\n## Examples\n\n- [Upload custom logs](#upload-custom-logs)\n- [Verify logs](#verify-logs)\n\nYou can familiarize yourself with different APIs using [Samples][azure_monitor_samples].\n\n### Upload custom logs\n\nYou can create a client and call the client's `Upload` method. Take note of the data ingestion [limits](https://learn.microsoft.com/azure/azure-monitor/service-limits#custom-logs).\n\n```ts snippet:ReadmeSampleUploadLogs\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { LogsIngestionClient, isAggregateLogsUploadError } from \"@azure/monitor-ingestion\";\n\nconst logsIngestionEndpoint = \"https://<my-endpoint>.azure.com\";\nconst ruleId = \"data_collection_rule_id\";\nconst streamName = \"data_stream_name\";\n\nconst credential = new DefaultAzureCredential();\nconst logsIngestionClient = new LogsIngestionClient(logsIngestionEndpoint, credential);\n\nconst logs = [\n  {\n    Time: \"2021-12-08T23:51:14.1104269Z\",\n    Computer: \"Computer1\",\n    AdditionalContext: \"context-2\",\n  },\n  {\n    Time: \"2021-12-08T23:51:14.1104269Z\",\n    Computer: \"Computer2\",\n    AdditionalContext: \"context\",\n  },\n];\n\ntry {\n  await logsIngestionClient.upload(ruleId, streamName, logs);\n} catch (e) {\n  const aggregateErrors = isAggregateLogsUploadError(e) ? e.errors : [];\n  if (aggregateErrors.length > 0) {\n    console.log(\"Some logs have failed to complete ingestion\");\n    for (const error of aggregateErrors) {\n      console.log(`Error - ${JSON.stringify(error.cause)}`);\n      console.log(`Log - ${JSON.stringify(error.failedLogs)}`);\n    }\n  } else {\n    console.log(`An error occurred: ${e}`);\n  }\n}\n```\n\n### Verify logs\n\nYou can verify that your data has been uploaded correctly by using the [@azure/monitor-query-logs](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/monitor/monitor-query-logs/README.md#install-the-package) library. Run the [Upload custom logs](#upload-custom-logs) sample first before verifying the logs.\n\n```ts snippet:ReadmeSampleVerifyLogs\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { LogsQueryClient } from \"@azure/monitor-query-logs\";\n\nconst monitorWorkspaceId = \"workspace_id\";\nconst tableName = \"table_name\";\n\nconst credential = new DefaultAzureCredential();\nconst logsQueryClient = new LogsQueryClient(credential);\n\nconst queriesBatch = [\n  {\n    workspaceId: monitorWorkspaceId,\n    query: tableName + \" | count;\",\n    timespan: { duration: \"P1D\" },\n  },\n];\n\nconst result = await logsQueryClient.queryBatch(queriesBatch);\nif (result[0].status === \"Success\") {\n  console.log(\"Table entry count: \", JSON.stringify(result[0].tables));\n} else {\n  console.log(\n    `Some error encountered while retrieving the count. Status = ${result[0].status}`,\n    JSON.stringify(result[0]),\n  );\n}\n```\n\n### Uploading large batches of logs\n\nWhen uploading more than 1MB of logs in a single call to the `upload` method on `LogsIngestionClient`, the upload will be split into several smaller batches, each no larger than 1MB. By default, these batches will be uploaded in parallel, with a maximum of 5 batches being uploaded concurrently. It may be desirable to decrease the maximum concurrency if memory usage is a concern. The maximum number of concurrent uploads can be controlled using the `maxConcurrency` option, as shown in this example:\n\n```ts snippet:ReadmeSampleUploadLargeBatches\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport { LogsIngestionClient, isAggregateLogsUploadError } from \"@azure/monitor-ingestion\";\n\nconst logsIngestionEndpoint = \"https://<my-endpoint>.azure.com\";\nconst ruleId = \"data_collection_rule_id\";\nconst streamName = \"data_stream_name\";\n\nconst credential = new DefaultAzureCredential();\nconst client = new LogsIngestionClient(logsIngestionEndpoint, credential);\n\n// Constructing a large number of logs to ensure batching takes place\nconst logs = [];\nfor (let i = 0; i < 100000; ++i) {\n  logs.push({\n    Time: \"2021-12-08T23:51:14.1104269Z\",\n    Computer: \"Computer1\",\n    AdditionalContext: `context-${i}`,\n  });\n}\n\ntry {\n  // Set the maximum concurrency to 1 to prevent concurrent requests entirely\n  await client.upload(ruleId, streamName, logs, { maxConcurrency: 1 });\n} catch (e) {\n  let aggregateErrors = isAggregateLogsUploadError(e) ? e.errors : [];\n  if (aggregateErrors.length > 0) {\n    console.log(\"Some logs have failed to complete ingestion\");\n    for (const error of aggregateErrors) {\n      console.log(`Error - ${JSON.stringify(error.cause)}`);\n      console.log(`Log - ${JSON.stringify(error.failedLogs)}`);\n    }\n  } else {\n    console.log(e);\n  }\n}\n```\n\n### Retrieve logs\n\nLogs uploaded using the Monitor Ingestion client library can be retrieved using the [Monitor Query client library][monitor_query].\n\n## Troubleshooting\n\nFor details on diagnosing various failure scenarios, see our [troubleshooting guide](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/monitor/monitor-ingestion/TROUBLESHOOTING.md).\n\n## Next steps\n\nTo learn more about Azure Monitor, see the [Azure Monitor service documentation][azure_monitor_overview]. Please take a look at the samples directory for detailed [examples][azure_monitor_samples] on how to use this library.\n\n## Contributing\n\nIf you'd like to contribute to this library, please read the [contributing guide](https://github.com/Azure/azure-sdk-for-js/blob/main/CONTRIBUTING.md) to learn more about how to build and test the code.\n\n<!-- LINKS -->\n\n[azure_monitor_overview]: https://learn.microsoft.com/azure/azure-monitor/overview\n[data_collection_endpoint]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-endpoint-overview\n[data_collection_rule]: https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview\n[data_collection_rule_tutorial]: https://learn.microsoft.com/azure/azure-monitor/logs/tutorial-logs-ingestion-portal#collect-information-from-the-dcr\n[ingestion_overview]: https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview\n[azure_monitor_samples]: https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/monitor/monitor-ingestion/samples/v1\n",
+      "contentHash": "fb7f74aa11bfa3393b17bf16b1a49c519bc701eb8a7eb80daaf060b978bfefc8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/README.md"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/tsp-location.yaml",
+      "text": "directory: specification/monitor/Azure.Monitor.Ingestion\ncommit: 45c35b2cef4e9bad6285f450e7d27f508c9be907 # https://github.com/Azure/azure-rest-api-specs/pull/35904\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "a488e4adb23bab34522b8a6e36bd8c4d4640af3fdc8e9ae8a4d59363b7403bbd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/monitor/monitor-ingestion/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "9cf997f089f7ddaeea100ef989a081db9d4e7f46303c0e4f1a7159651f88c8e4"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/logsIngestionContext.ts",
+      "startLine": 1,
+      "endLine": 73,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "87edd39b5b0e836074c7b61b7d9ac5e71e275cb83d3c73e81d526aafd4296f64"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/operations.ts",
+      "startLine": 1,
+      "endLine": 66,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "bb9bec94e9e68537ffefef5cdb23df5a1253b82dbbccb9d083f763cf8591a8a1"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 24,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "c5ef8d327adf85403ae269b2075ac5f50d50d27a6edaa431d8b604b1d98105fb"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/gZippingPolicy.ts",
+      "startLine": 1,
+      "endLine": 27,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "cf6fba9b2ad1273f709c0c512b574843247f1696e7d34373be5678c622770104"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/index.ts",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "be72f2cf9cdcbe3d395cfd3909ffcc85411acb20f18a6bb033cd9b981397628c"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/logsIngestionClient.ts",
+      "startLine": 1,
+      "endLine": 101,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d2b3dbef334b21474c993a4c16cb60e882ba21f183d868c3086e8d6c4dbbfc65"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/models/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "09c1f160eff8a094c62512f79218124c71b074e7f2b9f0de1c22ae6ef2647031"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/models/models.ts",
+      "startLine": 1,
+      "endLine": 79,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "4f7884d5a6250df8fe9b10b86017bb3b940037dd830b2bef6e95604dcf165428"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/static-helpers/urlTemplate.ts",
+      "startLine": 1,
+      "endLine": 211,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d7277961b69420f95147a659c23df696cbabd0f7101ecc2c392ae21febf5d55b"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/concurrentPoolHelper.ts",
+      "startLine": 1,
+      "endLine": 34,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e5b5c5fceb1ed4b1316f0a5b7253d201cab8ee8264fda0841745886d2c6189c1"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/getBinarySize.ts",
+      "startLine": 1,
+      "endLine": 13,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "988dee062fa1203d4130c539315ab1f43d86a29931b538ef0cc713931db8d57c"
+    },
+    {
+      "path": "sdk/monitor/monitor-ingestion/src/utils/splitDataToChunksHelper.ts",
+      "startLine": 1,
+      "endLine": 31,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f45a63332b9dfd4e05c935f4d4523bdff42432b83d277121cb79757a5a99ea0b"
+    }
+  ]
+}

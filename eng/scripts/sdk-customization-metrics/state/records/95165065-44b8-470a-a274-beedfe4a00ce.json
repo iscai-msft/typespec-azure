@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "id": "95165065-44b8-470a-a274-beedfe4a00ce",
+  "observedAt": "2026-10-22T20:17:26.292Z",
+  "identity": "javascript:@azure-rest/ai-vision-face:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure-rest/ai-vision-face",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/face/ai-vision-face-rest"
+  },
+  "commit": "4fd827c0b64ceb2eb4cac3d79167f16f7d451506",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "2",
+    "reader": "git",
+    "packageTree": "b94a92ba13dca426896c9c099326506eb08508f4"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 68,
+    "eligibleFiles": 19,
+    "capturedFiles": 14,
+    "skipped": [
+      {
+        "path": "sdk/face/ai-vision-face-rest/README.md",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/face/ai-vision-face-rest/src/clientDefinitions.ts",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/face/ai-vision-face-rest/src/isUnexpected.ts",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/face/ai-vision-face-rest/src/outputModels.ts",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/face/ai-vision-face-rest/src/parameters.ts",
+        "reason": "File-size limit"
+      },
+      {
+        "path": "sdk/face/ai-vision-face-rest/src/responses.ts",
+        "reason": "File-size limit"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/pollingHelper.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { Client, HttpResponse } from \"@azure-rest/core-client\";\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\nimport type {\n  CancelOnProgress,\n  CreateHttpPollerOptions,\n  RunningOperation,\n  OperationResponse,\n  OperationState,\n} from \"@azure/core-lro\";\nimport { createHttpPoller } from \"@azure/core-lro\";\nimport type {\n  TrainLargeFaceList202Response,\n  TrainLargeFaceListDefaultResponse,\n  TrainLargeFaceListLogicalResponse,\n  TrainPersonGroup202Response,\n  TrainPersonGroupDefaultResponse,\n  TrainPersonGroupLogicalResponse,\n  TrainLargePersonGroup202Response,\n  TrainLargePersonGroupDefaultResponse,\n  TrainLargePersonGroupLogicalResponse,\n} from \"./responses.js\";\n\n/**\n * A simple poller that can be used to poll a long running operation.\n */\nexport interface SimplePollerLike<TState extends OperationState<TResult>, TResult> {\n  /**\n   * Returns true if the poller has finished polling.\n   */\n  isDone(): boolean;\n  /**\n   * Returns the state of the operation.\n   */\n  getOperationState(): TState;\n  /**\n   * Returns the result value of the operation,\n   * regardless of the state of the poller.\n   * It can return undefined or an incomplete form of the final TResult value\n   * depending on the implementation.\n   */\n  getResult(): TResult | undefined;\n  /**\n   * Returns a promise that will resolve once a single polling request finishes.\n   * It does this by calling the update method of the Poller's operation.\n   */\n  poll(options?: { abortSignal?: AbortSignalLike }): Promise<TState>;\n  /**\n   * Returns a promise that will resolve once the underlying operation is completed.\n   */\n  pollUntilDone(pollOptions?: { abortSignal?: AbortSignalLike }): Promise<TResult>;\n  /**\n   * Invokes the provided callback after each polling is completed,\n   * sending the current state of the poller's operation.\n   *\n   * It returns a method that can be used to stop receiving updates on the given callback function.\n   */\n  onProgress(callback: (state: TState) => void): CancelOnProgress;\n\n  /**\n   * Returns a promise that could be used for serialized version of the poller's operation\n   * by invoking the operation's serialize method.\n   */\n  serialize(): Promise<string>;\n\n  /**\n   * Wait the poller to be submitted.\n   */\n  submitted(): Promise<void>;\n\n  /**\n   * Returns a string representation of the poller's operation. Similar to serialize but returns a string.\n   * @deprecated Use serialize() instead.\n   */\n  toString(): string;\n\n  /**\n   * Stops the poller from continuing to poll. Please note this will only stop the client-side polling\n   * @deprecated Use abortSignal to stop polling instead.\n   */\n  stopPolling(): void;\n\n  /**\n   * Returns true if the poller is stopped.\n   * @deprecated Use abortSignal status to track this instead.\n   */\n  isStopped(): boolean;\n}\n\n/**\n * Helper function that builds a Poller object to help polling a long running operation.\n * @param client - Client to use for sending the request to get additional pages.\n * @param initialResponse - The initial response.\n * @param options - Options to set a resume state or custom polling interval.\n * @returns - A poller object to poll for operation state updates and eventually get the final response.\n */\nexport async function getLongRunningPoller<\n  TResult extends TrainLargeFaceListLogicalResponse | TrainLargeFaceListDefaultResponse,\n>(\n  client: Client,\n  initialResponse: TrainLargeFaceList202Response | TrainLargeFaceListDefaultResponse,\n  options?: CreateHttpPollerOptions<TResult, OperationState<TResult>>,\n): Promise<SimplePollerLike<OperationState<TResult>, TResult>>;\nexport async function getLongRunningPoller<\n  TResult extends TrainPersonGroupLogicalResponse | TrainPersonGroupDefaultResponse,\n>(\n  client: Client,\n  initialResponse: TrainPersonGroup202Response | TrainPersonGroupDefaultResponse,\n  options?: CreateHttpPollerOptions<TResult, OperationState<TResult>>,\n): Promise<SimplePollerLike<OperationState<TResult>, TResult>>;\nexport async function getLongRunningPoller<\n  TResult extends TrainLargePersonGroupLogicalResponse | TrainLargePersonGroupDefaultResponse,\n>(\n  client: Client,\n  initialResponse: TrainLargePersonGroup202Response | TrainLargePersonGroupDefaultResponse,\n  options?: CreateHttpPollerOptions<TResult, OperationState<TResult>>,\n): Promise<SimplePollerLike<OperationState<TResult>, TResult>>;\nexport async function getLongRunningPoller<TResult extends HttpResponse>(\n  client: Client,\n  initialResponse: TResult,\n  options: CreateHttpPollerOptions<TResult, OperationState<TResult>> = {},\n): Promise<SimplePollerLike<OperationState<TResult>, TResult>> {\n  const abortController = new AbortController();\n  const poller: RunningOperation<TResult> = {\n    sendInitialRequest: async () => {\n      // In the case of Rest Clients we are building the LRO poller object from a response that's the reason\n      // we are not triggering the initial request here, just extracting the information from the\n      // response we were provided.\n      return getLroResponse(initialResponse);\n    },\n    sendPollRequest: async (path: string, pollOptions?: { abortSignal?: AbortSignalLike }) => {\n      // This is the callback that is going to be called to poll the service\n      // to get the latest status. We use the client provided and the polling path\n      // which is an opaque URL provided by caller, the service sends this in one of the following headers: operation-location, azure-asyncoperation or location\n      // depending on the lro pattern that the service implements. If non is provided we default to the initial path.\n      function abortListener(): void {\n        abortController.abort();\n      }\n      const inputAbortSignal = pollOptions?.abortSignal;\n      const abortSignal = abortController.signal;\n      if (inputAbortSignal?.aborted) {\n        abortController.abort();\n      } else if (!abortSignal.aborted) {\n        inputAbortSignal?.addEventListener(\"abort\", abortListener, {\n          once: true,\n        });\n      }\n      let response;\n      try {\n        response = await client\n          .pathUnchecked(path ?? initialResponse.request.url)\n          .get({ abortSignal });\n      } finally {\n        inputAbortSignal?.removeEventListener(\"abort\", abortListener);\n      }\n      const lroResponse = getLroResponse(response as TResult);\n      lroResponse.rawResponse.headers[\"x-ms-original-url\"] = initialResponse.request.url;\n      return lroResponse;\n    },\n  };\n\n  options.resolveOnUnsuccessful = options.resolveOnUnsuccessful ?? true;\n  const httpPoller = createHttpPoller(poller, options);\n  const simplePoller: SimplePollerLike<OperationState<TResult>, TResult> = {\n    isDone() {\n      return httpPoller.isDone;\n    },\n    isStopped() {\n      return abortController.signal.aborted;\n    },\n    getOperationState() {\n      if (!httpPoller.operationState) {\n        throw new Error(\n          \"Operation state is not available. The poller may not have been started and you could await submitted() before calling getOperationState().\",\n        );\n      }\n      return httpPoller.operationState;\n    },\n    getResult() {\n      return httpPoller.result;\n    },\n    toString() {\n      if (!httpPoller.operationState) {\n        throw new Error(\n          \"Operation state is not available. The poller may not have been started and you could await submitted() before calling getOperationState().\",\n        );\n      }\n      return JSON.stringify({\n        state: httpPoller.operationState,\n      });\n    },\n    stopPolling() {\n      abortController.abort();\n    },\n    onProgress: httpPoller.onProgress,\n    poll: httpPoller.poll,\n    pollUntilDone: httpPoller.pollUntilDone,\n    serialize: httpPoller.serialize,\n    submitted: httpPoller.submitted,\n  };\n  return simplePoller;\n}\n\n/**\n * Converts a Rest Client response to a response that the LRO implementation understands\n * @param response - a rest client http response\n * @returns - An LRO response that the LRO implementation understands\n */\nfunction getLroResponse<TResult extends HttpResponse>(\n  response: TResult,\n): OperationResponse<TResult> {\n  if (Number.isNaN(response.status)) {\n    throw new TypeError(`Status code of the response is not a number. Value: ${response.status}`);\n  }\n\n  return {\n    flatResponse: response,\n    rawResponse: {\n      ...response,\n      statusCode: Number.parseInt(response.status),\n      body: response.body,\n    },\n  };\n}\n",
+      "contentHash": "bf77d490e75a85c1cb9bb0e07c512318dd57c95818d1b38a4720b9619d4f36cf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/src/pollingHelper.ts",
+      "id": "0a370c4ee7e163cf708a470dcd483b3624f4a08c8244d7bfbddbea01b66af6d2",
+      "startLine": 1,
+      "endLine": 226,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/eslint.config.mjs",
+      "text": "import azsdkEslint from \"@azure/eslint-plugin-azure-sdk\";\n\nexport default azsdkEslint.config([\n  {\n    rules: {\n      \"tsdoc/syntax\": \"warn\",\n      \"@azure/azure-sdk/ts-modules-only-named\": \"warn\",\n    },\n  },\n]);\n",
+      "contentHash": "6e6611f33e4b59e63ef62325ff8953fff463479c60be75253c758b1104398c0c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/eslint.config.mjs",
+      "id": "cbe4692c38d459df39670015d5cdd2ef8c466acfb2a846489179411a285e3fec",
+      "startLine": 1,
+      "endLine": 10,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/aadAuth.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to authenticate FaceClient using Microsoft Entra ID.\n *\n * @summary Microsoft Entra ID authentication.\n */\n\nimport { readFileSync } from \"node:fs\";\nimport { DefaultAzureCredential } from \"@azure/identity\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport \"dotenv/config\";\n\nasync function main(): Promise<void> {\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const credential = new DefaultAzureCredential();\n  const client = createFaceClient(endpoint, credential);\n\n  const fileName = \"data/detection1.jpg\";\n  const detectResponse = await client.path(\"/detect\").post({\n    contentType: \"application/octet-stream\",\n    queryParameters: {\n      detectionModel: \"detection_03\",\n      recognitionModel: \"recognition_04\",\n      returnFaceId: false,\n    },\n    body: readFileSync(fileName),\n  });\n  if (isUnexpected(detectResponse)) {\n    throw new Error(detectResponse.body.error.message);\n  }\n  console.log(`Detect: ${fileName}`);\n  console.log(JSON.stringify(detectResponse.body, null, 2));\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "81a22c452a89f8b703026fd7b9e0d07e614446efab0c80446dc017da3f3912d7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/aadAuth.ts",
+      "id": "70fd9682cf56a9bd49ee8867db97cb2aa8cc28fddec8554383c4777d37e896ff",
+      "startLine": 1,
+      "endLine": 37,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/detect.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to detect faces in an image through local file or URL.\n *\n * @summary Face detection.\n */\n\nimport { readFileSync } from \"node:fs\";\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport \"dotenv/config\";\n\nasync function detectFromImage(): Promise<void> {\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  const filename = \"data/detection5.jpg\";\n  const response = await client.path(\"/detect\").post({\n    contentType: \"application/octet-stream\",\n    queryParameters: {\n      detectionModel: \"detection_03\",\n      recognitionModel: \"recognition_04\",\n      returnFaceLandmarks: true,\n      returnRecognitionModel: true,\n      faceIdTimeToLive: 120,\n      returnFaceAttributes: [\"headPose\", \"mask\", \"qualityForRecognition\"],\n      returnFaceId: false,\n    },\n    body: readFileSync(filename),\n  });\n  if (isUnexpected(response)) {\n    throw new Error(response.body.error.message);\n  }\n  console.log(`Detect from image: ${filename}`);\n  console.log(JSON.stringify(response.body, null, 2));\n}\n\nasync function detectFromUrl(): Promise<void> {\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  const url = \"https://aka.ms/facesampleurl\";\n  const response = await client.path(\"/detect\").post({\n    contentType: \"application/json\",\n    queryParameters: {\n      detectionModel: \"detection_01\",\n      recognitionModel: \"recognition_04\",\n      returnFaceLandmarks: true,\n      returnRecognitionModel: true,\n      faceIdTimeToLive: 120,\n      returnFaceAttributes: [\"accessories\", \"glasses\", \"exposure\", \"noise\"],\n      returnFaceId: false,\n    },\n    body: { url },\n  });\n  if (isUnexpected(response)) {\n    throw new Error(response.body.error.message);\n  }\n  console.log(`Detect from URL: ${url}`);\n  console.log(JSON.stringify(response.body, null, 2));\n}\n\nasync function main(): Promise<void> {\n  await detectFromImage();\n  await detectFromUrl();\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "a908a0ab5ecab2ef3a12e79e53fc94d077ec3e54f02983d8af3b2213fd667575",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/detect.ts",
+      "id": "598055c4f0580924b4839e0049a2f1762901d17282bff473d82c120c9cc7e5f1",
+      "startLine": 1,
+      "endLine": 74,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/group.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to group similar faces.\n *\n * @summary Face grouping.\n */\n\nimport { readFileSync } from \"node:fs\";\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport \"dotenv/config\";\n\nasync function main(): Promise<void> {\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  // Detect faces from image.\n  const filename = \"data/nine-faces.png\";\n  const detectResponse = await client.path(\"/detect\").post({\n    contentType: \"application/octet-stream\",\n    queryParameters: {\n      detectionModel: \"detection_03\",\n      recognitionModel: \"recognition_04\",\n      returnFaceId: true,\n    },\n    body: readFileSync(filename),\n  });\n  if (isUnexpected(detectResponse)) {\n    throw new Error(detectResponse.body.error.message);\n  }\n  console.log(`Detect: ${filename}`);\n  console.log(JSON.stringify(detectResponse.body, null, 2));\n\n  // Group the faces.\n  const groupResponse = await client.path(\"/group\").post({\n    body: {\n      faceIds: detectResponse.body.map((face) => face.faceId as string),\n    },\n  });\n  if (isUnexpected(groupResponse)) {\n    throw new Error(groupResponse.body.error.message);\n  }\n  console.log(\"Group:\");\n  console.log(JSON.stringify(groupResponse.body, null, 2));\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "46fd28bbdec941f708db35da88ebde044a6c5cfd48ad48342554de49aafff914",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/group.ts",
+      "id": "0ea150e1ce646ca53d38f7be409cef5b251281291652f6cd48a0d6176b15f0b4",
+      "startLine": 1,
+      "endLine": 51,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/livenessSession.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to create a liveness detection session.\n *\n * @summary Liveness detection.\n */\n\nimport { randomUUID } from \"node:crypto\";\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport \"dotenv/config\";\n\nfunction pressAnyKeyToContinue(): Promise<void> {\n  return new Promise<void>((resolve) => {\n    const { stdin } = process;\n    const { isRaw } = stdin;\n    stdin.setRawMode(true);\n    stdin.resume();\n    stdin.once(\"data\", () => {\n      stdin.pause();\n      stdin.setRawMode(isRaw);\n      resolve();\n    });\n  });\n}\n\nasync function waitForLivenessRequest(): Promise<void> {\n  // Wait for request from client device.\n}\n\nasync function sendTokenToClientDevices(_token: string): Promise<void> {\n  // Send the token to client devices.\n}\n\nasync function waitForLivenessSessionComplete(): Promise<void> {\n  console.log(\n    \"Please refer to https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness and use the mobile client SDK to perform liveness detection on your mobile application.\",\n  );\n  console.log(\n    \"Press any key to continue when you complete these steps to run sample to get session results...\",\n  );\n  await pressAnyKeyToContinue();\n}\n\nasync function main(): Promise<void> {\n  // This sample follows the documentation: https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness\n  // We will follow the steps in https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness#orchestrate-the-liveness-solution to demo the sample code in app server.\n\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  // 1. A client device will send a request to start liveness check to us.\n  await waitForLivenessRequest();\n\n  // 2.Send a request to Face API to create a liveness detection session.\n  const createLivenessSessionResponse = await client\n    .path(\"/detectLiveness-sessions\")\n    .post({\n      body: {\n        livenessOperationMode: \"Passive\",\n        deviceCorrelationId: randomUUID(),\n      },\n    });\n  if (isUnexpected(createLivenessSessionResponse)) {\n    throw new Error(createLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Create liveness session:\");\n  console.log(JSON.stringify(createLivenessSessionResponse.body, null, 2));\n\n  const { sessionId, authToken } = createLivenessSessionResponse.body;\n\n  // 3. Pass the AuthToken to client device.\n  // Client device will process the step 4, 5, 6 in the documentation 'Orchestrate the liveness solution'\n  await sendTokenToClientDevices(authToken);\n\n  // 7. wait for client device notifyus us that liveness session completed.\n  await waitForLivenessSessionComplete();\n\n  // 8. After client devices perform the action, we can get the result from the following APIs.\n  // Get session results.\n  const getLivenessSessionResultResponse = await client\n    .path(\"/detectLiveness-sessions/{sessionId}\", sessionId)\n    .get();\n  if (isUnexpected(getLivenessSessionResultResponse)) {\n    throw new Error(getLivenessSessionResultResponse.body.error.message);\n  }\n  console.log(\"Get liveness detection results:\");\n  console.log(JSON.stringify(getLivenessSessionResultResponse.body, null, 2));\n\n  // Delete session.\n  const deleteLivenessSessionResponse = await client\n    .path(\"/detectLiveness-sessions/{sessionId}\", sessionId)\n    .delete();\n  if (isUnexpected(deleteLivenessSessionResponse)) {\n    throw new Error(deleteLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Delete liveness session:\");\n  console.log(JSON.stringify(deleteLivenessSessionResponse.body, null, 2));\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "b8dc9fecb56bfbc8082a2c102b8e1bd93225665ef0b0f00037e879a2de0773e9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/livenessSession.ts",
+      "id": "2a7156bdca07e70a2e9d34755ce665b334f5ae7ce3420ac9ff0b43059307d739",
+      "startLine": 1,
+      "endLine": 105,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/livenessSessionWithVerify.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to create a liveness detection with face verification session.\n *\n * @summary Liveness detection with face verification.\n */\n\nimport { randomUUID } from \"node:crypto\";\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport \"dotenv/config\";\n\nfunction pressAnyKeyToContinue(): Promise<void> {\n  return new Promise<void>((resolve) => {\n    const { stdin } = process;\n    const { isRaw } = stdin;\n    stdin.setRawMode(true);\n    stdin.resume();\n    stdin.once(\"data\", () => {\n      stdin.pause();\n      stdin.setRawMode(isRaw);\n      resolve();\n    });\n  });\n}\n\nasync function waitForLivenessRequest(): Promise<void> {\n  // Wait for request from client device.\n}\n\nasync function sendTokenToClientDevices(_token: string): Promise<void> {\n  // Send the token to client devices.\n}\n\nasync function waitForLivenessSessionComplete(): Promise<void> {\n  console.log(\n    \"Please refer to https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness and use the mobile client SDK to perform liveness detection on your mobile application.\",\n  );\n  console.log(\n    \"Press any key to continue when you complete these steps to run sample to get session results...\",\n  );\n  await pressAnyKeyToContinue();\n}\n\nasync function main(): Promise<void> {\n  // This sample follows the documentation: https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness\n  // We will follow the steps in https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness#perform-liveness-detection-with-face-verification to demo the sample code in app server.\n\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  // 1. A client device will send a request to start liveness check to us.\n  await waitForLivenessRequest();\n\n  // 2.Send a request to Face API to create a liveness detection session.\n  const createLivenessSessionResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions\")\n    .post({\n      contentType: \"multipart/form-data\",\n      body: [\n        {\n          name: \"livenessOperationMode\",\n          body: \"Passive\",\n        },\n        {\n          name: \"deviceCorrelationId\",\n          body: randomUUID(),\n        },\n        {\n          name: \"enableSessionImage\",\n          body: true,\n        },\n      ],\n    });\n  if (isUnexpected(createLivenessSessionResponse)) {\n    throw new Error(createLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Create liveness session:\");\n  console.log(JSON.stringify(createLivenessSessionResponse.body, null, 2));\n\n  const { sessionId, authToken } = createLivenessSessionResponse.body;\n\n  // 3. Pass the AuthToken to client device.\n  // Client device will process the step 4, 5, 6 in the documentation 'Orchestrate the liveness solution'\n  await sendTokenToClientDevices(authToken);\n\n  // 7. wait for client device notifyus us that liveness session completed.\n  await waitForLivenessSessionComplete();\n\n  // 8. After client devices perform the action, we can get the result from the following APIs.\n  // Get session results.\n  const getLivenessSessionResultResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions/{sessionId}\", sessionId)\n    .get();\n  if (isUnexpected(getLivenessSessionResultResponse)) {\n    throw new Error(getLivenessSessionResultResponse.body.error.message);\n  }\n  console.log(\"Get liveness detection results:\");\n  console.log(JSON.stringify(getLivenessSessionResultResponse.body, null, 2));\n\n  // Delete session.\n  const deleteLivenessSessionResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions/{sessionId}\", sessionId)\n    .delete();\n  if (isUnexpected(deleteLivenessSessionResponse)) {\n    throw new Error(deleteLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Delete liveness session:\");\n  console.log(JSON.stringify(deleteLivenessSessionResponse.body, null, 2));\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "2643ba2fb1b3b32741c2742e784e681305bb2c9b0c71c24220ea38d40afa18eb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/livenessSessionWithVerify.ts",
+      "id": "e07e6eb8c21036c6068a9370c54272574afe7473890c1a205217d719065d0e13",
+      "startLine": 1,
+      "endLine": 116,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/samples-dev/livenessSessionWithVerifyWithVerifyImage.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * This sample demonstrates how to create a liveness detection with face verification session with a verification image.\n *\n * @summary Liveness detection with face verification with verification image.\n */\n\nimport { randomUUID } from \"node:crypto\";\nimport { AzureKeyCredential } from \"@azure/core-auth\";\nimport createFaceClient, { isUnexpected } from \"@azure-rest/ai-vision-face\";\nimport { readFileSync } from \"node:fs\";\nimport \"dotenv/config\";\n\nfunction pressAnyKeyToContinue(): Promise<void> {\n  return new Promise<void>((resolve) => {\n    const { stdin } = process;\n    const { isRaw } = stdin;\n    stdin.setRawMode(true);\n    stdin.resume();\n    stdin.once(\"data\", () => {\n      stdin.pause();\n      stdin.setRawMode(isRaw);\n      resolve();\n    });\n  });\n}\n\nasync function waitForLivenessRequest(): Promise<void> {\n  // Wait for request from client device.\n}\n\nasync function sendTokenToClientDevices(_token: string): Promise<void> {\n  // Send the token to client devices.\n}\n\nasync function waitForLivenessSessionComplete(): Promise<void> {\n  console.log(\n    \"Please refer to https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness and use the mobile client SDK to perform liveness detection on your mobile application.\",\n  );\n  console.log(\n    \"Press any key to continue when you complete these steps to run sample to get session results...\",\n  );\n  await pressAnyKeyToContinue();\n}\n\nasync function main(): Promise<void> {\n  // This sample follows the documentation: https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness\n  // We will follow the steps in https://learn.microsoft.com/azure/ai-services/computer-vision/tutorials/liveness#perform-liveness-detection-with-face-verification to demo the sample code in app server.\n\n  const endpoint = process.env[\"FACE_ENDPOINT\"] ?? \"<endpoint>\";\n  const apikey = process.env[\"FACE_APIKEY\"] ?? \"<apikey>\";\n  const credential = new AzureKeyCredential(apikey);\n  const client = createFaceClient(endpoint, credential);\n\n  // 1. A client device will send a request to start liveness check to us.\n  await waitForLivenessRequest();\n\n  // 2.Send a request to Face API to create a liveness detection session.\n  const createLivenessSessionResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions\")\n    .post({\n      contentType: \"multipart/form-data\",\n      body: [\n        {\n          name: \"livenessOperationMode\",\n          body: \"Passive\",\n        },\n        {\n          name: \"deviceCorrelationId\",\n          body: randomUUID(),\n        },\n        {\n          name: \"enableSessionImage\",\n          body: true,\n        },\n        {\n          name: \"verifyImage\",\n          body: readFileSync(\"samples-dev/data/detection1.jpg\"),\n          filename: \"verifyImage.jpg\",\n        },\n      ],\n    });\n  if (isUnexpected(createLivenessSessionResponse)) {\n    throw new Error(createLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Create liveness session:\");\n  console.log(JSON.stringify(createLivenessSessionResponse.body, null, 2));\n\n  const { sessionId, authToken } = createLivenessSessionResponse.body;\n\n  // 3. Pass the AuthToken to client device.\n  // Client device will process the step 4, 5, 6 in the documentation 'Orchestrate the liveness solution'\n  await sendTokenToClientDevices(authToken);\n\n  // 7. wait for client device notifyus us that liveness session completed.\n  await waitForLivenessSessionComplete();\n\n  // 8. After client devices perform the action, we can get the result from the following APIs.\n  // Get session results.\n  const getLivenessSessionResultResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions/{sessionId}\", sessionId)\n    .get();\n  if (isUnexpected(getLivenessSessionResultResponse)) {\n    throw new Error(getLivenessSessionResultResponse.body.error.message);\n  }\n  console.log(\"Get liveness detection results:\");\n  console.log(JSON.stringify(getLivenessSessionResultResponse.body, null, 2));\n\n  // Delete session.\n  const deleteLivenessSessionResponse = await client\n    .path(\"/detectLivenessWithVerify-sessions/{sessionId}\", sessionId)\n    .delete();\n  if (isUnexpected(deleteLivenessSessionResponse)) {\n    throw new Error(deleteLivenessSessionResponse.body.error.message);\n  }\n  console.log(\"Delete liveness session:\");\n  console.log(JSON.stringify(deleteLivenessSessionResponse.body, null, 2));\n}\n\nmain().catch(console.error);\n",
+      "contentHash": "c8bc8548191360e7f83dc64560879278f3ee30614991275d74f41db4d0eae590",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/samples-dev/livenessSessionWithVerifyWithVerifyImage.ts",
+      "id": "c5b09fc313a9ce8ee60cf7d938f7feb0f3ce9650517244c5f3d886e2dd583265",
+      "startLine": 1,
+      "endLine": 122,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/faceClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport { logger } from \"./logger.js\";\nimport type { TokenCredential, KeyCredential } from \"@azure/core-auth\";\nimport type { FaceClient } from \"./clientDefinitions.js\";\nimport type { Versions } from \"./models.js\";\n\n/** The optional parameters for the client */\nexport interface FaceClientOptions extends ClientOptions {\n  /** API Version */\n  apiVersion?: Versions;\n}\n\n/**\n * Initialize a new instance of `FaceClient`\n * @param endpointParam - Supported Cognitive Services endpoints (protocol and hostname, for example:\n * https://{resource-name}.cognitiveservices.azure.com).\n * @param credentials - uniquely identify client credential\n * @param options - the parameter for all optional parameters\n */\nexport default function createClient(\n  endpointParam: string,\n  credentials: TokenCredential | KeyCredential,\n  { apiVersion = \"v1.2\", ...options }: FaceClientOptions = {},\n): FaceClient {\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? `${endpointParam}/face/${apiVersion}`;\n  const userAgentInfo = `azsdk-js-ai-vision-face-rest/1.0.0-beta.3`;\n  const userAgentPrefix =\n    options.userAgentOptions && options.userAgentOptions.userAgentPrefix\n      ? `${options.userAgentOptions.userAgentPrefix} ${userAgentInfo}`\n      : `${userAgentInfo}`;\n  options = {\n    ...options,\n    userAgentOptions: {\n      userAgentPrefix,\n    },\n    loggingOptions: {\n      logger: options.loggingOptions?.logger ?? logger.info,\n    },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://cognitiveservices.azure.com/.default\"],\n      apiKeyHeaderName: options.credentials?.apiKeyHeaderName ?? \"Ocp-Apim-Subscription-Key\",\n    },\n  };\n  const client = getClient(endpointUrl, credentials, options) as FaceClient;\n\n  client.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n\n  client.pipeline.addPolicy({\n    name: \"VerifyImageFilenamePolicy\",\n    sendRequest: (request, next) => {\n      for (const part of request.multipartBody?.parts ?? []) {\n        const contentDisposition = part.headers.get(\"content-disposition\");\n        if (\n          contentDisposition &&\n          contentDisposition.includes(`name=\"VerifyImage\"`) &&\n          !contentDisposition.includes(\"filename=\")\n        ) {\n          part.headers.set(\"content-disposition\", `form-data; name=\"VerifyImage\"; filename=\"blob\"`);\n        }\n      }\n      return next(request);\n    },\n  });\n\n  return client;\n}\n",
+      "contentHash": "f85ed0e92ef46341567cabd78a02f75dd2f4741f7de803ff60d21b3e505d3ebe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/src/faceClient.ts",
+      "id": "0264fd143b11038f87dcdfe4846b7b2f2df1af5a3cdbdc8da44ac600efdf7e2a",
+      "startLine": 1,
+      "endLine": 70,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport FaceClient from \"./faceClient.js\";\n\nexport * from \"./faceClient.js\";\nexport type * from \"./parameters.js\";\nexport type * from \"./responses.js\";\nexport type * from \"./clientDefinitions.js\";\nexport * from \"./isUnexpected.js\";\nexport type * from \"./models.js\";\nexport type * from \"./outputModels.js\";\nexport * from \"./pollingHelper.js\";\n\nexport default FaceClient;\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n",
+      "contentHash": "a7c5cafe5f8ff6e83b9a7baf48831755263665b3d5fccf623fdc005fcff1c975",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/src/index.ts",
+      "id": "9551a2e9a446debd71cfa8787380edee91720a280fe62d39f08bde36687b247d",
+      "startLine": 1,
+      "endLine": 16,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/logger.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { createClientLogger } from \"@azure/logger\";\nexport const logger = createClientLogger(\"ai-vision-face\");\n",
+      "contentHash": "71353a7954540cb79c02622633903f578048573555c34d42ec385193a666a071",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/src/logger.ts",
+      "id": "f480f12f4fff78d167d75261200f015eb077692a94327e729f4fe79e72ae358b",
+      "startLine": 1,
+      "endLine": 5,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/** Model for creating face collection. */\nexport interface CreateCollectionRequest {\n  /** User defined name, maximum length is 128. */\n  name: string;\n  /** Optional user defined data. Length should not exceed 16K. */\n  userData?: string;\n  /**\n   * The 'recognitionModel' associated with this face list. Supported 'recognitionModel' values include 'recognition_01', 'recognition_02, 'recognition_03', and 'recognition_04'. The default value is 'recognition_01'. 'recognition_04' is recommended since its accuracy is improved on faces wearing masks compared with 'recognition_03', and its overall accuracy is improved compared with 'recognition_01' and 'recognition_02'.\n   *\n   * Possible values: \"recognition_01\", \"recognition_02\", \"recognition_03\", \"recognition_04\"\n   */\n  recognitionModel?: RecognitionModel;\n}\n\n/** User defined fields for object update. */\nexport interface UserDefinedFieldsForUpdate {\n  /** User defined name, maximum length is 128. */\n  name?: string;\n  /** Optional user defined data. Length should not exceed 16K. */\n  userData?: string;\n}\n\n/** Add face from url request. */\nexport interface AddFaceFromUrlRequest {\n  /** URL of input image. */\n  url: string;\n}\n\n/** User defined data for persisted face. */\nexport interface FaceUserData {\n  /** User-provided data attached to the face. The length limit is 1K. */\n  userData?: string;\n}\n\n/** User defined fields for object creation. */\nexport interface UserDefinedFields {\n  /** User defined name, maximum length is 128. */\n  name: string;\n  /** Optional user defined data. Length should not exceed 16K. */\n  userData?: string;\n}\n\n/** Request model for creating liveness session. */\nexport interface CreateLivenessSessionContent {\n  /**\n   * Type of liveness mode the client should follow.\n   *\n   * Possible values: \"Passive\", \"PassiveActive\"\n   */\n  livenessOperationMode: LivenessOperationMode;\n  /** Whether or not to allow client to set their own 'deviceCorrelationId' via the Vision SDK. Default is false, and 'deviceCorrelationId' must be set in this request body. */\n  deviceCorrelationIdSetInClient?: boolean;\n  /** Whether or not store the session image. */\n  enableSessionImage?: boolean;\n  /**\n   * The model version used for liveness classification. This is an optional parameter, and if this is not specified, then the latest supported model version will be chosen\n   *\n   * Possible values: \"2024-11-15\"\n   */\n  livenessModelVersion?: LivenessModel;\n  /** Unique Guid per each end-user device. This is to provide rate limiting and anti-hammering. If 'deviceCorrelationIdSetInClient' is true in this request, this 'deviceCorrelationId' must be null. */\n  deviceCorrelationId?: string;\n  /** Seconds the session should last for. Range is 60 to 86400 seconds. Default value is 600. */\n  authTokenTimeToLiveInSeconds?: number;\n}\n\nexport interface CreateLivenessWithVerifySessionContentLivenessOperationModePartDescriptor {\n  name: \"livenessOperationMode\";\n  body: LivenessOperationMode;\n}\n\nexport interface CreateLivenessWithVerifySessionContentDeviceCorrelationIdSetInClientPartDescriptor {\n  name: \"deviceCorrelationIdSetInClient\";\n  body: boolean;\n}\n\nexport interface CreateLivenessWithVerifySessionContentEnableSessionImagePartDescriptor {\n  name: \"enableSessionImage\";\n  body: boolean;\n}\n\nexport interface CreateLivenessWithVerifySessionContentLivenessModelVersionPartDescriptor {\n  name: \"livenessModelVersion\";\n  body: LivenessModel;\n}\n\nexport interface CreateLivenessWithVerifySessionContentDeviceCorrelationIdPartDescriptor {\n  name: \"deviceCorrelationId\";\n  body: string;\n}\n\nexport interface CreateLivenessWithVerifySessionContentAuthTokenTimeToLiveInSecondsPartDescriptor {\n  name: \"authTokenTimeToLiveInSeconds\";\n  body: number;\n}\n\nexport interface CreateLivenessWithVerifySessionContentReturnVerifyImageHashPartDescriptor {\n  name: \"returnVerifyImageHash\";\n  body: boolean;\n}\n\nexport interface CreateLivenessWithVerifySessionContentVerifyConfidenceThresholdPartDescriptor {\n  name: \"verifyConfidenceThreshold\";\n  body: number;\n}\n\nexport interface CreateLivenessWithVerifySessionContentVerifyImagePartDescriptor {\n  name: \"verifyImage\";\n  body: string | Uint8Array | ReadableStream<Uint8Array> | NodeJS.ReadableStream | File;\n  filename?: string;\n  contentType?: string;\n}\n\n/** Alias for DetectionModel */\nexport type DetectionModel = string;\n/** Alias for RecognitionModel */\nexport type RecognitionModel = string;\n/** Alias for FaceAttributeType */\nexport type FaceAttributeType = string;\n/** Alias for FindSimilarMatchMode */\nexport type FindSimilarMatchMode = string;\n/** Alias for LivenessOperationMode */\nexport type LivenessOperationMode = string;\n/** Alias for LivenessModel */\nexport type LivenessModel = string;\n/** Request of liveness with verify session creation. */\nexport type CreateLivenessWithVerifySessionContent =\n  | FormData\n  | Array<\n      | CreateLivenessWithVerifySessionContentLivenessOperationModePartDescriptor\n      | CreateLivenessWithVerifySessionContentDeviceCorrelationIdSetInClientPartDescriptor\n      | CreateLivenessWithVerifySessionContentEnableSessionImagePartDescriptor\n      | CreateLivenessWithVerifySessionContentLivenessModelVersionPartDescriptor\n      | CreateLivenessWithVerifySessionContentDeviceCorrelationIdPartDescriptor\n      | CreateLivenessWithVerifySessionContentAuthTokenTimeToLiveInSecondsPartDescriptor\n      | CreateLivenessWithVerifySessionContentReturnVerifyImageHashPartDescriptor\n      | CreateLivenessWithVerifySessionContentVerifyConfidenceThresholdPartDescriptor\n      | CreateLivenessWithVerifySessionContentVerifyImagePartDescriptor\n    >;\n/** API versions for Azure AI Face API. */\nexport type Versions = \"v1.1-preview.1\" | \"v1.2-preview.1\" | \"v1.2\";\n",
+      "contentHash": "839b33e37d248d24dd98565bd6cdb5e26f16d179ba6763709c7c91c0cca60fe9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/src/models.ts",
+      "id": "01fcbf00d8eefbd5ac780852b624456464099357c5587a3e28f1843849b6e19c",
+      "startLine": 1,
+      "endLine": 144,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/vitest.browser.config.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport viteConfig from \"../../../vitest.browser.shared.config.ts\";\n\nexport default viteConfig;\n",
+      "contentHash": "4d99aead2bd334a8b457d84c094e1c3e4d5792c3338d4834edaa4b3a4aae1dbf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/vitest.browser.config.ts",
+      "id": "35b02240b5bffdbb3ff0b33cbfd7e8f2197e591108f50778b6f012a54f9d9ae6",
+      "startLine": 1,
+      "endLine": 6,
+      "kind": "unknown"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/vitest.config.ts",
+      "text": "\n// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport viteConfig from \"../../../vitest.shared.config.ts\";\n\nexport default viteConfig;\n",
+      "contentHash": "13c7c1130811010794c748d030b374333b5a509fb895f1ba9cf2d8185c6d0bfc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/vitest.config.ts",
+      "id": "868f5e3350d6cfca61253bfa01d90c9b7b08626d0a036bedae808964bdd69bb8",
+      "startLine": 1,
+      "endLine": 7,
+      "kind": "unknown"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/face/ai-vision-face-rest/package.json",
+      "text": "{\n  \"name\": \"@azure-rest/ai-vision-face\",\n  \"version\": \"1.0.0-beta.3\",\n  \"description\": \"Face API REST Client\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\",\n    \"review/\",\n    \"CHANGELOG.md\"\n  ],\n  \"sdk-type\": \"client\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/face/ai-vision-face-rest\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/face/ai-vision-face-rest/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/faceClient.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.1.0\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^3.0.0\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"^3.2.5\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"execute:samples\": \"echo skipped\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"generate:client\": \"echo skipped\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"echo skipped\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Face API\",\n    \"productSlugs\": [\n      \"azure\"\n    ],\n    \"disableDocsMs\": true,\n    \"apiRefLink\": \"https://aka.ms/azsdk-javascript-face-ref\",\n    \"extraFiles\": {\n      \"./samples-dev/data/detection1.jpg\": [\n        \"javascript/data/detection1.jpg\",\n        \"typescript/src/data/detection1.jpg\"\n      ],\n      \"./samples-dev/data/detection5.jpg\": [\n        \"javascript/data/detection5.jpg\",\n        \"typescript/src/data/detection5.jpg\"\n      ],\n      \"./samples-dev/data/nine-faces.png\": [\n        \"javascript/data/nine-faces.png\",\n        \"typescript/src/data/nine-faces.png\"\n      ]\n    }\n  },\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "8defb70ef0fd94d7469d9487031bc044e24f334c98dd70affcfab4fff44602c9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/package.json"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/tsp-location.yaml",
+      "text": "additionalDirectories: []\ndirectory: specification/ai/Face\ncommit: 24d856b33d49b5ac6227a51c610b7d8b0f289458\nrepo: Azure/azure-rest-api-specs\n\n",
+      "contentHash": "aceeea49b747c979f1168623f9165c388c038f93eceed2f4c73eb92c9d64c385",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/4fd827c0b64ceb2eb4cac3d79167f16f7d451506/sdk/face/ai-vision-face-rest/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/clientDefinitions.ts",
+      "startLine": 1,
+      "endLine": 1300,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "52daddceae010ddefb04856fd24e49bfc892740da41d7a635da2a49c5a2f2434"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/faceClient.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f85ed0e92ef46341567cabd78a02f75dd2f4741f7de803ff60d21b3e505d3ebe"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/isUnexpected.ts",
+      "startLine": 1,
+      "endLine": 801,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b1baa85bafa5642d04c0b2a88a27505b1dff91f01336e5badc5a118514672178"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/logger.ts",
+      "startLine": 1,
+      "endLine": 5,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "71353a7954540cb79c02622633903f578048573555c34d42ec385193a666a071"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/models.ts",
+      "startLine": 1,
+      "endLine": 144,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "839b33e37d248d24dd98565bd6cdb5e26f16d179ba6763709c7c91c0cca60fe9"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/outputModels.ts",
+      "startLine": 1,
+      "endLine": 675,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "706beeed6e103d8c969ef5bb291bfeb2376b397eae002de5640d0de9afbff542"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/parameters.ts",
+      "startLine": 1,
+      "endLine": 907,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e4d316c4e059b42c58287a22629225399b07dbaa7daf48468098dd4e5494c15f"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/pollingHelper.ts",
+      "startLine": 1,
+      "endLine": 226,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "bf77d490e75a85c1cb9bb0e07c512318dd57c95818d1b38a4720b9619d4f36cf"
+    },
+    {
+      "path": "sdk/face/ai-vision-face-rest/src/responses.ts",
+      "startLine": 1,
+      "endLine": 1346,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a78cf085f46d2f02305f471e1ba7a3b89583ba980b23201558926168b0c1b32c"
+    }
+  ]
+}

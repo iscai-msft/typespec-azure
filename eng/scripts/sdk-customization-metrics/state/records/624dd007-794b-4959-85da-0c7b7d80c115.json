@@ -1,0 +1,845 @@
+{
+  "schemaVersion": 1,
+  "id": "624dd007-794b-4959-85da-0c7b7d80c115",
+  "observedAt": "2026-11-16T20:20:11.657Z",
+  "identity": "javascript:@azure/keyvault-secrets:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/keyvault-secrets",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/keyvault/keyvault-secrets"
+  },
+  "commit": "68eeadd5bbe6e532eb751f4185ce4f04570770c5",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "jsGeneratedRule": "layout",
+    "reader": "git",
+    "packageTree": "89ee026ccc5011e6bfd005e69eb7967ef1562a20",
+    "jsLayout": "merge"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 96,
+    "eligibleFiles": 38,
+    "capturedFiles": 56,
+    "skipped": [
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/lro/recover/poller.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/models/index.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/models/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/secretsModels.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/static-helpers/pagingHelpers.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/static-helpers/urlTemplate.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/tracing.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/keyvault-secrets/src/transformations.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport {\n  createKeyVault,\n  type KeyVaultContext,\n  type KeyVaultClientOptionalParams,\n} from \"./keyVaultContext.js\";\nexport {\n  restoreSecret,\n  backupSecret,",
+      "contentHash": "64265eef6de9d2e0ab39288ff47aa0a5e7d70e7e1cb927038c9231402ff7d3ac",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/index.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0a07ab01afb0f32d2458943e3717328d1754d95db7e602c8f8d5886eb19e793a"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/keyVaultContext.ts",
+      "text": "// Licensed under the MIT License.\n\nimport { logger } from \"../logger.js\";\nimport { KnownVersions } from \"../models/models.js\";\nimport type { Client, ClientOptions } from \"@azure-rest/core-client\";\nimport { getClient } from \"@azure-rest/core-client\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport { SDK_VERSION } from \"../constants.js\";\n\n/** The Azure Key Vault Secrets client manages secrets in the Key Vault service. */\nexport interface KeyVaultContext extends Client {\n  /** The API version to use for this operation. */\n  /** Known values of {@link KnownVersions} that the service accepts. */\n  apiVersion: string;\n}\n\n/** Optional parameters for the client. */",
+      "contentHash": "5fef14da55872ae253e9a15cbe3a4590131b2bbf1416924e715be2b72b576e2e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/keyVaultContext.ts",
+      "startLine": 2,
+      "endLine": 18,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1754fea379fb8db57ccb151f110d9f2e4f06ab3e600d925ad5d80e1a2ebae288"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/keyVaultContext.ts",
+      "text": "  credential: TokenCredential,\n  options: KeyVaultClientOptionalParams = {},\n): KeyVaultContext {\n  const endpointUrl = options.endpoint ?? options.baseUrl ?? String(endpointParam);\n  const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n  const userAgentInfo = `azsdk-js-keyvault-secrets/${SDK_VERSION}`;\n  const userAgentPrefix = prefixFromOptions\n    ? `${prefixFromOptions} azsdk-js-api ${userAgentInfo}`\n    : `azsdk-js-api ${userAgentInfo}`;\n  const { apiVersion: _, ...updatedOptions } = {\n    ...options,\n    userAgentOptions: { userAgentPrefix },\n    loggingOptions: { logger: options.loggingOptions?.logger ?? logger.info },\n    credentials: {\n      scopes: options.credentials?.scopes ?? [\"https://vault.azure.net/.default\"],\n    },\n  };\n  const clientContext = getClient(endpointUrl, credential, updatedOptions);\n  clientContext.pipeline.removePolicy({ name: \"ApiVersionPolicy\" });\n  const apiVersion = options.apiVersion ?? \"2026-04-01\";\n  clientContext.pipeline.addPolicy({\n    name: \"ClientApiVersionPolicy\",\n    sendRequest: (req, next) => {\n      // Use the apiVersion defined in request url directly\n      // Append one if there is no apiVersion and we have one at client options\n      const url = new URL(req.url);\n      if (!url.searchParams.get(\"api-version\")) {\n        req.url = `${req.url}${\n          Array.from(url.searchParams.keys()).length > 0 ? \"&\" : \"?\"\n        }api-version=${apiVersion}`;\n      }\n\n      return next(req);\n    },\n  });\n  return { ...clientContext, apiVersion } as KeyVaultContext;\n}",
+      "contentHash": "3324499247f32378802a899b9b5e48345a59e1d4292a8e99db3ba83414fd3585",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/keyVaultContext.ts",
+      "startLine": 28,
+      "endLine": 64,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4fcb1ee18e57f46fddcf8b5ba6818705778fda675675e7cc98dbd46b4d1ba8e0"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "import type { KeyVaultContext as Client } from \"./index.js\";\nimport type {\n  SecretSetParameters,\n  SecretBundle,\n  DeletedSecretBundle,\n  SecretUpdateParameters,\n  _SecretListResult,\n  SecretItem,\n  _DeletedSecretListResult,\n  DeletedSecretItem,\n  BackupSecretResult,\n  SecretRestoreParameters,\n} from \"../models/models.js\";\nimport {\n  secretSetParametersSerializer,\n  secretBundleDeserializer,\n  keyVaultErrorDeserializer,\n  deletedSecretBundleDeserializer,\n  secretUpdateParametersSerializer,\n  _secretListResultDeserializer,\n  _deletedSecretListResultDeserializer,\n  backupSecretResultDeserializer,\n  secretRestoreParametersSerializer,\n} from \"../models/models.js\";\nimport type {\n  RestoreSecretOptionalParams,\n  BackupSecretOptionalParams,",
+      "contentHash": "b7aef3c2592c9d35b1787604adff61b7e85707ba364b8f85122f9d7ced42d1f9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 4,
+      "endLine": 30,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e7345a553ae0edbc253ef68e86d0f917482bdd625e29f51cd77463ceade8c3ff"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  DeleteSecretOptionalParams,\n  SetSecretOptionalParams,\n} from \"./options.js\";\nimport type { PagedAsyncIterableIterator } from \"../static-helpers/pagingHelpers.js\";\nimport { buildPagedAsyncIterator } from \"../static-helpers/pagingHelpers.js\";\nimport { expandUrlTemplate } from \"../static-helpers/urlTemplate.js\";\nimport type { StreamableMethod, PathUncheckedResponse } from \"@azure-rest/core-client\";\nimport { createRestError, operationOptionsToRequestParameters } from \"@azure-rest/core-client\";\n\nexport function _restoreSecretSend(\n  context: Client,",
+      "contentHash": "7d28729a8a946bf2a80d2cdc5311aaee5b35a1849d6ec1bf84517fb0ef1a6429",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 39,
+      "endLine": 49,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "27b4e0290f04eaabaf85d0fe3f3be2a0ebc9754b794a4aa65856d66ba860a3d6"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const path = expandUrlTemplate(\n    \"/secrets/restore{?api%2Dversion}\",\n    {\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: secretRestoreParametersSerializer(parameters),\n  });\n}",
+      "contentHash": "b3307911505bcc0b4fe9c6623cb7f72a5e7a98b9298d19a7b7177c2cc0b533d2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 53,
+      "endLine": 71,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0f670ac3fe0d8aa67793b01f71eb251615bfc930c72e48e941e66279f55740db"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return secretBundleDeserializer(result.body);",
+      "contentHash": "d6b6e3da2865e19675cb13cb81967c99defe3bba12c531ed7863e5b7eef5a956",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 76,
+      "endLine": 83,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "f303e2e549a1da2b927d5ab44e8d5a91a2c483caccd0ddb2182eb8855d648c98"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/secrets/{secret-name}/backup{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "a9c63db6efb1a87ec933bced309c6aa4a0b9fa46860f8e1b776738ca4b07c1b5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 102,
+      "endLine": 118,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c1cfc7868a752a6dfd5f3e849905ea31a5eda94322afdb9ec94a964841bc4a38"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return backupSecretResultDeserializer(result.body);",
+      "contentHash": "1e1a44f883f5754ec256813b9d0e0a229915493d4bcbbb4a6d67c078455f1973",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 123,
+      "endLine": 130,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "40a3ea6d6979d0a09c0e291b164725d25f63c3b043cb8e0f38e7adf8b8a2f55e"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/deletedsecrets/{secret-name}/recover{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).post({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "20959a6e649a673d295cfae37fe1b5916ce4a5fccfb7274ea64355a0339e0afe",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 149,
+      "endLine": 165,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "3182e907c59b8f6f6ced9e8acdd3a4c2ab26cc9a51c6df18eba8c9e7782842fb"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return secretBundleDeserializer(result.body);",
+      "contentHash": "d6b6e3da2865e19675cb13cb81967c99defe3bba12c531ed7863e5b7eef5a956",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 170,
+      "endLine": 177,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a4f318934c5b5dde5376fa2c59b65a2d89841053e555a32919e5ba403d3bd447"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/deletedsecrets/{secret-name}{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n\nexport async function _purgeDeletedSecretDeserialize(result: PathUncheckedResponse): Promise<void> {\n  const expectedStatuses = [\"204\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return;",
+      "contentHash": "79f5dc3d038a39c49027581b723ab2b8d1cfcd886036ee67d80f1f158ef1f585",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 196,
+      "endLine": 222,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5c93439a2d716f716debd716a6c554afac9a4a6c4435cb735549281e4e6c766c"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/deletedsecrets/{secret-name}{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "845184a562d04c8a6b5b0ae722ad41f3db759faad4f0cf18b67637bc02f71b53",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 241,
+      "endLine": 257,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "87d87da6444325edd5e8c89964317805649271e3b184c869c1a747348e505fab"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return deletedSecretBundleDeserializer(result.body);",
+      "contentHash": "8b9b1956d0fc0ca2e728ee01727af9b49c09144e2d7997a3a8e666d0ac70749d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 262,
+      "endLine": 269,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "caccb004f8013e4c6a19cb8ca75a58603f64dc8e29c45a4a197b23bfefb79d88"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const path = expandUrlTemplate(\n    \"/deletedsecrets{?api%2Dversion,maxresults}\",\n    {\n      \"api%2Dversion\": context.apiVersion,\n      maxresults: options?.maxresults,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "c11ba2cbe21c45b99dc67ba8fb6699c1d844ed5549960c504190f8658f37a1e7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 286,
+      "endLine": 303,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9960006231413bac91b426df0fb7b7cebae68c522adce0ed266742da02ec7a91"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return _deletedSecretListResultDeserializer(result.body);",
+      "contentHash": "fb23fbfb6399d7ec7500a23e40aa22232b7cec53d93d1284374514692f212844",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 308,
+      "endLine": 315,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "a3418647265b8c2c78150eef4516a596d5d70bb3b47342a296bfe68b4ec74e3d"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    () => _getDeletedSecretsSend(context, options),\n    _getDeletedSecretsDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "8e648019ed85a98303c71c75bbf9de8a151dedaa77c567bb42ac3ea30680fd4d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 325,
+      "endLine": 330,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bf0a76efe5477497e860a26ffc07e68ebd7a9f55ffa045632d44020206e163b7"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/secrets/{secret-name}/versions{?api%2Dversion,maxresults}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n      maxresults: options?.maxresults,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "85fe4395742fe3e3ac3fd653a08f2cabf2e8c696dee46df3c64e3bacaa37d15f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 338,
+      "endLine": 355,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4ec179dae483f553a817134c0f180ccfa0542c8e21999ae3acd8ebebe0f4db76"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return _secretListResultDeserializer(result.body);",
+      "contentHash": "ca0e5724aac8979b55e515f7b51bf489f8a5d62a7cf4711a182b76bfacc5cf77",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 360,
+      "endLine": 367,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "75de4810030f549c430396044428e3338e7c690cd3b812303e0c67946577505e"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    () => _getSecretVersionsSend(context, secretName, options),\n    _getSecretVersionsDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "2df0644437091390f22c5aaf316337e253facda21289dab394db5652029295b3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 378,
+      "endLine": 383,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "05068fe4040596340c8acae2cb35cfaeadef4d97a1acf65c77950804762788a3"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const path = expandUrlTemplate(\n    \"/secrets{?api%2Dversion,maxresults}\",\n    {\n      \"api%2Dversion\": context.apiVersion,\n      maxresults: options?.maxresults,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "31dda6226d999637aad1b00f7ce9df00ae5e7a5801e6bb5a336fce2c9ebd177d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 389,
+      "endLine": 406,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "32cf4c2b819c43447f85890db53441efcd49a72372c7cfb7ddcf231b7519ef75"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return _secretListResultDeserializer(result.body);",
+      "contentHash": "ca0e5724aac8979b55e515f7b51bf489f8a5d62a7cf4711a182b76bfacc5cf77",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 411,
+      "endLine": 418,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b870da739e0ce79d907919001a195132c2456d2a97a3845f5de6219039444718"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    () => _getSecretsSend(context, options),\n    _getSecretsDeserialize,\n    [\"200\"],\n    { itemName: \"value\", nextLinkName: \"nextLink\" },\n  );\n}\n",
+      "contentHash": "6e729dde88f047533b2c757fd05d9cad51c0cd8cf594239d419b2638722e77f9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 428,
+      "endLine": 433,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "bd2a4e4230dfd69982ea43454bc2c8c03007b4f4d24206a99050a010b6ac2074"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    {\n      \"secret-name\": secretName,\n      \"secret-version\": secretVersion,\n      \"api%2Dversion\": context.apiVersion,\n      outContentType: options?.outContentType,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).get({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "973fb66dfbdf15597a8853517ba48ef3333ba3f38ea788950e375950120c4a09",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 443,
+      "endLine": 460,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ce4f26af09e01ec492253b5913d9086b38f7a2652b2dcb18ecb2de1a2e8ce30c"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return secretBundleDeserializer(result.body);",
+      "contentHash": "d6b6e3da2865e19675cb13cb81967c99defe3bba12c531ed7863e5b7eef5a956",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 463,
+      "endLine": 470,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "2b63082fd97c05a09fd5bfc96998d52fd4047ff35e0c768d8ca132f4ff15a673"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    {\n      \"secret-name\": secretName,\n      \"secret-version\": secretVersion,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).patch({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: secretUpdateParametersSerializer(parameters),\n  });\n}",
+      "contentHash": "4e082e649d59c24b3b7112dd7ed788b344c7f8a60c1c0388c307ba5eeff48671",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 493,
+      "endLine": 511,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "e41083ce17a27a3ef8e7a2ed9e799f0590b66854359ea76e6fed4f85880d6044"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return secretBundleDeserializer(result.body);",
+      "contentHash": "d6b6e3da2865e19675cb13cb81967c99defe3bba12c531ed7863e5b7eef5a956",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 516,
+      "endLine": 523,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "fd6450a4441f6d32cee2f02f86dddb4fb0541de619c92df9e7593887f0a3ae64"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/secrets/{secret-name}{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).delete({\n    ...operationOptionsToRequestParameters(options),\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n  });\n}\n",
+      "contentHash": "05e56dbf1f1663c74cc8190086c9dc1a0e468c445a5b1bd254e1264108821f9b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 544,
+      "endLine": 560,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "9b725076c4cf363e2e3a40a90dae9721df2db5298769293d486ed8bdaf57b711"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return deletedSecretBundleDeserializer(result.body);",
+      "contentHash": "8b9b1956d0fc0ca2e728ee01727af9b49c09144e2d7997a3a8e666d0ac70749d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 565,
+      "endLine": 572,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "87b164ee79137e65c6727f0e6847dfc96a25dc666f8a794dd0e211cb3484b4be"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "    \"/secrets/{secret-name}{?api%2Dversion}\",\n    {\n      \"secret-name\": secretName,\n      \"api%2Dversion\": context.apiVersion,\n    },\n    {\n      allowReserved: options?.requestOptions?.skipUrlEncoding,\n    },\n  );\n  return context.path(path).put({\n    ...operationOptionsToRequestParameters(options),\n    contentType: \"application/json\",\n    headers: {\n      accept: \"application/json\",\n      ...options.requestOptions?.headers,\n    },\n    body: secretSetParametersSerializer(parameters),\n  });\n}",
+      "contentHash": "e7843d4d3ec45daee0bf506340dbd9dba66137b906f4e65a49b6287be70a6c9c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 592,
+      "endLine": 610,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "c9c82a0df81d225caf666e5d2d420958f456f96d142213402ecb4d83bee41f46"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "text": "  const expectedStatuses = [\"200\"];\n  if (!expectedStatuses.includes(result.status)) {\n    const error = createRestError(result);\n    error.details = keyVaultErrorDeserializer(result.body);\n    throw error;\n  }\n\n  return secretBundleDeserializer(result.body);",
+      "contentHash": "d6b6e3da2865e19675cb13cb81967c99defe3bba12c531ed7863e5b7eef5a956",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 613,
+      "endLine": 620,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1c103ad15d9c2c926b6000dd24c7085857829c1ba99f5c752c47ae61454e34db"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/options.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport type { ContentType } from \"../models/models.js\";\n\n/** Optional parameters. */\nexport interface RestoreSecretOptionalParams extends OperationOptions {}",
+      "contentHash": "b3b50557c72d6aa550478eb6e65eb940bed700028ecceb681dbba12b525b4ff1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/api/options.ts",
+      "startLine": 1,
+      "endLine": 8,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "b617fe3d1eb025bba10f66976e99579a2d371ac17c7c710b457f40ce633c707c"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/constants.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport const SDK_VERSION: string = \"4.12.0\";\n",
+      "contentHash": "d17e34bf34880efe94ce3295354b1c62c27d4a0f3c9587f0ba13d837e753bb1c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/constants.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "kind": "unknown",
+      "id": "3a182078ab18051b876a0e2df3a8efbdb2cfc65d9bfb90a31efdc56d8d549b61"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/identifier.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { parseKeyVaultIdentifier } from \"@azure/keyvault-common\";\n\n/**\n * Represents the segments that compose a Key Vault Secret Id.\n */\nexport interface KeyVaultSecretIdentifier {\n  /**\n   * The complete representation of the Key Vault Secret Id. For example:\n   *\n   *   https://<keyvault-name>.vault.azure.net/secrets/<secret-name>/<unique-version-id>\n   *\n   */\n  sourceId: string;\n\n  /**\n   * The URL of the Azure Key Vault instance to which the Secret belongs.\n   */\n  vaultUrl: string;\n\n  /**\n   * The version of Key Vault Secret. Might be undefined.\n   */\n  version?: string;\n\n  /**\n   * The name of the Key Vault Secret.\n   */\n  name: string;\n}\n\n/**\n * Parses the given Key Vault Secret Id. An example is:\n *\n *   https://<keyvault-name>.vault.azure.net/secrets/<secret-name>/<unique-version-id>\n *\n * On parsing the above Id, this function returns:\n *```ts snippet:ignore\n *   {\n *      sourceId: \"https://<keyvault-name>.vault.azure.net/secrets/<secret-name>/<unique-version-id>\",\n *      vaultUrl: \"https://<keyvault-name>.vault.azure.net\",\n *      version: \"<unique-version-id>\",\n *      name: \"<secret-name>\"\n *   }\n *```\n * @param id - The Id of the Key Vault Secret.\n */\nexport function parseKeyVaultSecretIdentifier(id: string): KeyVaultSecretIdentifier {\n  const urlParts = id.split(\"/\");\n  const collection = urlParts[3];\n\n  return {\n    sourceId: id,\n    ...parseKeyVaultIdentifier(collection, id),\n  };\n}\n",
+      "contentHash": "9b19c86bb9f84a021f2d7c1625b62ab6735e42fdee121bfae7bf763cb622c2b0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/identifier.ts",
+      "startLine": 1,
+      "endLine": 58,
+      "kind": "unknown",
+      "id": "a9fdf65e48436d2b26275b9f9bd90977c9fbe2b7d2072f2ff8192b0074a89c47"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "// Licensed under the MIT License.\n/// <reference lib=\"esnext.asynciterable\" />\n\nimport type { TokenCredential } from \"@azure/core-auth\";\n\nimport { logger } from \"./logger.js\";\n\nimport type { PageSettings, PagedAsyncIterableIterator } from \"@azure/core-paging\";\nimport type { PollOperationState } from \"@azure/core-lro\";\nimport type { PollerLike } from \"@azure/core-lro\";\nimport type { KeyVaultClientOptionalParams } from \"./keyVaultClient.js\";\nimport { KeyVaultClient } from \"./keyVaultClient.js\";\nimport { keyVaultAuthenticationPolicy } from \"@azure/keyvault-common\";\n\nimport type {\n  BackupSecretOptions,\n  BeginDeleteSecretOptions,\n  BeginRecoverDeletedSecretOptions,\n  DeletedSecret,\n  GetDeletedSecretOptions,\n  GetSecretOptions,\n  KeyVaultSecret,\n  ListDeletedSecretsOptions,\n  ListPropertiesOfSecretVersionsOptions,\n  ListPropertiesOfSecretsOptions,\n  PurgeDeletedSecretOptions,\n  RestoreSecretBackupOptions,\n  SecretClientOptions,\n  SecretPollerOptions,\n  SecretProperties,\n  SetSecretOptions,\n  UpdateSecretPropertiesOptions,\n} from \"./secretsModels.js\";\nimport { LATEST_API_VERSION } from \"./secretsModels.js\";\nimport type { DeletionRecoveryLevel } from \"./models/models.js\";\nimport { KnownDeletionRecoveryLevel, KnownContentType } from \"./models/models.js\";\nimport type { ContentType } from \"./models/models.js\";\nimport type { KeyVaultSecretIdentifier } from \"./identifier.js\";\nimport { parseKeyVaultSecretIdentifier } from \"./identifier.js\";\nimport { getSecretFromSecretBundle, mapPagedAsyncIterable } from \"./transformations.js\";\nimport { tracingClient } from \"./tracing.js\";\nimport { bearerTokenAuthenticationPolicyName } from \"@azure/core-rest-pipeline\";\nimport { SDK_VERSION } from \"./constants.js\";\nimport { DeleteSecretPoller } from \"./lro/delete/poller.js\";\nimport { RecoverDeletedSecretPoller } from \"./lro/recover/poller.js\";\n\nexport {\n  type SecretClientOptions,\n  type DeletedSecret,\n  type DeletionRecoveryLevel,\n  KnownDeletionRecoveryLevel,\n  type ContentType,\n  KnownContentType,\n  type GetSecretOptions,\n  type GetDeletedSecretOptions,\n  type PurgeDeletedSecretOptions,\n  type BackupSecretOptions,\n  type RestoreSecretBackupOptions,\n  type ListPropertiesOfSecretVersionsOptions,\n  type ListPropertiesOfSecretsOptions,\n  type ListDeletedSecretsOptions,\n  type PagedAsyncIterableIterator,\n  type PageSettings,\n  type KeyVaultSecretIdentifier,\n  parseKeyVaultSecretIdentifier,\n  type PollerLike,\n  type PollOperationState,\n  type KeyVaultSecret,\n  type SecretProperties,\n  type SecretPollerOptions,\n  type BeginDeleteSecretOptions,\n  type BeginRecoverDeletedSecretOptions,\n  type SetSecretOptions,\n  type UpdateSecretPropertiesOptions,\n  logger,\n};\n\n/**\n * The SecretClient provides methods to manage {@link KeyVaultSecret} in",
+      "contentHash": "285471515de720698d1b3866afc11dcb09e689956ff0ab184d2532f72944834b",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 2,
+      "endLine": 80,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7e1d9e6915ed3f432cc55c9a839d52b64b1908d81f4695298323889d184b45b2"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": " * client also supports listing {@link DeletedSecret} for a soft-delete enabled Azure\n * Key Vault.\n */\nexport class SecretClient {\n  /**\n   * The base URL to the vault\n   */\n  public readonly vaultUrl: string;\n\n  /**\n   * A reference to the auto-generated KeyVault HTTP client.\n   */\n  private readonly client: KeyVaultClient;\n\n  /**\n   * Creates an instance of SecretClient.",
+      "contentHash": "98b91046f879820b5a8b261b48d0da2682e244f1650774c2e7213fdd5c694d51",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 83,
+      "endLine": 98,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "5f2e9d9f07f182e1c7b610b32e4e23a664bd30156706cac4384d85aecc7ca3d2"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param pipelineOptions - Pipeline options used to configure Key Vault API requests.\n   *                          Omit this parameter to use the default pipeline configuration.\n   */\n  constructor(\n    vaultUrl: string,\n    credential: TokenCredential,\n    pipelineOptions: SecretClientOptions = {},\n  ) {\n    this.vaultUrl = vaultUrl;\n\n    const internalPipelineOptions: KeyVaultClientOptionalParams = {\n      ...pipelineOptions,\n      userAgentOptions: {\n        userAgentPrefix: `${pipelineOptions.userAgentOptions?.userAgentPrefix ?? \"\"} azsdk-js-keyvault-secrets/${SDK_VERSION}`,\n      },\n      apiVersion: pipelineOptions.serviceVersion || LATEST_API_VERSION,\n      loggingOptions: {\n        logger: logger.info,\n        additionalAllowedHeaderNames: [\n          \"x-ms-keyvault-region\",\n          \"x-ms-keyvault-network-info\",\n          \"x-ms-keyvault-service-version\",\n        ],\n      },\n    };\n\n    this.client = new KeyVaultClient(this.vaultUrl, credential, internalPipelineOptions);\n\n    // Key vault has its own authentication policy that needs to be added to the pipeline, replacing the default bearerTokenAuthenticationPolicy.\n    this.client.pipeline.removePolicy({ name: bearerTokenAuthenticationPolicyName });\n    this.client.pipeline.addPolicy(keyVaultAuthenticationPolicy(credential, pipelineOptions), {});\n    // Workaround for: https://github.com/Azure/azure-sdk-for-js/issues/31843\n    this.client.pipeline.addPolicy({\n      name: \"ContentTypePolicy\",\n      sendRequest(request, next) {\n        const contentType = request.headers.get(\"Content-Type\") ?? \"\";\n        if (contentType.startsWith(\"application/json\")) {\n          request.headers.set(\"Content-Type\", \"application/json\");\n        }\n        return next(request);\n      },\n    });\n  }\n\n  /**\n   * The setSecret method adds a secret or secret version to the Azure Key Vault. If the named secret",
+      "contentHash": "e4b26220c8af5b31c5ccae62a8d4306204ab745556329329e7db9218e8c5ea21",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 116,
+      "endLine": 161,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "604e96e48285657ef876987a4bde1344810653aa80bf0bc471722b114d5e74cb"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param value - The value of the secret.\n   * @param options - The optional parameters.\n   */\n  public setSecret(\n    secretName: string,\n    value: string,\n    options: SetSecretOptions = {},\n  ): Promise<KeyVaultSecret> {\n    const {\n      contentType,\n      enabled,\n      notBefore,\n      expiresOn: expires,\n      tags,\n      ...remainingOptions\n    } = options;\n\n    return tracingClient.withSpan(\n      \"SecretClient.setSecret\",\n      remainingOptions,\n      async (updatedOptions) => {\n        const response = await this.client.setSecret(\n          secretName,\n          { value, contentType, secretAttributes: { enabled, notBefore, expires }, tags },\n          updatedOptions,\n        );\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * Deletes a secret stored in Azure Key Vault.",
+      "contentHash": "38d35d2ec5c73341db2822bbe7980cd098d3bd6f2285c288f21421c017ac14fb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 184,
+      "endLine": 216,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4b3890299fdb9196e2bd1241fb695031067042ef0e5e048c931f2b9607da5ec3"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the secret.\n   * @param options - The optional parameters.\n   */\n  public async beginDeleteSecret(\n    name: string,\n    options: BeginDeleteSecretOptions = {},\n  ): Promise<PollerLike<PollOperationState<DeletedSecret>, DeletedSecret>> {\n    const poller = new DeleteSecretPoller({\n      name,\n      client: this.client,\n      ...options,\n      operationOptions: options,\n    });\n    // This will initialize the poller's operation (the deletion of the secret).\n    await poller.poll();\n    return poller;\n  }\n\n  /**\n   * The updateSecret method changes specified attributes of an existing stored secret. Properties that",
+      "contentHash": "04cff0b2da4e5df045d34efafa4a1e2d8c443c94093e525e35c547159639f497",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 238,
+      "endLine": 257,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0e63a11d374e120b130e112f82570c25a42d551ab543a5fd81e9d59724ef9539"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretVersion - The version of the secret.\n   * @param options - The optional parameters.\n   */\n  public async updateSecretProperties(\n    secretName: string,\n    secretVersion: string,\n    options: UpdateSecretPropertiesOptions = {},\n  ): Promise<SecretProperties> {\n    const {\n      contentType,\n      enabled,\n      notBefore,\n      expiresOn: expires,\n      tags,\n      ...remainingOptions\n    } = options;\n\n    return tracingClient.withSpan(\n      \"SecretClient.updateSecretProperties\",\n      remainingOptions,\n      async (updatedOptions) => {\n        const response = await this.client.updateSecret(\n          secretName,\n          secretVersion,\n          { contentType, secretAttributes: { enabled, notBefore, expires }, tags },\n          updatedOptions,\n        );\n        return getSecretFromSecretBundle(response).properties;\n      },\n    );\n  }\n\n  /**\n   * The getSecret method is applicable to any secret stored in Azure Key Vault. This operation requires",
+      "contentHash": "6ad03c614075aa1e6832304c88f46560db7982d349fd1bbb833c2e25d735a804",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 280,
+      "endLine": 313,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "594fa817096612330dbd4cf96486f35a35361191ba0e856fb3bcc54174294c96"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the secret.\n   * @param options - The optional parameters.\n   */\n  public getSecret(secretName: string, options: GetSecretOptions = {}): Promise<KeyVaultSecret> {\n    return tracingClient.withSpan(\"SecretClient.getSecret\", options, async (updatedOptions) => {\n      const response = await this.client.getSecret(\n        secretName,\n        options && options.version ? options.version : \"\",\n        updatedOptions,\n      );\n      return getSecretFromSecretBundle(response);\n    });\n  }\n\n  /**\n   * The getDeletedSecret method returns the specified deleted secret along with its attributes.",
+      "contentHash": "b624ae0a3372300f60d0fea10b9c6c4d48fff0937684701861500f2c164324c9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 342,
+      "endLine": 357,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d78aa310b3d41d9b30bab3b3e5c5dd3ead3d446846abc67d95ed0a341a7e4c34"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the secret.\n   * @param options - The optional parameters.\n   */\n  public getDeletedSecret(\n    secretName: string,\n    options: GetDeletedSecretOptions = {},\n  ): Promise<DeletedSecret> {\n    return tracingClient.withSpan(\n      \"SecretClient.getDeletedSecret\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.getDeletedSecret(secretName, updatedOptions);\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * The purge deleted secret operation removes the secret permanently, without the possibility of",
+      "contentHash": "cbb2c044482d8d76f3ad5a9cfcd93ca6ef40892fd9029a95fc45550f22e8fc7d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 377,
+      "endLine": 395,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "33e9c22110e571f68f11310e21ab918046f65f281757d5f90961a22f51119730"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the secret.\n   * @param options - The optional parameters.\n   */\n  public purgeDeletedSecret(\n    secretName: string,\n    options: PurgeDeletedSecretOptions = {},\n  ): Promise<void> {\n    return tracingClient.withSpan(\n      \"SecretClient.purgeDeletedSecret\",\n      options,\n      async (updatedOptions) => {\n        await this.client.purgeDeletedSecret(secretName, updatedOptions);\n      },\n    );\n  }\n\n  /**\n   * Recovers the deleted secret in the specified vault.",
+      "contentHash": "cbfd5ac484ed0d3200cf971ec3bc1f27dd5edc5a2f953f2c6f26ab6c007d21ad",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 419,
+      "endLine": 436,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "ee07745bbe5d5f334f0742137a3856d68ad0099539f133fae86b19557c5c530d"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the deleted secret.\n   * @param options - The optional parameters.\n   */\n  public async beginRecoverDeletedSecret(\n    name: string,\n    options: BeginRecoverDeletedSecretOptions = {},\n  ): Promise<PollerLike<PollOperationState<SecretProperties>, SecretProperties>> {\n    const poller = new RecoverDeletedSecretPoller({\n      name,\n      client: this.client,\n      ...options,\n      operationOptions: options,\n    });\n\n    // This will initialize the poller's operation (the recovery of the deleted secret).\n    await poller.poll();\n    return poller;\n  }\n\n  /**\n   * Requests that a backup of the specified secret be downloaded to the client. All versions of the",
+      "contentHash": "f963d7a13a08bcc7db6467d2fd06b30e8d9f88418257ddf7e1ee5827d7cda5eb",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 463,
+      "endLine": 483,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "0ac6d74bd6e89199d0811046501f8acbc94e2a562fd1c60f192bf242bcd3ffbe"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - The name of the secret.\n   * @param options - The optional parameters.\n   */\n  public backupSecret(\n    secretName: string,\n    options: BackupSecretOptions = {},\n  ): Promise<Uint8Array | undefined> {\n    return tracingClient.withSpan(\"SecretClient.backupSecret\", options, async (updatedOptions) => {\n      const response = await this.client.backupSecret(secretName, updatedOptions);\n\n      return response.value;\n    });\n  }\n\n  /**\n   * Restores a backed up secret, and all its versions, to a vault. This operation requires the",
+      "contentHash": "d156526e6ff022601edc16179bf733633dce854e7e9467720ddd266f69e188f4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 503,
+      "endLine": 518,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "d84553f54b3b293b5b49e3c9c63a0926fa53bb7871f72aef958dc34470ea30f0"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretBundleBackup - The backup blob associated with a secret bundle.\n   * @param options - The optional parameters.\n   */\n  public restoreSecretBackup(\n    secretBundleBackup: Uint8Array,\n    options: RestoreSecretBackupOptions = {},\n  ): Promise<SecretProperties> {\n    return tracingClient.withSpan(\n      \"SecretClient.restoreSecretBackup\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.restoreSecret({ secretBundleBackup }, updatedOptions);\n        return getSecretFromSecretBundle(response).properties;\n      },\n    );\n  }\n\n  /**\n   * Iterates all versions of the given secret in the vault. The full secret identifier and attributes are provided",
+      "contentHash": "bafc433b0083938bbcc6ca54879dc51ef7b104ff1c492c713ddd76f6793ae189",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 540,
+      "endLine": 558,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "adf18f25b1a10ea4c9686d3226c800709cfa43b3c7b3fbf999a951b047c0e04d"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * @param secretName - Name of the secret to fetch versions for.\n   * @param options - The optional parameters.\n   */\n  public listPropertiesOfSecretVersions(\n    secretName: string,\n    options: ListPropertiesOfSecretVersionsOptions = {},\n  ): PagedAsyncIterableIterator<SecretProperties> {\n    return mapPagedAsyncIterable(\n      (updatedOptions) => this.client.getSecretVersions(secretName, updatedOptions),\n      options,\n      (item) => getSecretFromSecretBundle(item).properties,\n    );\n  }\n\n  /**\n   * Iterates the latest version of all secrets in the vault.  The full secret identifier and attributes are provided",
+      "contentHash": "5ee806b8158e20af40a07f2d2f8ba59b04d96ca744e939a5206fca5e2786ca79",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 587,
+      "endLine": 602,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "73a4dadab978f54619ae4b9e94616ef2d31824d8d4378bedd7d70514512cab09"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * List all secrets in the vault.\n   * @param options - The optional parameters.\n   */\n  public listPropertiesOfSecrets(\n    options: ListPropertiesOfSecretsOptions = {},\n  ): PagedAsyncIterableIterator<SecretProperties> {\n    return mapPagedAsyncIterable(\n      this.client.getSecrets.bind(this.client),\n      options,\n      (item) => getSecretFromSecretBundle(item).properties,\n    );\n  }\n\n  /**\n   * Iterates the deleted secrets in the vault.  The full secret identifier and attributes are provided",
+      "contentHash": "e0d59cd8031946931c87faa42194da69ed50cc4fb1482cfc683a3452ae23ef60",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 631,
+      "endLine": 645,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "4aadbe1f7103b588c2cab5592dc110568bdec815269aaa4997e31c79b080ad1e"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "text": "   * List all secrets in the vault.\n   * @param options - The optional parameters.\n   */\n  public listDeletedSecrets(\n    options: ListDeletedSecretsOptions = {},\n  ): PagedAsyncIterableIterator<DeletedSecret> {\n    return mapPagedAsyncIterable(\n      this.client.getDeletedSecrets.bind(this.client),\n      options,\n      getSecretFromSecretBundle,\n    );\n  }\n}\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";",
+      "contentHash": "21a1214f32feadd83c9f239064d2a06251faf6528b180f4e62a7747e66a62be8",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 674,
+      "endLine": 687,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "692c6699c9cc5bfd93593863199743e230be3340672433eead76c24915cc1ae7"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { KeyVaultContext, KeyVaultClientOptionalParams } from \"./api/index.js\";\nimport { createKeyVault } from \"./api/index.js\";\nimport type {\n  SecretSetParameters,\n  SecretBundle,\n  DeletedSecretBundle,\n  SecretUpdateParameters,\n  SecretItem,\n  DeletedSecretItem,\n  BackupSecretResult,\n  SecretRestoreParameters,\n} from \"./models/models.js\";\nimport type {\n  RestoreSecretOptionalParams,\n  BackupSecretOptionalParams,",
+      "contentHash": "3932e2b0ce3e9d122c1b420e4381ade2e0895f9410cc5fcef5a60a7f1d9c48e7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "startLine": 1,
+      "endLine": 18,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "7777d4e9f53058547fed3177a7f09708fb9a6c82fc354986818bcd6cb346b3f7"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "text": "  SetSecretOptionalParams,\n} from \"./api/options.js\";\nimport {\n  restoreSecret,\n  backupSecret,\n  recoverDeletedSecret,\n  purgeDeletedSecret,\n  getDeletedSecret,\n  getDeletedSecrets,\n  getSecretVersions,\n  getSecrets,\n  getSecret,\n  updateSecret,\n  deleteSecret,\n  setSecret,\n} from \"./api/operations.js\";\nimport type { PagedAsyncIterableIterator } from \"./static-helpers/pagingHelpers.js\";\nimport type { Pipeline } from \"@azure/core-rest-pipeline\";\nimport type { TokenCredential } from \"@azure/core-auth\";\n\nexport type { KeyVaultClientOptionalParams } from \"./api/keyVaultContext.js\";\n",
+      "contentHash": "617d7bac998adf77adbbec4724a7913b718b3dc7a3f1af73b8ba16ac7d1b9f1c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "startLine": 28,
+      "endLine": 48,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "45ab2d96e8218af1c5f2f28a538cf4c1e83989efe8100dfa807e90a206dff7c7"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "text": "    credential: TokenCredential,\n    options: KeyVaultClientOptionalParams = {},\n  ) {\n    const prefixFromOptions = options?.userAgentOptions?.userAgentPrefix;\n    const userAgentPrefix = prefixFromOptions\n      ? `${prefixFromOptions} azsdk-js-client`\n      : `azsdk-js-client`;\n    this._client = createKeyVault(endpointParam, credential, {\n      ...options,\n      userAgentOptions: { userAgentPrefix },\n    });\n    this.pipeline = this._client.pipeline;\n  }\n",
+      "contentHash": "0259f25d4b768b00c5f068dddb374cfee88b86a774809e322b517cf98df91f3f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "startLine": 58,
+      "endLine": 70,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "1cf9d22c2b830e263838cb79225c7dc163f8b8d137cd349ad9ec8140d8e9f3e7"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/delete/operation.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\nimport type {\n  DeleteSecretOptions,\n  DeletedSecret,\n  GetDeletedSecretOptions,\n} from \"../../secretsModels.js\";\nimport type { KeyVaultSecretPollOperationState } from \"../keyVaultSecretPoller.js\";\nimport { KeyVaultSecretPollOperation } from \"../keyVaultSecretPoller.js\";\nimport type { KeyVaultClient } from \"../../keyVaultClient.js\";\nimport { getSecretFromSecretBundle } from \"../../transformations.js\";\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport { tracingClient } from \"../../tracing.js\";\n\n/**\n * An interface representing the state of a delete secret's poll operation\n */\nexport interface DeleteSecretPollOperationState extends KeyVaultSecretPollOperationState<DeletedSecret> {}\n\n/**\n * An interface representing a delete secret's poll operation\n */\nexport class DeleteSecretPollOperation extends KeyVaultSecretPollOperation<\n  DeleteSecretPollOperationState,\n  DeletedSecret\n> {\n  constructor(\n    public state: DeleteSecretPollOperationState,\n    private client: KeyVaultClient,\n    private operationOptions: OperationOptions = {},\n  ) {\n    super(state, { cancelMessage: \"Canceling the deletion of a secret is not supported.\" });\n  }\n\n  /**\n   * Sends a delete request for the given Key Vault Key's name to the Key Vault service.\n   * Since the Key Vault Key won't be immediately deleted, we have {@link beginDeleteKey}.\n   */\n  private deleteSecret(name: string, options: DeleteSecretOptions = {}): Promise<DeletedSecret> {\n    return tracingClient.withSpan(\n      \"DeleteSecretPoller.deleteSecret\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.deleteSecret(name, updatedOptions);\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * The getDeletedSecret method returns the specified deleted secret along with its properties.\n   * This operation requires the secrets/get permission.\n   */\n  private getDeletedSecret(\n    name: string,\n    options: GetDeletedSecretOptions = {},\n  ): Promise<DeletedSecret> {\n    return tracingClient.withSpan(\n      \"DeleteSecretPoller.getDeletedSecret\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.getDeletedSecret(name, updatedOptions);\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * Reaches to the service and updates the delete secret's poll operation.\n   */\n  public async update(\n    options: {\n      abortSignal?: AbortSignalLike;\n      fireProgress?: (state: DeleteSecretPollOperationState) => void;\n    } = {},\n  ): Promise<DeleteSecretPollOperation> {\n    const state = this.state;\n    const { name } = state;\n\n    if (options.abortSignal) {\n      this.operationOptions.abortSignal = options.abortSignal;\n    }\n\n    if (!state.isStarted) {\n      const deletedSecret = await this.deleteSecret(name, this.operationOptions);\n      state.isStarted = true;\n      state.result = deletedSecret;\n      if (!deletedSecret.properties.recoveryId) {\n        state.isCompleted = true;\n      }\n    }\n\n    if (!state.isCompleted) {\n      try {\n        state.result = await this.getDeletedSecret(name, this.operationOptions);\n        state.isCompleted = true;\n      } catch (error: any) {\n        if (error.statusCode === 403) {\n          // At this point, the resource exists but the user doesn't have access to it.\n          state.isCompleted = true;\n        } else if (error.statusCode !== 404) {\n          state.error = error;\n          state.isCompleted = true;\n          throw error;\n        }\n      }\n    }\n\n    return this;\n  }\n}\n",
+      "contentHash": "9c4ca85d1bc91a2997c10227bcfc4cd67f9e9ea27555db7713f659a97d0a212e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/lro/delete/operation.ts",
+      "startLine": 1,
+      "endLine": 113,
+      "kind": "unknown",
+      "id": "06c5b1f0afc75c719f95981a3fd5bb7a71472c11a485407f88c860d19b10829c"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/delete/poller.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { DeleteSecretPollOperationState } from \"./operation.js\";\nimport { DeleteSecretPollOperation } from \"./operation.js\";\nimport type { DeletedSecret } from \"../../secretsModels.js\";\nimport type { KeyVaultSecretPollerOptions } from \"../keyVaultSecretPoller.js\";\nimport { KeyVaultSecretPoller } from \"../keyVaultSecretPoller.js\";\n\n/**\n * Class that creates a poller that waits until a secret finishes being deleted.\n */\nexport class DeleteSecretPoller extends KeyVaultSecretPoller<\n  DeleteSecretPollOperationState,\n  DeletedSecret\n> {\n  constructor(options: KeyVaultSecretPollerOptions) {\n    const { client, name, operationOptions, intervalInMs = 2000, resumeFrom } = options;\n\n    let state: DeleteSecretPollOperationState | undefined;\n\n    if (resumeFrom) {\n      state = JSON.parse(resumeFrom).state;\n    }\n\n    const operation = new DeleteSecretPollOperation(\n      {\n        ...state,\n        name,\n      },\n      client,\n      operationOptions,\n    );\n\n    super(operation);\n\n    this.intervalInMs = intervalInMs;\n  }\n}\n",
+      "contentHash": "724eced8817a776bbfd906aee0e0bf18ecb373fe709467932d56e09858ea1432",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/lro/delete/poller.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "kind": "unknown",
+      "id": "f989a752d8de95e4e5e0d91d7dea967eb7bcbb442a44f62698653fed0aefc0f3"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/keyVaultSecretPoller.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport type { PollOperation, PollOperationState } from \"@azure/core-lro\";\nimport { Poller } from \"@azure/core-lro\";\nimport type { KeyVaultClient } from \"../keyVaultClient.js\";\nimport { delay } from \"@azure/core-util\";\n\n/**\n * Common parameters to a Key Vault Secret Poller.\n */\nexport interface KeyVaultSecretPollerOptions {\n  client: KeyVaultClient;\n  name: string;\n  operationOptions?: OperationOptions;\n  intervalInMs?: number;\n  resumeFrom?: string;\n}\n\n/**\n * An interface representing the state of a Key Vault Secret Poller's operation.\n */\nexport interface KeyVaultSecretPollOperationState<TResult> extends PollOperationState<TResult> {\n  /**\n   * The name of the secret.\n   */\n  name: string;\n}\n\n/**\n * Common properties and methods of the Key Vault Secret Pollers.\n */\nexport abstract class KeyVaultSecretPoller<\n  TState extends KeyVaultSecretPollOperationState<TResult>,\n  TResult,\n> extends Poller<TState, TResult> {\n  /**\n   * Defines how much time the poller is going to wait before making a new request to the service.\n   */\n  public intervalInMs: number = 2000;\n\n  /**\n   * The method used by the poller to wait before attempting to update its operation.\n   */\n  async delay(): Promise<void> {\n    return delay(this.intervalInMs);\n  }\n}\n\n/**\n * Optional parameters to the KeyVaultSecretPollOperation\n */\nexport interface KeyVaultSecretPollOperationOptions {\n  cancelMessage?: string;\n}\n\n/**\n * Common properties and methods of the Key Vault Secret Poller operations.\n */\n// eslint-disable-next-next no-use-before-define\nexport class KeyVaultSecretPollOperation<\n  TState extends KeyVaultSecretPollOperationState<TResult>,\n  TResult,\n> implements PollOperation<TState, TResult> {\n  private cancelMessage: string = \"\";\n\n  constructor(\n    public state: TState,\n    options: KeyVaultSecretPollOperationOptions = {},\n  ) {\n    if (options.cancelMessage) {\n      this.cancelMessage = options.cancelMessage;\n    }\n  }\n\n  /**\n   * Meant to reach to the service and update the Poller operation.\n   * @param options - The optional parameters, which is only an abortSignal from \\@azure/abort-controller\n   */\n  public async update(): Promise<PollOperation<TState, TResult>> {\n    throw new Error(\"Operation not supported.\");\n  }\n\n  /**\n   * Meant to reach to the service and cancel the Poller operation.\n   * @param options - The optional parameters, which is only an abortSignal from \\@azure/abort-controller\n   */\n  public async cancel(): Promise<PollOperation<TState, TResult>> {\n    throw new Error(this.cancelMessage);\n  }\n\n  /**\n   * Serializes the Poller operation.\n   */\n  public toString(): string {\n    return JSON.stringify({\n      state: this.state,\n    });\n  }\n}\n",
+      "contentHash": "8dc8348da5faec500408f5979ac35d5003edb955b9cf5fe40dd6ca4a43b22708",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/lro/keyVaultSecretPoller.ts",
+      "startLine": 1,
+      "endLine": 101,
+      "kind": "unknown",
+      "id": "60fa7665f1f257fd54580462474fd28a80b8b1d020674f0c838930c362a532e5"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/recover/operation.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { AbortSignalLike } from \"@azure/abort-controller\";\nimport type {\n  DeletedSecret,\n  GetSecretOptions,\n  KeyVaultSecret,\n  SecretProperties,\n} from \"../../secretsModels.js\";\nimport type { KeyVaultSecretPollOperationState } from \"../keyVaultSecretPoller.js\";\nimport { KeyVaultSecretPollOperation } from \"../keyVaultSecretPoller.js\";\nimport type { KeyVaultClient } from \"../../keyVaultClient.js\";\nimport { getSecretFromSecretBundle } from \"../../transformations.js\";\nimport type { OperationOptions } from \"@azure-rest/core-client\";\nimport { tracingClient } from \"../../tracing.js\";\n\n/**\n * An interface representing the state of a delete secret's poll operation\n */\nexport interface RecoverDeletedSecretPollOperationState extends KeyVaultSecretPollOperationState<SecretProperties> {}\n\n/**\n * An interface representing a delete secret's poll operation\n */\nexport class RecoverDeletedSecretPollOperation extends KeyVaultSecretPollOperation<\n  RecoverDeletedSecretPollOperationState,\n  SecretProperties\n> {\n  constructor(\n    public state: RecoverDeletedSecretPollOperationState,\n    private client: KeyVaultClient,\n    private options: OperationOptions = {},\n  ) {\n    super(state, { cancelMessage: \"Canceling the recovery of a deleted secret is not supported.\" });\n  }\n\n  /**\n   * The getSecret method returns the specified secret along with its properties.\n   * This operation requires the secrets/get permission.\n   */\n  private getSecret(name: string, options: GetSecretOptions = {}): Promise<KeyVaultSecret> {\n    return tracingClient.withSpan(\n      \"RecoverDeletedSecretPoller.getSecret\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.getSecret(\n          name,\n          options && options.version ? options.version : \"\",\n          updatedOptions,\n        );\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * The recoverDeletedSecret method recovers the specified deleted secret along with its properties.\n   * This operation requires the secrets/recover permission.\n   */\n  private recoverDeletedSecret(\n    name: string,\n    options: GetSecretOptions = {},\n  ): Promise<DeletedSecret> {\n    return tracingClient.withSpan(\n      \"RecoverDeletedSecretPoller.recoverDeletedSecret\",\n      options,\n      async (updatedOptions) => {\n        const response = await this.client.recoverDeletedSecret(name, updatedOptions);\n        return getSecretFromSecretBundle(response);\n      },\n    );\n  }\n\n  /**\n   * Reaches to the service and updates the delete secret's poll operation.\n   */\n  async update(\n    this: RecoverDeletedSecretPollOperation,\n    options: {\n      abortSignal?: AbortSignalLike;\n      fireProgress?: (state: RecoverDeletedSecretPollOperationState) => void;\n    } = {},\n  ): Promise<RecoverDeletedSecretPollOperation> {\n    const state = this.state;\n    const { name } = state;\n\n    if (options.abortSignal) {\n      this.options.abortSignal = options.abortSignal;\n    }\n\n    if (!state.isStarted) {\n      try {\n        state.result = (await this.getSecret(name, this.options)).properties;\n        state.isCompleted = true;\n      } catch {\n        // Nothing to do here.\n      }\n      if (!state.isCompleted) {\n        state.result = (await this.recoverDeletedSecret(name, this.options)).properties;\n        state.isStarted = true;\n      }\n    }\n\n    if (!state.isCompleted) {\n      try {\n        state.result = (await this.getSecret(name, this.options)).properties;\n        state.isCompleted = true;\n      } catch (error: any) {\n        if (error.statusCode === 403) {\n          // At this point, the resource exists but the user doesn't have access to it.\n          state.isCompleted = true;\n        } else if (error.statusCode !== 404) {\n          state.error = error;\n          state.isCompleted = true;\n          throw error;\n        }\n      }\n    }\n\n    return this;\n  }\n}\n",
+      "contentHash": "6ad37008a8376b7c9e4bf67a4152c668cfebf65d2578051b39aec6206063e130",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/src/lro/recover/operation.ts",
+      "startLine": 1,
+      "endLine": 123,
+      "kind": "unknown",
+      "id": "59ccf9ee11b064cb6d97fe9b5634eafe6cd3bebe9a9361828fd6e67a33eaabb8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/keyvault/keyvault-secrets/package.json",
+      "text": "{\n  \"name\": \"@azure/keyvault-secrets\",\n  \"version\": \"4.12.0\",\n  \"description\": \"Azure Key Vault Secrets\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"type\": \"module\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"cloud\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"files\": [\n    \"dist/\",\n    \"!dist/**/*.d.*ts.map\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"sdk-type\": \"client\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/keyvault/keyvault-secrets\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/keyvault/keyvault-secrets/README.md\",\n  \"prettier\": \"@azure/eslint-plugin-azure-sdk/prettier.json\",\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/constants.ts\",\n        \"prefix\": \"SDK_VERSION\"\n      }\n    ]\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure Key Vault Secrets\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-key-vault\"\n    ],\n    \"skip\": [\n      \"backupAndRestore.js\"\n    ],\n    \"requiredResources\": {\n      \"Azure Key Vault\": \"https://learn.microsoft.com/azure/key-vault/quick-create-portal\"\n    },\n    \"customSnippets\": {\n      \"prerequisites\": \"samples-dev/snippets/_prerequisites.md\"\n    }\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.3.3\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.9.0\",\n    \"@azure/core-lro\": \"^2.7.2\",\n    \"@azure/core-paging\": \"^1.6.2\",\n    \"@azure/core-rest-pipeline\": \"^1.19.0\",\n    \"@azure/core-tracing\": \"^1.2.0\",\n    \"@azure/core-util\": \"^1.11.0\",\n    \"@azure/keyvault-common\": \"^2.1.0\",\n    \"@azure/logger\": \"^1.1.4\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"scripts\": {\n    \"clean\": \"rimraf --glob dist dist-browser dist-esm test-dist temp types *.tgz *.log\",\n    \"extract-api\": \"rimraf review && dev-tool run extract-api\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix --fix-type [problem,suggestion]\",\n    \"build:samples\": \"echo skipped\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"execute:samples\": \"echo skipped\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.{ts,cts,mts}\\\" \\\"test/**/*.{ts,cts,mts}\\\" \\\"*.{js,cjs,mjs,json}\\\" \",\n    \"generate:client\": \"echo skipped\",\n    \"test:browser\": \"echo skipped\",\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"test:node\": \"dev-tool run test:vitest\",\n    \"test\": \"tsc -b --noEmit && npm run test:node && npm run test:browser\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "ef9736d16910a07104140579344b44676aeea48413297d85f04db94ba659917c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/package.json"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Secrets\ncommit: 569464e8c8b02ebd1b4d939f899508467528c696\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n- specification/keyvault/data-plane/Secrets/common\n",
+      "contentHash": "8c1b2e4360672b95c5d86897c487fa0d6cb4fbb00261a7019ebe6a9185f0a94a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/68eeadd5bbe6e532eb751f4185ce4f04570770c5/sdk/keyvault/keyvault-secrets/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/index.ts",
+      "startLine": 4,
+      "endLine": 8,
+      "provenance": "JavaScript edits to a generated file: 5 changed lines, 1 place with generated code removed",
+      "contentHash": "81258f120844166a2d066675603819ec6cc60ecf81765f467f36dab593a743ab"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/keyVaultContext.ts",
+      "startLine": 5,
+      "endLine": 62,
+      "provenance": "JavaScript edits to a generated file: 25 changed lines, 9 places with generated code removed",
+      "contentHash": "ccc572567053a5f01f0b64f9e345b77d9027e96d80d129145a0eef06e370111f"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/operations.ts",
+      "startLine": 7,
+      "endLine": 617,
+      "provenance": "JavaScript edits to a generated file: 92 changed lines, 72 places with generated code removed",
+      "contentHash": "5852b7b316d8591f80598a14ce067c5760cfe500f0896a7068d8eb7cdf6fbcc4"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/api/options.ts",
+      "startLine": 4,
+      "endLine": 5,
+      "provenance": "JavaScript edits to a generated file: 1 changed line, 1 place with generated code removed",
+      "contentHash": "3656d8417a0d8fa0a3555af38c2675ef24894ba9ba8ed1db05f33dfe8b4d568a"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/constants.ts",
+      "startLine": 1,
+      "endLine": 4,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "d17e34bf34880efe94ce3295354b1c62c27d4a0f3c9587f0ba13d837e753bb1c"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/identifier.ts",
+      "startLine": 1,
+      "endLine": 58,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "9b19c86bb9f84a021f2d7c1625b62ab6735e42fdee121bfae7bf763cb622c2b0"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/index.ts",
+      "startLine": 5,
+      "endLine": 686,
+      "provenance": "JavaScript edits to a generated file: 270 changed lines, 2 places with generated code removed",
+      "contentHash": "6a9339ef62ba11871c8e31f1c7d22ebb9e62d5d8c53cddccb2b768315f2ae293"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/keyVaultClient.ts",
+      "startLine": 4,
+      "endLine": 68,
+      "provenance": "JavaScript edits to a generated file: 33 changed lines, 5 places with generated code removed",
+      "contentHash": "a184a2a318296cebb9eb20e09108f504767f889ed531275ca3e9c3b01b17c33f"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/delete/operation.ts",
+      "startLine": 1,
+      "endLine": 113,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "9c4ca85d1bc91a2997c10227bcfc4cd67f9e9ea27555db7713f659a97d0a212e"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/delete/poller.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "724eced8817a776bbfd906aee0e0bf18ecb373fe709467932d56e09858ea1432"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/keyVaultSecretPoller.ts",
+      "startLine": 1,
+      "endLine": 101,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "8dc8348da5faec500408f5979ac35d5003edb955b9cf5fe40dd6ca4a43b22708"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/recover/operation.ts",
+      "startLine": 1,
+      "endLine": 123,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "6ad37008a8376b7c9e4bf67a4152c668cfebf65d2578051b39aec6206063e130"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/lro/recover/poller.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "a5f7c6a707eed9accc1aa3f3f3a17850af944f3e9bef4a631e7776212627ba81"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/models/index.ts",
+      "startLine": 5,
+      "endLine": 19,
+      "provenance": "JavaScript edits to a generated file: 14 changed lines, 2 places with generated code removed",
+      "contentHash": "daa7df25581a6391c1bf952f4ef48f15b6e5ddcf9cd0b5995638e03b12cadefa"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/models/models.ts",
+      "startLine": 117,
+      "endLine": 334,
+      "provenance": "JavaScript edits to a generated file: 6 changed lines, 6 places with generated code removed",
+      "contentHash": "65b4fe2caf39febf1746073785a0dfbfe069ce8d34437aaa7500d54f03e4c205"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/secretsModels.ts",
+      "startLine": 1,
+      "endLine": 351,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "3799be63881ff6da90467c256ece57770e134170ad34beea007837add93612ae"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/static-helpers/pagingHelpers.ts",
+      "startLine": 4,
+      "endLine": 242,
+      "provenance": "JavaScript edits to a generated file: 6 changed lines, 5 places with generated code removed",
+      "contentHash": "503f35b7555d3ae0bb9046db47793315e31bb25b192332e796b7283adb3ed478"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/static-helpers/urlTemplate.ts",
+      "startLine": 24,
+      "endLine": 195,
+      "provenance": "JavaScript edits to a generated file: 19 changed lines, 19 places with generated code removed",
+      "contentHash": "3e18f1a2c4650e02be06432e0a6f877730fa569b26ed64f9f46b50555b1a245b"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/tracing.ts",
+      "startLine": 1,
+      "endLine": 11,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "01b83b03b3fe0b77a6daaf4633a8f5a7010f5f444b9ee402d03a0dcf59fc1fd0"
+    },
+    {
+      "path": "sdk/keyvault/keyvault-secrets/src/transformations.ts",
+      "startLine": 1,
+      "endLine": 122,
+      "provenance": "JavaScript file only in src",
+      "contentHash": "44abeb910f8c4da378c327dc1236002d91667bb57368dcadbd22e3dc98e326c9"
+    }
+  ]
+}

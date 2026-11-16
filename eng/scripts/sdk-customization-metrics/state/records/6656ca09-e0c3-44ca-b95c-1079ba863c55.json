@@ -1,0 +1,1248 @@
+{
+  "schemaVersion": 1,
+  "id": "6656ca09-e0c3-44ca-b95c-1079ba863c55",
+  "observedAt": "2026-10-23T19:39:21.556Z",
+  "identity": "javascript:@azure/app-configuration:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/app-configuration",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/appconfiguration/app-configuration"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "9190e95a371f31438fb7b2702a450e9fc505f3d6"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 163,
+    "eligibleFiles": 47,
+    "capturedFiles": 8,
+    "skipped": [
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/appConfigurationClient.ts",
+        "reason": "Review budget; only lines 1-601 sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/internal/jsonModels.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/internal/lroShim.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/internal/queryParamPolicy.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/internal/syncTokenPolicy.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/internal/tracing.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/logger.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/secretReference.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/appconfiguration/app-configuration/src/snapshotReference.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/appConfigCredential.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  PipelinePolicy,\n  PipelineRequest,\n  PipelineResponse,\n  SendRequest,\n} from \"@azure/core-rest-pipeline\";\nimport { computeSha256Hash, computeSha256Hmac } from \"@azure/core-util\";\nimport { logger } from \"./logger.js\";\n\n/**\n * Create an HTTP pipeline policy to authenticate a request\n * using an `AzureKeyCredential` for AppConfig.\n */\nexport function appConfigKeyCredentialPolicy(credential: string, secret: string): PipelinePolicy {\n  return {\n    name: \"AppConfigKeyCredentialPolicy\",\n    async sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n      const verb = request.method;\n      const utcNow = new Date().toUTCString();\n      logger.info(\"[appConfigKeyCredentialPolicy] Computing SHA-256 from the request body\");\n      const contentHash = await computeSha256Hash(request.body?.toString() || \"\", \"base64\");\n      const signedHeaders = \"x-ms-date;host;x-ms-content-sha256\";\n      const url = new URL(request.url);\n      const query = url.search;\n      const urlPathAndQuery = query ? `${url.pathname}${query}` : url.pathname;\n      const stringToSign = `${verb}\\n${urlPathAndQuery}\\n${utcNow};${url.host};${contentHash}`;\n      logger.info(\"[appConfigKeyCredentialPolicy] Computing a SHA-256 Hmac signature\");\n      const signature = await computeSha256Hmac(secret, stringToSign, \"base64\");\n\n      request.headers.set(\"x-ms-date\", utcNow);\n      request.headers.set(\"x-ms-content-sha256\", contentHash);\n      // Syntax for Authorization header\n      // Reference - https://learn.microsoft.com/azure/azure-app-configuration/rest-api-authentication-hmac#syntax\n      request.headers.set(\n        \"Authorization\",\n        `HMAC-SHA256 Credential=${credential}&SignedHeaders=${signedHeaders}&Signature=${signature}`,\n      );\n\n      return next(request);\n    },\n  };\n}\n",
+      "contentHash": "acf600a262b18a3141d7abfbe7cb0dec9b8d46c14739c64553a0736d13b62787",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/appConfigCredential.ts",
+      "startLine": 1,
+      "endLine": 45,
+      "kind": "unknown",
+      "id": "491ad7e7f4df7136c9124aabb180216369ec778a73827919a5e29a4ec2163201"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/appConfigurationClient.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n// https://azure.github.io/azure-sdk/typescript_design.html#ts-config-lib\n/// <reference lib=\"esnext.asynciterable\" />\n\nimport {\n  type AddConfigurationSettingOptions,\n  type AddConfigurationSettingParam,\n  type AddConfigurationSettingResponse,\n  type AppConfigurationClientOptions,\n  type CheckConfigurationSettingsOptions,\n  type ConfigurationSetting,\n  type ConfigurationSettingId,\n  type ConfigurationSnapshot,\n  type CreateSnapshotOptions,\n  type CreateSnapshotResponse,\n  type DeleteConfigurationSettingOptions,\n  type DeleteConfigurationSettingResponse,\n  type GetConfigurationSettingOptions,\n  type GetConfigurationSettingResponse,\n  type GetSnapshotOptions,\n  type GetSnapshotResponse,\n  type ListConfigurationSettingPage,\n  type ListConfigurationSettingsForSnapshotOptions,\n  type ListConfigurationSettingsOptions,\n  type ListLabelsOptions,\n  type ListLabelsPage,\n  type ListRevisionsOptions,\n  type ListRevisionsPage,\n  type ListSnapshotsOptions,\n  type ListSnapshotsPage,\n  type PageSettings,\n  type SetConfigurationSettingOptions,\n  type SetConfigurationSettingParam,\n  type SetConfigurationSettingResponse,\n  type SetReadOnlyOptions,\n  type SetReadOnlyResponse,\n  type SettingLabel,\n  type SnapshotInfo,\n  type UpdateSnapshotOptions,\n  type UpdateSnapshotResponse,\n} from \"./models.js\";\nimport type { PagedAsyncIterableIterator, PagedResult } from \"@azure/core-paging\";\nimport { getPagedAsyncIterator } from \"@azure/core-paging\";\nimport type { PipelinePolicy, RestError } from \"@azure/core-rest-pipeline\";\nimport { bearerTokenAuthenticationPolicyName, createHttpHeaders } from \"@azure/core-rest-pipeline\";\nimport { audienceErrorHandlingPolicy } from \"./internal/audienceErrorHandlingPolicy.js\";\nimport { SyncTokens, syncTokenPolicy } from \"./internal/syncTokenPolicy.js\";\nimport { queryParamPolicy } from \"./internal/queryParamPolicy.js\";\nimport { emptyBodyPolicy } from \"./internal/emptyBodyPolicy.js\";\nimport type { TokenCredential } from \"@azure/core-auth\";\nimport { isTokenCredential } from \"@azure/core-auth\";\nimport type {\n  SendConfigurationSettingsOptions,\n  SendLabelsRequestOptions,\n} from \"./internal/helpers.js\";\nimport {\n  assertResponse,\n  checkAndFormatIfAndIfNoneMatch,\n  encodePathParameter,\n  extractAfterTokenFromLinkHeader,\n  extractAfterTokenFromNextLink,\n  formatAcceptDateTime,\n  formatConfigurationSettingsFiltersAndSelect,\n  formatFieldsForSelect,\n  formatFiltersAndSelect,\n  formatLabelsFiltersAndSelect,\n  formatSnapshotFiltersAndSelect,\n  getScope,\n  makeConfigurationSettingEmpty,\n  serializeAsConfigurationSettingParam,\n  snapshotInfoToGenerated,\n  transformKeyValue,\n  transformKeyValueResponse,\n  transformKeyValueResponseWithStatusCode,\n  transformSnapshotResponse,\n} from \"./internal/helpers.js\";\nimport {\n  AppConfigurationClient as GeneratedAppConfigurationClient,\n  type AppConfigurationClientOptionalParams as GeneratedAppConfigurationClientOptionalParams,\n} from \"./generated/appConfigurationClient.js\";\nimport type {\n  _KeyValueListResult,\n  _LabelListResult,\n  _SnapshotListResult,\n} from \"./generated/models/models.js\";\nimport {\n  _getKeyValuesSend,\n  _getKeyValuesDeserialize,\n  _checkKeyValuesSend,\n  _checkKeyValuesDeserialize,\n  _getRevisionsSend,\n  _getRevisionsDeserialize,\n  _getLabelsSend,\n  _getLabelsDeserialize,\n  _getSnapshotsSend,\n  _getSnapshotsDeserialize,\n  _createSnapshotSend,\n  _createSnapshotDeserialize,\n} from \"./generated/api/operations.js\";\nimport { getLongRunningPoller } from \"./generated/static-helpers/pollingHelpers.js\";\nimport type { AppConfigurationContext } from \"./generated/api/appConfigurationContext.js\";\nimport type { FeatureFlagValue } from \"./featureFlag.js\";\nimport type { SecretReferenceValue } from \"./secretReference.js\";\nimport type { SnapshotReferenceValue } from \"./snapshotReference.js\";\nimport { appConfigKeyCredentialPolicy } from \"./appConfigCredential.js\";\nimport { tracingClient } from \"./internal/tracing.js\";\nimport { logger } from \"./logger.js\";\nimport type { OperationState } from \"@azure/core-lro\";\nimport type { SimplePollerLike } from \"./internal/lroShim.js\";\nimport { wrapPoller } from \"./internal/lroShim.js\";\nimport { appConfigurationApiVersion, packageVersion } from \"./internal/constants.js\";\n\nconst ConnectionStringRegex = /Endpoint=(.*);Id=(.*);Secret=(.*)/;\n\n/**\n * Provides internal configuration options for AppConfigurationClient.\n * @internal\n */\nexport interface InternalAppConfigurationClientOptions extends AppConfigurationClientOptions {\n  /**\n   * The sync token cache to use for this client.\n   * NOTE: this is an internal option, not for general client usage.\n   */\n  syncTokens?: SyncTokens;\n}\n\n/**\n * Client for the Azure App Configuration service.\n */\nexport class AppConfigurationClient {\n  private client: GeneratedAppConfigurationClient;\n  private _syncTokens: SyncTokens;\n\n  /**\n   * Initializes a new instance of the AppConfigurationClient class.\n   * @param options - Options for the AppConfigurationClient.\n   */\n  constructor(connectionString: string, options?: AppConfigurationClientOptions);\n  /**\n   * Initializes a new instance of the AppConfigurationClient class using\n   * a TokenCredential.\n   * @param endpoint - The endpoint of the App Configuration service (ex: https://sample.azconfig.io).\n   * @param tokenCredential - An object that implements the `TokenCredential` interface used to authenticate requests to the service. Use the \\@azure/identity package to create a credential that suits your needs.\n   * @param options - Options for the AppConfigurationClient.\n   */\n  constructor(\n    endpoint: string,\n    tokenCredential: TokenCredential,\n    options?: AppConfigurationClientOptions,\n  );\n  constructor(\n    connectionStringOrEndpoint: string,\n    tokenCredentialOrOptions?: TokenCredential | AppConfigurationClientOptions,\n    options?: AppConfigurationClientOptions,\n  ) {\n    let appConfigOptions: InternalAppConfigurationClientOptions;\n    let appConfigCredential: TokenCredential | undefined = undefined;\n    let appConfigEndpoint: string;\n    let authPolicy: PipelinePolicy | undefined;\n    let authPolicyName: string;\n    let scope: [string] | undefined;\n\n    if (isTokenCredential(tokenCredentialOrOptions)) {\n      appConfigOptions = (options as InternalAppConfigurationClientOptions) || {};\n      appConfigCredential = tokenCredentialOrOptions;\n      appConfigEndpoint = connectionStringOrEndpoint.endsWith(\"/\")\n        ? connectionStringOrEndpoint.slice(0, -1)\n        : connectionStringOrEndpoint;\n      scope = [getScope(appConfigEndpoint, appConfigOptions.audience)];\n      authPolicyName = bearerTokenAuthenticationPolicyName;\n    } else {\n      appConfigOptions = (tokenCredentialOrOptions as InternalAppConfigurationClientOptions) || {};\n      const regexMatch = connectionStringOrEndpoint?.match(ConnectionStringRegex);\n      if (regexMatch) {\n        appConfigEndpoint = regexMatch[1];\n        authPolicy = appConfigKeyCredentialPolicy(regexMatch[2], regexMatch[3]);\n        authPolicyName = authPolicy.name;\n      } else {\n        throw new Error(\n          `Invalid connection string. Valid connection strings should match the regex '${ConnectionStringRegex.source}'.` +\n            ` To mitigate the issue, please refer to the troubleshooting guide here at https://aka.ms/azsdk/js/app-configuration/troubleshoot.`,\n        );\n      }\n    }\n\n    const generatedClientOptions: GeneratedAppConfigurationClientOptionalParams = {\n      ...appConfigOptions,\n      userAgentOptions: {\n        ...appConfigOptions.userAgentOptions,\n        userAgentPrefix: appConfigOptions.userAgentOptions?.userAgentPrefix\n          ? `${appConfigOptions.userAgentOptions.userAgentPrefix} azsdk-js-app-configuration/${packageVersion}`\n          : `azsdk-js-app-configuration/${packageVersion}`,\n      },\n      loggingOptions: {\n        logger: logger.info,\n      },\n      apiVersion: options?.apiVersion ?? appConfigurationApiVersion,\n      credentials: {},\n    };\n\n    generatedClientOptions.credentials = {\n      ...generatedClientOptions.credentials,\n      scopes: scope,\n    };\n\n    this._syncTokens = appConfigOptions.syncTokens || new SyncTokens();\n    this.client = new GeneratedAppConfigurationClient(\n      appConfigEndpoint,\n      // When a connection string is used, appConfigCredential is undefined here. We pass undefined to avoid @azure-rest/core-client's keyCredentialAuthenticationPolicy setting the apiKeyHeader on the request.\n      // Connection strings are authenticated by HMAC (appConfigKeyCredentialPolicy) and the secret should never leave the client.\n      // The `as TokenCredential` cast bridges a gap between the generated client and the core SDK: the generated constructor types `credential` as required (KeyCredential | TokenCredential),\n      // but @azure-rest/core-client's addCredentialPipelinePolicy no-ops when no credential is passed, so handing it undefined is safe at runtime.\n      appConfigCredential as TokenCredential,\n      generatedClientOptions,\n    );\n    this.client.pipeline.addPolicy(\n      audienceErrorHandlingPolicy(appConfigOptions?.audience !== undefined),\n      {\n        phase: \"Sign\",\n        beforePolicies: [authPolicyName],\n      },\n    );\n    if (authPolicy) {\n      this.client.pipeline.addPolicy(authPolicy, { phase: \"Sign\" });\n    }\n\n    this.client.pipeline.addPolicy(queryParamPolicy());\n    this.client.pipeline.addPolicy(emptyBodyPolicy());\n    this.client.pipeline.addPolicy(syncTokenPolicy(this._syncTokens), { afterPhase: \"Retry\" });\n  }\n\n  /**\n   * Add a setting into the Azure App Configuration service, failing if it\n   * already exists.\n   *\n   * Example usage:\n   * ```ts snippet:AddConfigurationSetting\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const result = await client.addConfigurationSetting({\n   *   key: \"MyKey\",\n   *   label: \"MyLabel\",\n   *   value: \"MyValue\",\n   * });\n   * ```\n   * @param configurationSetting - A configuration setting.\n   * @param options - Optional parameters for the request.\n   */\n  addConfigurationSetting(\n    configurationSetting:\n      | AddConfigurationSettingParam\n      | AddConfigurationSettingParam<FeatureFlagValue>\n      | AddConfigurationSettingParam<SecretReferenceValue>\n      | AddConfigurationSettingParam<SnapshotReferenceValue>,\n    options: AddConfigurationSettingOptions = {},\n  ): Promise<AddConfigurationSettingResponse> {\n    return tracingClient.withSpan(\n      \"AppConfigurationClient.addConfigurationSetting\",\n      options,\n      async (updatedOptions) => {\n        const keyValue = serializeAsConfigurationSettingParam(configurationSetting);\n        logger.info(\"[addConfigurationSetting] Creating a key value pair\");\n        try {\n          const originalResponse = await this.client.putKeyValue(\n            \"application/json\",\n            encodePathParameter(configurationSetting.key),\n            {\n              ifNoneMatch: \"*\",\n              label: configurationSetting.label,\n              entity: keyValue,\n              ...updatedOptions,\n              requestOptions: {\n                ...updatedOptions.requestOptions,\n                skipUrlEncoding: true,\n              },\n            },\n          );\n          const response = transformKeyValueResponse(originalResponse);\n          assertResponse(response);\n          return response;\n        } catch (error) {\n          const err = error as RestError;\n          // Service does not return an error message. Raise a 412 error similar to .NET\n          if (err.statusCode === 412) {\n            err.message = `Status 412: Setting was already present`;\n          }\n          throw err;\n        }\n        throw new Error(\"Unreachable code\");\n      },\n    );\n  }\n\n  /**\n   * Delete a setting from the Azure App Configuration service\n   *\n   * Example usage:\n   * ```ts snippet:DeleteConfigurationSetting\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const deletedSetting = await client.deleteConfigurationSetting({\n   *   key: \"MyKey\",\n   *   label: \"MyLabel\",\n   * });\n   * ```\n   * @param id - The id of the configuration setting to delete.\n   * @param options - Optional parameters for the request (ex: etag, label)\n   */\n  deleteConfigurationSetting(\n    id: ConfigurationSettingId,\n    options: DeleteConfigurationSettingOptions = {},\n  ): Promise<DeleteConfigurationSettingResponse> {\n    return tracingClient.withSpan(\n      \"AppConfigurationClient.deleteConfigurationSetting\",\n      options,\n      async (updatedOptions) => {\n        let status;\n        logger.info(\"[deleteConfigurationSetting] Deleting key value pair\");\n        const originalResponse = await this.client.deleteKeyValue(encodePathParameter(id.key), {\n          label: id.label,\n          ...updatedOptions,\n          ...checkAndFormatIfAndIfNoneMatch(id, options),\n          onResponse: (response) => {\n            status = response.status;\n          },\n          requestOptions: {\n            ...updatedOptions.requestOptions,\n            skipUrlEncoding: true,\n          },\n        });\n\n        const response = transformKeyValueResponseWithStatusCode(originalResponse, status);\n        assertResponse(response);\n        return response;\n      },\n    );\n  }\n\n  /**\n   * Gets a setting from the Azure App Configuration service.\n   *\n   * Example code:\n   * ```ts snippet:GetConfigurationSetting\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const setting = await client.getConfigurationSetting({ key: \"MyKey\", label: \"MyLabel\" });\n   * ```\n   * @param id - The id of the configuration setting to get.\n   * @param options - Optional parameters for the request.\n   */\n  async getConfigurationSetting(\n    id: ConfigurationSettingId,\n    options: GetConfigurationSettingOptions = {},\n  ): Promise<GetConfigurationSettingResponse> {\n    return tracingClient.withSpan(\n      \"AppConfigurationClient.getConfigurationSetting\",\n      options,\n      async (updatedOptions) => {\n        let status;\n        let rawResponse: any;\n        logger.info(\"[getConfigurationSetting] Getting key value pair\");\n        try {\n          const originalResponse = await this.client.getKeyValue(encodePathParameter(id.key), {\n            ...updatedOptions,\n            label: id.label,\n            select: formatFieldsForSelect(options.fields),\n            ...formatAcceptDateTime(options),\n            ...checkAndFormatIfAndIfNoneMatch(id, options),\n            onResponse: (response) => {\n              status = response.status;\n              rawResponse = response;\n            },\n            requestOptions: {\n              ...updatedOptions.requestOptions,\n              skipUrlEncoding: true,\n            },\n          });\n\n          const response = transformKeyValueResponseWithStatusCode(originalResponse, status);\n          assertResponse(response);\n          return response;\n        } catch (error) {\n          const err = error as RestError;\n          // 304 only comes back if the user has passed a conditional option in their\n          // request _and_ the remote object has the same etag as what the user passed.\n          if (err.statusCode === 304) {\n            const response = transformKeyValueResponseWithStatusCode(\n              { _response: rawResponse } as any,\n              304,\n            );\n            // this is one of our few 'required' fields so we'll make sure it does get initialized\n            // with a value\n            response.key = id.key;\n            // and now we'll undefine all the other properties that are not HTTP related\n            makeConfigurationSettingEmpty(response);\n            assertResponse(response);\n            return response;\n          }\n          throw err;\n        }\n      },\n    );\n  }\n\n  /**\n   * Lists settings from the Azure App Configuration service, optionally\n   * filtered by key names, labels and accept datetime.\n   *\n   * Example code:\n   * ```ts snippet:ListConfigurationSettings\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const allSettingsWithLabel = client.listConfigurationSettings({ labelFilter: \"MyLabel\" });\n   * ```\n   * @param options - Optional parameters for the request.\n   */\n  listConfigurationSettings(\n    options: ListConfigurationSettingsOptions = {},\n  ): PagedAsyncIterableIterator<ConfigurationSetting, ListConfigurationSettingPage, PageSettings> {\n    const pageEtags = options.pageEtags ? [...options.pageEtags] : undefined;\n    delete options.pageEtags;\n    const pagedResult: PagedResult<ListConfigurationSettingPage, PageSettings, string | undefined> =\n      {\n        firstPageLink: undefined,\n        getPage: async (pageLink: string | undefined) => {\n          const etag = pageEtags?.shift();\n          try {\n            const response = await this.sendConfigurationSettingsRequest(\n              { ...options, etag },\n              pageLink,\n            );\n            const currentResponse: ListConfigurationSettingPage = {\n              ...response,\n              items: response.items != null ? response.items?.map(transformKeyValue) : [],\n              continuationToken: response.nextLink\n                ? extractAfterTokenFromNextLink(response.nextLink)\n                : undefined,\n              _response: response._response,\n            };\n            return {\n              page: currentResponse,\n              nextPageLink: currentResponse.continuationToken,\n            };\n          } catch (error) {\n            const err = error as RestError;\n\n            const link = err.response?.headers?.get(\"link\");\n            const continuationToken = link ? extractAfterTokenFromLinkHeader(link) : undefined;\n\n            if (err.statusCode === 304) {\n              err.message = `Status 304: No updates for this page`;\n              logger.info(\n                `[listConfigurationSettings] No updates for this page. The current etag for the page is ${etag}`,\n              );\n              return {\n                page: {\n                  items: [],\n                  etag,\n                  _response: { ...err.response, status: 304 },\n                } as unknown as ListConfigurationSettingPage,\n                nextPageLink: continuationToken,\n              };\n            }\n\n            throw err;\n          }\n        },\n        toElements: (page) => page.items,\n      };\n    return getPagedAsyncIterator(pagedResult);\n  }\n\n  /**\n   * Checks settings from the Azure App Configuration service using a HEAD request, returning only headers without the response body.\n   * This is useful for efficiently checking if settings have changed by comparing ETags.\n   *\n   * Example code:\n   * ```ts snippet:CheckConfigurationSettings\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const pageIterator = client.checkConfigurationSettings({ keyFilter: \"MyKey\" }).byPage();\n   * ```\n   * @param options - Optional parameters for the request.\n   */\n  checkConfigurationSettings(\n    options: CheckConfigurationSettingsOptions = {},\n  ): PagedAsyncIterableIterator<ConfigurationSetting, ListConfigurationSettingPage, PageSettings> {\n    const pageEtags = options.pageEtags ? [...options.pageEtags] : undefined;\n    delete options.pageEtags;\n    const pagedResult: PagedResult<ListConfigurationSettingPage, PageSettings, string | undefined> =\n      {\n        firstPageLink: undefined,\n        getPage: async (pageLink: string | undefined) => {\n          const etag = pageEtags?.shift();\n          try {\n            const response = await this.checkConfigurationSettingsRequest(\n              { ...options, etag },\n              pageLink,\n            );\n            const link = response._response?.headers?.get(\"link\") as string | undefined;\n            const continuationToken = link ? extractAfterTokenFromLinkHeader(link) : undefined;\n            const currentResponse: ListConfigurationSettingPage = {\n              ...response,\n              etag: response._response?.headers?.get(\"etag\") as string | undefined,\n              items: [],\n              continuationToken: continuationToken,\n              _response: response._response,\n            };\n            return {\n              page: currentResponse,\n              nextPageLink: currentResponse.continuationToken,\n            };\n          } catch (error) {\n            const err = error as RestError;\n\n            const link = err.response?.headers?.get(\"link\");\n            const continuationToken = link ? extractAfterTokenFromLinkHeader(link) : undefined;\n\n            if (err.statusCode === 304) {\n              err.message = `Status 304: No updates for this page`;\n              logger.info(\n                `[checkConfigurationSettings] No updates for this page. The current etag for the page is ${etag}`,\n              );\n              return {\n                page: {\n                  items: [],\n                  etag,\n                  _response: { ...err.response, status: 304 },\n                } as unknown as ListConfigurationSettingPage,\n                nextPageLink: continuationToken,\n              };\n            }\n\n            throw err;\n          }\n        },\n        toElements: (page) => page.items,\n      };\n    return getPagedAsyncIterator(pagedResult);\n  }\n\n  /**\n   * Lists settings from the Azure App Configuration service for snapshots based on name, optionally\n   * filtered by key names, labels and accept datetime.\n   *\n   * Example code:\n   * ```ts snippet:ListConfigurationSettingsForSnashots\n   * import { DefaultAzureCredential } from \"@azure/identity\";\n   * import { AppConfigurationClient } from \"@azure/app-configuration\";\n   *\n   * // The endpoint for your App Configuration resource\n   * const endpoint = \"https://example.azconfig.io\";\n   * const credential = new DefaultAzureCredential();\n   * const client = new AppConfigurationClient(endpoint, credential);\n   *\n   * const allSettingsWithLabel = client.listConfigurationSettingsForSnashots({\n   *   snapshotName: \"MySnapshot\",\n   * });\n   * ```\n   * @param options - Optional parameters for the request.\n   */\n  listConfigurationSettingsForSnapshot(\n    snapshotName: string,\n    options: ListConfigurationSettingsForSnapshotOptions = {},\n  ): PagedAsyncIterableIterator<ConfigurationSetting, ListConfigurationSettingPage, PageSettings> {\n    const pagedResult: PagedResult<ListConfigurationSettingPage, PageSettings, string | undefined> =\n      {\n        firstPageLink: undefined,\n        getPage: async (pageLink: string | undefined) => {",
+      "contentHash": "6c7cb238b89859d02f74c583f0aad019155cbc5b30a81bd218a39c59f4068ac1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/appConfigurationClient.ts",
+      "startLine": 1,
+      "endLine": 601,
+      "kind": "unknown",
+      "excerpt": true,
+      "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/featureFlag.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { ConfigurationSetting, ConfigurationSettingParam } from \"./models.js\";\nimport type { JsonFeatureFlagValue } from \"./internal/jsonModels.js\";\nimport { logger } from \"./logger.js\";\n\n/**\n * The prefix for feature flags.\n */\nexport const featureFlagPrefix = \".appconfig.featureflag/\";\n\n/**\n * The content type for a FeatureFlag\n */\nexport const featureFlagContentType = \"application/vnd.microsoft.appconfig.ff+json;charset=utf-8\";\n\n/**\n * Value of a feature flag\n */\nexport interface FeatureFlagValue {\n  /**\n   * Id for the feature flag.\n   */\n  id?: string;\n  /**\n   * A Feature filter consistently evaluates the state of a feature flag.\n   * Our feature management library supports three types of built-in filters: Targeting, TimeWindow, and Percentage.\n   * Custom filters can also be created based on different factors, such as device used, browser types, geographic location, etc.\n   *\n   * [More Info](https://learn.microsoft.com/azure/azure-app-configuration/howto-feature-filters-aspnet-core)\n   */\n  conditions: {\n    clientFilters: { name: string; parameters?: Record<string, unknown> }[];\n    requirementType?: \"All\" | \"Any\";\n  };\n  /**\n   * Description of the feature.\n   */\n  description?: string;\n  /**\n   * Boolean flag to say if the feature flag is enabled.\n   */\n  enabled: boolean;\n  /**\n   * Display name for the feature to use for display rather than the ID.\n   */\n  displayName?: string;\n}\n\n/**\n * @internal\n */\nexport const FeatureFlagHelper = {\n  /**\n   * Takes the FeatureFlag (JSON) and returns a ConfigurationSetting (with the props encodeed in the value).\n   */\n  toConfigurationSettingParam: (\n    featureFlag: ConfigurationSettingParam<FeatureFlagValue>,\n  ): ConfigurationSettingParam => {\n    logger.info(\"Encoding FeatureFlag value in a ConfigurationSetting:\", featureFlag);\n    if (!featureFlag.value) {\n      logger.error(\"FeatureFlag has an unexpected value\", featureFlag);\n      throw new TypeError(`FeatureFlag has an unexpected value - ${featureFlag.value}`);\n    }\n    let key = featureFlag.key;\n    if (typeof featureFlag.key === \"string\" && !featureFlag.key.startsWith(featureFlagPrefix)) {\n      key = featureFlagPrefix + featureFlag.key;\n    }\n    const jsonFeatureFlagValue: JsonFeatureFlagValue = {\n      id: featureFlag.value.id ?? key.replace(featureFlagPrefix, \"\"),\n      enabled: featureFlag.value.enabled,\n      description: featureFlag.value.description,\n      conditions: {\n        client_filters: featureFlag.value.conditions.clientFilters,\n        requirement_type: featureFlag.value.conditions.requirementType ?? \"Any\",\n      },\n      display_name: featureFlag.value.displayName,\n    };\n\n    const configSetting = {\n      ...featureFlag,\n      key,\n      value: JSON.stringify(jsonFeatureFlagValue),\n    };\n    return configSetting;\n  },\n};\n\n/**\n * Takes the ConfigurationSetting as input and returns the ConfigurationSetting<FeatureFlagValue> by parsing the value string.\n */\nexport function parseFeatureFlag(\n  setting: ConfigurationSetting,\n): ConfigurationSetting<FeatureFlagValue> {\n  logger.info(\"Parsing the value to return the FeatureFlagValue\", setting);\n  if (!isFeatureFlag(setting)) {\n    logger.error(\"Invalid FeatureFlag input\", setting);\n    throw TypeError(\n      `Setting with key ${setting.key} is not a valid FeatureFlag, make sure to have the correct content-type and a valid non-null value.`,\n    );\n  }\n\n  const jsonFeatureFlagValue = JSON.parse(setting.value) as JsonFeatureFlagValue;\n\n  let key = setting.key;\n  if (typeof setting.key === \"string\" && !setting.key.startsWith(featureFlagPrefix)) {\n    key = featureFlagPrefix + setting.key;\n  }\n  const featureflag: ConfigurationSetting<FeatureFlagValue> = {\n    ...setting,\n    value: {\n      id: jsonFeatureFlagValue.id,\n      enabled: jsonFeatureFlagValue.enabled ?? false,\n      description: jsonFeatureFlagValue.description,\n      displayName: jsonFeatureFlagValue.display_name,\n      conditions: jsonFeatureFlagValue.conditions\n        ? {\n            clientFilters: jsonFeatureFlagValue.conditions.client_filters,\n            requirementType: jsonFeatureFlagValue.conditions.requirement_type,\n          }\n        : { clientFilters: [] },\n    },\n    key,\n    contentType: featureFlagContentType,\n  };\n\n  return featureflag;\n}\n\n/**\n * Lets you know if the ConfigurationSetting is a feature flag.\n *\n * [Checks if the content type is featureFlagContentType `\"application/vnd.microsoft.appconfig.ff+json;charset=utf-8\"`]\n */\nexport function isFeatureFlag(\n  setting: ConfigurationSetting,\n): setting is ConfigurationSetting & Required<Pick<ConfigurationSetting, \"value\">> {\n  return (\n    setting && setting.contentType === featureFlagContentType && typeof setting.value === \"string\"\n  );\n}\n",
+      "contentHash": "ec0c86682473fafd8faaad1f405d16187162984d3869b57f37798709f12b8741",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/featureFlag.ts",
+      "startLine": 1,
+      "endLine": 142,
+      "kind": "unknown",
+      "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nexport { AppConfigurationClient } from \"./appConfigurationClient.js\";\nexport type { SimplePollerLike } from \"./internal/lroShim.js\";\nexport {\n  featureFlagContentType,\n  featureFlagPrefix,\n  type FeatureFlagValue,\n  isFeatureFlag,\n  parseFeatureFlag,\n} from \"./featureFlag.js\";\nexport * from \"./models.js\";\nexport {\n  isSecretReference,\n  parseSecretReference,\n  secretReferenceContentType,\n  type SecretReferenceValue,\n} from \"./secretReference.js\";\nexport {\n  isSnapshotReference,\n  parseSnapshotReference,\n  snapshotReferenceContentType,\n  type SnapshotReferenceValue,\n} from \"./snapshotReference.js\";\nexport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n",
+      "contentHash": "845b15fb9238e058429d48b316d69ec276e1892ca8b829cc064b5309e69d4bcc",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/index.ts",
+      "startLine": 1,
+      "endLine": 26,
+      "kind": "unknown",
+      "id": "9aa16159017467f0f94d296521832c86114a8438e2e4ff9e3bdd2c2afe412843"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/audienceErrorHandlingPolicy.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  RestError,\n  type PipelinePolicy,\n  type PipelineRequest,\n  type PipelineResponse,\n  type SendRequest,\n} from \"@azure/core-rest-pipeline\";\n\nconst AadAudienceErrorCode = \"AADSTS500011\";\nconst NoAudienceErrorMessage =\n  \"Unable to authenticate to Azure App Configuration. No authentication token audience was provided. Please set AppConfigurationClientOptions.audience to the appropriate audience for the target cloud. For details on how to configure the authentication token audience visit https://aka.ms/appconfig/client-token-audience.\";\nconst WrongAudienceErrorMessage =\n  \"Unable to authenticate to Azure App Configuration. An incorrect token audience was provided. Please set AppConfigurationClientOptions.audience to the appropriate audience for the target cloud. For details on how to configure the authentication token audience visit https://aka.ms/appconfig/client-token-audience.\";\n\n/**\n * Creates a PipelinePolicy that provides more helpful errors when Entra ID audience misconfiguration is detected.\n */\nexport function audienceErrorHandlingPolicy(isAudienceConfigured: boolean): PipelinePolicy {\n  return {\n    name: \"audienceErrorHandlingPolicy\",\n    async sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n      try {\n        return await next(request);\n      } catch (error: any) {\n        if (typeof error.message === \"string\" && error.message.includes(AadAudienceErrorCode)) {\n          if (isAudienceConfigured) {\n            throw new RestError(WrongAudienceErrorMessage);\n          } else {\n            throw new RestError(NoAudienceErrorMessage);\n          }\n        }\n        throw error;\n      }\n    },\n  };\n}\n",
+      "contentHash": "06f5214e2ee3e1bbcc1a3fa194d9c101237eae2c287aeb8cdd911e132e4e0335",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/internal/audienceErrorHandlingPolicy.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "kind": "unknown",
+      "id": "65047a38e1b80ca75c6f721be968d204dfed6d52c46d66184a3080b8766bd7fd"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/constants.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * @internal\n */\nexport const packageVersion = \"1.13.0\";\n\n/**\n * @internal\n */\nexport const appConfigurationApiVersion = \"2026-04-01\";\n",
+      "contentHash": "9da3f4c59abd4c60fc8801eb967c492f179dcde25494d79691739f9e3dd9c493",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/internal/constants.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "unknown",
+      "id": "2dc4a1dc4ba075864cae664e1e29d15d24b92a9e67b44d4ce5f0a5a54b8f48ca"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/emptyBodyPolicy.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type {\n  PipelinePolicy,\n  PipelineRequest,\n  PipelineResponse,\n  SendRequest,\n} from \"@azure/core-rest-pipeline\";\n\n/**\n * Name of the policy that backfills an empty JSON body for responses that\n * legitimately carry no body (e.g. 204 No Content, 304 Not Modified, HEAD\n * responses, and some 4xx error responses with no problem-details payload).\n *\n * The generated deserializers always invoke `errorDeserializer(result.body)`\n * (and, in some success paths, the entity deserializer) with `result.body`\n * directly. When `result.body` is `undefined` the deserializer dereferences\n * `item[\"type\"]` / `item[\"key\"]` and throws a `TypeError`, which masks the\n * proper `RestError` that was just constructed.\n *\n * This policy ensures that whenever the wire response has no body, the\n * downstream JSON parsing step yields `{}` instead of `undefined`, so the\n * generated deserializers see an empty object and behave correctly.\n *\n * @internal\n */\nexport const emptyBodyPolicyName = \"AppConfigEmptyBodyPolicy\";\n\n/**\n * Pipeline policy that backfills an empty JSON object body when the service\n * responds with no body.\n * @internal\n */\nexport function emptyBodyPolicy(): PipelinePolicy {\n  return {\n    name: emptyBodyPolicyName,\n    async sendRequest(request: PipelineRequest, next: SendRequest): Promise<PipelineResponse> {\n      const response = await next(request);\n      const text = response.bodyAsText;\n      if (text === undefined || text === null || text.length === 0) {\n        response.bodyAsText = \"{}\";\n      }\n      return response;\n    },\n  };\n}\n",
+      "contentHash": "a2574db887148b23f043918204a9cb9809a60ab02c01f323f61d9678acebe31a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/internal/emptyBodyPolicy.ts",
+      "startLine": 1,
+      "endLine": 47,
+      "kind": "unknown",
+      "id": "bf9c5caf091566140120122f2bd16b8eca59e5e1845fa193d42212543447351b"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/helpers.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport {\n  type ConfigurationSetting,\n  type ConfigurationSettingParam,\n  type HttpOnlyIfChangedField,\n  type HttpOnlyIfUnchangedField,\n  type HttpResponseField,\n  type HttpResponseFields,\n  type ListRevisionsOptions,\n  type ListSettingsOptions,\n  type ListSnapshotsOptions,\n  type ConfigurationSnapshot,\n  type SnapshotResponse,\n  type EtagEntity,\n  type ListLabelsOptions,\n  type SnapshotInfo,\n  KnownAppConfigAudience,\n} from \"../models.js\";\nimport type { FeatureFlagValue } from \"../featureFlag.js\";\nimport { FeatureFlagHelper, featureFlagContentType } from \"../featureFlag.js\";\nimport type {\n  GetKeyValuesOptionalParams,\n  GetLabelsOptionalParams,\n  GetSnapshotsOptionalParams,\n} from \"../generated/api/options.js\";\nimport type {\n  KeyValue,\n  ConfigurationSnapshot as Snapshot,\n  KeyValueFields,\n  SnapshotFields,\n  CompositionType,\n  SnapshotStatus,\n} from \"../generated/models/models.js\";\nimport type { SecretReferenceValue } from \"../secretReference.js\";\nimport { SecretReferenceHelper, secretReferenceContentType } from \"../secretReference.js\";\nimport type { SnapshotReferenceValue } from \"../snapshotReference.js\";\nimport { SnapshotReferenceHelper, snapshotReferenceContentType } from \"../snapshotReference.js\";\nimport { isDefined } from \"@azure/core-util\";\nimport { logger } from \"../logger.js\";\nimport type { OperationOptions } from \"@azure-rest/core-client\";\n\n/**\n * Options for listConfigurationSettings that allow for filtering based on keys, labels and other fields.\n * Also provides `fields` which allows you to selectively choose which fields are populated in the\n * result.\n */\nexport interface SendConfigurationSettingsOptions\n  extends OperationOptions, ListSettingsOptions, EtagEntity {\n  /**\n   * A filter used get configuration setting for a snapshot. Not valid when used with 'key' and 'label' filters\n   */\n  snapshotName?: string;\n}\n\n/**\n * Options for listLabels that allow for filtering based on keys, labels and other fields.\n * Also provides `fields` which allows you to selectively choose which fields are populated in the\n * result.\n */\nexport interface SendLabelsRequestOptions extends ListLabelsOptions {}\n\n/**\n * Formats the etag so it can be used with a If-Match/If-None-Match header\n * @internal\n */\nexport function quoteETag(etag: string | undefined): string | undefined {\n  // https://tools.ietf.org/html/rfc7232#section-3.1\n  if (etag === undefined || etag === \"*\") {\n    return etag;\n  }\n\n  if (etag.startsWith('\"') && etag.endsWith('\"')) {\n    return etag;\n  }\n\n  if (etag.startsWith(\"'\") && etag.endsWith(\"'\")) {\n    return etag;\n  }\n\n  return `\"${etag}\"`;\n}\n\n/**\n * Checks the onlyIfChanged/onlyIfUnchanged properties to make sure we haven't specified both\n * and throws an Error. Otherwise, returns the properties properly quoted.\n * @param options - An options object with onlyIfChanged/onlyIfUnchanged fields\n * @internal\n */\nexport function checkAndFormatIfAndIfNoneMatch(\n  objectWithEtag: EtagEntity,\n  options: HttpOnlyIfChangedField & HttpOnlyIfUnchangedField,\n): { ifMatch: string | undefined; ifNoneMatch: string | undefined } {\n  if (options.onlyIfChanged && options.onlyIfUnchanged) {\n    logger.error(\n      \"onlyIfChanged and onlyIfUnchanged are both specified\",\n      options.onlyIfChanged,\n      options.onlyIfUnchanged,\n    );\n    throw new Error(\"onlyIfChanged and onlyIfUnchanged are mutually-exclusive\");\n  }\n\n  let ifMatch;\n  let ifNoneMatch;\n\n  if (options.onlyIfUnchanged) {\n    ifMatch = quoteETag(objectWithEtag.etag);\n  }\n\n  if (options.onlyIfChanged) {\n    ifNoneMatch = quoteETag(objectWithEtag.etag);\n  }\n\n  return {\n    ifMatch: ifMatch,\n    ifNoneMatch: ifNoneMatch,\n  };\n}\n\n/**\n * Transforms some of the key fields in SendConfigurationSettingsOptions and ListRevisionsOptions\n * so they can be added to a request using AppConfigurationGetKeyValuesOptionalParams.\n * - `options.acceptDateTime` is converted into an ISO string\n * - `select` is populated with the proper field names from `options.fields`\n * - keyFilter and labelFilter are moved to key and label, respectively.\n *\n * @internal\n */\nexport function formatFiltersAndSelect(\n  listConfigOptions: ListRevisionsOptions,\n): Pick<GetKeyValuesOptionalParams, \"key\" | \"label\" | \"select\" | \"acceptDatetime\" | \"tags\"> {\n  let acceptDatetime: string | undefined = undefined;\n\n  if (listConfigOptions.acceptDateTime) {\n    acceptDatetime = listConfigOptions.acceptDateTime.toISOString();\n  }\n  return {\n    key: listConfigOptions.keyFilter,\n    label: listConfigOptions.labelFilter,\n    // Ensure the tags are URL-encoded when encoding\n    tags: listConfigOptions.tagsFilter?.map((t) => encodeURIComponent(t)),\n    acceptDatetime,\n    select: formatFieldsForSelect(listConfigOptions.fields),\n  };\n}\n\n/**\n * Transforms some of the key fields in SendConfigurationSettingsOptions\n * so they can be added to a request using AppConfigurationGetKeyValuesOptionalParams.\n * - `options.acceptDateTime` is converted into an ISO string\n * - `select` is populated with the proper field names from `options.fields`\n * - keyFilter, labelFilter, snapshotName are moved to key, label, and snapshot respectively.\n *\n * @internal\n */\nexport function formatConfigurationSettingsFiltersAndSelect(\n  listConfigOptions: SendConfigurationSettingsOptions,\n): Pick<\n  GetKeyValuesOptionalParams,\n  \"key\" | \"label\" | \"select\" | \"acceptDatetime\" | \"snapshot\" | \"tags\"\n> {\n  const { snapshotName: snapshot, ...options } = listConfigOptions;\n  return {\n    ...formatFiltersAndSelect(options),\n    snapshot,\n  };\n}\n/**\n * Transforms some of the key fields in ListSnapshotsOptions\n * so they can be added to a request using AppConfigurationGetSnapshotsOptionalParams.\n * - `select` is populated with the proper field names from `options.fields`\n * - keyFilter and labelFilter are moved to key and label, respectively.\n *\n * @internal\n */\nexport function formatSnapshotFiltersAndSelect(\n  listSnapshotOptions: ListSnapshotsOptions,\n): Pick<GetSnapshotsOptionalParams, \"name\" | \"select\" | \"status\"> {\n  return {\n    name: listSnapshotOptions.nameFilter,\n    status: listSnapshotOptions.statusFilter as SnapshotStatus[] | undefined,\n    select: listSnapshotOptions.fields as SnapshotFields[] | undefined,\n  };\n}\n\n/**\n * Transforms some of the key fields in ListLabelsOptions\n * so they can be added to a request using AppConfigurationGetLabelsOptionalParams.\n * - `select` is populated with the proper field names from `options.fields`\n * - `nameFilter` are moved to name\n *\n * @internal\n */\nexport function formatLabelsFiltersAndSelect(\n  listLabelsOptions: ListLabelsOptions,\n): Pick<GetLabelsOptionalParams, \"name\" | \"select\"> {\n  return {\n    name: listLabelsOptions.nameFilter,\n    select: listLabelsOptions.fields,\n  };\n}\n/**\n * Handles translating a Date acceptDateTime into a string as needed by the API\n * @param newOptions - A newer style options with acceptDateTime as a date (and with proper casing!)\n * @internal\n */\nexport function formatAcceptDateTime(newOptions: { acceptDateTime?: Date }): {\n  acceptDatetime?: string;\n} {\n  return {\n    acceptDatetime: newOptions.acceptDateTime && newOptions.acceptDateTime.toISOString(),\n  };\n}\n\n/**\n * Take the URL that gets returned from next link and extract the 'after' token needed\n * to get the next page of results.\n * @internal\n */\nexport function extractAfterTokenFromNextLink(nextLink: string): string {\n  const searchParams = new URLSearchParams(nextLink);\n  const afterToken = searchParams.get(\"after\");\n\n  if (afterToken == null || Array.isArray(afterToken)) {\n    logger.error(\"Invalid nextLink - invalid after token\", afterToken, Array.isArray(afterToken));\n    throw new Error(\"Invalid nextLink - invalid after token\");\n  }\n\n  return decodeURIComponent(afterToken);\n}\n\n/**\n * Take the header link that gets returned from 304 response and extract the 'after' token needed\n * to get the next page of results.\n *\n * @internal\n */\nexport function extractAfterTokenFromLinkHeader(link: string): string {\n  // Example transformation of the link header\n  // link:\n  // '</kv?api-version=2023-10-01&key=listResults714&after=bGlzdE4>; rel=\"next\"'\n  //\n  // linkValue:\n  // </kv?api-version=2023-10-01&key=listResults714&after=bGlzdE4>\n  //\n  // nextLink:\n  // /kv?api-version=2023-10-01&key=listResults714&after=bGlzdE4\n  const linkValue = link.split(\";\")[0];\n  const nextLink = linkValue.substring(1, linkValue.length - 1);\n  return extractAfterTokenFromNextLink(nextLink);\n}\n\n/**\n * Makes a ConfigurationSetting-based response throw for all of the data members. Used primarily\n * to prevent possible errors by the user in accessing a model that is uninitialized. This can happen\n * in cases like HTTP status code 204 or 304, which return an empty response body.\n *\n * @param configurationSetting - The configuration setting to alter\n */\nexport function makeConfigurationSettingEmpty(\n  configurationSetting: Partial<Record<Exclude<keyof ConfigurationSetting, \"key\">, any>>,\n): void {\n  const names: Exclude<keyof ConfigurationSetting, \"key\">[] = [\n    \"contentType\",\n    \"description\",\n    \"etag\",\n    \"label\",\n    \"lastModified\",\n    \"isReadOnly\",\n    \"tags\",\n    \"value\",\n  ];\n\n  for (const name of names) {\n    configurationSetting[name] = undefined;\n  }\n}\n\n/**\n * @internal\n */\nexport function transformKeyValue<T>(kvp: T & KeyValue): T & ConfigurationSetting {\n  const setting = {\n    value: undefined,\n    ...kvp,\n    isReadOnly: !!kvp.locked,\n    lastModified: kvp.lastModified ? new Date(kvp.lastModified) : undefined,\n  };\n  delete setting.locked;\n  if (!setting.label) {\n    delete setting.label;\n  }\n  if (!setting.contentType) {\n    delete setting.contentType;\n  }\n  return setting;\n}\n\n/**\n * @internal\n */\nfunction isConfigSettingWithSecretReferenceValue(\n  setting: any,\n): setting is ConfigurationSetting<SecretReferenceValue> {\n  return (\n    setting.contentType === secretReferenceContentType &&\n    isDefined(setting.value) &&\n    typeof setting.value !== \"string\"\n  );\n}\n\n/**\n * @internal\n */\nfunction isConfigSettingWithSnapshotReferenceValue(\n  setting: any,\n): setting is ConfigurationSetting<SnapshotReferenceValue> {\n  return (\n    setting.contentType === snapshotReferenceContentType &&\n    isDefined(setting.value) &&\n    typeof setting.value !== \"string\"\n  );\n}\n\n/**\n * @internal\n */\nfunction isConfigSettingWithFeatureFlagValue(\n  setting: any,\n): setting is ConfigurationSetting<FeatureFlagValue> {\n  return (\n    setting.contentType === featureFlagContentType &&\n    isDefined(setting.value) &&\n    typeof setting.value !== \"string\"\n  );\n}\n\n/**\n * @internal\n */\nfunction isSimpleConfigSetting(setting: any): setting is ConfigurationSetting {\n  return typeof setting.value === \"string\" || !isDefined(setting.value);\n}\n\n/**\n * @internal\n */\nexport function serializeAsConfigurationSettingParam(\n  setting:\n    | ConfigurationSettingParam\n    | ConfigurationSettingParam<FeatureFlagValue>\n    | ConfigurationSettingParam<SecretReferenceValue>\n    | ConfigurationSettingParam<SnapshotReferenceValue>,\n): ConfigurationSettingParam {\n  if (isSimpleConfigSetting(setting)) {\n    return setting as ConfigurationSettingParam;\n  }\n  try {\n    if (isConfigSettingWithFeatureFlagValue(setting)) {\n      return FeatureFlagHelper.toConfigurationSettingParam(setting);\n    }\n    if (isConfigSettingWithSecretReferenceValue(setting)) {\n      return SecretReferenceHelper.toConfigurationSettingParam(setting);\n    }\n    if (isConfigSettingWithSnapshotReferenceValue(setting)) {\n      return SnapshotReferenceHelper.toConfigurationSettingParam(setting);\n    }\n  } catch (error: any) {\n    return setting as ConfigurationSettingParam;\n  }\n  logger.error(\"Unable to serialize to a configuration setting\", setting);\n  throw new TypeError(\n    `Unable to serialize the setting with key \"${setting.key}\" as a configuration setting`,\n  );\n}\n\n/**\n * @internal\n */\nexport function transformKeyValueResponseWithStatusCode<T extends KeyValue>(\n  kvp: T | undefined,\n  status: number | undefined,\n): ConfigurationSetting & { eTag?: string } & HttpResponseFields {\n  const source = (kvp ?? {}) as T;\n  const response = {\n    ...transformKeyValue(source),\n    statusCode: status ?? -1,\n  };\n\n  if (hasUnderscoreResponse(source)) {\n    Object.defineProperty(response, \"_response\", {\n      enumerable: false,\n      value: source._response,\n    });\n  }\n  return response;\n}\n\n/**\n * @internal\n */\nexport function transformKeyValueResponse<T extends KeyValue & { eTag?: string }>(\n  kvp: T,\n): ConfigurationSetting {\n  const setting = transformKeyValue(kvp);\n  if (hasUnderscoreResponse(kvp)) {\n    Object.defineProperty(setting, \"_response\", {\n      enumerable: false,\n      value: kvp._response,\n    });\n  }\n\n  delete setting.eTag;\n  return setting;\n}\n\n/**\n * @internal\n */\nexport function transformSnapshotResponse<T extends Snapshot>(snapshot: T): SnapshotResponse {\n  const configSnapshot: ConfigurationSnapshot = {\n    ...snapshot,\n    createdOn: snapshot.createdOn ? new Date(snapshot.createdOn) : undefined,\n    expiresOn: snapshot.expiresOn ? new Date(snapshot.expiresOn) : undefined,\n    itemCount: snapshot.itemsCount,\n  };\n  if (hasUnderscoreResponse(snapshot)) {\n    Object.defineProperty(configSnapshot, \"_response\", {\n      enumerable: false,\n      value: (snapshot as any)._response,\n    });\n  }\n  return configSnapshot as unknown as SnapshotResponse;\n}\n\n/**\n * Converts a public-facing SnapshotInfo to the generated Snapshot type.\n * @internal\n */\nexport function snapshotInfoToGenerated(snapshot: SnapshotInfo): Snapshot {\n  return {\n    ...snapshot,\n    compositionType: snapshot.compositionType as CompositionType,\n  };\n}\n\n/**\n * Translates user-facing field names into their `select` equivalents (these can be\n * seen in the `KnownEnum5`)\n *\n * @param fieldNames - fieldNames from users.\n * @returns The field names translated into the `select` field equivalents.\n *\n * @internal\n */\nexport function formatFieldsForSelect(\n  fieldNames: (keyof ConfigurationSetting)[] | undefined,\n): KeyValueFields[] | undefined {\n  if (fieldNames == null) {\n    return undefined;\n  }\n\n  const mappedFieldNames = fieldNames.map((fn) => {\n    switch (fn) {\n      case \"lastModified\":\n        return \"last_modified\";\n      case \"contentType\":\n        return \"content_type\";\n      case \"isReadOnly\":\n        return \"locked\";\n      default:\n        return fn;\n    }\n  });\n\n  return mappedFieldNames as KeyValueFields[];\n}\n\n/**\n * @internal\n */\nexport function errorMessageForUnexpectedSetting(\n  key: string,\n  expectedType: \"FeatureFlag\" | \"SecretReference\",\n): string {\n  return `Setting with key ${key} is not a valid ${expectedType}, make sure to have the correct content-type and a valid non-null value.`;\n}\n\nexport function assertResponse<T extends object>(\n  result: T,\n): asserts result is T & HttpResponseField<any> {\n  if (!hasUnderscoreResponse(result)) {\n    Object.defineProperty(result, \"_response\", {\n      enumerable: false,\n      value:\n        \"Something went wrong, _response(raw response) is supposed to be part of the response. Please file a bug at https://github.com/Azure/azure-sdk-for-js\",\n    });\n  }\n}\n\nexport function hasUnderscoreResponse<T extends object>(\n  result: T,\n): result is T & HttpResponseField<any> {\n  return Object.prototype.hasOwnProperty.call(result, \"_response\");\n}\n\n/**\n * Get the scope for the App Configuration service based on the endpoint and audience.\n * If the audience is provided, it will be used as the scope.\n * If not, the scope is inferred from the endpoint.\n *\n * @internal\n */\nexport function getScope(appConfigEndpoint: string, appConfigAudience?: string): string {\n  if (appConfigAudience) {\n    return `${appConfigAudience}/.default`;\n  }\n\n  const hostname = new URL(appConfigEndpoint).hostname;\n  const stagingDomain = \"appconfig-staging.azure.com\";\n  if (hostname.endsWith(`.${stagingDomain}`)) {\n    return `https://${stagingDomain}/.default`;\n  }\n\n  const labels = hostname.split(\".\");\n  for (let index = labels.length - 1; index >= 0; index--) {\n    const label = labels[index].toLowerCase();\n    if (label === \"appconfig\" || label === \"azconfig\") {\n      return `https://${labels.slice(index).join(\".\")}/.default`;\n    }\n  }\n\n  return `${KnownAppConfigAudience.AzurePublicCloud}/.default`;\n}\n\n/**\n * Encodes a value for use as a URL path parameter according to RFC 3986.\n *\n * @internal\n */\nexport function encodePathParameter(str: string): string {\n  return encodeURIComponent(str).replace(\n    /[!'()*]/g,\n    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,\n  );\n}\n",
+      "contentHash": "d78989f0553d7e08eea3af23a4d3f2f3edff50d96d9cd9d54e38d50899bbf7bf",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/src/internal/helpers.ts",
+      "startLine": 1,
+      "endLine": 547,
+      "kind": "unknown",
+      "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/appconfiguration/app-configuration/package.json",
+      "text": "{\n  \"name\": \"@azure/app-configuration\",\n  \"author\": \"Microsoft Corporation\",\n  \"description\": \"An isomorphic client library for the Azure App Configuration service.\",\n  \"version\": \"1.13.0\",\n  \"sdk-type\": \"client\",\n  \"keywords\": [\n    \"node\",\n    \"azure\",\n    \"typescript\",\n    \"browser\",\n    \"isomorphic\",\n    \"cloud\"\n  ],\n  \"license\": \"MIT\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/appconfiguration/app-configuration/README.md\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/appconfiguration/app-configuration\"\n  },\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* types *.tgz *.log\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"generate:client\": \"tsp-client update -d --emitter-options=\\\"generate-metadata=false;generate-test=false\\\" && npm run format\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run test:vitest -- --test-timeout 180000\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"sideEffects\": false,\n  \"autoPublish\": false,\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/internal/constants.ts\",\n        \"prefix\": \"packageVersion\"\n      },\n      {\n        \"path\": \"src/generated/api/appConfigurationContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"dependencies\": {\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.3.0\",\n    \"@azure/core-client\": \"^1.9.2\",\n    \"@azure-rest/core-client\": \"^2.6.0\",\n    \"@azure/core-http-compat\": \"^2.0.0\",\n    \"@azure/core-lro\": \"^3.1.0\",\n    \"@azure/core-paging\": \"^1.4.0\",\n    \"@azure/core-rest-pipeline\": \"^1.6.0\",\n    \"@azure/core-tracing\": \"^1.0.0\",\n    \"@azure/core-util\": \"^1.6.1\",\n    \"@azure/logger\": \"^1.0.0\",\n    \"tslib\": \"^2.2.0\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure/app-configuration-provider\": \"^2.2.0\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/eventgrid\": \"^5.0.0\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@azure/keyvault-secrets\": \"^4.2.0\",\n    \"@microsoft/feature-management\": \"^2.2.0\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"//sampleConfiguration\": {\n    \"productName\": \"Azure App Configuration\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-app-configuration\"\n    ],\n    \"requiredResources\": {\n      \"Azure App Configuration account\": \"https://learn.microsoft.com/azure/azure-app-configuration/quickstart-aspnet-core-app?tabs=core5x#create-an-app-configuration-store\"\n    },\n    \"skip\": [\n      \"secretReference.js\",\n      \"updateSyncTokenSample.js\"\n    ]\n  },\n  \"type\": \"module\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"module\": \"./dist/esm/index.js\",\n  \"imports\": {\n    \"#platform/*\": {\n      \"react-native\": \"./src/*-react-native.mts\",\n      \"browser\": \"./src/*-browser.mts\",\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "3e8fedf933f7133b98e47048c9d8a8529bf188bbacf0bd4d108831e82852c87e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/package.json"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/sample-react/package.json",
+      "text": "{\n  \"name\": \"react-sample\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"dependencies\": {\n    \"@azure/app-configuration\": \"^1.2.0-beta.1\",\n    \"@azure/identity\": \"^4.0.1\",\n    \"@types/node\": \"^22.0.0\",\n    \"@types/react\": \"^17.0.3\",\n    \"@types/react-dom\": \"^17.0.3\",\n    \"react\": \"^17.0.2\",\n    \"react-dom\": \"^17.0.2\",\n    \"react-scripts\": \"4.0.3\",\n    \"typescript\": \"^4.2.4\"\n  },\n  \"scripts\": {\n    \"start\": \"react-scripts start\",\n    \"build\": \"react-scripts build\",\n    \"test\": \"react-scripts test\",\n    \"eject\": \"react-scripts eject\"\n  },\n  \"eslintConfig\": {\n    \"extends\": [\n      \"react-app\",\n      \"react-app/jest\"\n    ]\n  },\n  \"browserslist\": {\n    \"production\": [\n      \">0.2%\",\n      \"not dead\",\n      \"not op_mini all\"\n    ],\n    \"development\": [\n      \"last 1 chrome version\",\n      \"last 1 firefox version\",\n      \"last 1 safari version\"\n    ]\n  }\n}\n",
+      "contentHash": "79cb68183a67b1a01fcc655f795812839f7f97cbe83f57468a1794e8accc32af",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/sample-react/package.json"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/sample-react/README.md",
+      "text": "# Feature Flag Sample (TypeScript)\n\nThis sample application shows how to use the Feature Flags.\n\n## Prerequisites\n\nThe samples are compatible with [LTS versions of Node.js](https://github.com/nodejs/release#release-schedule).\n\nYou need [an Azure subscription][freesub] and the following resources created to run this sample:\n\n### Create an App Configuration resource\n\nYou can use the [Azure Portal](https://portal.azure.com) or the [Azure CLI](https://learn.microsoft.com/cli/azure) to create an Azure App Configuration resource.\n\nExample (Azure CLI):\n\n```\naz appconfig create --name <app-configuration-resource-name> --resource-group <resource-group-name> --location eastus\n```\n\n### Create an AAD application\n\nWe recommend the [@azure/identity][identity] package which provides a set of credential implementations for both NodeJS and the browser. This sample imports `InteractiveBrowserCredential` from identity.\n\n- Register a new AAD application and give permissions to access Azure App Configuration on behalf of the signed-in user\n\n  - Register a new application in the Azure Active Directory(in the azure-portal) - https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-app\n  - In the `API permissions` section, select `Add a permission` and choose `APIs my organization uses`.\n  - Pick `Azure App Configuration` and select the checkboxes and then click `Add permissions`. This would allow the application to access Azure App Configuration on behalf of the signed-in user.\n\n- Grant access to Azure App Configuration data with RBAC in the Azure Portal\n\n  - RBAC roles for azure-app-configuration - https://learn.microsoft.com/azure/azure-app-configuration/concept-enable-rbac#azure-built-in-roles-for-azure-app-configuration.\n  - In the azure portal, go to your app-config account and assign **App Configuration Data Owner** role to the registered AAD application from `Access control (IAM)` tab (in the left-side-navbar of your app config account in the azure-portal).\n\n## Running the sample\n\n1. Have the environment variables in sample.env populated in the .env file.\n\n2. Create the following feature flags using the portal.\n\n   ```json\n   // Feature flag 1\n   {\n      \"id\": \"react-app-feature-1\",\n      \"description\": \"\",\n      \"enabled\": false,\n      \"conditions\": {\n        \"client_filters\": []\n      }\n   }\n   // Feature flag 2 // Make sure to update the Start and End times as you wish.\n   {\n      \"id\": \"react-app-feature-2\",\n      \"description\": \"\",\n      \"enabled\": true,\n      \"conditions\": {\n        \"client_filters\": [\n          {\n            \"name\": \"Microsoft.TimeWindow\",\n            \"parameters\": {\n              \"Start\": \"Mon, 12 Apr 2021 07:00:00 GMT\",\n              \"End\": \"Wed, 14 Apr 2021 07:00:00 GMT\"\n            }\n          }\n        ]\n      }\n   }\n   ```\n\n3. Install the various packages as well as the TypeScript compiler using:\n\n   ```bash\n   npm install\n   ```\n\n4. Run the sample app:\n\n   ```bash\n   npm start\n   ```\n\n## Caution\n\n> > This sample retrieves feature flags from a client-side application, however scalability can become a problem.\n>\n> > Azure App Configuration has a request quota detailed [here](https://azure.microsoft.com/pricing/details/app-configuration/). Once the quota is exhausted, HTTP status code 429 will be returned for all requests until the end of the hour.\n>\n> > For production environments and for users with heavy loads(keeping Azure costs in mind), the recommendation is to use App Configuration on the server-side and let the server cache and pass feature-flags to the clients.\n\n## Next Steps\n\nTake a look at our [Samples][samples] for more information about the APIs that are available.\n\n[react]: https://create-react-app.dev/\n[typescript]: https://www.typescriptlang.org/docs/home.html\n[freesub]: https://azure.microsoft.com/free\n[samples]: https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/appconfiguration/app-configuration/samples/v1/typescript\n[identity]: https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/identity/identity/README.md\n",
+      "contentHash": "e92b5dc6a65042dfeb125723f9a12891728c2ac4e2403ac2c35c19a9a22f5b2c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/sample-react/README.md"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/tsp-location.yaml",
+      "text": "directory: specification/appconfiguration/data-plane/AppConfiguration\ncommit: d675477846b71ac94291b555d218bbb1fac13873\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "402de8fe02f7505a19ca6b50fea1ac490856a265c214c3775507010606d4a0d7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/appconfiguration/app-configuration/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "fe8d289bfa8673165a5314cd8b4197e8214b11cab75349305687663e8fa4d2a9",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "0e758ad51160fbefbfa850f3f6e175f5943cfee7cdf8817952ee07065b13d39e",
+        "category": "Crypto / signing",
+        "subtype": "Request-body hash and canonical HMAC authentication",
+        "pattern": "hmac-request-signing",
+        "generatorAddressable": "yes",
+        "explanation": "The policy hashes the request body's string representation, signs method, path/query, date, host and content hash, then sets x-ms-date, x-ms-content-sha256 and HMAC-SHA256 Authorization before forwarding.",
+        "handwrittenRationale": "This separate credential module is explicitly installed by the outer client's connection-string branch while that client delegates operations to a differently named generated client.",
+        "symbols": [
+          "appConfigKeyCredentialPolicy"
+        ],
+        "evidence": [
+          {
+            "id": "491ad7e7f4df7136c9124aabb180216369ec778a73827919a5e29a4ec2163201",
+            "startLine": 17,
+            "endLine": 45
+          },
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 165,
+            "endLine": 231
+          }
+        ]
+      },
+      {
+        "key": "edb3778ae6d3aefcc563448e402c3a7569065874478fe54fc2c0c2e6bf251f3c",
+        "category": "Auth",
+        "subtype": "Connection-string/token constructor adapter and policy assembly",
+        "pattern": "credential-constructor-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "The constructor selects token or parsed connection-string authentication, trims a trailing slash in the token branch, derives scopes, rejects unmatched connection strings, creates a generated client with an undefined credential in the HMAC branch, and installs audience, signing, query, empty-body and sync-token policies. It also builds SDK user-agent/logging options and selects the API version from the third options argument or its constant.",
+        "handwrittenRationale": "The public AppConfigurationClient contains an explicit GeneratedAppConfigurationClient field and constructs the imported ./generated/appConfigurationClient implementation rather than being that generated class.",
+        "symbols": [
+          "AppConfigurationClient.constructor"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 132,
+            "endLine": 232
+          }
+        ]
+      },
+      {
+        "key": "d0679530f857627e97b03fd91bad0087b70b23547aa697fa2023e9e34d296eb8",
+        "category": "Convenience methods",
+        "subtype": "Create-only typed setting wrapper with 412 message normalization",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "addConfigurationSetting serializes typed values, encodes the key, calls generated putKeyValue with an initial ifNoneMatch '*', applies updated options and skipUrlEncoding, transforms the response, and rewrites a 412 error message inside a tracing span. The updated-options spread follows ifNoneMatch and can override it.",
+        "handwrittenRationale": "The outer client's method explicitly adapts public setting types to its generated client's putKeyValue method.",
+        "symbols": [
+          "AppConfigurationClient.addConfigurationSetting"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 257,
+            "endLine": 298
+          }
+        ]
+      },
+      {
+        "key": "c0c6c58b646c15d60c75928db7680264d32e877be9947f0fa53b513274477dba",
+        "category": "Convenience methods",
+        "subtype": "Conditional delete with status-bearing response adaptation",
+        "pattern": "convenience-typed-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "deleteConfigurationSetting forwards an encoded key and label, maps conditional ETag options, captures HTTP status through onResponse, and transforms/asserts the generated result within a tracing span.",
+        "handwrittenRationale": "The handwritten outer-client adapter calls a distinct generated deleteKeyValue operation and applies local response helpers.",
+        "symbols": [
+          "AppConfigurationClient.deleteConfigurationSetting"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 323,
+            "endLine": 351
+          }
+        ]
+      },
+      {
+        "key": "57a318d8a500515f2af04a028ebaa8987c1265f8e0dc94fd2a18a26b96dcf240",
+        "category": "Convenience methods",
+        "subtype": "Conditional get with explicit not-modified response shaping",
+        "pattern": "conditional-response-wrapper",
+        "generatorAddressable": "yes",
+        "explanation": "getConfigurationSetting adapts fields, datetime and ETags around generated getKeyValue. On a caught 304 it builds a status-bearing result from the captured raw response, restores the requested key and clears non-HTTP setting members rather than rethrowing; other errors propagate. Execution is wrapped in a tracing span.",
+        "handwrittenRationale": "This is an outer public method over generated getKeyValue with explicit 304 conversion and local model adapters.",
+        "symbols": [
+          "AppConfigurationClient.getConfigurationSetting"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 371,
+            "endLine": 423
+          }
+        ]
+      },
+      {
+        "key": "20a08d1e1a9e1ec348c511abc5146487fe7f7d19dd56990e453255fbcf0ccebc",
+        "category": "Pagination",
+        "subtype": "Per-page ETags with next-link and 304 continuation",
+        "pattern": "conditional-page-iterator",
+        "generatorAddressable": "yes",
+        "explanation": "listConfigurationSettings copies then deletes options.pageEtags, consumes one ETag per request, transforms returned items and derives continuation from nextLink. A 304 becomes an empty page carrying the requested ETag and raw status while continuation comes from the error's Link header.",
+        "handwrittenRationale": "The outer client builds its own PagedResult/getPage adapter using local transformation/token helpers, separately from imported generated operations.",
+        "symbols": [
+          "AppConfigurationClient.listConfigurationSettings"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 443,
+            "endLine": 500
+          }
+        ]
+      },
+      {
+        "key": "08873ddd4c1b88794b8477fc5582901f085c7c7d37f0412eb19bc0a818d08cc2",
+        "category": "Pagination",
+        "subtype": "Header-only page checking with conditional continuation",
+        "pattern": "conditional-page-iterator",
+        "generatorAddressable": "yes",
+        "explanation": "checkConfigurationSettings copies/deletes pageEtags, consumes one per request, exposes empty item pages with ETag from response headers and continuation from Link, and converts caught 304 responses to empty pages carrying the requested ETag and error-header continuation.",
+        "handwrittenRationale": "The public outer-client method constructs a distinct custom PagedResult instead of exposing a generated pager directly.",
+        "symbols": [
+          "AppConfigurationClient.checkConfigurationSettings"
+        ],
+        "evidence": [
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 517,
+            "endLine": 573
+          }
+        ]
+      },
+      {
+        "key": "50ec3207628747fc87db099691ccb2ffdb75d14f4e2ba8a2e9a828fa4f5a3ebc",
+        "category": "Serialization",
+        "subtype": "Typed feature-flag value to JSON-string setting",
+        "pattern": "typed-value-json-string",
+        "generatorAddressable": "yes",
+        "explanation": "The helper rejects a falsy value, prefixes unprefixed keys, supplies an ID from the key when absent, maps camelCase fields to the JSON schema, defaults requirement_type to Any and JSON-stringifies the value.",
+        "handwrittenRationale": "This feature helper sits outside the generated subtree and is called by the internal adapter that converts public setting types to generated KeyValue operations; the public client explicitly accepts FeatureFlagValue.",
+        "symbols": [
+          "FeatureFlagHelper.toConfigurationSettingParam"
+        ],
+        "evidence": [
+          {
+            "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+            "startLine": 54,
+            "endLine": 88
+          },
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 349,
+            "endLine": 370
+          }
+        ]
+      },
+      {
+        "key": "9031315b5bea117fa10398dfa441486b5d10c5c03b83f0e10a6b97378044b2e2",
+        "category": "Serialization",
+        "subtype": "Feature-flag JSON parsing and public shape normalization",
+        "pattern": "json-string-typed-value",
+        "generatorAddressable": "yes",
+        "explanation": "parseFeatureFlag checks the setting predicate, parses JSON, ensures a key prefix, maps display_name and condition fields, defaults enabled to false and missing conditions to an empty filter list, and returns the fixed feature-flag content type.",
+        "handwrittenRationale": "This exported convenience parser belongs to the feature module consumed by the outer generated-client adapter, not to the generated models/operations imports.",
+        "symbols": [
+          "parseFeatureFlag"
+        ],
+        "evidence": [
+          {
+            "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+            "startLine": 93,
+            "endLine": 129
+          },
+          {
+            "id": "9aa16159017467f0f94d296521832c86114a8438e2e4ff9e3bdd2c2afe412843",
+            "startLine": 4,
+            "endLine": 13
+          }
+        ]
+      },
+      {
+        "key": "d0ae252786976487abb4c779504ce84964f3f8683df7b9f8c9efcbc5601ae6ec",
+        "category": "Convenience methods",
+        "subtype": "Content-type/string-value feature-flag type guard",
+        "pattern": "content-type-value-guard",
+        "generatorAddressable": "yes",
+        "explanation": "isFeatureFlag recognizes a truthy setting with the exact feature-flag content type and a string value; it does not validate that string as JSON or require a key prefix.",
+        "handwrittenRationale": "The predicate is exported alongside the public parser from the separate feature helper module, in a library with an explicitly separate generated client subtree.",
+        "symbols": [
+          "isFeatureFlag"
+        ],
+        "evidence": [
+          {
+            "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+            "startLine": 136,
+            "endLine": 142
+          },
+          {
+            "id": "9aa16159017467f0f94d296521832c86114a8438e2e4ff9e3bdd2c2afe412843",
+            "startLine": 4,
+            "endLine": 13
+          }
+        ]
+      },
+      {
+        "key": "8501110d91a96fa618e84e85f1ae80309957912e705f47df552433d50b2024bd",
+        "category": "Auth",
+        "subtype": "Audience-configuration-specific credential error replacement",
+        "pattern": "auth-audience-error-message",
+        "generatorAddressable": "yes",
+        "explanation": "The policy replaces caught errors whose string message contains AADSTS500011 with one of two RestErrors depending on whether an audience was configured; all other errors are rethrown.",
+        "handwrittenRationale": "The internal policy is explicitly installed by the outer client before its auth policy in the Sign phase.",
+        "symbols": [
+          "audienceErrorHandlingPolicy"
+        ],
+        "evidence": [
+          {
+            "id": "65047a38e1b80ca75c6f721be968d204dfed6d52c46d66184a3080b8766bd7fd",
+            "startLine": 12,
+            "endLine": 39
+          },
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 218,
+            "endLine": 224
+          }
+        ]
+      },
+      {
+        "key": "9a9dad1b412db8dda2b19dd14abbcd3864de414f731862e58e34053968901abc",
+        "category": "Serialization",
+        "subtype": "Backfill absent or zero-length response bodies",
+        "pattern": "empty-response-json-object",
+        "generatorAddressable": "yes",
+        "explanation": "After forwarding the request, emptyBodyPolicy replaces undefined, null or zero-length bodyAsText with '{}', without checking status or method. Nonempty text is preserved.",
+        "handwrittenRationale": "This internal policy is separately added to the generated client's pipeline by the handwritten outer client.",
+        "symbols": [
+          "emptyBodyPolicy"
+        ],
+        "evidence": [
+          {
+            "id": "bf9c5caf091566140120122f2bd16b8eca59e5e1845fa193d42212543447351b",
+            "startLine": 35,
+            "endLine": 47
+          },
+          {
+            "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+            "startLine": 229,
+            "endLine": 231
+          }
+        ]
+      },
+      {
+        "key": "ab6b775deb32edafedb6e2e3f17d92c5d019f071d97b743e8195f1b5c12fe065",
+        "category": "Serialization",
+        "subtype": "Mutually exclusive conditional options and ETag quoting",
+        "pattern": "conditional-etag-options",
+        "generatorAddressable": "yes",
+        "explanation": "The adapter rejects simultaneous truthy onlyIfChanged/onlyIfUnchanged, maps them to ifNoneMatch/ifMatch, and quotes ETags unless undefined, '*' or already enclosed in matching single/double quotes.",
+        "handwrittenRationale": "The internal helper adapts public conditional-option names for the outer client's generated delete/get calls.",
+        "symbols": [
+          "checkAndFormatIfAndIfNoneMatch",
+          "quoteETag"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 68,
+            "endLine": 119
+          }
+        ]
+      },
+      {
+        "key": "ab36a4507c59640b59f8fc2045533c548a4999a96fede49dfcd8ab2b6d9058e9",
+        "category": "Serialization",
+        "subtype": "Public list filters to generated wire options",
+        "pattern": "list-options-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "formatFiltersAndSelect renames keyFilter/labelFilter, URI-encodes each tag filter, ISO-formats a truthy acceptDateTime and converts selected public fields for generated request options.",
+        "handwrittenRationale": "The internal helper explicitly returns a Pick of imported generated GetKeyValuesOptionalParams while accepting public ListRevisionsOptions.",
+        "symbols": [
+          "formatFiltersAndSelect"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 130,
+            "endLine": 147
+          }
+        ]
+      },
+      {
+        "key": "f6fe771ec1e804a20af6dc562a6e9fc1d25433b35dcf9b7b19616fba18c4232c",
+        "category": "Serialization",
+        "subtype": "Snapshot-name extension of setting filters",
+        "pattern": "list-options-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "formatConfigurationSettingsFiltersAndSelect removes snapshotName from the input passed to the common filter adapter and exposes it as the generated snapshot option.",
+        "handwrittenRationale": "This internal adapter converts the outer client's public SendConfigurationSettingsOptions to generated GetKeyValuesOptionalParams.",
+        "symbols": [
+          "formatConfigurationSettingsFiltersAndSelect"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 157,
+            "endLine": 169
+          }
+        ]
+      },
+      {
+        "key": "01e45eb238f6ea57f46c7ce1ffe1917173b7e53118feae8da2df538b7b7da02d",
+        "category": "Serialization",
+        "subtype": "Snapshot filter names mapped to generated options",
+        "pattern": "list-options-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "formatSnapshotFiltersAndSelect maps nameFilter, statusFilter and fields to name, status and select. The status/field casts do not perform runtime value conversion.",
+        "handwrittenRationale": "The internal helper bridges public ListSnapshotsOptions and imported generated GetSnapshotsOptionalParams.",
+        "symbols": [
+          "formatSnapshotFiltersAndSelect"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 177,
+            "endLine": 185
+          }
+        ]
+      },
+      {
+        "key": "8cd70932e5bdf518424349d908e22acf3a99c8d78f4e391c7b56de2caf90a08c",
+        "category": "Serialization",
+        "subtype": "Label filter names mapped to generated options",
+        "pattern": "list-options-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "formatLabelsFiltersAndSelect returns name from nameFilter and select from fields.",
+        "handwrittenRationale": "This internal helper adapts public ListLabelsOptions to imported generated GetLabelsOptionalParams.",
+        "symbols": [
+          "formatLabelsFiltersAndSelect"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 195,
+            "endLine": 202
+          }
+        ]
+      },
+      {
+        "key": "d0e60f0b3ef1e15740790064be04f61553401d5995352029c2a46328e420063c",
+        "category": "Serialization",
+        "subtype": "Public Date option to generated acceptDatetime string",
+        "pattern": "date-option-wire-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "formatAcceptDateTime returns acceptDatetime as the input Date's ISO string when truthy, preserving an undefined input through the short-circuit expression.",
+        "handwrittenRationale": "The internal helper is used by the handwritten getConfigurationSetting wrapper before generated getKeyValue.",
+        "symbols": [
+          "formatAcceptDateTime"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 208,
+            "endLine": 214
+          }
+        ]
+      },
+      {
+        "key": "37a4f87395b3b53dd32f54db948881a79b6eedf9b58d9833dc03fe2e6a2f8d5a",
+        "category": "Pagination",
+        "subtype": "Extract and decode after token",
+        "pattern": "next-link-handling",
+        "generatorAddressable": "yes",
+        "explanation": "extractAfterTokenFromNextLink feeds the supplied string directly to URLSearchParams, reads after, throws if missing/array-valued, and applies decodeURIComponent to the value. No URL normalization beyond this code is claimed.",
+        "handwrittenRationale": "This internal continuation adapter is called by the handwritten public page iterator rather than a generated paging helper.",
+        "symbols": [
+          "extractAfterTokenFromNextLink"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 221,
+            "endLine": 231
+          }
+        ]
+      },
+      {
+        "key": "e7bca563c2af005ad84c575f656d75308f1403795c700eb91834ff3b5255a343",
+        "category": "Pagination",
+        "subtype": "Link-header prefix to after-token adapter",
+        "pattern": "link-header-continuation",
+        "generatorAddressable": "yes",
+        "explanation": "extractAfterTokenFromLinkHeader takes the first semicolon-delimited segment, removes its first and last characters, then delegates token extraction. It does not search for a rel=next entry among multiple links.",
+        "handwrittenRationale": "The internal helper supports the outer client's explicit 304/header-only page paths.",
+        "symbols": [
+          "extractAfterTokenFromLinkHeader"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 239,
+            "endLine": 252
+          }
+        ]
+      },
+      {
+        "key": "93c80ad19267b674cb70e639422e9a7582cb25ff8dec647f8d3faec3b231aa62",
+        "category": "Model overrides",
+        "subtype": "Clear setting data on empty conditional response",
+        "pattern": "empty-response-model-shaping",
+        "generatorAddressable": "yes",
+        "explanation": "makeConfigurationSettingEmpty assigns undefined to contentType, description, etag, label, lastModified, isReadOnly, tags and value, preserving key and HTTP-related members. Despite its comment it does not install throwing getters.",
+        "handwrittenRationale": "This internal model adapter is explicitly invoked by the outer client's getConfigurationSetting 304 path.",
+        "symbols": [
+          "makeConfigurationSettingEmpty"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 261,
+            "endLine": 278
+          }
+        ]
+      },
+      {
+        "key": "e0df12f782a62fa754806032a778b0e9f214802ecf7d288e8b88c9dd89697185",
+        "category": "Serialization",
+        "subtype": "Generated KeyValue to public ConfigurationSetting",
+        "pattern": "wire-model-public-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "transformKeyValue spreads the wire value, defaults value to undefined before that spread, exposes boolean isReadOnly from locked, converts a truthy lastModified with new Date, removes locked, and deletes falsy label/contentType.",
+        "handwrittenRationale": "The internal function explicitly adapts an imported generated KeyValue into a distinct public ConfigurationSetting type.",
+        "symbols": [
+          "transformKeyValue"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 283,
+            "endLine": 298
+          }
+        ]
+      },
+      {
+        "key": "4348b9a88efc23cf90be6f3f92c561de9ecae2df7070c78b5338a267db6cf879",
+        "category": "Serialization",
+        "subtype": "Content-type-directed typed-value serialization with fallback",
+        "pattern": "typed-value-serializer-dispatch",
+        "generatorAddressable": "yes",
+        "explanation": "The dispatcher passes string/undefined/null values through, routes nonstring defined values by feature/secret/snapshot content type, returns the original setting if a helper throws, and otherwise logs then throws TypeError for an unsupported typed value.",
+        "handwrittenRationale": "These internal predicates and dispatcher bridge the outer client's typed input union and its generated putKeyValue entity.",
+        "symbols": [
+          "serializeAsConfigurationSettingParam",
+          "isSimpleConfigSetting",
+          "isConfigSettingWithFeatureFlagValue",
+          "isConfigSettingWithSecretReferenceValue",
+          "isConfigSettingWithSnapshotReferenceValue"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 303,
+            "endLine": 376
+          }
+        ]
+      },
+      {
+        "key": "7aa45d76b7b63a9efe7cc6ac21ab216dac34672c52452baeb5a1ed59ffa956d0",
+        "category": "Serialization",
+        "subtype": "Status-bearing setting response with hidden raw metadata",
+        "pattern": "response-metadata-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "transformKeyValueResponseWithStatusCode transforms the supplied wire value or an empty object, supplies statusCode with -1 fallback, and defines nonenumerable _response when it is an own property of the source.",
+        "handwrittenRationale": "The internal helper adds the outer client's public HTTP response shape to generated KeyValue results.",
+        "symbols": [
+          "transformKeyValueResponseWithStatusCode"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 381,
+            "endLine": 398
+          }
+        ]
+      },
+      {
+        "key": "25fd247dcf396b77958908a5ce212505fe57e7c192c814c8cc6d0ef6d29df68b",
+        "category": "Serialization",
+        "subtype": "Setting response adaptation and eTag removal",
+        "pattern": "response-metadata-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "transformKeyValueResponse applies the public-model conversion, installs nonenumerable _response when present on the input, and deletes the alternate eTag property.",
+        "handwrittenRationale": "The internal helper is a public-response adapter used after the outer client's generated putKeyValue call.",
+        "symbols": [
+          "transformKeyValueResponse"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 403,
+            "endLine": 416
+          }
+        ]
+      },
+      {
+        "key": "46ceadf526bce3b82a478bebe76a6ebf86281921ea8f37e722e1a0cb763f25d5",
+        "category": "Serialization",
+        "subtype": "Snapshot date/count adaptation and raw response preservation",
+        "pattern": "wire-model-public-adapter",
+        "generatorAddressable": "yes",
+        "explanation": "transformSnapshotResponse spreads the generated snapshot, converts truthy createdOn/expiresOn values to Dates, adds itemCount from itemsCount, and preserves _response nonenumerably when present. It does not remove the spread itemsCount property.",
+        "handwrittenRationale": "The internal helper explicitly converts the imported generated Snapshot type to the outer client's public ConfigurationSnapshot/SnapshotResponse.",
+        "symbols": [
+          "transformSnapshotResponse"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 421,
+            "endLine": 435
+          }
+        ]
+      },
+      {
+        "key": "0decd9dfdcd2c70a7df977329e5140a57d770771a455afe692a1029df4f0253a",
+        "category": "Serialization",
+        "subtype": "Public selected-field names to wire enum names",
+        "pattern": "select-field-alias",
+        "generatorAddressable": "yes",
+        "explanation": "formatFieldsForSelect maps lastModified/contentType/isReadOnly to last_modified/content_type/locked, passes other names through and returns undefined for nullish input.",
+        "handwrittenRationale": "The internal helper bridges keys of the public ConfigurationSetting and the generated KeyValueFields type.",
+        "symbols": [
+          "formatFieldsForSelect"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 457,
+            "endLine": 478
+          }
+        ]
+      },
+      {
+        "key": "226aee18ecc6f0ad477b2d12a880b2ed96b041b733971a4d3a06faecdd5cba84",
+        "category": "Other",
+        "subtype": "Own-property response assertion with diagnostic placeholder",
+        "pattern": "response-metadata-placeholder",
+        "generatorAddressable": "yes",
+        "explanation": "hasUnderscoreResponse checks an own _response property. assertResponse defines a nonenumerable diagnostic string when absent; it neither throws nor fabricates an HTTP response object.",
+        "handwrittenRationale": "These internal helpers assert the outer client's public response contract after its custom generated-result adapters.",
+        "symbols": [
+          "assertResponse",
+          "hasUnderscoreResponse"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 490,
+            "endLine": 506
+          }
+        ]
+      },
+      {
+        "key": "85b827efc151c60df9fb6f7f0df9e1fb881f94090133717c0487ca58228e27e9",
+        "category": "Auth",
+        "subtype": "Explicit audience or endpoint-derived cloud scope",
+        "pattern": "auth-audience-option",
+        "generatorAddressable": "yes",
+        "explanation": "getScope appends /.default to a truthy explicit audience; otherwise it recognizes staging or the rightmost appconfig/azconfig hostname label and its suffix, with AzurePublicCloud fallback.",
+        "handwrittenRationale": "The internal helper is called by the outer client's token-credential constructor before constructing its explicitly separate generated client.",
+        "symbols": [
+          "getScope"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 515,
+            "endLine": 535
+          }
+        ]
+      },
+      {
+        "key": "e4a464ef8134a42d35aa7a40ef19604f0f723aea5233f7e83b8bd70a71bb742d",
+        "category": "Serialization",
+        "subtype": "Additional RFC3986 path-character escaping",
+        "pattern": "path-parameter-encoding",
+        "generatorAddressable": "yes",
+        "explanation": "encodePathParameter applies encodeURIComponent then percent-encodes !, single quote, (, ) and * using uppercase hex; the outer client disables generated URL encoding for these already encoded keys.",
+        "handwrittenRationale": "The internal helper is explicitly used by the outer client's generated-operation wrappers together with skipUrlEncoding.",
+        "symbols": [
+          "encodePathParameter"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 542,
+            "endLine": 547
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "0e758ad51160fbefbfa850f3f6e175f5943cfee7cdf8817952ee07065b13d39e",
+        "status": "revised",
+        "reason": "The separate installed signing policy and its exact request mutations are supported. Whether a generator can express this HMAC canonicalization and signing scheme is not established by the captured source.",
+        "finding": {
+          "key": "0e758ad51160fbefbfa850f3f6e175f5943cfee7cdf8817952ee07065b13d39e",
+          "category": "Crypto / signing",
+          "subtype": "HMAC request signing policy",
+          "explanation": "Hashes the string representation of the request body, signs the method, path and query, date, host and content hash, then sets date, content-hash and HMAC authorization headers before forwarding.",
+          "pattern": "hmac-request-signing",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The source module is outside src/generated and its policy is separately installed on the explicitly generated client's pipeline in the outer client.",
+          "symbols": [
+            "appConfigKeyCredentialPolicy"
+          ],
+          "evidence": [
+            {
+              "id": "491ad7e7f4df7136c9124aabb180216369ec778a73827919a5e29a4ec2163201",
+              "startLine": 17,
+              "endLine": 45
+            },
+            {
+              "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+              "startLine": 213,
+              "endLine": 226
+            }
+          ]
+        }
+      },
+      {
+        "key": "edb3778ae6d3aefcc563448e402c3a7569065874478fe54fc2c0c2e6bf251f3c",
+        "status": "accepted",
+        "reason": "The outer public class explicitly constructs a separate generated client, branches between token credentials and a parsed connection string, and installs the stated policies. The API-version expression does read the third options parameter, even though that parameter is not the connection-string overload's options argument."
+      },
+      {
+        "key": "d0679530f857627e97b03fd91bad0087b70b23547aa697fa2023e9e34d296eb8",
+        "status": "accepted",
+        "reason": "The public method delegates to generated putKeyValue, adapts input/output and changes caught 412 messages; the later options spread can override the earlier ifNoneMatch assignment."
+      },
+      {
+        "key": "c0c6c58b646c15d60c75928db7680264d32e877be9947f0fa53b513274477dba",
+        "status": "accepted",
+        "reason": "The handwritten public wrapper delegates to generated deleteKeyValue, forwards the conditional options and captures the response status before shaping the result."
+      },
+      {
+        "key": "57a318d8a500515f2af04a028ebaa8987c1265f8e0dc94fd2a18a26b96dcf240",
+        "status": "accepted",
+        "reason": "The outer method adapts a generated getKeyValue result and explicitly converts a caught 304 into a key-bearing, cleared response; the cited range covers that behavior."
+      },
+      {
+        "key": "20a08d1e1a9e1ec348c511abc5146487fe7f7d19dd56990e453255fbcf0ccebc",
+        "status": "accepted",
+        "reason": "A handwritten PagedResult consumes page ETags, transforms page items and recovers a continuation from a caught 304 Link header; it is not merely a generated pager."
+      },
+      {
+        "key": "08873ddd4c1b88794b8477fc5582901f085c7c7d37f0412eb19bc0a818d08cc2",
+        "status": "accepted",
+        "reason": "The distinct public HEAD-check iterator constructs empty pages from response headers and handles conditional 304 continuation as described."
+      },
+      {
+        "key": "50ec3207628747fc87db099691ccb2ffdb75d14f4e2ba8a2e9a828fa4f5a3ebc",
+        "status": "revised",
+        "reason": "The typed JSON-string conversion is present outside generated code, but the evidence does not establish that a generator could implement the feature-specific key prefix, ID fallback and JSON mapping.",
+        "finding": {
+          "key": "50ec3207628747fc87db099691ccb2ffdb75d14f4e2ba8a2e9a828fa4f5a3ebc",
+          "category": "Serialization",
+          "subtype": "Typed value to JSON-string setting",
+          "explanation": "Rejects a falsy feature-flag value, prefixes an unprefixed key, supplies a missing ID from that key, maps typed fields into the JSON representation and stringifies the result.",
+          "pattern": "typed-value-json-string",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "This source lives outside src/generated; the internal dispatcher calls this helper when adapting typed public settings for the generated client.",
+          "symbols": [
+            "FeatureFlagHelper.toConfigurationSettingParam"
+          ],
+          "evidence": [
+            {
+              "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+              "startLine": 54,
+              "endLine": 88
+            },
+            {
+              "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+              "startLine": 349,
+              "endLine": 366
+            }
+          ]
+        }
+      },
+      {
+        "key": "9031315b5bea117fa10398dfa441486b5d10c5c03b83f0e10a6b97378044b2e2",
+        "status": "revised",
+        "reason": "The exported parser is handwritten and the described conversion is visible, but no captured generator capability or model contract establishes that these feature-specific defaults can be generated.",
+        "finding": {
+          "key": "9031315b5bea117fa10398dfa441486b5d10c5c03b83f0e10a6b97378044b2e2",
+          "category": "Serialization",
+          "subtype": "JSON-string setting to typed value",
+          "explanation": "Checks the content-type/string-value predicate, parses the feature-flag JSON, prefixes the key when needed, maps JSON property names to the public value, supplies defaults for missing enabled and conditions, and sets the feature-flag content type.",
+          "pattern": "json-string-typed-value",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The public parser is implemented in src/featureFlag.ts outside src/generated and exported by the package index.",
+          "symbols": [
+            "parseFeatureFlag"
+          ],
+          "evidence": [
+            {
+              "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+              "startLine": 93,
+              "endLine": 129
+            },
+            {
+              "id": "9aa16159017467f0f94d296521832c86114a8438e2e4ff9e3bdd2c2afe412843",
+              "startLine": 6,
+              "endLine": 11
+            }
+          ]
+        }
+      },
+      {
+        "key": "d0ae252786976487abb4c779504ce84964f3f8683df7b9f8c9efcbc5601ae6ec",
+        "status": "accepted",
+        "reason": "The separately exported handwritten type guard checks exactly the content type and string value, with no JSON validation; its symbol and lines are correct."
+      },
+      {
+        "key": "8501110d91a96fa618e84e85f1ae80309957912e705f47df552433d50b2024bd",
+        "status": "revised",
+        "reason": "The policy's audience-specific error replacement is directly supported, but generator addressability of this specific message inspection and replacement is not shown.",
+        "finding": {
+          "key": "8501110d91a96fa618e84e85f1ae80309957912e705f47df552433d50b2024bd",
+          "category": "Auth",
+          "subtype": "Audience-specific auth error replacement",
+          "explanation": "On a caught error with a string message containing AADSTS500011, throws one of two new RestErrors according to whether an audience was configured; otherwise rethrows the caught error.",
+          "pattern": "auth-audience-error-message",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "This policy is implemented outside src/generated and explicitly installed by the outer client on the generated client's pipeline.",
+          "symbols": [
+            "audienceErrorHandlingPolicy"
+          ],
+          "evidence": [
+            {
+              "id": "65047a38e1b80ca75c6f721be968d204dfed6d52c46d66184a3080b8766bd7fd",
+              "startLine": 12,
+              "endLine": 39
+            },
+            {
+              "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+              "startLine": 218,
+              "endLine": 224
+            }
+          ]
+        }
+      },
+      {
+        "key": "9a9dad1b412db8dda2b19dd14abbcd3864de414f731862e58e34053968901abc",
+        "status": "accepted",
+        "reason": "The independent policy replaces absent or empty bodyAsText with '{}' for any response and is installed on the generated client's pipeline; no assertion about unseen deserializers is required."
+      },
+      {
+        "key": "ab6b775deb32edafedb6e2e3f17d92c5d019f071d97b743e8195f1b5c12fe065",
+        "status": "accepted",
+        "reason": "The handwritten helpers validate mutually exclusive conditionals, map them to request-header options and quote ETags, with the quoted helper explicitly used by the adapter."
+      },
+      {
+        "key": "ab36a4507c59640b59f8fc2045533c548a4999a96fede49dfcd8ab2b6d9058e9",
+        "status": "accepted",
+        "reason": "The helper bridges public filter names, encoded tags, selected fields and Date input to a generated request-options type; its field conversion is shown separately in the captured evidence."
+      },
+      {
+        "key": "f6fe771ec1e804a20af6dc562a6e9fc1d25433b35dcf9b7b19616fba18c4232c",
+        "status": "accepted",
+        "reason": "A separate handwritten wrapper maps snapshotName to the generated snapshot request option and delegates the remaining filters; the symbol and cited lines are exact."
+      },
+      {
+        "key": "01e45eb238f6ea57f46c7ce1ffe1917173b7e53118feae8da2df538b7b7da02d",
+        "status": "accepted",
+        "reason": "The helper maps snapshot filter property names to generated options; its type casts do not imply runtime transformation."
+      },
+      {
+        "key": "8cd70932e5bdf518424349d908e22acf3a99c8d78f4e391c7b56de2caf90a08c",
+        "status": "accepted",
+        "reason": "The function adapts the public nameFilter and fields properties to the generated name and select options as claimed."
+      },
+      {
+        "key": "d0e60f0b3ef1e15740790064be04f61553401d5995352029c2a46328e420063c",
+        "status": "accepted",
+        "reason": "The handwritten Date-to-ISO request option adaptation is present and called from the outer generated-operation wrapper."
+      },
+      {
+        "key": "37a4f87395b3b53dd32f54db948881a79b6eedf9b58d9833dc03fe2e6a2f8d5a",
+        "status": "accepted",
+        "reason": "The continuation helper uses URLSearchParams directly and decodes its after value; the proposal correctly avoids asserting URL normalization not visible in the source."
+      },
+      {
+        "key": "e7bca563c2af005ad84c575f656d75308f1403795c700eb91834ff3b5255a343",
+        "status": "accepted",
+        "reason": "The helper strips the first semicolon-delimited Link segment and delegates to the token parser, without parsing or searching link relations."
+      },
+      {
+        "key": "93c80ad19267b674cb70e639422e9a7582cb25ff8dec647f8d3faec3b231aa62",
+        "status": "accepted",
+        "reason": "The function actually assigns undefined to the listed public members on a 304 path; the proposal correctly rejects the comment's unsupported claim of throwing getters."
+      },
+      {
+        "key": "e0df12f782a62fa754806032a778b0e9f214802ecf7d288e8b88c9dd89697185",
+        "status": "accepted",
+        "reason": "The helper transforms an imported generated KeyValue to a public ConfigurationSetting with the stated runtime property conversions."
+      },
+      {
+        "key": "4348b9a88efc23cf90be6f3f92c561de9ecae2df7070c78b5338a267db6cf879",
+        "status": "accepted",
+        "reason": "The dispatcher and its local predicates perform content-type-directed typed serialization, pass through simple values and return the original setting if a selected helper throws."
+      },
+      {
+        "key": "7aa45d76b7b63a9efe7cc6ac21ab216dac34672c52452baeb5a1ed59ffa956d0",
+        "status": "accepted",
+        "reason": "The status-bearing response helper adds a numeric fallback and a nonenumerable own raw-response property where available; it is distinct from the underlying model conversion."
+      },
+      {
+        "key": "25fd247dcf396b77958908a5ce212505fe57e7c192c814c8cc6d0ef6d29df68b",
+        "status": "accepted",
+        "reason": "The helper converts the generated result and explicitly handles _response and eTag on the public response; its separate symbol and source lines are correct."
+      },
+      {
+        "key": "46ceadf526bce3b82a478bebe76a6ebf86281921ea8f37e722e1a0cb763f25d5",
+        "status": "accepted",
+        "reason": "The snapshot adapter converts dates and count, conditionally defines _response and does not delete the original spread itemsCount property."
+      },
+      {
+        "key": "0decd9dfdcd2c70a7df977329e5140a57d770771a455afe692a1029df4f0253a",
+        "status": "accepted",
+        "reason": "The public selected-field aliases are mapped to generated wire-field names exactly as stated, independently of the list-options adapter."
+      },
+      {
+        "key": "226aee18ecc6f0ad477b2d12a880b2ed96b041b733971a4d3a06faecdd5cba84",
+        "status": "accepted",
+        "reason": "These handwritten response helpers test own-property presence and install a diagnostic string if missing, rather than throwing or constructing a raw HTTP response."
+      },
+      {
+        "key": "85b827efc151c60df9fb6f7f0df9e1fb881f94090133717c0487ca58228e27e9",
+        "status": "revised",
+        "reason": "The function handles both an explicit audience and endpoint-derived scope, but the catalog's configurable-audience pattern alone does not capture the endpoint-derived behavior; generator support for these hostname rules is not established.",
+        "finding": {
+          "key": "85b827efc151c60df9fb6f7f0df9e1fb881f94090133717c0487ca58228e27e9",
+          "category": "Auth",
+          "subtype": "Explicit or endpoint-derived token scope",
+          "explanation": "Appends /.default to a truthy explicit audience; otherwise chooses a staging-domain scope, the suffix beginning at the rightmost appconfig/azconfig hostname label, or the public-cloud audience fallback.",
+          "pattern": "endpoint-derived-auth-scope",
+          "generatorAddressable": "unclear",
+          "handwrittenRationale": "The helper lives outside src/generated and is called by the outer token-credential constructor when supplying credentials to a separately generated client.",
+          "symbols": [
+            "getScope"
+          ],
+          "evidence": [
+            {
+              "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+              "startLine": 515,
+              "endLine": 535
+            },
+            {
+              "id": "cc5c5b0bd04cc9aa1951fe97487b298929ddbac4e1279f5e860f922626f72a7f",
+              "startLine": 165,
+              "endLine": 172
+            }
+          ]
+        }
+      },
+      {
+        "key": "e4a464ef8134a42d35aa7a40ef19604f0f723aea5233f7e83b8bd70a71bb742d",
+        "status": "accepted",
+        "reason": "The helper applies additional RFC 3986 escaping to path parameters, and the outer client passes encoded keys with skipUrlEncoding to the generated operation."
+      }
+    ],
+    "omissions": [
+      {
+        "key": "5aee8b465dbca3a04aef36d67da050f73f24ff3f17cf31f786010fa75851a09d",
+        "category": "Model overrides",
+        "subtype": "Typed public value model for JSON-backed setting",
+        "explanation": "The package exports a FeatureFlagValue interface with typed conditions, filters, enabled state and optional descriptive fields; whether this is independently countable beyond the typed serializer and parser requires review.",
+        "pattern": "typed-json-value-model",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The interface is declared in src/featureFlag.ts outside src/generated and exported by the package index; no corresponding generated type was supplied for comparison.",
+        "symbols": [
+          "FeatureFlagValue"
+        ],
+        "evidence": [
+          {
+            "id": "31b1d5ac349d2183afac55f8a0a9815d489f824a5842966bfc7b5883c79d86e7",
+            "startLine": 18,
+            "endLine": 49
+          },
+          {
+            "id": "9aa16159017467f0f94d296521832c86114a8438e2e4ff9e3bdd2c2afe412843",
+            "startLine": 6,
+            "endLine": 11
+          }
+        ]
+      },
+      {
+        "key": "2f79b2e023c8f2d1d6174e96223cfcb8ea7ee494904450a4ce0654f0b6c0d993",
+        "category": "Retry / error handling",
+        "subtype": "Typed-setting validation error text",
+        "explanation": "The captured helper formats an error message from a setting key and an expected FeatureFlag or SecretReference type; the supplied evidence does not show whether callers use it or whether it merits a separate customization instance.",
+        "pattern": "typed-setting-error-message",
+        "generatorAddressable": "unclear",
+        "handwrittenRationale": "The concrete string-formatting helper is implemented in src/internal/helpers.ts outside the generated subtree, but its callers were not captured.",
+        "symbols": [
+          "errorMessageForUnexpectedSetting"
+        ],
+        "evidence": [
+          {
+            "id": "23d712f411311a98210efd09e282aa7f86e4b0843c50a0494e62d2a9716ef3ce",
+            "startLine": 481,
+            "endLine": 488
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Coverage is partial: eight of 47 eligible files from 163 discovered files. appConfigurationClient.ts stops at line 601 at the opening of listConfigurationSettingsForSnapshot's getPage implementation; no completed behavior from that method or later methods is inferred.",
+      "All evidence kinds are unknown, but the captured outer client explicitly imports and constructs a distinct ./generated client; internal helpers import distinct generated wire/options types. These relational signals, not absence of a header alone, support the adapter findings.",
+      "The actual generated implementation is not supplied. The findings describe the visible handwritten adapters, not a measured generated diff or demonstrated generator defect.",
+      "SyncTokens/syncTokenPolicy, queryParamPolicy, lroShim/wrapPoller, tracing implementation, secret/snapshot reference helpers, public models and internal JSON models are omitted. Constructor/dispatcher wiring is visible, but their unseen implementations are not counted.",
+      "The generated polling helper import is not a handwritten LRO customization. No executable custom LRO implementation is supplied.",
+      "The re-export-only index, package-version metadata, empty SendLabelsRequestOptions extension and constant-only API-version declaration are not separately counted. Feature-flag type declarations support their adapters rather than establishing runtime schema validation.",
+      "snapshotInfoToGenerated only spreads its input and casts compositionType; it does not establish an executable composition-type conversion. errorMessageForUnexpectedSetting is a standalone formatting helper without a captured call site and is not treated as a separate generated-behavior change.",
+      "The empty-body policy comment alleges generated deserializer failures, but the counterpart and execution evidence needed to verify that cause are absent. The measured finding is only the visible response text replacement.",
+      "No generation, request execution, authentication success or whole-library absence conclusion is claimed.",
+      "Coverage is partial: eight captured source files out of 47 eligible and 163 discovered files; appConfigurationClient.ts ends at line 601 mid-method. Skipped files include the sync-token, query-parameter, tracing, model, reference and LRO-shim implementations. No whole-library absence inference follows from these excerpts.",
+      "No generated-file counterparts, full TypeSpec specification, runtime executions or tests were provided. Generator addressability and the candidate public model's independent provenance therefore remain uncertain; comments about unseen deserializers or helper effects were not treated as runtime proof.",
+      "The captured index consists of re-exports, the constants consist of configuration values, and snapshotInfoToGenerated performs a spread with a type-only cast; none alone supplies an additional demonstrated behavioral customization."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/appConfigCredential.ts",
+      "startLine": 1,
+      "endLine": 45,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "acf600a262b18a3141d7abfbe7cb0dec9b8d46c14739c64553a0736d13b62787"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/appConfigurationClient.ts",
+      "startLine": 1,
+      "endLine": 1226,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "259476f291e1c531cc8b2aa33d384377cc622bc20f888728fdb3a6479d62bfc5"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/featureFlag.ts",
+      "startLine": 1,
+      "endLine": 142,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ec0c86682473fafd8faaad1f405d16187162984d3869b57f37798709f12b8741"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/index.ts",
+      "startLine": 1,
+      "endLine": 26,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "845b15fb9238e058429d48b316d69ec276e1892ca8b829cc064b5309e69d4bcc"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/audienceErrorHandlingPolicy.ts",
+      "startLine": 1,
+      "endLine": 39,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "06f5214e2ee3e1bbcc1a3fa194d9c101237eae2c287aeb8cdd911e132e4e0335"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/constants.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "9da3f4c59abd4c60fc8801eb967c492f179dcde25494d79691739f9e3dd9c493"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/emptyBodyPolicy.ts",
+      "startLine": 1,
+      "endLine": 47,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a2574db887148b23f043918204a9cb9809a60ab02c01f323f61d9678acebe31a"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/helpers.ts",
+      "startLine": 1,
+      "endLine": 547,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d78989f0553d7e08eea3af23a4d3f2f3edff50d96d9cd9d54e38d50899bbf7bf"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/jsonModels.ts",
+      "startLine": 1,
+      "endLine": 34,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d03f3cfb91b99acd9a085a9e3bbfd0748d67e99e9e7fd12ba5649c885ae69096"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/lroShim.ts",
+      "startLine": 1,
+      "endLine": 126,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d2a711d597af4eabd476b2bcba830904d4fb59af57086054ca455a3721451521"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/queryParamPolicy.ts",
+      "startLine": 1,
+      "endLine": 77,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "47d6795aa1bdb1c91c2480bf08a943c504823c7b4dda8a1ebc0042d4db4de34d"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/syncTokenPolicy.ts",
+      "startLine": 1,
+      "endLine": 149,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "ba5808e3fcdf36d8293d0becd8cb6c3db8858ceb7bba31b3d1cac0955a9130ec"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/internal/tracing.ts",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a9f436d2d3a4e79caf6d5af2ac1983d9769f497d8b7fbc12242baea438455fbe"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/logger.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "6f5f586ad1a2bc21003b8b2b0258a4d0d6f140efa6ec787bbdd5717e102544a2"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/models.ts",
+      "startLine": 1,
+      "endLine": 656,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "96f29aac1134650a87e25ff5c9d0727f5f83fe9b525774b2a8b1f9cb13ee10d7"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/secretReference.ts",
+      "startLine": 1,
+      "endLine": 91,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "759601bc575e2571eb2c7dcaf856e42c40dbf521100ad664205fd2d9b7e7c684"
+    },
+    {
+      "path": "sdk/appconfiguration/app-configuration/src/snapshotReference.ts",
+      "startLine": 1,
+      "endLine": 91,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "55e12e291ea1ca81d932785fad5bb3efd7ddaaf393c0ae36ef8988cce9886847"
+    }
+  ]
+}

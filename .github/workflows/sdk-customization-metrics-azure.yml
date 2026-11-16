@@ -1,0 +1,96 @@
+name: Deploy SDK customization metrics to Azure
+
+# Hosts the dashboard with human review (App Service + Cosmos DB). Off until the repository
+# variable SDK_METRICS_AZURE_ENABLED is "true"; see eng/scripts/sdk-customization-metrics/README.md
+# ("Hosting with human review") for the one-time Azure setup and the variables it reads.
+# Runs on every push to the dashboard branch (so new data and code reach the site), and by
+# hand. A workflow that only has workflow_dispatch cannot be started until it is on the default
+# branch; the push trigger registers it from this branch.
+on:
+  push:
+    branches: [sdk-customization-metrics]
+    paths:
+      - eng/scripts/sdk-customization-metrics/**
+      - .github/workflows/sdk-customization-metrics-azure.yml
+  workflow_dispatch:
+    inputs:
+      deploy_infrastructure:
+        description: Create or update the Azure resources (main.bicep) before deploying the site
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-customization-metrics-azure
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'iscai-msft/typespec-azure' && vars.SDK_METRICS_AZURE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: sdk-metrics-azure
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TOOL: eng/scripts/sdk-customization-metrics
+      RESOURCE_GROUP: ${{ vars.SDK_METRICS_AZURE_RESOURCE_GROUP }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+      - name: Test
+        run: node --test "$TOOL"/test/*.test.ts
+      - name: Build the site (committed state; reviews go to this host's /api)
+        run: |
+          mkdir -p "$RUNNER_TEMP/package/site"
+          cp "$TOOL/web/fork-index.html" "$RUNNER_TEMP/package/site/index.html"
+          node "$TOOL/cli.ts" publish --state "$TOOL/state" \
+            --tracker "$TOOL/tracker/dataplane-tracker.csv" \
+            --out "$RUNNER_TEMP/package/site" --review-api /api
+      - name: Build the server bundle
+        working-directory: ${{ env.TOOL }}/azure
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+          cp dist/server.mjs "$RUNNER_TEMP/package/server.mjs"
+      - name: Sign in to Azure (GitHub OIDC; no stored secrets)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Create or update Azure resources
+        if: inputs.deploy_infrastructure
+        env:
+          REVIEWERS: ${{ vars.SDK_METRICS_REVIEWERS }}
+          AUTH_CLIENT_ID: ${{ vars.SDK_METRICS_AUTH_CLIENT_ID }}
+          AUTH_TENANT_ID: ${{ vars.SDK_METRICS_AUTH_TENANT_ID || vars.AZURE_TENANT_ID }}
+        run: |
+          az deployment group create --resource-group "$RESOURCE_GROUP" \
+            --name sdk-customization-metrics --template-file "$TOOL/azure/main.bicep" \
+            --parameters reviewers="$REVIEWERS" authClientId="$AUTH_CLIENT_ID" \
+              authTenantId="$AUTH_TENANT_ID" \
+            --query properties.outputs --output json
+      - name: Find the web app
+        id: site
+        run: |
+          name=$(az deployment group show --resource-group "$RESOURCE_GROUP" \
+            --name sdk-customization-metrics --query properties.outputs.siteName.value -o tsv)
+          if [ -z "$name" ]; then
+            echo "::error::No deployment found; run once with deploy_infrastructure checked"
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: Deploy
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
+        with:
+          app-name: ${{ steps.site.outputs.name }}
+          package: ${{ runner.temp }}/package

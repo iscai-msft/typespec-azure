@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "id": "d6f64d1c-8a5d-4fdc-ab8d-2137fe827e0a",
+  "observedAt": "2026-10-22T20:42:48.250Z",
+  "identity": "dotnet:azure.ai.discovery:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.AI.Discovery",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/discovery/Azure.AI.Discovery"
+  },
+  "commit": "763ab19c44902f577cf0f41c848053b433b20287",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "fc7795d292741735542abf5b538ececedfeaf9bf"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 190,
+    "eligibleFiles": 172,
+    "capturedFiles": 9,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/DeleteUntilGoneOperation.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\nnamespace Azure.AI.Discovery\n{\n    // Delete poller that ignores the broken operation-status monitor and instead\n    // polls the KnowledgeBase resource, treating a 404 (resource gone) as success.\n    internal class DeleteUntilGoneOperation : Operation\n    {\n        private readonly KnowledgeBases _client;\n        private readonly string _name;\n        private readonly RequestContext _context;\n        private Response _rawResponse;\n        private bool _completed;\n\n        public DeleteUntilGoneOperation(KnowledgeBases client, string name, Response initialResponse, RequestContext context)\n        {\n            _client = client;\n            _name = name;\n            _context = context;\n            _rawResponse = initialResponse;\n        }\n\n        public override string Id => _name;\n\n        public override bool HasCompleted => _completed;\n\n        public override Response GetRawResponse() => _rawResponse;\n\n        public override Response UpdateStatus(CancellationToken cancellationToken = default)\n        {\n            if (_completed)\n            {\n                return _rawResponse;\n            }\n            _rawResponse = _client.GetForPolling(_name, _context, cancellationToken);\n            if (_rawResponse.Status == 404)\n            {\n                _completed = true;\n            }\n            return _rawResponse;\n        }\n\n        public override async ValueTask<Response> UpdateStatusAsync(CancellationToken cancellationToken = default)\n        {\n            if (_completed)\n            {\n                return _rawResponse;\n            }\n            _rawResponse = await _client.GetForPollingAsync(_name, _context, cancellationToken).ConfigureAwait(false);\n            if (_rawResponse.Status == 404)\n            {\n                _completed = true;\n            }\n            return _rawResponse;\n        }\n    }\n}\n",
+      "contentHash": "f7aa02ce9ca80f471c024072535db1095e959f0deeeb581afc433f4cf09837b9",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/DeleteUntilGoneOperation.cs",
+      "startLine": 1,
+      "endLine": 62,
+      "kind": "handwritten-marker",
+      "id": "3a9ce968f1e70543ad722fdce6e121ac8b6891646b01cdc752b22675098dcc22"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/DiscoveryActorType.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    [CodeGenType(\"ByType\")]\n    public readonly partial struct DiscoveryActorType\n    {\n    }\n}\n",
+      "contentHash": "55b53a4f761f9f30f31d2377961fa36664da6ca305369a2327cc5e2ca0cee7a1",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/DiscoveryActorType.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "handwritten-marker",
+      "id": "25137fa5890da87ffb9e2cd58c25ca7c8a1409fd028e2181b8c1e8fb870f777b"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/InfrastructureOverrides.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    [CodeGenType(\"InfraOverrides\")]\n    public partial class InfrastructureOverrides\n    {\n    }\n}\n",
+      "contentHash": "6a100908143932580e76a9ea71c2182a447920447b24640b47074565b20baf55",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/InfrastructureOverrides.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "handwritten-marker",
+      "id": "36b13af87740bfda55c775d7306de8727dfe7bba965f165fa0dd3c8c564f2a51"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/KnowledgeBasesCustomization.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Text.Json;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\nusing Azure.Core.Pipeline;\nusing CodeGenSuppressAttribute = Microsoft.TypeSpec.Generator.Customizations.CodeGenSuppressAttribute;\n\nnamespace Azure.AI.Discovery\n{\n    // Customizes the KnowledgeBases create/update and delete long-running operations.\n    //\n    // The Bookshelf create/update LRO returns the KnowledgeBase resource on its\n    // Operation-Location. That body carries two status-like fields:\n    //   * provisioningState -> the create/update lifecycle (Accepted -> Succeeded)\n    //   * status            -> the *indexing* lifecycle, which stays \"NotStarted\"\n    //                          for a freshly created KB until indexing is started.\n    // Azure.Core's default poller keys off \"status\", which never reaches a\n    // create-terminal value, so CreateOrUpdate(WaitUntil.Completed, ...) would poll\n    // forever even though the KB provisions successfully. The delete LRO's\n    // operation-status monitor is likewise broken (returns 404 from the first poll).\n    //\n    // These replacements poll the KnowledgeBase resource itself: create/update reads\n    // provisioningState, delete treats a 404 (resource gone) as success. This mirrors\n    // the customizations already shipped in the other-language Discovery SDKs.\n    [CodeGenSuppress(\"CreateOrUpdate\", typeof(WaitUntil), typeof(string), typeof(RequestContent), typeof(RequestContext))]\n    [CodeGenSuppress(\"CreateOrUpdateAsync\", typeof(WaitUntil), typeof(string), typeof(RequestContent), typeof(RequestContext))]\n    [CodeGenSuppress(\"Delete\", typeof(WaitUntil), typeof(string), typeof(RequestContext))]\n    [CodeGenSuppress(\"DeleteAsync\", typeof(WaitUntil), typeof(string), typeof(RequestContext))]\n    public partial class KnowledgeBases\n    {\n        /// <summary> Creates or updates a KnowledgeBase, polling <c>provisioningState</c> to completion. </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> to wait for the long-running operation to finish provisioning; <see cref=\"WaitUntil.Started\"/> to return immediately. </param>\n        /// <param name=\"knowledgeBaseName\"> The knowledgeBase name. </param>\n        /// <param name=\"content\"> The content to send as the body of the request. </param>\n        /// <param name=\"context\"> The request options, which can override default behaviors of the client pipeline on a per-call basis. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"knowledgeBaseName\"/> or <paramref name=\"content\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"knowledgeBaseName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <returns> The long-running operation for the create or update request. </returns>\n        public virtual Operation<BinaryData> CreateOrUpdate(WaitUntil waitUntil, string knowledgeBaseName, RequestContent content, RequestContext context = null)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(\"KnowledgeBases.CreateOrUpdate\");\n            scope.Start();\n            try\n            {\n                Argument.AssertNotNullOrEmpty(knowledgeBaseName, nameof(knowledgeBaseName));\n                Argument.AssertNotNull(content, nameof(content));\n\n                using HttpMessage message = CreateCreateOrUpdateRequest(knowledgeBaseName, content, context);\n                Response response = Pipeline.ProcessMessage(message, context);\n                var operation = new ProvisioningStateOperation(this, knowledgeBaseName, response, context);\n                if (waitUntil == WaitUntil.Completed)\n                {\n                    operation.WaitForCompletion(context?.CancellationToken ?? default);\n                }\n                return operation;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Creates or updates a KnowledgeBase, polling <c>provisioningState</c> to completion. </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> to wait for the long-running operation to finish provisioning; <see cref=\"WaitUntil.Started\"/> to return immediately. </param>\n        /// <param name=\"knowledgeBaseName\"> The knowledgeBase name. </param>\n        /// <param name=\"content\"> The content to send as the body of the request. </param>\n        /// <param name=\"context\"> The request options, which can override default behaviors of the client pipeline on a per-call basis. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"knowledgeBaseName\"/> or <paramref name=\"content\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"knowledgeBaseName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <returns> The long-running operation for the create or update request. </returns>\n        public virtual async Task<Operation<BinaryData>> CreateOrUpdateAsync(WaitUntil waitUntil, string knowledgeBaseName, RequestContent content, RequestContext context = null)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(\"KnowledgeBases.CreateOrUpdate\");\n            scope.Start();\n            try\n            {\n                Argument.AssertNotNullOrEmpty(knowledgeBaseName, nameof(knowledgeBaseName));\n                Argument.AssertNotNull(content, nameof(content));\n\n                using HttpMessage message = CreateCreateOrUpdateRequest(knowledgeBaseName, content, context);\n                Response response = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                var operation = new ProvisioningStateOperation(this, knowledgeBaseName, response, context);\n                if (waitUntil == WaitUntil.Completed)\n                {\n                    await operation.WaitForCompletionAsync(context?.CancellationToken ?? default).ConfigureAwait(false);\n                }\n                return operation;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Deletes a KnowledgeBase, polling the resource until it is removed (HTTP 404). </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> to wait for the resource to be removed; <see cref=\"WaitUntil.Started\"/> to return immediately. </param>\n        /// <param name=\"knowledgeBaseName\"> The knowledgeBase name. </param>\n        /// <param name=\"context\"> The request options, which can override default behaviors of the client pipeline on a per-call basis. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"knowledgeBaseName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"knowledgeBaseName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <returns> The long-running operation for the delete request. </returns>\n        public virtual Operation Delete(WaitUntil waitUntil, string knowledgeBaseName, RequestContext context)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(\"KnowledgeBases.Delete\");\n            scope.Start();\n            try\n            {\n                Argument.AssertNotNullOrEmpty(knowledgeBaseName, nameof(knowledgeBaseName));\n\n                using HttpMessage message = CreateDeleteRequest(knowledgeBaseName, context);\n                Response response = Pipeline.ProcessMessage(message, context);\n                var operation = new DeleteUntilGoneOperation(this, knowledgeBaseName, response, context);\n                if (waitUntil == WaitUntil.Completed)\n                {\n                    operation.WaitForCompletionResponse(context?.CancellationToken ?? default);\n                }\n                return operation;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        /// <summary> Deletes a KnowledgeBase, polling the resource until it is removed (HTTP 404). </summary>\n        /// <param name=\"waitUntil\"> <see cref=\"WaitUntil.Completed\"/> to wait for the resource to be removed; <see cref=\"WaitUntil.Started\"/> to return immediately. </param>\n        /// <param name=\"knowledgeBaseName\"> The knowledgeBase name. </param>\n        /// <param name=\"context\"> The request options, which can override default behaviors of the client pipeline on a per-call basis. </param>\n        /// <exception cref=\"ArgumentNullException\"> <paramref name=\"knowledgeBaseName\"/> is null. </exception>\n        /// <exception cref=\"ArgumentException\"> <paramref name=\"knowledgeBaseName\"/> is an empty string, and was expected to be non-empty. </exception>\n        /// <returns> The long-running operation for the delete request. </returns>\n        public virtual async Task<Operation> DeleteAsync(WaitUntil waitUntil, string knowledgeBaseName, RequestContext context)\n        {\n            using DiagnosticScope scope = ClientDiagnostics.CreateScope(\"KnowledgeBases.Delete\");\n            scope.Start();\n            try\n            {\n                Argument.AssertNotNullOrEmpty(knowledgeBaseName, nameof(knowledgeBaseName));\n\n                using HttpMessage message = CreateDeleteRequest(knowledgeBaseName, context);\n                Response response = await Pipeline.ProcessMessageAsync(message, context).ConfigureAwait(false);\n                var operation = new DeleteUntilGoneOperation(this, knowledgeBaseName, response, context);\n                if (waitUntil == WaitUntil.Completed)\n                {\n                    await operation.WaitForCompletionResponseAsync(context?.CancellationToken ?? default).ConfigureAwait(false);\n                }\n                return operation;\n            }\n            catch (Exception e)\n            {\n                scope.Failed(e);\n                throw;\n            }\n        }\n\n        // Read-only poll of the KnowledgeBase resource. Uses Pipeline.Send so a\n        // non-success status (e.g. 404 during delete) is returned rather than thrown.\n        internal Response GetForPolling(string knowledgeBaseName, RequestContext context, CancellationToken cancellationToken)\n        {\n            using HttpMessage message = CreateGetRequest(knowledgeBaseName, context);\n            Pipeline.Send(message, cancellationToken);\n            return message.Response;\n        }\n\n        internal async ValueTask<Response> GetForPollingAsync(string knowledgeBaseName, RequestContext context, CancellationToken cancellationToken)\n        {\n            using HttpMessage message = CreateGetRequest(knowledgeBaseName, context);\n            await Pipeline.SendAsync(message, cancellationToken).ConfigureAwait(false);\n            return message.Response;\n        }\n\n        internal static string ReadProvisioningState(Response response)\n        {\n            try\n            {\n                BinaryData content = response.Content;\n                if (content == null || content.ToMemory().Length == 0)\n                {\n                    return null;\n                }\n                using JsonDocument doc = JsonDocument.Parse(content);\n                if (doc.RootElement.ValueKind != JsonValueKind.Object)\n                {\n                    return null;\n                }\n                if (doc.RootElement.TryGetProperty(\"provisioningState\", out JsonElement ps) && ps.ValueKind == JsonValueKind.String)\n                {\n                    return ps.GetString();\n                }\n                if (doc.RootElement.TryGetProperty(\"status\", out JsonElement st) && st.ValueKind == JsonValueKind.String)\n                {\n                    return st.GetString();\n                }\n                return null;\n            }\n            catch (JsonException)\n            {\n                return null;\n            }\n        }\n    }\n}\n",
+      "contentHash": "a281688788b3da5c3065191362811e0308de1d3d70006dfe9903d65146e59bf5",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/KnowledgeBasesCustomization.cs",
+      "startLine": 1,
+      "endLine": 209,
+      "kind": "handwritten-marker",
+      "id": "b5747bcd580b7a381999b38af841498f6ffb9f47543f3445f108580b86f7d576"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/NodePoolUsage.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    [CodeGenType(\"NodepoolUsage\")]\n    public partial class NodePoolUsage\n    {\n    }\n}\n",
+      "contentHash": "6525419ff2c9b1b7527b5907898d15c1c74d671a10b24a8c34443e7a43cc619e",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/NodePoolUsage.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "handwritten-marker",
+      "id": "b546d2145831cf17c42eff7a76c49d2232c1a0cc9cd4256d8cdbf8cddbc95048"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/ProvisioningStateOperation.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Azure.Core;\n\nnamespace Azure.AI.Discovery\n{\n    // Create/update poller that terminates on provisioningState (not status) and\n    // treats a synchronous completion (200, no Operation-Location) as success.\n    internal class ProvisioningStateOperation : Operation<BinaryData>\n    {\n        private readonly KnowledgeBases _client;\n        private readonly string _name;\n        private readonly RequestContext _context;\n        private Response _rawResponse;\n        private BinaryData _value;\n        private bool _completed;\n        private bool _hasValue;\n\n        public ProvisioningStateOperation(KnowledgeBases client, string name, Response initialResponse, RequestContext context)\n        {\n            _client = client;\n            _name = name;\n            _context = context;\n            _rawResponse = initialResponse;\n\n            bool hasOperationLocation =\n                initialResponse.Headers.TryGetValue(\"Operation-Location\", out _) ||\n                initialResponse.Headers.TryGetValue(\"operation-location\", out _);\n            if (!hasOperationLocation)\n            {\n                // Synchronous completion: no long-running operation to poll.\n                _completed = true;\n                _value = initialResponse.Content;\n                _hasValue = _value != null;\n            }\n            else\n            {\n                Evaluate(initialResponse, throwOnFailure: false);\n            }\n        }\n\n        public override BinaryData Value =>\n            _hasValue ? _value : throw new InvalidOperationException(\"The operation has not completed successfully.\");\n\n        public override bool HasValue => _hasValue;\n\n        public override string Id => _name;\n\n        public override bool HasCompleted => _completed;\n\n        public override Response GetRawResponse() => _rawResponse;\n\n        public override Response UpdateStatus(CancellationToken cancellationToken = default)\n        {\n            if (_completed)\n            {\n                return _rawResponse;\n            }\n            _rawResponse = _client.GetForPolling(_name, _context, cancellationToken);\n            Evaluate(_rawResponse, throwOnFailure: true);\n            return _rawResponse;\n        }\n\n        public override async ValueTask<Response> UpdateStatusAsync(CancellationToken cancellationToken = default)\n        {\n            if (_completed)\n            {\n                return _rawResponse;\n            }\n            _rawResponse = await _client.GetForPollingAsync(_name, _context, cancellationToken).ConfigureAwait(false);\n            Evaluate(_rawResponse, throwOnFailure: true);\n            return _rawResponse;\n        }\n\n        private void Evaluate(Response response, bool throwOnFailure)\n        {\n            string state = KnowledgeBases.ReadProvisioningState(response);\n            if (state == null)\n            {\n                return;\n            }\n            if (state.Equals(\"Succeeded\", StringComparison.OrdinalIgnoreCase))\n            {\n                _completed = true;\n                _value = response.Content;\n                _hasValue = _value != null;\n            }\n            else if (state.Equals(\"Failed\", StringComparison.OrdinalIgnoreCase) ||\n                     state.Equals(\"Canceled\", StringComparison.OrdinalIgnoreCase))\n            {\n                _completed = true;\n                if (throwOnFailure)\n                {\n                    throw new RequestFailedException(response);\n                }\n            }\n        }\n    }\n}\n",
+      "contentHash": "e3032a0a3ef4a6db7bd3982746b5b5a17429204803eb4839104cecb629bbb6c0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/ProvisioningStateOperation.cs",
+      "startLine": 1,
+      "endLine": 103,
+      "kind": "handwritten-marker",
+      "id": "25ac4a9e0eb7e878d53901e0d01227cbc1edd05a7a1a29a87dfe968dcd546497"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/RunOperationStatus.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    [CodeGenType(\"OperationStatusRunResultError\")]\n    public partial class RunOperationStatus\n    {\n    }\n}\n",
+      "contentHash": "068c5b079f5b1198cb7f81b0592bde43e594003b0c5995a57c50a4084b6e45b4",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/RunOperationStatus.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "kind": "handwritten-marker",
+      "id": "108924e36786540c2adab883928567f27180262348a915ec5b2eb2b605fa7661"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/StorageMountProtocol.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    public readonly partial struct StorageMountProtocol\n    {\n        /// <summary> NFS protocol. Version of NFS used may vary based on storage type. </summary>\n        [CodeGenMember(\"NFS\")]\n        public static StorageMountProtocol Nfs { get; } = new StorageMountProtocol(NFSValue);\n    }\n}\n",
+      "contentHash": "48cd8e61112052522983cf9776a6bf29e671093f64498673479a2151d69539ba",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/StorageMountProtocol.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "kind": "handwritten-marker",
+      "id": "14b42d3e4bb1ad6c6416c400c3388f42a0e5f923b3b7ea4a4c75e981f81069ce"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/SupercomputerUsage.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System.Collections.Generic;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.AI.Discovery\n{\n    public partial class SupercomputerUsage\n    {\n        /// <summary> Node pool utilization for each node pool for a supercomputer. </summary>\n        [CodeGenMember(\"Nodepools\")]\n        public IDictionary<string, NodePoolUsage> NodePools { get; }\n    }\n}\n",
+      "contentHash": "915aa181519380c2ff80ab85df585f6a8733ffd5fb7e7b30a8d8065b03742989",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Customization/SupercomputerUsage.cs",
+      "startLine": 1,
+      "endLine": 15,
+      "kind": "handwritten-marker",
+      "id": "cb84748467ff635f2ded60ec2e5f1bfeec3f62d3083adb6d78d97fbb70febd8c"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/README.md",
+      "text": "# Azure AI Discovery client library for .NET\n\nAzure AI Discovery lets you build investigation and knowledge-base experiences on top of your\nDiscovery workspace. The client library exposes two top-level clients:\n\n- `WorkspaceClient` — conversations, investigations, tasks, and tools.\n- `BookshelfClient` — knowledge bases (create, list, index, search, delete).\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.AI.Discovery --prerelease\n```\n\n### Prerequisites\n\n- You must have a [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n- An existing Azure AI Discovery workspace and bookshelf endpoint.\n\n### Authenticate the client\n\nThe library uses [`Azure.Identity`](https://learn.microsoft.com/dotnet/api/overview/azure/identity-readme)\nfor authentication. `DefaultAzureCredential` works for most scenarios, including local development.\n\n```C# Snippet:Discovery_CreateClients\nUri workspaceEndpoint = new Uri(\"<workspace-endpoint>\");\nWorkspaceClient workspaceClient = new WorkspaceClient(workspaceEndpoint, new DefaultAzureCredential());\n\nUri bookshelfEndpoint = new Uri(\"<bookshelf-endpoint>\");\nBookshelfClient bookshelfClient = new BookshelfClient(bookshelfEndpoint, new DefaultAzureCredential());\n```\n\n## Key concepts\n\n- **`WorkspaceClient`** is the entry point for workspace operations. Use its `Get*Client()` methods to\n  obtain the sub-clients: `GetDiscoveryConversationsClient()`, `GetDiscoveryInvestigationsClient()`,\n  `GetDiscoveryTasksClient()`, and `GetDiscoveryToolsClient()`.\n- **`BookshelfClient`** is the entry point for knowledge-base operations via\n  `GetKnowledgeBasesClient()`.\n- **Long-running operations** (for example `KnowledgeBases.CreateOrUpdate` and `KnowledgeBases.Delete`)\n  return an `Operation`; pass `WaitUntil.Completed` to wait for the operation to finish, or\n  `WaitUntil.Started` to poll manually.\n\n## Examples\n\nSee the [samples](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/discovery/Azure.AI.Discovery/samples/README.md) for end-to-end usage. A minimal example that creates and reads a\nconversation:\n\n```C# Snippet:Discovery_CreateAndReadConversation\nDiscoveryConversationsClient conversationsClient = workspaceClient.GetDiscoveryConversationsClient();\n\nDiscoveryConversation created = await conversationsClient.CreateAsync(\n    projectName: \"my-project\",\n    investigationName: \"/projects/my-project/investigations/my-investigation\",\n    displayName: \"Getting started conversation\");\n\nDiscoveryConversation conversation = await conversationsClient.GetAsync(created.Name);\nConsole.WriteLine($\"Conversation: {conversation.Name}\");\n```\n\n## Troubleshooting\n\nService operations throw a `RequestFailedException` on failure, with a `Status` code and an\nerror `Message` that can be used to diagnose the failure.\n\n## Next steps\n\nBrowse the [samples](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/discovery/Azure.AI.Discovery/samples/README.md) for more scenarios covering investigations, tasks, tools, and\nknowledge bases.\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (for example, label, comment). Follow the instructions provided by the bot. You'll only need to do this action once across all repositories using our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any other questions or comments.",
+      "contentHash": "dcc7edf843e51730ba1f0fec9b4939bff473b031e704564f67f9b4d14b1af43a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/README.md"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Azure.AI.Discovery.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Description>This is the Azure AI Discovery client library for Microsoft Discovery. It provides a WorkspaceClient for managing investigations, conversations, tasks, and tools, and a BookshelfClient for creating, indexing, and searching knowledge bases.</Description>\n    <AssemblyTitle>Microsoft Azure.AI.Discovery client library</AssemblyTitle>\n    <Version>1.0.0-beta.2</Version>\n    <PackageTags>Azure.AI.Discovery</PackageTags>\n    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n    <GenerateAPIListing>true</GenerateAPIListing>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <Compile Include=\"$(AzureCoreSharedSources)ExperimentalAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AzureResourceProviderNamespaceAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RawRequestUriBuilder.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TypeFormatters.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)RequestHeaderExtensions.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AppContextSwitchHelper.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ClientDiagnostics.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScopeFactory.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)DiagnosticScope.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)HttpMessageSanitizer.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TrimmingAttribute.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)AsyncLockWithValue.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)FixedDelayWithNoJitterStrategy.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)HttpPipelineExtensions.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)IOperationSource.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)NextLinkOperationImplementation.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)OperationFinalStateVia.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)OperationInternal.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)OperationInternalBase.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)OperationInternalOfT.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)OperationPoller.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ProtocolOperation.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)ProtocolOperationHelpers.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)SequentialDelayStrategy.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)TaskExtensions.cs\" LinkBase=\"Shared/Core\" />\n    <Compile Include=\"$(AzureCoreSharedSources)VoidValue.cs\" LinkBase=\"Shared/Core\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Core\" />\n  </ItemGroup>\n</Project>\n",
+      "contentHash": "5db7b8976dc1137c790f0cb1765f7e0b2bb8db1fdeb8d8cac01889d36fda0966",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/src/Azure.AI.Discovery.csproj"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/tsp-location.yaml",
+      "text": "directory: specification/discovery/Discovery.Combined\ncommit: fbe3c49c541a2932f4a4cb348fb0798988f4aca4\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n  - specification/discovery/Discovery.Common\n  - specification/discovery/Discovery.Workspace\n  - specification/discovery/Discovery.Bookshelf\nemitterPackageJsonPath: eng/azure-typespec-http-client-csharp-emitter-package.json\n",
+      "contentHash": "8f08e39987639ea5a59bbbfddf9fa86157eff2afb347105c503ca1a6e86ccba0",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/763ab19c44902f577cf0f41c848053b433b20287/sdk/discovery/Azure.AI.Discovery/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/DeleteUntilGoneOperation.cs",
+      "startLine": 1,
+      "endLine": 62,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "f7aa02ce9ca80f471c024072535db1095e959f0deeeb581afc433f4cf09837b9"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/DiscoveryActorType.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "55b53a4f761f9f30f31d2377961fa36664da6ca305369a2327cc5e2ca0cee7a1"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/InfrastructureOverrides.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6a100908143932580e76a9ea71c2182a447920447b24640b47074565b20baf55"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/KnowledgeBasesCustomization.cs",
+      "startLine": 1,
+      "endLine": 209,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "a281688788b3da5c3065191362811e0308de1d3d70006dfe9903d65146e59bf5"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/NodePoolUsage.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "6525419ff2c9b1b7527b5907898d15c1c74d671a10b24a8c34443e7a43cc619e"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/ProvisioningStateOperation.cs",
+      "startLine": 1,
+      "endLine": 103,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "e3032a0a3ef4a6db7bd3982746b5b5a17429204803eb4839104cecb629bbb6c0"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/RunOperationStatus.cs",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "068c5b079f5b1198cb7f81b0592bde43e594003b0c5995a57c50a4084b6e45b4"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/StorageMountProtocol.cs",
+      "startLine": 1,
+      "endLine": 14,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "48cd8e61112052522983cf9776a6bf29e671093f64498673479a2151d69539ba"
+    },
+    {
+      "path": "sdk/discovery/Azure.AI.Discovery/src/Customization/SupercomputerUsage.cs",
+      "startLine": 1,
+      "endLine": 15,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "915aa181519380c2ff80ab85df585f6a8733ffd5fb7e7b30a8d8065b03742989"
+    }
+  ]
+}

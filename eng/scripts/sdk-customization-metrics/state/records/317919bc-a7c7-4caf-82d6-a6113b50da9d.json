@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "id": "317919bc-a7c7-4caf-82d6-a6113b50da9d",
+  "observedAt": "2026-10-22T20:42:36.724Z",
+  "identity": "python:azure-keyvault-administration:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-keyvault-administration",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/keyvault/azure-keyvault-administration"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "d0fab651bf3435696b1341a5241a68bd41deaac3"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 103,
+    "eligibleFiles": 50,
+    "capturedFiles": 4,
+    "skipped": [
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/__init__.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_polling.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/challenge_auth_policy.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/client_base.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/http_challenge_cache.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/http_challenge.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/polling.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_models.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_settings_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_access_control_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_backup_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_ekm_client.py",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_settings_client.py",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_access_control_client.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom typing import Any, List, Optional, Union\nfrom uuid import UUID, uuid4\n\nfrom azure.core.exceptions import ResourceNotFoundError\nfrom azure.core.paging import ItemPaged\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._enums import KeyVaultRoleScope\nfrom ._generated.models import (\n    Permission,\n    RoleAssignmentCreateParameters,\n    RoleAssignmentProperties,\n    RoleDefinitionCreateParameters,\n    RoleDefinitionProperties,\n)\nfrom ._models import KeyVaultPermission, KeyVaultRoleAssignment, KeyVaultRoleDefinition\nfrom ._internal import KeyVaultClientBase\n\n\nclass KeyVaultAccessControlClient(KeyVaultClientBase):\n    \"\"\"Manages role-based access to Azure Key Vault.\n\n    :param str vault_url: URL of the vault the client will manage. This is also called the vault's \"DNS Name\".\n        You should validate that this URL references a valid Key Vault or Managed HSM resource.\n        See https://aka.ms/azsdk/blog/vault-uri for details.\n    :param credential: An object which can provide an access token for the vault, such as a credential from\n        :mod:`azure.identity`\n    :type credential: ~azure.core.credentials.TokenCredential\n\n    :keyword api_version: Version of the service API to use. Defaults to the most recent.\n    :paramtype api_version: ~azure.keyvault.administration.ApiVersion or str\n    :keyword bool verify_challenge_resource: Whether to verify the authentication challenge resource matches the Key\n        Vault or Managed HSM domain. Defaults to True.\n    \"\"\"\n\n    # pylint:disable=protected-access\n\n    @distributed_trace\n    def create_role_assignment(\n        self,\n        scope: Union[str, KeyVaultRoleScope],\n        definition_id: str,\n        principal_id: str,\n        *,\n        name: Optional[Union[str, UUID]] = None,\n        **kwargs: Any,\n    ) -> KeyVaultRoleAssignment:\n        \"\"\"Create a role assignment.\n\n        :param scope: scope the role assignment will apply over. :class:`KeyVaultRoleScope` defines common\n            broad scopes. Specify a narrower scope as a string.\n        :type scope: str or KeyVaultRoleScope\n        :param str definition_id: ID of the role's definition\n        :param str principal_id: Azure Active Directory object ID of the principal which will be assigned the role. The\n            principal can be a user, service principal, or security group.\n\n        :keyword name: a name for the role assignment. Must be a UUID.\n        :paramtype name: str or uuid.UUID or None\n\n        :returns: The created role assignment.\n        :rtype: ~azure.keyvault.administration.KeyVaultRoleAssignment\n        \"\"\"\n        assignment_name = name or uuid4()\n\n        create_parameters = RoleAssignmentCreateParameters(\n            properties=RoleAssignmentProperties(principal_id=principal_id, role_definition_id=str(definition_id))\n        )\n        assignment = self._client.role_assignments.create(\n            scope=scope, role_assignment_name=str(assignment_name), parameters=create_parameters, **kwargs\n        )\n        return KeyVaultRoleAssignment._from_generated(assignment)\n\n    @distributed_trace\n    def delete_role_assignment(\n        self, scope: Union[str, KeyVaultRoleScope], name: Union[str, UUID], **kwargs: Any\n    ) -> None:\n        \"\"\"Delete a role assignment.\n\n        :param scope: the assignment's scope, for example \"/\", \"/keys\", or \"/keys/<specific key identifier>\"\n            :class:`KeyVaultRoleScope` defines common broad scopes. Specify a narrower scope as a string.\n        :type scope: str or KeyVaultRoleScope\n        :param name: the role assignment's name.\n        :type name: str or uuid.UUID\n\n        :returns: None\n        :rtype: None\n        \"\"\"\n        try:\n            self._client.role_assignments.delete(scope=scope, role_assignment_name=str(name), **kwargs)\n        except ResourceNotFoundError:\n            pass\n\n    @distributed_trace\n    def get_role_assignment(\n        self, scope: Union[str, KeyVaultRoleScope], name: Union[str, UUID], **kwargs: Any\n    ) -> KeyVaultRoleAssignment:\n        \"\"\"Get a role assignment.\n\n        :param scope: the assignment's scope, for example \"/\", \"/keys\", or \"/keys/<specific key identifier>\"\n            :class:`KeyVaultRoleScope` defines common broad scopes. Specify a narrower scope as a string.\n        :type scope: str or KeyVaultRoleScope\n        :param name: the role assignment's name.\n        :type name: str or uuid.UUID\n\n        :returns: The fetched role assignment.\n        :rtype: ~azure.keyvault.administration.KeyVaultRoleAssignment\n        \"\"\"\n        assignment = self._client.role_assignments.get(scope=scope, role_assignment_name=str(name), **kwargs)\n        return KeyVaultRoleAssignment._from_generated(assignment)\n\n    @distributed_trace\n    def list_role_assignments(\n        self, scope: Union[str, KeyVaultRoleScope], **kwargs: Any\n    ) -> ItemPaged[KeyVaultRoleAssignment]:\n        \"\"\"List all role assignments for a scope.\n\n        :param scope: scope of the role assignments. :class:`KeyVaultRoleScope` defines common broad scopes.\n            Specify a narrower scope as a string.\n        :type scope: str or KeyVaultRoleScope\n\n        :returns: A paged response containing the role assignments for the specified scope.\n        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.administration.KeyVaultRoleAssignment]\n        \"\"\"\n        return self._client.role_assignments.list_for_scope(\n            scope=scope, cls=lambda result: [KeyVaultRoleAssignment._from_generated(a) for a in result], **kwargs\n        )\n\n    @distributed_trace\n    def set_role_definition(\n        self,\n        scope: Union[str, KeyVaultRoleScope],\n        *,\n        name: Optional[Union[str, UUID]] = None,\n        role_name: Optional[str] = None,\n        description: Optional[str] = None,\n        permissions: Optional[List[KeyVaultPermission]] = None,\n        assignable_scopes: Optional[List[Union[str, KeyVaultRoleScope]]] = None,\n        **kwargs: Any,\n    ) -> KeyVaultRoleDefinition:\n        \"\"\"Creates or updates a custom role definition.\n\n        To update a role definition, specify the definition's ``name``.\n\n        :param scope: scope of the role definition. :class:`KeyVaultRoleScope` defines common broad scopes.\n            Specify a narrower scope as a string. Managed HSM only supports '/', or KeyVaultRoleScope.GLOBAL.\n        :type scope: str or KeyVaultRoleScope\n\n        :keyword name: the role definition's name, a UUID. When this argument has a value, the client will create a new\n            role definition with this name or update an existing role definition, if one exists with the given name.\n            When this argument has no value, a new role definition will be created with a generated name.\n        :paramtype name: str or uuid.UUID or None\n        :keyword role_name: the role's display name. If unspecified when creating or updating a role definition, the\n            role name will be set to an empty string.\n        :paramtype role_name: str or None\n        :keyword description: a description of the role definition. If unspecified when creating or updating a role\n            definition, the description will be set to an empty string.\n        :paramtype description: str or None\n        :keyword permissions: the role definition's permissions. If unspecified when creating or updating a role\n            definition, the role definition will have no action permissions.\n        :paramtype permissions: list[KeyVaultPermission] or None\n        :keyword assignable_scopes: the scopes for which the role definition can be assigned.\n        :paramtype assignable_scopes: list[str] or list[KeyVaultRoleScope] or None\n\n        :returns: The created or updated role definition\n        :rtype: ~azure.keyvault.administration.KeyVaultRoleDefinition\n        \"\"\"\n        role_permissions = [\n            Permission(\n                actions=p.actions,\n                not_actions=p.not_actions,\n                data_actions=p.data_actions,\n                not_data_actions=p.not_data_actions,\n            )\n            for p in permissions or []\n        ]\n\n        properties = RoleDefinitionProperties(\n            role_name=role_name,\n            description=description,\n            permissions=role_permissions,\n            assignable_scopes=assignable_scopes,\n        )\n        parameters = RoleDefinitionCreateParameters(properties=properties)\n\n        definition = self._client.role_definitions.create_or_update(\n            scope=scope, role_definition_name=str(name or uuid4()), parameters=parameters, **kwargs\n        )\n        return KeyVaultRoleDefinition._from_generated(definition)\n\n    @distributed_trace\n    def get_role_definition(\n        self, scope: Union[str, KeyVaultRoleScope], name: Union[str, UUID], **kwargs: Any\n    ) -> KeyVaultRoleDefinition:\n        \"\"\"Get the specified role definition.\n\n        :param scope: scope of the role definition. :class:`KeyVaultRoleScope` defines common broad scopes.\n            Specify a narrower scope as a string. Managed HSM only supports '/', or KeyVaultRoleScope.GLOBAL.\n        :type scope: str or KeyVaultRoleScope\n        :param name: the role definition's name.\n        :type name: str or uuid.UUID\n\n        :returns: The fetched role definition.\n        :rtype: ~azure.keyvault.administration.KeyVaultRoleDefinition\n        \"\"\"\n        definition = self._client.role_definitions.get(scope=scope, role_definition_name=str(name), **kwargs)\n        return KeyVaultRoleDefinition._from_generated(definition)\n\n    @distributed_trace\n    def delete_role_definition(\n        self, scope: Union[str, KeyVaultRoleScope], name: Union[str, UUID], **kwargs: Any\n    ) -> None:\n        \"\"\"Deletes a custom role definition.\n\n        :param scope: scope of the role definition. :class:`KeyVaultRoleScope` defines common broad scopes.\n            Specify a narrower scope as a string. Managed HSM only supports '/', or KeyVaultRoleScope.GLOBAL.\n        :type scope: str or KeyVaultRoleScope\n        :param name: the role definition's name.\n        :type name: str or uuid.UUID\n\n        :returns: None\n        :rtype: None\n        \"\"\"\n        try:\n            self._client.role_definitions.delete(scope=scope, role_definition_name=str(name), **kwargs)\n        except ResourceNotFoundError:\n            pass\n\n    @distributed_trace\n    def list_role_definitions(\n        self, scope: Union[str, KeyVaultRoleScope], **kwargs: Any\n    ) -> ItemPaged[KeyVaultRoleDefinition]:\n        \"\"\"List all role definitions applicable at and above a scope.\n\n        :param scope: scope of the role definitions. :class:`KeyVaultRoleScope` defines common broad scopes.\n            Specify a narrower scope as a string.\n        :type scope: str or KeyVaultRoleScope\n\n        :returns: A paged response containing the role definitions for the specified scope.\n        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.administration.KeyVaultRoleDefinition]\n        \"\"\"\n        return self._client.role_definitions.list(\n            scope=scope, cls=lambda result: [KeyVaultRoleDefinition._from_generated(d) for d in result], **kwargs\n        )\n\n    def __enter__(self) -> \"KeyVaultAccessControlClient\":\n        self._client.__enter__()\n        return self\n",
+      "contentHash": "5db08dc92d088d8e6536cd54c51fd642f00d2fb13711caf0a80433070ede859f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_access_control_client.py",
+      "startLine": 1,
+      "endLine": 251,
+      "kind": "unknown",
+      "id": "0e42a44790b446c022bc180968754a54b48ac9596c49e447507fa703fa634ec3"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_backup_client.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nimport base64\nimport functools\nimport json\nfrom typing import Any, Callable, Optional, overload\nfrom urllib.parse import urlparse\n\nfrom typing_extensions import Literal\n\nfrom azure.core.pipeline import PipelineResponse\nfrom azure.core.polling import LROPoller\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._generated.models import PreBackupOperationParameters, PreRestoreOperationParameters, SASTokenParameter\nfrom ._models import KeyVaultBackupResult\nfrom ._internal import KeyVaultClientBase, parse_folder_url\nfrom ._internal.polling import KeyVaultBackupClientPolling, KeyVaultBackupClientPollingMethod\n\n\ndef _parse_status_url(url: str) -> str:\n    parsed = urlparse(url)\n    job_id = parsed.path.split(\"/\")[2]\n    return job_id\n\n\ndef _get_continuation_token(pipeline_response: PipelineResponse) -> str:\n    \"\"\"Returns an opaque token which can be used by the user to rehydrate/restart the LRO.\n\n    Saves the state of the LRO based on a status response so that polling can be resumed from that context. Because\n    the service has different operations for backup/restore starting vs. status checking, the caller is expected to\n    first use the status URL from the initial response to make a status request and then pass that status response to\n    this function to be serialized into a continuation token.\n\n    :param pipeline_response: The pipeline response of the operation status request.\n    :type pipeline_response: ~azure.core.pipeline.PipelineResponse\n    :returns: An opaque continuation token that can be provided to Core to rehydrate the LRO.\n    :rtype: str\n    \"\"\"\n    # Headers needed for LRO rehydration - use an allowlist approach for security\n    lro_headers = {\"azure-asyncoperation\", \"operation-location\", \"location\", \"content-type\", \"retry-after\"}\n    response = pipeline_response.http_response\n    filtered_headers = {k: v for k, v in response.headers.items() if k.lower() in lro_headers}\n\n    request = response.request\n    # Serialize the essential parts of the PipelineResponse to JSON.\n    if request:\n        request_headers = {}\n        # Preserve x-ms-client-request-id for request correlation\n        if \"x-ms-client-request-id\" in request.headers:\n            request_headers[\"x-ms-client-request-id\"] = request.headers[\"x-ms-client-request-id\"]\n        request_state = {\n            \"method\": request.method,\n            \"url\": request.url,\n            \"headers\": request_headers,\n        }\n    else:\n        request_state = None\n\n    # Use a versioned token schema: {\"version\": <int>, \"data\": <your state>}\n    # This allows for future compatibility checking when deserializing\n    token = {\n        \"version\": 1,\n        \"data\": {\n            \"request\": request_state,\n            \"response\": {\n                \"status_code\": response.status_code,\n                \"headers\": filtered_headers,\n                \"content\": base64.b64encode(response.content).decode(\"ascii\"),\n            },\n        },\n    }\n    return base64.b64encode(json.dumps(token, separators=(\",\", \":\")).encode(\"utf-8\")).decode(\"ascii\")\n\n\nclass KeyVaultBackupClient(KeyVaultClientBase):\n    \"\"\"Performs Key Vault backup and restore operations.\n\n    :param str vault_url: URL of the vault on which the client will operate. This is also called the vault's \"DNS Name\".\n        You should validate that this URL references a valid Key Vault or Managed HSM resource.\n        See https://aka.ms/azsdk/blog/vault-uri for details.\n    :param credential: An object which can provide an access token for the vault, such as a credential from\n        :mod:`azure.identity`\n    :type credential: ~azure.core.credentials.TokenCredential\n\n    :keyword api_version: Version of the service API to use. Defaults to the most recent.\n    :paramtype api_version: ~azure.keyvault.administration.ApiVersion or str\n    :keyword bool verify_challenge_resource: Whether to verify the authentication challenge resource matches the Key\n        Vault or Managed HSM domain. Defaults to True.\n    \"\"\"\n\n    def _use_continuation_token(self, continuation_token: str, status_method: Callable) -> str:\n        status_url = base64.b64decode(continuation_token.encode()).decode(\"ascii\")\n        try:\n            job_id = _parse_status_url(status_url)\n        except Exception as ex:  # pylint: disable=broad-except\n            raise ValueError(\n                \"The provided continuation_token is malformed. A valid token can be obtained from the \"\n                + \"operation poller's continuation_token() method\"\n            ) from ex\n\n        pipeline_response = status_method(job_id=job_id, cls=lambda pipeline_response, _, __: pipeline_response)\n        if \"azure-asyncoperation\" not in pipeline_response.http_response.headers:\n            pipeline_response.http_response.headers[\"azure-asyncoperation\"] = status_url\n        return _get_continuation_token(pipeline_response)\n\n    @overload\n    def begin_backup(\n        self,\n        blob_storage_url: str,\n        *,\n        use_managed_identity: Literal[True],\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[KeyVaultBackupResult]: ...\n\n    @overload\n    def begin_backup(\n        self,\n        blob_storage_url: str,\n        *,\n        sas_token: str,\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[KeyVaultBackupResult]: ...\n\n    # Disabling pylint checks because they don't correctly handle overloads\n    @distributed_trace\n    def begin_backup(  # pylint: disable=docstring-missing-param,docstring-keyword-should-match-keyword-only\n        self, blob_storage_url: str, *args: str, **kwargs: Any\n    ) -> LROPoller[KeyVaultBackupResult]:\n        \"\"\"Begin a full backup of the Key Vault.\n\n        :param str blob_storage_url: URL of the blob storage container in which the backup will be stored, for example\n            https://<account>.blob.core.windows.net/backup.\n\n        :keyword str sas_token: Optional Shared Access Signature (SAS) token to authorize access to the blob. Required\n            unless `use_managed_identity` is set to True.\n        :keyword use_managed_identity: Indicates which authentication method should be used. If set to True, Managed HSM\n            will use the configured user-assigned managed identity to authenticate with Azure Storage. Otherwise, a SAS\n            token has to be specified.\n        :paramtype use_managed_identity: bool\n        :keyword str continuation_token: A continuation token to restart polling from a saved state.\n\n        :returns: An :class:`~azure.core.polling.LROPoller` instance. Call `result()` on this object to wait for the\n            operation to complete and get a :class:`KeyVaultBackupResult`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.keyvault.administration.KeyVaultBackupResult]\n\n        Example:\n            .. literalinclude:: ../tests/test_examples_administration.py\n                :start-after: [START begin_backup]\n                :end-before: [END begin_backup]\n                :language: python\n                :caption: Create a vault backup\n                :dedent: 8\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", 5)\n        continuation_token = kwargs.pop(\"continuation_token\", None)\n        use_managed_identity = kwargs.pop(\"use_managed_identity\", False)\n        # `sas_token` was formerly a required positional parameter\n        try:\n            sas_token: Optional[str] = args[0]\n        except IndexError:\n            sas_token = kwargs.pop(\"sas_token\", None)\n        sas_parameter = self._models.SASTokenParameter(\n            storage_resource_uri=blob_storage_url, token=sas_token, use_managed_identity=use_managed_identity\n        )\n\n        status_response = None\n        if continuation_token:\n            status_response = self._use_continuation_token(continuation_token, self._client.full_backup_status)\n\n        return self._client.begin_full_backup(\n            azure_storage_blob_container_uri=sas_parameter,\n            cls=KeyVaultBackupResult._from_generated,  # pylint: disable=protected-access\n            continuation_token=status_response,\n            polling=KeyVaultBackupClientPollingMethod(\n                lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs\n            ),\n            **kwargs,\n        )\n\n    @overload\n    def begin_restore(\n        self,\n        folder_url: str,\n        *,\n        use_managed_identity: Literal[True],\n        key_name: Optional[str] = None,\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    @overload\n    def begin_restore(\n        self,\n        folder_url: str,\n        *,\n        sas_token: str,\n        key_name: Optional[str] = None,\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    # Disabling pylint checks because they don't correctly handle overloads\n    @distributed_trace\n    def begin_restore(  # pylint: disable=docstring-missing-param,docstring-keyword-should-match-keyword-only\n        self, folder_url: str, *args: str, **kwargs: Any\n    ) -> LROPoller[None]:\n        \"\"\"Restore a Key Vault backup.\n\n        This method restores either a complete Key Vault backup or when ``key_name`` has a value, a single key.\n\n        :param str folder_url: URL of the blob holding the backup. This would be the `folder_url` of a\n            :class:`KeyVaultBackupResult` returned by :func:`begin_backup`, for example\n            https://<account>.blob.core.windows.net/backup/mhsm-account-2020090117323313\n\n        :keyword str sas_token: Optional Shared Access Signature (SAS) token to authorize access to the blob. Required\n            unless `use_managed_identity` is set to True.\n        :keyword use_managed_identity: Indicates which authentication method should be used. If set to True, Managed HSM\n            will use the configured user-assigned managed identity to authenticate with Azure Storage. Otherwise, a SAS\n            token has to be specified.\n        :paramtype use_managed_identity: bool\n        :keyword str key_name: Name of a single key in the backup. When set, only this key will be restored.\n        :keyword str continuation_token: A continuation token to restart polling from a saved state.\n\n        :returns: An :class:`~azure.core.polling.LROPoller` instance. Call `wait()` or `result()` on this object to wait\n            for the operation to complete (the return value is None in either case).\n        :rtype: ~azure.core.polling.LROPoller\n\n        Examples:\n            .. literalinclude:: ../tests/test_examples_administration.py\n                :start-after: [START begin_restore]\n                :end-before: [END begin_restore]\n                :language: python\n                :caption: Restore a vault backup\n                :dedent: 8\n\n            .. literalinclude:: ../tests/test_examples_administration.py\n                :start-after: [START begin_selective_restore]\n                :end-before: [END begin_selective_restore]\n                :language: python\n                :caption: Restore a single key\n                :dedent: 8\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", 5)\n        continuation_token = kwargs.pop(\"continuation_token\", None)\n        key_name = kwargs.pop(\"key_name\", None)\n        use_managed_identity = kwargs.pop(\"use_managed_identity\", False)\n        # `sas_token` was formerly a required positional parameter\n        try:\n            sas_token: Optional[str] = args[0]\n        except IndexError:\n            sas_token = kwargs.pop(\"sas_token\", None)\n\n        status_response = None\n        if continuation_token:\n            status_response = self._use_continuation_token(continuation_token, self._client.restore_status)\n\n        container_url, folder_name = parse_folder_url(folder_url)\n        sas_parameter = self._models.SASTokenParameter(\n            storage_resource_uri=container_url, token=sas_token, use_managed_identity=use_managed_identity\n        )\n        polling = KeyVaultBackupClientPollingMethod(\n            lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs\n        )\n\n        if key_name:\n            client_method = functools.partial(self._client.begin_selective_key_restore_operation, key_name=key_name)\n            restore_details = self._models.SelectiveKeyRestoreOperationParameters(\n                sas_token_parameters=sas_parameter, folder=folder_name\n            )\n        else:\n            client_method = self._client.begin_full_restore_operation\n            restore_details = self._models.RestoreOperationParameters(\n                sas_token_parameters=sas_parameter, folder_to_restore=folder_name\n            )\n\n        return client_method(\n            restore_blob_details=restore_details,\n            cls=lambda *_: None,  # poller.result() returns None\n            continuation_token=status_response,\n            polling=polling,\n            **kwargs,\n        )\n\n    @overload\n    def begin_pre_backup(\n        self,\n        blob_storage_url: str,\n        *,\n        use_managed_identity: Literal[True],\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    @overload\n    def begin_pre_backup(\n        self,\n        blob_storage_url: str,\n        *,\n        sas_token: str,\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    @distributed_trace\n    def begin_pre_backup(  # pylint: disable=docstring-keyword-should-match-keyword-only\n        self, blob_storage_url: str, **kwargs: Any\n    ) -> LROPoller[None]:\n        \"\"\"Initiates a pre-backup check of whether a full Key Vault backup can be performed.\n\n        If the pre-backup check fails, calling `wait()` on the returned poller will raise an error. Otherwise, a full\n        backup can be performed.\n\n        :param str blob_storage_url: URL of the blob storage container in which the backup will be stored, for example\n            https://<account>.blob.core.windows.net/backup.\n\n        :keyword str sas_token: Optional Shared Access Signature (SAS) token to authorize access to the blob. Required\n            unless `use_managed_identity` is set to True.\n        :keyword use_managed_identity: Indicates which authentication method should be used. If set to True, Managed HSM\n            will use the configured user-assigned managed identity to authenticate with Azure Storage. Otherwise, a SAS\n            token has to be specified.\n        :paramtype use_managed_identity: bool\n        :keyword str continuation_token: A continuation token to restart polling from a saved state.\n\n        :returns: An :class:`~azure.core.polling.LROPoller` instance. Call `wait()` on this object to wait for the\n            operation to complete. If the check fails, an error will be raised.\n        :rtype: ~azure.core.polling.LROPoller[None]\n        \"\"\"\n        polling_interval: int = kwargs.pop(\"_polling_interval\", 5)\n        continuation_token: Optional[str] = kwargs.pop(\"continuation_token\", None)\n        use_managed_identity: bool = kwargs.pop(\"use_managed_identity\", False)\n        sas_token: Optional[str] = kwargs.pop(\"sas_token\", None)\n\n        parameters: PreBackupOperationParameters = PreBackupOperationParameters(\n            storage_resource_uri=blob_storage_url, token=sas_token, use_managed_identity=use_managed_identity\n        )\n        status_response: Optional[str] = None\n        if continuation_token:\n            status_response = self._use_continuation_token(continuation_token, self._client.full_backup_status)\n\n        return self._client.begin_pre_full_backup(\n            pre_backup_operation_parameters=parameters,\n            cls=lambda *_: None,  # poller.result() returns None\n            polling=KeyVaultBackupClientPollingMethod(\n                lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs\n            ),\n            continuation_token=status_response,\n            **kwargs,\n        )\n\n    @overload\n    def begin_pre_restore(\n        self,\n        folder_url: str,\n        *,\n        use_managed_identity: Literal[True],\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    @overload\n    def begin_pre_restore(\n        self,\n        folder_url: str,\n        *,\n        sas_token: str,\n        continuation_token: Optional[str] = None,\n        **kwargs: Any,\n    ) -> LROPoller[None]: ...\n\n    @distributed_trace\n    def begin_pre_restore(  # pylint: disable=docstring-keyword-should-match-keyword-only\n        self, folder_url: str, **kwargs: Any\n    ) -> LROPoller[None]:\n        \"\"\"Initiates a pre-restore check of whether a full Key Vault restore can be performed.\n\n        If the pre-restore check fails, calling `wait()` on the returned poller will raise an error. Otherwise, a full\n        restore can be performed.\n\n        :param str folder_url: URL of the blob holding the backup. This would be the `folder_url` of a\n            :class:`KeyVaultBackupResult` returned by :func:`begin_backup`, for example\n            https://<account>.blob.core.windows.net/backup/mhsm-account-2020090117323313\n\n        :keyword str sas_token: Optional Shared Access Signature (SAS) token to authorize access to the blob. Required\n            unless `use_managed_identity` is set to True.\n        :keyword use_managed_identity: Indicates which authentication method should be used. If set to True, Managed HSM\n            will use the configured user-assigned managed identity to authenticate with Azure Storage. Otherwise, a SAS\n            token has to be specified.\n        :paramtype use_managed_identity: bool\n        :keyword str continuation_token: A continuation token to restart polling from a saved state.\n\n        :returns: An :class:`~azure.core.polling.LROPoller` instance. Call `wait()` on this object to wait for the\n            operation to complete. If the check fails, an error will be raised.\n        :rtype: ~azure.core.polling.LROPoller[None]\n        \"\"\"\n        polling_interval: int = kwargs.pop(\"_polling_interval\", 5)\n        continuation_token: Optional[str] = kwargs.pop(\"continuation_token\", None)\n        use_managed_identity: bool = kwargs.pop(\"use_managed_identity\", False)\n        sas_token: Optional[str] = kwargs.pop(\"sas_token\", None)\n\n        container_url, folder_name = parse_folder_url(folder_url)\n        sas_parameter: SASTokenParameter = SASTokenParameter(\n            storage_resource_uri=container_url, token=sas_token, use_managed_identity=use_managed_identity\n        )\n        parameters: PreRestoreOperationParameters = PreRestoreOperationParameters(\n            folder_to_restore=folder_name, sas_token_parameters=sas_parameter\n        )\n        status_response: Optional[str] = None\n        if continuation_token:\n            status_response = self._use_continuation_token(continuation_token, self._client.restore_status)\n\n        return self._client.begin_pre_full_restore_operation(\n            pre_restore_operation_parameters=parameters,\n            cls=lambda *_: None,  # poller.result() returns None\n            polling=KeyVaultBackupClientPollingMethod(\n                lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs\n            ),\n            continuation_token=status_response,\n            **kwargs,\n        )\n\n    def __enter__(self) -> \"KeyVaultBackupClient\":\n        self._client.__enter__()\n        return self\n",
+      "contentHash": "ba76aba61bd2401b3a3d808748dc78aa1af2e122561bbc00fef1a99a799ebc4d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_backup_client.py",
+      "startLine": 1,
+      "endLine": 428,
+      "kind": "unknown",
+      "id": "2d6f74576bcbe510221dbdbc54c0e797d3baf5541dde99e5d356595b4ad82eb4"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_ekm_client.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom typing import Any\n\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._internal import KeyVaultClientBase\nfrom ._models import KeyVaultEkmConnection, KeyVaultEkmProxyClientCertificateInfo, KeyVaultEkmProxyInfo\n\n\nclass KeyVaultEkmClient(KeyVaultClientBase):\n    \"\"\"Provides methods to manage Managed HSM External Key Manager (EKM) connections.\n\n    :param str vault_url: URL of the vault on which the client will operate. This is also called the vault's \"DNS Name\".\n        You should validate that this URL references a valid Key Vault or Managed HSM resource.\n        See https://aka.ms/azsdk/blog/vault-uri for details.\n    :param credential: An object which can provide an access token for the vault, such as a credential from\n        :mod:`azure.identity`\n    :type credential: ~azure.core.credentials.TokenCredential\n\n    :keyword api_version: Version of the service API to use. EKM operations require service API version\n        ``2026-01-01-preview`` or later.\n    :paramtype api_version: ~azure.keyvault.administration.ApiVersion or str\n    :keyword bool verify_challenge_resource: Whether to verify the authentication challenge resource matches the Key\n        Vault or Managed HSM domain. Defaults to True.\n    \"\"\"\n\n    # pylint:disable=protected-access\n\n    @distributed_trace\n    def get_ekm_connection(self, **kwargs: Any) -> KeyVaultEkmConnection:\n        \"\"\"Gets the configured EKM connection.\n\n        :returns: The configured EKM connection.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmConnection\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.get_ekm_connection(**kwargs)\n        return KeyVaultEkmConnection._from_generated(result)\n\n    @distributed_trace\n    def create_ekm_connection(self, connection: KeyVaultEkmConnection, **kwargs: Any) -> KeyVaultEkmConnection:\n        \"\"\"Creates the EKM connection.\n\n        If an EKM connection already exists, this operation fails.\n\n        :param connection: The EKM connection to create.\n        :type connection: ~azure.keyvault.administration.KeyVaultEkmConnection\n\n        :returns: The created EKM connection.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmConnection\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.create_ekm_connection(ekm_connection=connection._to_generated(), **kwargs)\n        return KeyVaultEkmConnection._from_generated(result)\n\n    @distributed_trace\n    def update_ekm_connection(self, connection: KeyVaultEkmConnection, **kwargs: Any) -> KeyVaultEkmConnection:\n        \"\"\"Updates the existing EKM connection.\n\n        If no EKM connection exists, this operation fails.\n\n        :param connection: The EKM connection to update.\n        :type connection: ~azure.keyvault.administration.KeyVaultEkmConnection\n\n        :returns: The updated EKM connection.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmConnection\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.update_ekm_connection(ekm_connection=connection._to_generated(), **kwargs)\n        return KeyVaultEkmConnection._from_generated(result)\n\n    @distributed_trace\n    def delete_ekm_connection(  # pylint:disable=bad-option-value,delete-operation-wrong-return-type\n        self, **kwargs: Any\n    ) -> KeyVaultEkmConnection:\n        \"\"\"Deletes the existing EKM connection.\n\n        If no EKM connection exists, this operation fails.\n\n        :returns: The deleted EKM connection.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmConnection\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.delete_ekm_connection(**kwargs)\n        return KeyVaultEkmConnection._from_generated(result)\n\n    @distributed_trace\n    def get_ekm_certificate(self, **kwargs: Any) -> KeyVaultEkmProxyClientCertificateInfo:\n        \"\"\"Gets the EKM proxy client certificate information used to authenticate to the EKM proxy.\n\n        :returns: The EKM proxy client certificate information.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmProxyClientCertificateInfo\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.get_ekm_certificate(**kwargs)\n        return KeyVaultEkmProxyClientCertificateInfo._from_generated(result)\n\n    @distributed_trace\n    def check_ekm_connection(self, **kwargs: Any) -> KeyVaultEkmProxyInfo:\n        \"\"\"Checks the EKM connection by pinging the EKM proxy.\n\n        :returns: Information about the EKM proxy returned by the connectivity check.\n        :rtype: ~azure.keyvault.administration.KeyVaultEkmProxyInfo\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        result = self._client.check_ekm_connection(**kwargs)\n        return KeyVaultEkmProxyInfo._from_generated(result)\n\n    def __enter__(self) -> \"KeyVaultEkmClient\":\n        self._client.__enter__()\n        return self\n",
+      "contentHash": "57c8a258e25e939edd06be522d8eb62655dc0f87f3bb163810782733faaed537",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_ekm_client.py",
+      "startLine": 1,
+      "endLine": 114,
+      "kind": "unknown",
+      "id": "8fc2519756ed13876ddac587e303d7d3d0ebe14e79d51011574576eea582aa2c"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_enums.py",
+      "text": "# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\nfrom enum import Enum\n\nfrom azure.core import CaseInsensitiveEnumMeta\n\n\nclass KeyVaultRoleScope(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Collection of well known role scopes. This list is not exhaustive.\"\"\"\n\n    GLOBAL = \"/\"  #: use this if you want role assignments to apply to everything on the resource\n    KEYS = \"/keys\"  #: use this if you want role assignments to apply to all keys\n\n\nclass KeyVaultDataAction(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"Supported permissions for data actions.\"\"\"\n\n    #: Read HSM key metadata.\n    READ_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/read/action\"\n    #: Update an HSM key.\n    WRITE_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/write/action\"\n    #: Read deleted HSM key.\n    READ_DELETED_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/deletedKeys/read/action\"\n    #: Recover deleted HSM key.\n    RECOVER_DELETED_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/deletedKeys/recover/action\"\n    #: Backup HSM keys.\n    BACKUP_HSM_KEYS = \"Microsoft.KeyVault/managedHsm/keys/backup/action\"\n    #: Restore HSM keys.\n    RESTORE_HSM_KEYS = \"Microsoft.KeyVault/managedHsm/keys/restore/action\"\n    #: Delete role assignment.\n    DELETE_ROLE_ASSIGNMENT = \"Microsoft.KeyVault/managedHsm/roleAssignments/delete/action\"\n    #: Get role assignment.\n    GET_ROLE_ASSIGNMENT = \"Microsoft.KeyVault/managedHsm/roleAssignments/read/action\"\n    #: Create or update role assignment.\n    WRITE_ROLE_ASSIGNMENT = \"Microsoft.KeyVault/managedHsm/roleAssignments/write/action\"\n    #: Get role definition.\n    READ_ROLE_DEFINITION = \"Microsoft.KeyVault/managedHsm/roleDefinitions/read/action\"\n    #: Create or update role definition.\n    WRITE_ROLE_DEFINITION = \"Microsoft.KeyVault/managedHsm/roleDefinitions/write/action\"\n    #: Delete role definition.\n    DELETE_ROLE_DEFINITION = \"Microsoft.KeyVault/managedHsm/roleDefinitions/delete/action\"\n    #: Encrypt using an HSM key.\n    ENCRYPT_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/encrypt/action\"\n    #: Decrypt using an HSM key.\n    DECRYPT_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/decrypt/action\"\n    #: Wrap using an HSM key.\n    WRAP_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/wrap/action\"\n    #: Unwrap using an HSM key.\n    UNWRAP_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/unwrap/action\"\n    #: Sign using an HSM key.\n    SIGN_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/sign/action\"\n    #: Verify using an HSM key.\n    VERIFY_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/verify/action\"\n    #: Create an HSM key.\n    CREATE_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/create\"\n    #: Delete an HSM key.\n    DELETE_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/delete\"\n    #: Export an HSM key.\n    EXPORT_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/export/action\"\n    #: Release an HSM key using Secure Key Release.\n    RELEASE_KEY = \"Microsoft.KeyVault/managedHsm/keys/release/action\"\n    #: Import an HSM key.\n    IMPORT_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/import/action\"\n    #: Purge a deleted HSM key.\n    PURGE_DELETED_HSM_KEY = \"Microsoft.KeyVault/managedHsm/keys/deletedKeys/delete\"\n    #: Download an HSM security domain.\n    DOWNLOAD_HSM_SECURITY_DOMAIN = \"Microsoft.KeyVault/managedHsm/securitydomain/download/action\"\n    #: Check status of HSM security domain download.\n    DOWNLOAD_HSM_SECURITY_DOMAIN_STATUS = \"Microsoft.KeyVault/managedHsm/securitydomain/download/read\"\n    #: Upload an HSM security domain.\n    UPLOAD_HSM_SECURITY_DOMAIN = \"Microsoft.KeyVault/managedHsm/securitydomain/upload/action\"\n    #: Check the status of the HSM security domain exchange file.\n    READ_HSM_SECURITY_DOMAIN_STATUS = \"Microsoft.KeyVault/managedHsm/securitydomain/upload/read\"\n    #: Download an HSM security domain transfer key.\n    READ_HSM_SECURITY_DOMAIN_TRANSFER_KEY = \"Microsoft.KeyVault/managedHsm/securitydomain/transferkey/read\"\n    #: Start an HSM backup.\n    START_HSM_BACKUP = \"Microsoft.KeyVault/managedHsm/backup/start/action\"\n    #: Start an HSM restore.\n    START_HSM_RESTORE = \"Microsoft.KeyVault/managedHsm/restore/start/action\"\n    #: Read an HSM backup status.\n    READ_HSM_BACKUP_STATUS = \"Microsoft.KeyVault/managedHsm/backup/status/action\"\n    #: Read an HSM restore status.\n    READ_HSM_RESTORE_STATUS = \"Microsoft.KeyVault/managedHsm/restore/status/action\"\n    #: Generate random numbers.\n    RANDOM_NUMBERS_GENERATE = \"Microsoft.KeyVault/managedHsm/rng/action\"\n\n\nclass KeyVaultSettingType(str, Enum, metaclass=CaseInsensitiveEnumMeta):\n    \"\"\"The type specifier of the setting value.\"\"\"\n\n    BOOLEAN = \"boolean\"\n",
+      "contentHash": "c6383480632206875e5fac067825f402743f20ef40ac0411603b4408b6aa4428",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_enums.py",
+      "startLine": 1,
+      "endLine": 93,
+      "kind": "unknown",
+      "id": "a1c401177427b32218cb8497034810ed64233aeb9296349ccf82a516df5c14fa"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/pyproject.toml",
+      "text": "[tool.azure-sdk-build]\npyright = false\n\n[tool.azure-sdk-conda]\nin_bundle = true\nbundle_name = \"azure-keyvault\"\n",
+      "contentHash": "9371d3d7558912ac033c279caae20f7bdf4182f26d5f3d43d73eb574c6351f43",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/pyproject.toml"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/tsp-location.yaml",
+      "text": "directory: specification/keyvault/data-plane/Administration\ncommit: 0aea5f5666b9d631d37074a2f9c9bd8ba0dd1eff\nrepo: Azure/azure-rest-api-specs\n",
+      "contentHash": "863bfe1cfd7fca00c206b163605f8d2fe0dc273d30f2b6a8437dff2b87fb0832",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/keyvault/azure-keyvault-administration/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_access_control_client.py",
+      "startLine": 1,
+      "endLine": 251,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "5db08dc92d088d8e6536cd54c51fd642f00d2fb13711caf0a80433070ede859f"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_backup_client.py",
+      "startLine": 1,
+      "endLine": 428,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "ba76aba61bd2401b3a3d808748dc78aa1af2e122561bbc00fef1a99a799ebc4d"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_ekm_client.py",
+      "startLine": 1,
+      "endLine": 114,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "57c8a258e25e939edd06be522d8eb62655dc0f87f3bb163810782733faaed537"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_enums.py",
+      "startLine": 1,
+      "endLine": 93,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "c6383480632206875e5fac067825f402743f20ef40ac0411603b4408b6aa4428"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/__init__.py",
+      "startLine": 1,
+      "endLine": 90,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "c0991dccc8744bcfea41683d8eb0da1da19e52cbf438956bed2af839c663a00f"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 298,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "67648d0971459a9711e9395c7de63d3eeb87e1bfa5dd3541664724772243e647"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_client_base.py",
+      "startLine": 1,
+      "endLine": 109,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "edd757572e7d1907f45b891bbf288160e71e5e041ebc228abe0550ed33ef7e8c"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/async_polling.py",
+      "startLine": 1,
+      "endLine": 12,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "6cdef206da87998f54ee5f8520bb73cf37ce0a7274415e4d77a33ef449ea790b"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/challenge_auth_policy.py",
+      "startLine": 1,
+      "endLine": 394,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "0749e2e1566942b26d8ea7217a16951962610bf890e90218db0620dc193833fc"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/client_base.py",
+      "startLine": 1,
+      "endLine": 157,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "06646944688d58b15c1c88c5407c8273796ce71465cbbe7fda4fe32e33fb7918"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/http_challenge.py",
+      "startLine": 1,
+      "endLine": 186,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "dede11c6c78d00b79fe20db7b9ef5c3c75e0b99a8238d7ae237c48bc4b9fced7"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/http_challenge_cache.py",
+      "startLine": 1,
+      "endLine": 111,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d461921c35a750611a41d55f9028548eed86528dafbda2faa22a5ce706b28c78"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_internal/polling.py",
+      "startLine": 1,
+      "endLine": 46,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d7de862a2e1d64e6d8f787d2886e1052e4ebde49af18e73c816d52edb899b752"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_models.py",
+      "startLine": 1,
+      "endLine": 365,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "f838fcb9e2588e0664ba4be0757e32ca36b196b827cca5bf4004c68dd946af2a"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/_settings_client.py",
+      "startLine": 1,
+      "endLine": 84,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "60cf38a7f6855d1528986e36987a7467de38abd45dce1f66214c90a8e715c39c"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_access_control_client.py",
+      "startLine": 1,
+      "endLine": 252,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "ede0b52bfc746e9f4aa9636f82130448ffdae7244b2874bd6e1c996f25d06e08"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_backup_client.py",
+      "startLine": 1,
+      "endLine": 372,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "6c6b82cc2bb7a3fd166ac0d78fd0dcb1f4c974351b81bd3c606c17d01037dc8b"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_ekm_client.py",
+      "startLine": 1,
+      "endLine": 114,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "83c9c4d28b47f2d053f02431501a3c888705e939c243921046cfbc8bde621570"
+    },
+    {
+      "path": "sdk/keyvault/azure-keyvault-administration/azure/keyvault/administration/aio/_settings_client.py",
+      "startLine": 1,
+      "endLine": 87,
+      "provenance": "Python code wrapping generated folder",
+      "contentHash": "d32f34a06f58289c655d1f33c81f328cbd16ef73f5a40c3a15b7c5bbb0c301c6"
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "id": "68b396ba-a4b7-4f10-841a-26f1af42cfcc",
+  "observedAt": "2026-10-22T20:42:55.510Z",
+  "identity": "javascript:@azure/storage-queue:module-v1",
+  "target": {
+    "language": "javascript",
+    "package": "@azure/storage-queue",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-js",
+    "root": "sdk/storage/storage-queue"
+  },
+  "commit": "7811ad0068e89050a6c33d9aeb593b52f0770f1f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "3ef303b73e01b36fe187a4167f02b087e9005b0d"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 118,
+    "eligibleFiles": 51,
+    "capturedFiles": 7,
+    "skipped": [
+      {
+        "path": "sdk/storage/storage-queue/src/log.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/models.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/Pipeline.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/QueueClient.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/QueueSASPermissions.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/QueueSASSignatureValues.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/QueueServiceClient.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/SasIPRange.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/SASQueryParameters.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/StorageClient.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/utils/constants.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/utils/tracing.ts",
+        "reason": "Review budget; not sent for review"
+      },
+      {
+        "path": "sdk/storage/storage-queue/src/utils/utils.common.ts",
+        "reason": "Review budget; not sent for review"
+      }
+    ],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASPermissions.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * ONLY AVAILABLE IN NODE.JS RUNTIME.\n *\n * This is a helper class to construct a string representing the permissions granted by an AccountSAS. Setting a value\n * to true means that any SAS which uses these permissions will grant permissions for that operation. Once all the\n * values are set, this should be serialized with toString and set as the permissions field on an\n * {@link AccountSASSignatureValues} object. It is possible to construct the permissions string without this class, but\n * the order of the permissions is particular and this class guarantees correctness.\n */\nexport class AccountSASPermissions {\n  /**\n   * Parse initializes the AccountSASPermissions fields from a string.\n   *\n   * @param permissions -\n   */\n  public static parse(permissions: string): AccountSASPermissions {\n    const accountSASPermissions = new AccountSASPermissions();\n\n    for (const c of permissions) {\n      switch (c) {\n        case \"r\":\n          accountSASPermissions.read = true;\n          break;\n        case \"w\":\n          accountSASPermissions.write = true;\n          break;\n        case \"d\":\n          accountSASPermissions.delete = true;\n          break;\n        case \"l\":\n          accountSASPermissions.list = true;\n          break;\n        case \"a\":\n          accountSASPermissions.add = true;\n          break;\n        case \"c\":\n          accountSASPermissions.create = true;\n          break;\n        case \"u\":\n          accountSASPermissions.update = true;\n          break;\n        case \"p\":\n          accountSASPermissions.process = true;\n          break;\n        default:\n          throw new RangeError(`Invalid permission character: ${c}`);\n      }\n    }\n\n    return accountSASPermissions;\n  }\n\n  /**\n   * Permission to read resources granted.\n   */\n  public read: boolean = false;\n\n  /**\n   * Permission to write resources granted.\n   */\n  public write: boolean = false;\n\n  /**\n   * Permission to delete queues and messages granted.\n   */\n  public delete: boolean = false;\n\n  /**\n   * Permission to list queues granted.\n   */\n  public list: boolean = false;\n\n  /**\n   * Permission to add messages, table entities, and append to blobs granted.\n   */\n  public add: boolean = false;\n\n  /**\n   * Permission to create queues, blobs and files granted.\n   */\n  public create: boolean = false;\n\n  /**\n   * Permissions to update messages and table entities granted.\n   */\n  public update: boolean = false;\n\n  /**\n   * Permission to get and delete messages granted.\n   */\n  public process: boolean = false;\n\n  /**\n   * Produces the SAS permissions string for an Azure Storage account.\n   * Call this method to set AccountSASSignatureValues Permissions field.\n   *\n   * Using this method will guarantee the resource types are in\n   * an order accepted by the service.\n   *\n   * @see https://learn.microsoft.com/rest/api/storageservices/constructing-an-account-sas\n   *\n   */\n  public toString(): string {\n    // The order of the characters should be as specified here to ensure correctness:\n    // https://learn.microsoft.com/rest/api/storageservices/constructing-an-account-sas\n    // Use a string array instead of string concatenating += operator for performance\n    const permissions: string[] = [];\n    if (this.read) {\n      permissions.push(\"r\");\n    }\n    if (this.write) {\n      permissions.push(\"w\");\n    }\n    if (this.delete) {\n      permissions.push(\"d\");\n    }\n    if (this.list) {\n      permissions.push(\"l\");\n    }\n    if (this.add) {\n      permissions.push(\"a\");\n    }\n    if (this.create) {\n      permissions.push(\"c\");\n    }\n    if (this.update) {\n      permissions.push(\"u\");\n    }\n    if (this.process) {\n      permissions.push(\"p\");\n    }\n    return permissions.join(\"\");\n  }\n}\n",
+      "contentHash": "92b493203a42d4bccdef90aaf078f4d44e91e1351dbae56fc47ac2e9caa56c78",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/AccountSASPermissions.ts",
+      "startLine": 1,
+      "endLine": 137,
+      "kind": "unknown",
+      "id": "048a7ab96d51d584fe4dc69ff225323d5b96b32d08af60b8bbc66d20721c90f9"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASResourceTypes.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * ONLY AVAILABLE IN NODE.JS RUNTIME.\n *\n * This is a helper class to construct a string representing the resources accessible by an AccountSAS. Setting a value\n * to true means that any SAS which uses these permissions will grant access to that resource type. Once all the\n * values are set, this should be serialized with toString and set as the resources field on an\n * {@link AccountSASSignatureValues} object. It is possible to construct the resources string without this class, but\n * the order of the resources is particular and this class guarantees correctness.\n */\nexport class AccountSASResourceTypes {\n  /**\n   * Creates an {@link AccountSASResourceTypes} from the specified resource types string. This method will throw an\n   * Error if it encounters a character that does not correspond to a valid resource type.\n   *\n   * @param resourceTypes -\n   */\n  public static parse(resourceTypes: string): AccountSASResourceTypes {\n    const accountSASResourceTypes = new AccountSASResourceTypes();\n\n    for (const c of resourceTypes) {\n      switch (c) {\n        case \"s\":\n          accountSASResourceTypes.service = true;\n          break;\n        case \"c\":\n          accountSASResourceTypes.container = true;\n          break;\n        case \"o\":\n          accountSASResourceTypes.object = true;\n          break;\n        default:\n          throw new RangeError(`Invalid resource type: ${c}`);\n      }\n    }\n\n    return accountSASResourceTypes;\n  }\n\n  /**\n   * Permission to access service level APIs granted.\n   */\n  public service: boolean = false;\n\n  /**\n   * Permission to access container level APIs (Blob Containers, Tables, Queues, File Shares) granted.\n   */\n  public container: boolean = false;\n\n  /**\n   * Permission to access object level APIs (Blobs, Table Entities, Queue Messages, Files) granted.\n   */\n  public object: boolean = false;\n\n  /**\n   * Converts the given resource types to a string.\n   *\n   * @see https://learn.microsoft.com/rest/api/storageservices/constructing-an-account-sas\n   *\n   */\n  public toString(): string {\n    const resourceTypes: string[] = [];\n    if (this.service) {\n      resourceTypes.push(\"s\");\n    }\n    if (this.container) {\n      resourceTypes.push(\"c\");\n    }\n    if (this.object) {\n      resourceTypes.push(\"o\");\n    }\n    return resourceTypes.join(\"\");\n  }\n}\n",
+      "contentHash": "8ed15f16845e2832f823428db69e71fd3d50899a8c623efaabd7440ae8a0c97c",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/AccountSASResourceTypes.ts",
+      "startLine": 1,
+      "endLine": 76,
+      "kind": "unknown",
+      "id": "db4e5d9e902499d24e3cf5cc0210abfd59b331d7a68a9a8eb28a5513f27caa54"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASServices.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n/**\n * ONLY AVAILABLE IN NODE.JS RUNTIME.\n *\n * This is a helper class to construct a string representing the services accessible by an AccountSAS. Setting a value\n * to true means that any SAS which uses these permissions will grant access to that service. Once all the\n * values are set, this should be serialized with toString and set as the services field on an\n * {@link AccountSASSignatureValues} object. It is possible to construct the services string without this class, but\n * the order of the services is particular and this class guarantees correctness.\n */\nexport class AccountSASServices {\n  /**\n   * Creates an {@link AccountSASServices} from the specified services string. This method will throw an\n   * Error if it encounters a character that does not correspond to a valid service.\n   *\n   * @param services -\n   */\n  public static parse(services: string): AccountSASServices {\n    const accountSASServices = new AccountSASServices();\n\n    for (const c of services) {\n      switch (c) {\n        case \"b\":\n          accountSASServices.blob = true;\n          break;\n        case \"f\":\n          accountSASServices.file = true;\n          break;\n        case \"q\":\n          accountSASServices.queue = true;\n          break;\n        case \"t\":\n          accountSASServices.table = true;\n          break;\n        default:\n          throw new RangeError(`Invalid service character: ${c}`);\n      }\n    }\n\n    return accountSASServices;\n  }\n\n  /**\n   * Permission to access blob resources granted.\n   */\n  public blob: boolean = false;\n\n  /**\n   * Permission to access file resources granted.\n   */\n  public file: boolean = false;\n\n  /**\n   * Permission to access queue resources granted.\n   */\n  public queue: boolean = false;\n\n  /**\n   * Permission to access table resources granted.\n   */\n  public table: boolean = false;\n\n  /**\n   * Converts the given services to a string.\n   *\n   */\n  public toString(): string {\n    const services: string[] = [];\n    if (this.blob) {\n      services.push(\"b\");\n    }\n    if (this.table) {\n      services.push(\"t\");\n    }\n    if (this.queue) {\n      services.push(\"q\");\n    }\n    if (this.file) {\n      services.push(\"f\");\n    }\n    return services.join(\"\");\n  }\n}\n",
+      "contentHash": "dcd0e95ef69502dbd16a9e949c1036fad6faed264381a56c44e5f746ce54c08a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/AccountSASServices.ts",
+      "startLine": 1,
+      "endLine": 85,
+      "kind": "unknown",
+      "id": "c49fcb5ceae4ad227a92478419e49c43af81cf38bc1a72b0ce56fc72215d6ab0"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASSignatureValues.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { AccountSASPermissions } from \"./AccountSASPermissions.js\";\nimport { AccountSASResourceTypes } from \"./AccountSASResourceTypes.js\";\nimport { AccountSASServices } from \"./AccountSASServices.js\";\nimport type { StorageSharedKeyCredential } from \"@azure/storage-common\";\nimport type { SasIPRange } from \"./SasIPRange.js\";\nimport { ipRangeToString } from \"./SasIPRange.js\";\nimport type { SASProtocol } from \"./SASQueryParameters.js\";\nimport { SASQueryParameters } from \"./SASQueryParameters.js\";\nimport { SERVICE_VERSION } from \"./utils/constants.js\";\nimport { truncatedISO8061Date } from \"./utils/utils.common.js\";\n\n/**\n * ONLY AVAILABLE IN NODE.JS RUNTIME.\n *\n * AccountSASSignatureValues is used to generate a Shared Access Signature (SAS) for an Azure Storage account. Once\n * all the values here are set appropriately, call generateSASQueryParameters() to obtain a representation of the SAS\n * which can actually be applied to queue urls. Note: that both this class and {@link SASQueryParameters} exist because\n * the former is mutable and a logical representation while the latter is immutable and used to generate actual REST\n * requests.\n *\n * @see https://learn.microsoft.com/azure/storage/common/storage-dotnet-shared-access-signature-part-1\n * for more conceptual information on SAS\n *\n * @see https://learn.microsoft.com/rest/api/storageservices/constructing-an-account-sas\n * for descriptions of the parameters, including which are required\n */\nexport interface AccountSASSignatureValues {\n  /**\n   * If not provided, this defaults to the service version targeted by this version of the library.\n   */\n  version?: string;\n\n  /**\n   * Optional. SAS protocols allowed.\n   */\n  protocol?: SASProtocol;\n\n  /**\n   * Optional. When the SAS will take effect.\n   */\n  startsOn?: Date;\n\n  /**\n   * The time after which the SAS will no longer work.\n   */\n  expiresOn: Date;\n\n  /**\n   * Specifies which operations the SAS user may perform. Please refer to {@link AccountSASPermissions} for help\n   * constructing the permissions string.\n   */\n  permissions: AccountSASPermissions;\n\n  /**\n   * Optional. IP range allowed.\n   */\n  ipRange?: SasIPRange;\n\n  /**\n   * The values that indicate the services accessible with this SAS. Please refer to {@link AccountSASServices} to\n   * construct this value.\n   */\n  services: string;\n\n  /**\n   * The values that indicate the resource types accessible with this SAS. Please refer\n   * to {@link AccountSASResourceTypes} to construct this value.\n   */\n  resourceTypes: string;\n}\n\n/**\n * ONLY AVAILABLE IN NODE.JS RUNTIME.\n *\n * Generates a {@link SASQueryParameters} object which contains all SAS query parameters needed to make an actual\n * REST request.\n *\n * @see https://learn.microsoft.com/rest/api/storageservices/constructing-an-account-sas\n *\n * @param accountSASSignatureValues - SAS Signature values of the account\n * @param sharedKeyCredential - Shared key credential.\n */\nexport function generateAccountSASQueryParameters(\n  accountSASSignatureValues: AccountSASSignatureValues,\n  sharedKeyCredential: StorageSharedKeyCredential,\n): SASQueryParameters {\n  return generateAccountSASQueryParametersInternal(accountSASSignatureValues, sharedKeyCredential)\n    .sasQueryParameters;\n}\n\nexport function generateAccountSASQueryParametersInternal(\n  accountSASSignatureValues: AccountSASSignatureValues,\n  sharedKeyCredential: StorageSharedKeyCredential,\n): { sasQueryParameters: SASQueryParameters; stringToSign: string } {\n  const version = accountSASSignatureValues.version\n    ? accountSASSignatureValues.version\n    : SERVICE_VERSION;\n\n  const parsedPermissions = AccountSASPermissions.parse(\n    accountSASSignatureValues.permissions.toString(),\n  ).toString();\n  const parsedServices = AccountSASServices.parse(accountSASSignatureValues.services).toString();\n  const parsedResourceTypes = AccountSASResourceTypes.parse(\n    accountSASSignatureValues.resourceTypes,\n  ).toString();\n\n  let stringToSign: string;\n\n  if (version >= \"2020-12-06\") {\n    stringToSign = [\n      sharedKeyCredential.accountName,\n      parsedPermissions,\n      parsedServices,\n      parsedResourceTypes,\n      accountSASSignatureValues.startsOn\n        ? truncatedISO8061Date(accountSASSignatureValues.startsOn, false)\n        : \"\",\n      truncatedISO8061Date(accountSASSignatureValues.expiresOn, false),\n      accountSASSignatureValues.ipRange ? ipRangeToString(accountSASSignatureValues.ipRange) : \"\",\n      accountSASSignatureValues.protocol ? accountSASSignatureValues.protocol : \"\",\n      version,\n      \"\", // Reserved for encryption scope\n      \"\", // Account SAS requires an additional newline character\n    ].join(\"\\n\");\n  } else {\n    stringToSign = [\n      sharedKeyCredential.accountName,\n      parsedPermissions,\n      parsedServices,\n      parsedResourceTypes,\n      accountSASSignatureValues.startsOn\n        ? truncatedISO8061Date(accountSASSignatureValues.startsOn, false)\n        : \"\",\n      truncatedISO8061Date(accountSASSignatureValues.expiresOn, false),\n      accountSASSignatureValues.ipRange ? ipRangeToString(accountSASSignatureValues.ipRange) : \"\",\n      accountSASSignatureValues.protocol ? accountSASSignatureValues.protocol : \"\",\n      version,\n      \"\", // Account SAS requires an additional newline character\n    ].join(\"\\n\");\n  }\n\n  const signature: string = sharedKeyCredential.computeHMACSHA256(stringToSign);\n\n  return {\n    sasQueryParameters: new SASQueryParameters(\n      version,\n      signature,\n      parsedPermissions,\n      parsedServices,\n      parsedResourceTypes,\n      accountSASSignatureValues.protocol,\n      accountSASSignatureValues.startsOn,\n      accountSASSignatureValues.expiresOn,\n      accountSASSignatureValues.ipRange,\n    ),\n    stringToSign: stringToSign,\n  };\n}\n",
+      "contentHash": "f9084599bf62c646b5318763ab32afe2027e48e9ed919852322e9066e7a3c5aa",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/AccountSASSignatureValues.ts",
+      "startLine": 1,
+      "endLine": 161,
+      "kind": "unknown",
+      "id": "affbeede04655cf1d8eb9a15d563317e5d952339daacd61715921a445cb4619e"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/generated-classic-models.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\n// This file preserves model and header type definitions from the previous\n// AutoRest-generated code. These types are referenced by handwritten SDK code\n// and must be kept in sync with the service API.\n\nimport { ExtendedServiceClientOptions } from \"@azure/core-http-compat\";\n\n/** Storage Service Properties. */\nexport interface QueueServiceProperties {\n  /** Azure Analytics Logging settings */\n  queueAnalyticsLogging?: Logging;\n  /** A summary of request statistics grouped by API in hourly aggregates for queues */\n  hourMetrics?: Metrics;\n  /** a summary of request statistics grouped by API in minute aggregates for queues */\n  minuteMetrics?: Metrics;\n  /** The set of CORS rules. */\n  cors?: CorsRule[];\n}\n\n/** Azure Analytics Logging settings. */\nexport interface Logging {\n  /** The version of Storage Analytics to configure. */\n  version: string;\n  /** Indicates whether all delete requests should be logged. */\n  deleteProperty: boolean;\n  /** Indicates whether all read requests should be logged. */\n  read: boolean;\n  /** Indicates whether all write requests should be logged. */\n  write: boolean;\n  /** the retention policy */\n  retentionPolicy: RetentionPolicy;\n}\n\n/** the retention policy */\nexport interface RetentionPolicy {\n  /** Indicates whether a retention policy is enabled for the storage service */\n  enabled: boolean;\n  /** Indicates the number of days that metrics or logging or soft-deleted data should be retained. All data older than this value will be deleted */\n  days?: number;\n}\n\n/** An interface representing Metrics. */\nexport interface Metrics {\n  /** The version of Storage Analytics to configure. */\n  version?: string;\n  /** Indicates whether metrics are enabled for the Queue service. */\n  enabled: boolean;\n  /** Indicates whether metrics should generate summary statistics for called API operations. */\n  includeAPIs?: boolean;\n  /** the retention policy */\n  retentionPolicy?: RetentionPolicy;\n}\n\n/** CORS is an HTTP feature that enables a web application running under one domain to access resources in another domain. Web browsers implement a security restriction known as same-origin policy that prevents a web page from calling APIs in a different domain; CORS provides a secure way to allow one domain (the origin domain) to call APIs in another domain */\nexport interface CorsRule {\n  /** The origin domains that are permitted to make a request against the storage service via CORS. The origin domain is the domain from which the request originates. Note that the origin must be an exact case-sensitive match with the origin that the user age sends to the service. You can also use the wildcard character '*' to allow all origin domains to make requests via CORS. */\n  allowedOrigins: string;\n  /** The methods (HTTP request verbs) that the origin domain may use for a CORS request. (comma separated) */\n  allowedMethods: string;\n  /** the request headers that the origin domain may specify on the CORS request. */\n  allowedHeaders: string;\n  /** The response headers that may be sent in the response to the CORS request and exposed by the browser to the request issuer */\n  exposedHeaders: string;\n  /** The maximum amount time that a browser should cache the preflight OPTIONS request. */\n  maxAgeInSeconds: number;\n}\n\nexport interface StorageError {\n  message?: string;\n  code?: string;\n  authenticationErrorDetail?: string;\n}\n\n/** Stats for the storage service. */\nexport interface QueueServiceStatistics {\n  /** Geo-Replication information for the Secondary Storage Service */\n  geoReplication?: GeoReplication;\n}\n\n/** Geo-Replication information for the Secondary Storage Service */\nexport interface GeoReplication {\n  /** The status of the secondary location */\n  status: GeoReplicationStatusType;\n  /** A GMT date/time value, to the second. All primary writes preceding this value are guaranteed to be available for read operations at the secondary. Primary writes after this point in time may or may not be available for reads. */\n  lastSyncOn: Date;\n}\n\n/** Key information */\nexport interface KeyInfo {\n  /** The date-time the key is active in ISO 8601 UTC time */\n  start?: string;\n  /** The date-time the key expires in ISO 8601 UTC time */\n  expiry: string;\n  /** The delegated user tenant id in Azure AD */\n  delegatedUserTid?: string;\n}\n\n/** A user delegation key */\nexport interface UserDelegationKey {\n  /** The Azure Active Directory object ID in GUID format. */\n  signedObjectId: string;\n  /** The Azure Active Directory tenant ID in GUID format */\n  signedTenantId: string;\n  /** The date-time the key is active */\n  signedStartsOn: Date;\n  /** The date-time the key expires */\n  signedExpiresOn: Date;\n  /** Abbreviation of the Azure Storage service that accepts the key */\n  signedService: string;\n  /** The service version that created the key */\n  signedVersion: string;\n  /** The delegated user tenant id in Azure AD. Return if DelegatedUserTid is specified. */\n  signedDelegatedUserTenantId?: string;\n  /** The key as a base64 string */\n  value: string;\n}\n\n/** The object returned when calling List Queues on a Queue Service. */\nexport interface ListQueuesSegmentResponse {\n  serviceEndpoint: string;\n  prefix: string;\n  marker?: string;\n  maxPageSize: number;\n  queueItems?: QueueItem[];\n  continuationToken: string;\n}\n\n/** An Azure Storage Queue. */\nexport interface QueueItem {\n  /** The name of the Queue. */\n  name: string;\n  /** Dictionary of <string> */\n  metadata?: { [propertyName: string]: string };\n}\n\n/** signed identifier */\nexport interface SignedIdentifier {\n  /** a unique id */\n  id: string;\n  /** The access policy */\n  accessPolicy: AccessPolicy;\n}\n\n/** An Access policy */\nexport interface AccessPolicy {\n  /** the date-time the policy is active */\n  startsOn?: string;\n  /** the date-time the policy expires */\n  expiresOn?: string;\n  /** the permissions for the acl policy */\n  permissions?: string;\n}\n\n/** The object returned in the QueueMessageList array when calling Get Messages on a Queue. */\nexport interface DequeuedMessageItem {\n  /** The Id of the Message. */\n  messageId: string;\n  /** The time the Message was inserted into the Queue. */\n  insertedOn: Date;\n  /** The time that the Message will expire and be automatically deleted. */\n  expiresOn: Date;\n  /** This value is required to delete the Message. If deletion fails using this popreceipt then the message has been dequeued by another client. */\n  popReceipt: string;\n  /** The time that the message will again become visible in the Queue. */\n  nextVisibleOn: Date;\n  /** The number of times the message has been dequeued. */\n  dequeueCount: number;\n  /** The content of the Message. */\n  messageText: string;\n}\n\n/** A Message object which can be stored in a Queue */\nexport interface QueueMessage {\n  /** The content of the message */\n  messageText: string;\n}\n\n/** The object returned in the QueueMessageList array when calling Put Message on a Queue */\nexport interface EnqueuedMessage {\n  /** The Id of the Message. */\n  messageId: string;\n  /** The time the Message was inserted into the Queue. */\n  insertedOn: Date;\n  /** The time that the Message will expire and be automatically deleted. */\n  expiresOn: Date;\n  /** This value is required to delete the Message. If deletion fails using this popreceipt then the message has been dequeued by another client. */\n  popReceipt: string;\n  /** The time that the message will again become visible in the Queue. */\n  nextVisibleOn: Date;\n}\n\n/** The object returned in the QueueMessageList array when calling Peek Messages on a Queue */\nexport interface PeekedMessageItem {\n  /** The Id of the Message. */\n  messageId: string;\n  /** The time the Message was inserted into the Queue. */\n  insertedOn: Date;\n  /** The time that the Message will expire and be automatically deleted. */\n  expiresOn: Date;\n  /** The number of times the message has been dequeued. */\n  dequeueCount: number;\n  /** The content of the Message. */\n  messageText: string;\n}\n\n/** Defines headers for Service_setProperties operation. */\nexport interface ServiceSetPropertiesHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Service_getProperties operation. */\nexport interface ServiceGetPropertiesHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Service_getStatistics operation. */\nexport interface ServiceGetStatisticsHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Service_getUserDelegationKey operation. */\nexport interface ServiceGetUserDelegationKeyHeaders {\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Blob service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n}\n\n/** Defines headers for Service_listQueuesSegment operation. */\nexport interface ServiceListQueuesSegmentHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_create operation. */\nexport interface QueueCreateHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_delete operation. */\nexport interface QueueDeleteHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_getProperties operation. */\nexport interface QueueGetPropertiesHeaders {\n  metadata?: { [propertyName: string]: string };\n  /** The approximate number of messages in the queue. This number is not lower than the actual number of messages in the queue, but could be higher. */\n  approximateMessagesCount?: number;\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_setMetadata operation. */\nexport interface QueueSetMetadataHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_getAccessPolicy operation. */\nexport interface QueueGetAccessPolicyHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Queue_setAccessPolicy operation. */\nexport interface QueueSetAccessPolicyHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Messages_dequeue operation. */\nexport interface MessagesDequeueHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Messages_clear operation. */\nexport interface MessagesClearHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Messages_enqueue operation. */\nexport interface MessagesEnqueueHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for Messages_peek operation. */\nexport interface MessagesPeekHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for MessageId_update operation. */\nexport interface MessageIdUpdateHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** The pop receipt of the queue message. */\n  popReceipt?: string;\n  /** A UTC date/time value that represents when the message will be visible on the queue. */\n  nextVisibleOn?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines headers for MessageId_delete operation. */\nexport interface MessageIdDeleteHeaders {\n  /** This header uniquely identifies the request that was made and can be used for troubleshooting the request. */\n  requestId?: string;\n  /** Indicates the version of the Queue service used to execute the request. This header is returned for requests made against version 2009-09-19 and above. */\n  version?: string;\n  /** UTC date/time value generated by the service that indicates the time at which the response was initiated */\n  date?: Date;\n  /** If a client request id header is sent in the request, this header will be present in the response with the same value. */\n  clientRequestId?: string;\n  /** Error Code */\n  errorCode?: string;\n}\n\n/** Defines values for GeoReplicationStatusType. */\nexport type GeoReplicationStatusType = \"live\" | \"bootstrap\" | \"unavailable\";\n\n/** Contains response data for the getUserDelegationKey operation. */\nexport type ServiceGetUserDelegationKeyResponse = ServiceGetUserDelegationKeyHeaders &\n  UserDelegationKey;\n\n/** Optional parameters. */\nexport interface StorageClientOptionalParams extends ExtendedServiceClientOptions {\n  /** Specifies the version of the operation to use for this request. */\n  version?: string;\n  /** Overrides client endpoint. */\n  endpoint?: string;\n}\n",
+      "contentHash": "86d26ae8a03927118e1c2693206ec5e137a38c693675db470c5bea622295ae84",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/generated-classic-models.ts",
+      "startLine": 1,
+      "endLine": 460,
+      "kind": "unknown",
+      "id": "803954d37aaed459661c3ea1ef762acfc9b8bd16b97e63931606441e15fb6de2"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/generatedModels.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport type { WithResponse } from \"./utils/utils.common.js\";\nimport type {\n  ListQueuesSegmentResponse,\n  MessageIdDeleteHeaders,\n  MessageIdUpdateHeaders,\n  MessagesClearHeaders,\n  QueueCreateHeaders,\n  QueueDeleteHeaders,\n  QueueGetPropertiesHeaders,\n  QueueServiceProperties,\n  QueueServiceStatistics,\n  QueueSetAccessPolicyHeaders,\n  QueueSetMetadataHeaders,\n  ServiceGetPropertiesHeaders,\n  ServiceGetStatisticsHeaders,\n  ServiceGetUserDelegationKeyHeaders,\n  ServiceListQueuesSegmentHeaders,\n  ServiceSetPropertiesHeaders,\n  UserDelegationKey as UserDelegationKeyModel,\n} from \"./generated-classic-models.js\";\nimport type { UserDelegationKey } from \"@azure/storage-common\";\n\nexport type {\n  AccessPolicy,\n  CorsRule,\n  DequeuedMessageItem,\n  EnqueuedMessage,\n  GeoReplication,\n  GeoReplicationStatusType,\n  ListQueuesSegmentResponse,\n  Logging,\n  MessagesDequeueHeaders,\n  MessagesEnqueueHeaders,\n  MessageIdDeleteHeaders,\n  MessageIdUpdateHeaders,\n  MessagesClearHeaders,\n  MessagesPeekHeaders,\n  Metrics,\n  PeekedMessageItem,\n  QueueCreateHeaders,\n  QueueDeleteHeaders,\n  QueueGetAccessPolicyHeaders,\n  QueueGetPropertiesHeaders,\n  QueueItem,\n  QueueServiceProperties,\n  QueueServiceStatistics,\n  QueueSetAccessPolicyHeaders,\n  QueueSetMetadataHeaders,\n  RetentionPolicy,\n  ServiceGetPropertiesHeaders,\n  ServiceGetStatisticsHeaders,\n  ServiceGetUserDelegationKeyHeaders,\n  ServiceListQueuesSegmentHeaders,\n  ServiceSetPropertiesHeaders,\n  SignedIdentifier as SignedIdentifierModel,\n  UserDelegationKey as UserDelegationKeyModel,\n} from \"./generated-classic-models.js\";\n\n/** Contains response data for the getProperties operation. */\nexport type ServiceGetPropertiesResponse = WithResponse<\n  ServiceGetPropertiesHeaders & QueueServiceProperties,\n  ServiceGetPropertiesHeaders,\n  QueueServiceProperties\n>;\n\n/**\n * Contains response data for the create operation.\n */\nexport declare type QueueCreateResponse = WithResponse<QueueCreateHeaders, QueueCreateHeaders>;\n\n/** Contains response data for the listQueuesSegment operation. */\nexport type ServiceListQueuesSegmentResponse = WithResponse<\n  ServiceListQueuesSegmentHeaders & ListQueuesSegmentResponse,\n  ServiceListQueuesSegmentHeaders,\n  ListQueuesSegmentResponse\n>;\n\n/** Contains response data for the setProperties operation. */\nexport type ServiceSetPropertiesResponse = WithResponse<\n  ServiceSetPropertiesHeaders,\n  ServiceSetPropertiesHeaders\n>;\n\n/** Contains response data for the getStatistics operation. */\nexport type ServiceGetStatisticsResponse = WithResponse<\n  ServiceGetStatisticsHeaders & QueueServiceStatistics,\n  ServiceGetStatisticsHeaders,\n  QueueServiceStatistics\n>;\n\n/** Contains response data for the setMetadata operation. */\nexport type QueueSetMetadataResponse = WithResponse<\n  QueueSetMetadataHeaders,\n  QueueSetMetadataHeaders\n>;\n\n/** Contains response data for the setAccessPolicy operation. */\nexport type QueueSetAccessPolicyResponse = WithResponse<\n  QueueSetAccessPolicyHeaders,\n  QueueSetAccessPolicyHeaders\n>;\n\n/** Contains response data for the getProperties operation. */\nexport type QueueGetPropertiesResponse = WithResponse<\n  QueueGetPropertiesHeaders,\n  QueueGetPropertiesHeaders\n>;\n\n/** Contains response data for the delete operation. */\nexport type QueueDeleteResponse = WithResponse<QueueDeleteHeaders, QueueDeleteHeaders>;\n\n/** Contains response data for the clear operation. */\nexport type MessagesClearResponse = WithResponse<MessagesClearHeaders, MessagesClearHeaders>;\n\n/** Contains response data for the update operation. */\nexport type MessageIdUpdateResponse = WithResponse<MessageIdUpdateHeaders, MessageIdUpdateHeaders>;\n\n/** Contains response data for the delete operation. */\nexport type MessageIdDeleteResponse = WithResponse<MessageIdDeleteHeaders, MessageIdDeleteHeaders>;\n\n/**\n * Contains response data for the {@link getUserDelegationKey} operation.\n */\nexport declare type ServiceGetUserDelegationKeyResponse = WithResponse<\n  UserDelegationKey & ServiceGetUserDelegationKeyHeaders,\n  ServiceGetUserDelegationKeyHeaders,\n  UserDelegationKeyModel\n>;\n",
+      "contentHash": "8ed954d9c0d659ebc8cefbb90bc5cb49d2b2d81b28980acfe64f0cd4d6d7c843",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/generatedModels.ts",
+      "startLine": 1,
+      "endLine": 131,
+      "kind": "unknown",
+      "id": "fe7adaa55567d4199e5da2f91f19c163932c9cb8aa711d9ca0c1c9dc23da133a"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/index.ts",
+      "text": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n\nimport { RestError, isRestError } from \"@azure/core-rest-pipeline\";\n\nexport * from \"./AccountSASPermissions.js\";\nexport * from \"./AccountSASResourceTypes.js\";\nexport * from \"./AccountSASServices.js\";\nexport {\n  type AccountSASSignatureValues,\n  generateAccountSASQueryParameters,\n} from \"./AccountSASSignatureValues.js\";\nexport type { SasIPRange } from \"./SasIPRange.js\";\n\nexport {\n  AnonymousCredential,\n  Credential,\n  StorageSharedKeyCredential,\n  BaseRequestPolicy,\n  AnonymousCredentialPolicy,\n  CredentialPolicy,\n  type StorageRetryOptions,\n  StorageRetryPolicyType,\n  StorageRetryPolicy,\n  StorageRetryPolicyFactory,\n  StorageSharedKeyCredentialPolicy,\n  StorageBrowserPolicyFactory,\n  type UserDelegationKey,\n  type CredentialPolicyCreator,\n} from \"@azure/storage-common\";\n\nexport {\n  Pipeline,\n  type PipelineLike,\n  type PipelineOptions,\n  isPipelineLike,\n  newPipeline,\n  type StoragePipelineOptions,\n  type RequestPolicyFactory,\n  type RequestPolicy,\n  type RequestPolicyOptions,\n  type WebResource,\n  type HttpOperationResponse,\n  type HttpHeaders,\n  type HttpRequestBody,\n  type IHttpClient,\n  StorageOAuthScopes,\n  type ServiceClientOptions,\n} from \"./Pipeline.js\";\n\nexport { type Metadata, StorageQueueAudience, getQueueServiceAccountAudience } from \"./models.js\";\nexport * from \"./QueueClient.js\";\nexport * from \"./QueueSASPermissions.js\";\nexport {\n  type QueueSASSignatureValues,\n  generateQueueSASQueryParameters,\n} from \"./QueueSASSignatureValues.js\";\nexport * from \"./QueueServiceClient.js\";\nexport * from \"./SASQueryParameters.js\";\nexport type { CommonOptions, ListQueuesIncludeType } from \"./StorageClient.js\";\nexport type * from \"./generatedModels.js\";\nexport type {\n  WithResponse,\n  ResponseLike,\n  ResponseWithBody,\n  ResponseWithHeaders,\n  HttpResponse,\n} from \"./utils/utils.common.js\";\nexport { RestError, isRestError };\nexport { logger } from \"./log.js\";\n",
+      "contentHash": "3535fc7bdb3f784d75da04f4d655f70208cf88d554a04b1724672a43335cab6f",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/src/index.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "kind": "unknown",
+      "id": "c14724587df3ffa57bfc1949d1da2b4f79b51f68149e3d946706ae5822e048c9"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/storage/storage-queue/package.json",
+      "text": "{\n  \"name\": \"@azure/storage-queue\",\n  \"sdk-type\": \"client\",\n  \"version\": \"12.33.0-beta.1\",\n  \"description\": \"Microsoft Azure Storage SDK for JavaScript - Queue\",\n  \"main\": \"./dist/commonjs/index.js\",\n  \"module\": \"./dist/esm/index.js\",\n  \"browser\": \"./dist/browser/index.js\",\n  \"react-native\": \"./dist/react-native/index.js\",\n  \"types\": \"./dist/commonjs/index.d.ts\",\n  \"engines\": {\n    \"node\": \">=22.0.0\"\n  },\n  \"scripts\": {\n    \"build\": \"npm run clean && dev-tool run build-package && dev-tool run extract-api\",\n    \"build:samples\": \"tsc -p tsconfig.samples.json\",\n    \"check-format\": \"prettier --list-different --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"clean\": \"rimraf --glob dist dist-* types temp statistics.html coverage coverage-browser .nyc_output *.tgz *.log test*.xml TEST*.xml\",\n    \"clean:samples\": \"rimraf samples/v12/javascript/node_modules samples/v12/typescript/node_modules samples/v12/typescript/dist samples/v12/typescript/package-lock.json samples/v12/javascript/package-lock.json\",\n    \"emulator-tests\": \"cross-env STORAGE_CONNECTION_STRING=UseDevelopmentStorage=true && npm run test:node\",\n    \"execute:samples\": \"dev-tool samples run samples-dev\",\n    \"extract-api\": \"dev-tool run build-package && dev-tool run extract-api\",\n    \"format\": \"prettier --write --config ../../../.prettierrc.json --ignore-path ../../../.prettierignore \\\"src/**/*.ts\\\" \\\"test/**/*.ts\\\" \\\"samples-dev/**/*.ts\\\" \\\"*.{js,json}\\\"\",\n    \"generate:client\": \"tsp-client update && npm run format\",\n    \"lint\": \"eslint package.json src test\",\n    \"lint:fix\": \"eslint package.json src test --fix\",\n    \"pack\": \"pnpm pack 2>&1\",\n    \"test\": \"npm run test:node && npm run test:browser\",\n    \"test:browser\": \"npm run clean && dev-tool run build-package && dev-tool run build-test && dev-tool run test:vitest --browser\",\n    \"test:node\": \"dev-tool run build-test --no-browser-test && dev-tool run test:vitest\",\n    \"update-snippets\": \"dev-tool run update-snippets\"\n  },\n  \"files\": [\n    \"dist/\",\n    \"README.md\",\n    \"LICENSE\"\n  ],\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/Azure/azure-sdk-for-js\",\n    \"directory\": \"sdk/storage/storage-queue\"\n  },\n  \"keywords\": [\n    \"azure\",\n    \"storage\",\n    \"queue\",\n    \"cloud\",\n    \"node.js\",\n    \"typescript\",\n    \"javascript\",\n    \"browser\"\n  ],\n  \"author\": \"Microsoft Corporation\",\n  \"license\": \"MIT\",\n  \"bugs\": {\n    \"url\": \"https://github.com/Azure/azure-sdk-for-js/issues\"\n  },\n  \"homepage\": \"https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/storage/storage-queue/README.md\",\n  \"sideEffects\": false,\n  \"//metadata\": {\n    \"constantPaths\": [\n      {\n        \"path\": \"src/utils/constants.ts\",\n        \"prefix\": \"SDK_VERSION\"\n      },\n      {\n        \"path\": \"src/generated/api/queuesContext.ts\",\n        \"prefix\": \"userAgentInfo\"\n      }\n    ]\n  },\n  \"//sampleConfiguration\": {\n    \"skip\": [\n      \"anonymousAuth.js\",\n      \"azureAdAuth.js\",\n      \"queueClient.js\",\n      \"customPipeline.js\",\n      \"listQueues.js\",\n      \"sharedKeyAuth.js\"\n    ],\n    \"productName\": \"Azure Storage Queue\",\n    \"productSlugs\": [\n      \"azure\",\n      \"azure-storage\"\n    ],\n    \"requiredResources\": {\n      \"Azure Storage Account\": \"https://learn.microsoft.com/azure/storage/common/storage-account-overview\"\n    }\n  },\n  \"dependencies\": {\n    \"@azure-rest/core-client\": \"^2.7.0\",\n    \"@azure/abort-controller\": \"^2.1.2\",\n    \"@azure/core-auth\": \"^1.10.1\",\n    \"@azure/core-client\": \"^1.10.1\",\n    \"@azure/core-http-compat\": \"^2.4.0\",\n    \"@azure/core-paging\": \"^1.6.2\",\n    \"@azure/core-rest-pipeline\": \"^1.24.0\",\n    \"@azure/core-tracing\": \"^1.3.1\",\n    \"@azure/core-util\": \"^1.13.1\",\n    \"@azure/logger\": \"^1.3.0\",\n    \"@azure/storage-common\": \"^12.5.1\",\n    \"fast-xml-parser\": \"^5.5.9\",\n    \"tslib\": \"^2.8.1\"\n  },\n  \"devDependencies\": {\n    \"@azure-tools/test-credential\": \"workspace:^\",\n    \"@azure-tools/test-recorder\": \"workspace:^\",\n    \"@azure-tools/test-utils-vitest\": \"workspace:^\",\n    \"@azure/dev-tool\": \"workspace:^\",\n    \"@azure/eslint-plugin-azure-sdk\": \"workspace:^\",\n    \"@azure/identity\": \"catalog:internal\",\n    \"@types/node\": \"catalog:\",\n    \"@vitest/browser-playwright\": \"catalog:testing\",\n    \"@vitest/coverage-istanbul\": \"catalog:testing\",\n    \"cross-env\": \"catalog:\",\n    \"dotenv\": \"catalog:testing\",\n    \"eslint\": \"catalog:\",\n    \"playwright\": \"catalog:testing\",\n    \"prettier\": \"catalog:\",\n    \"react-native\": \"catalog:testing\",\n    \"rimraf\": \"catalog:\",\n    \"typescript\": \"catalog:\",\n    \"vitest\": \"catalog:testing\"\n  },\n  \"type\": \"module\",\n  \"exports\": {\n    \"./package.json\": \"./package.json\",\n    \".\": {\n      \"browser\": {\n        \"types\": \"./dist/browser/index.d.ts\",\n        \"default\": \"./dist/browser/index.js\"\n      },\n      \"react-native\": {\n        \"types\": \"./dist/react-native/index.d.ts\",\n        \"default\": \"./dist/react-native/index.js\"\n      },\n      \"import\": {\n        \"types\": \"./dist/esm/index.d.ts\",\n        \"default\": \"./dist/esm/index.js\"\n      },\n      \"require\": {\n        \"types\": \"./dist/commonjs/index.d.ts\",\n        \"default\": \"./dist/commonjs/index.js\"\n      }\n    }\n  },\n  \"imports\": {\n    \"#platform/*\": {\n      \"default\": \"./src/*.ts\"\n    }\n  }\n}\n",
+      "contentHash": "fd868413e1a2966a8cd803387872faa9c0f6bda1e9cb4b96515311e0d9aca693",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/package.json"
+    },
+    {
+      "path": "sdk/storage/storage-queue/tsp-location.yaml",
+      "text": "directory: specification/storage/data-plane/QueueStorage\ncommit: a0af72e72c4467678f58e404670c18a3f00ce2e1\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories:\n",
+      "contentHash": "67c8ea4bd545d14d781e25f777449cf07ca840e18ae713ffba6865114dbd07dd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-js/blob/7811ad0068e89050a6c33d9aeb593b52f0770f1f/sdk/storage/storage-queue/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASPermissions.ts",
+      "startLine": 1,
+      "endLine": 137,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "92b493203a42d4bccdef90aaf078f4d44e91e1351dbae56fc47ac2e9caa56c78"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASResourceTypes.ts",
+      "startLine": 1,
+      "endLine": 76,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8ed15f16845e2832f823428db69e71fd3d50899a8c623efaabd7440ae8a0c97c"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASServices.ts",
+      "startLine": 1,
+      "endLine": 85,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "dcd0e95ef69502dbd16a9e949c1036fad6faed264381a56c44e5f746ce54c08a"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/AccountSASSignatureValues.ts",
+      "startLine": 1,
+      "endLine": 161,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "f9084599bf62c646b5318763ab32afe2027e48e9ed919852322e9066e7a3c5aa"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/Pipeline.ts",
+      "startLine": 1,
+      "endLine": 435,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "4ba1b0bcb824e025c5da2ab41b430c01f75e95e55996f79b1d9ea33fc44dcc48"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/QueueClient.ts",
+      "startLine": 1,
+      "endLine": 1350,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3ecd5d300406b7bfe6e1ef752f64a24da450dc35f11032b3d82d95c731792796"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/QueueSASPermissions.ts",
+      "startLine": 1,
+      "endLine": 87,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "b2ed32536b28e81209eac4e64e765610f7cc6a8858fd11dc62ce8960eaa1ef51"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/QueueSASSignatureValues.ts",
+      "startLine": 1,
+      "endLine": 286,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d6e67d9911df215972386252d13e2e8cbb954aaf70c3c18303353f87fd95c75a"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/QueueServiceClient.ts",
+      "startLine": 1,
+      "endLine": 922,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "e614b165e9a60381e3cd8374443aa2650dd8b70515f249bf564f64b2a7682cfe"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/SASQueryParameters.ts",
+      "startLine": 1,
+      "endLine": 341,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "54beca5d7c43f19c14729a081d240748ba48a38d43721ca428e524807181dbbb"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/SasIPRange.ts",
+      "startLine": 1,
+      "endLine": 29,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "fc00b17c299e59fc16909ea14a04ece5b0bdc37542957976c03c8c3fba837d83"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/StorageClient.ts",
+      "startLine": 1,
+      "endLine": 139,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "a62503fb04eda89aafe217adac4d544f53be5a38ccad18562997e7f09e920b3b"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/generated-classic-models.ts",
+      "startLine": 1,
+      "endLine": 460,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "86d26ae8a03927118e1c2693206ec5e137a38c693675db470c5bea622295ae84"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/generatedModels.ts",
+      "startLine": 1,
+      "endLine": 131,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "8ed954d9c0d659ebc8cefbb90bc5cb49d2b2d81b28980acfe64f0cd4d6d7c843"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/index.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "3535fc7bdb3f784d75da04f4d655f70208cf88d554a04b1724672a43335cab6f"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/log.ts",
+      "startLine": 1,
+      "endLine": 9,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0e351450851106256b96ac164668a11b0e87cc4e0dc0a1c15f12cbe5318d9011"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/models.ts",
+      "startLine": 1,
+      "endLine": 45,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "d3d81d3c12e92a411570a32ee1bfd2dd0a234be04c5ee084dbb0dfd01fb8bb28"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/utils/constants.ts",
+      "startLine": 1,
+      "endLine": 128,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "141545a66626a4634ec96c3ce8fc8321534522af067fa0b92e99d938e79e71e6"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/utils/tracing.ts",
+      "startLine": 1,
+      "endLine": 15,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "7126c78ed7373b26a0b08628abde6c8f30b658d5b617e0adf0b6328793177c4d"
+    },
+    {
+      "path": "sdk/storage/storage-queue/src/utils/utils.common.ts",
+      "startLine": 1,
+      "endLine": 573,
+      "provenance": "JavaScript source overlay candidate",
+      "contentHash": "0d14dbcf73134693c7dedbede500f0c5157ae96305569f9f0e7ae01f83a926b1"
+    }
+  ]
+}

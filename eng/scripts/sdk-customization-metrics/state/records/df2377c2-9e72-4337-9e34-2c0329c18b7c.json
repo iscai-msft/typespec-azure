@@ -1,0 +1,544 @@
+{
+  "schemaVersion": 1,
+  "id": "df2377c2-9e72-4337-9e34-2c0329c18b7c",
+  "observedAt": "2026-10-24T06:48:10.849Z",
+  "identity": "python:azure-developer-loadtesting:module-v1",
+  "target": {
+    "language": "python",
+    "package": "azure-developer-loadtesting",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-python",
+    "root": "sdk/loadtesting/azure-developer-loadtesting"
+  },
+  "commit": "5f632656b9cbd1eb964b3bc931bc256220f1d0cc",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "4331d65b9c2bfe12d66978d52dc3a8e6daebaf77"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 65,
+    "eligibleFiles": 30,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport logging\nimport time\nfrom functools import partial\nfrom typing import Any, IO, List, Optional, overload, Union\n\nfrom azure.core.polling import PollingMethod, LROPoller\nfrom azure.core.tracing.decorator import distributed_trace\n\nfrom ._operations import JSON\nfrom ._operations import (\n    _LoadTestAdministrationClientOperationsMixin as GeneratedAdministrationClientOperations,\n)\nfrom ._operations import (\n    _LoadTestRunClientOperationsMixin as GeneratedRunClientOperations,\n)\n\nfrom .. import models as _models\n\nlogger = logging.getLogger(__name__)\n\n\nclass LoadTestingPollingMethod(PollingMethod):\n    \"\"\"Base class for custom sync polling methods.\"\"\"\n\n    _status: Optional[str]\n    _termination_statuses: List[str]\n    _polling_interval: int\n    _resource: Optional[JSON]\n    _command: Any\n    _initial_response: Any\n\n    def _update_status(self) -> None:\n        raise NotImplementedError(\"This method needs to be implemented\")\n\n    def _update_resource(self) -> None:\n        self._resource = self._command()\n\n    def initialize(self, client, initial_response, deserialization_callback) -> None:\n        self._command = client\n        self._initial_response = initial_response\n        self._resource = initial_response\n\n    def status(self) -> str:\n        return self._status  # type: ignore[return-value]\n\n    def finished(self) -> bool:\n        return self._status in self._termination_statuses\n\n    def resource(self) -> JSON:\n        return self._resource  # type: ignore[return-value]\n\n    def run(self) -> None:\n        try:\n            while not self.finished():\n                self._update_resource()\n                self._update_status()\n\n                if not self.finished():\n                    time.sleep(self._polling_interval)\n        except Exception as e:\n            logger.error(e)\n            raise e\n\n\nclass ValidationCheckPoller(LoadTestingPollingMethod):\n    \"\"\"Polling method for long-running file validation operation.\"\"\"\n\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\n            \"VALIDATION_SUCCESS\",\n            \"VALIDATION_FAILURE\",\n            \"NOT_VALIDATED\",\n            \"VALIDATION_NOT_REQUIRED\",\n        ]\n\n    def _update_status(self) -> None:\n        self._status = self._resource[\"validationStatus\"]  # type: ignore[index]\n\n\nclass TestRunStatusPoller(LoadTestingPollingMethod):\n    \"\"\"Polling method for polling a Test Run.\"\"\"\n\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\"DONE\", \"FAILED\", \"CANCELLED\"]\n\n    def _update_status(self) -> None:\n        self._status = self._resource[\"status\"]  # type: ignore[index]\n\n\nclass TestProfileRunStatusPoller(LoadTestingPollingMethod):\n    \"\"\"Polling method for polling a Test Profile Run.\"\"\"\n\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\"DONE\", \"FAILED\", \"CANCELLED\"]\n\n    def _update_status(self):\n        self._status = self._resource[\"status\"]\n\n\nclass LoadTestAdministrationClientOperationsMixin(\n    GeneratedAdministrationClientOperations\n):\n\n    def __init__(self, *args, **kwargs):\n        super(LoadTestAdministrationClientOperationsMixin, self).__init__(\n            *args, **kwargs\n        )\n\n    @overload\n    def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: bytes,\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: bytes\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: IO,\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: IO\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace\n    def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: Union[IO, bytes],\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: Is one of the following types: IO, bytes\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n        upload_test_file_operation = super()._begin_upload_test_file(\n            test_id=test_id,\n            file_name=file_name,\n            file_type=file_type,\n            body=body,  # type: ignore[arg-type]\n            **kwargs\n        )\n\n        command = partial(self.get_test_file, test_id=test_id, file_name=file_name)\n        file_validation_status_polling = ValidationCheckPoller(\n            interval=polling_interval\n        )\n        return LROPoller(\n            command,\n            upload_test_file_operation,\n            lambda *_: None,\n            file_validation_status_polling,\n        )\n\n\nclass LoadTestRunClientOperationsMixin(GeneratedRunClientOperations):\n\n    def __init__(self, *args, **kwargs):\n        super(LoadTestRunClientOperationsMixin, self).__init__(*args, **kwargs)\n\n    @overload\n    def begin_test_run(\n        self,\n        test_run_id: str,\n        body: _models.TestRun,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: ~azure.developer.loadtesting.models.TestRun\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def begin_test_run(\n        self,\n        test_run_id: str,\n        body: JSON,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: JSON\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def begin_test_run(\n        self,\n        test_run_id: str,\n        body: IO[bytes],\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: IO[bytes]\n        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace\n    def begin_test_run(\n        self,\n        test_run_id: str,\n        body: Union[_models.TestRun, JSON, IO[bytes]],\n        *,\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> LROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Is one of the following types: TestRun, JSON, IO[bytes]\n         Required.\n        :type body: ~azure.developer.loadtesting.models.TestRun or JSON or IO[bytes]\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n\n        create_or_update_test_run_operation = super()._begin_test_run(\n            test_run_id, body, old_test_run_id=old_test_run_id, **kwargs\n        )\n        command = partial(self.get_test_run, test_run_id=test_run_id)\n\n        test_run_status_polling = TestRunStatusPoller(interval=polling_interval)\n        return LROPoller(\n            command,\n            create_or_update_test_run_operation,\n            lambda *_: None,\n            test_run_status_polling,\n        )\n\n    @overload\n    def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: _models.TestProfileRun,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        **kwargs: Any\n    ) -> LROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: ~azure.developer.loadtesting.models.TestProfileRun\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: JSON,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        **kwargs: Any\n    ) -> LROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: JSON\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: IO[bytes],\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        **kwargs: Any\n    ) -> LROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: IO[bytes]\n        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: TestProfileRun. The TestProfileRun is compatible with MutableMapping\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        \"\"\"\n\n    @distributed_trace\n    def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: Union[_models.TestProfileRun, JSON, IO[bytes]],\n        **kwargs: Any\n    ) -> LROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Is one of the following types: TestProfileRun, JSON,\n         IO[bytes] Required.\n        :type body: ~azure.developer.loadtesting.models.TestProfileRun or JSON or IO[bytes]\n        :return: An instance of LROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.LROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n        create_or_update_test_profile_run_operation = super()._begin_test_profile_run(\n            test_profile_run_id, body, **kwargs\n        )\n        command = partial(\n            self.get_test_profile_run, test_profile_run_id=test_profile_run_id\n        )\n\n        test_profile_run_status_polling = TestProfileRunStatusPoller(\n            interval=polling_interval\n        )\n        return LROPoller(\n            command,\n            create_or_update_test_profile_run_operation,\n            lambda *_: None,\n            test_profile_run_status_polling,\n        )\n\n\n# Add all objects you want publicly available to users at this package level\n__all__: List[str] = [\n    \"LoadTestAdministrationClientOperationsMixin\",\n    \"LoadTestRunClientOperationsMixin\",\n]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "745590d76837ac1e1096e94a4b1ec71ebec5aaeb472775d73033393e22962b3d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 542,
+      "kind": "handwritten-marker",
+      "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/aio/_operations/_patch.py",
+      "text": "# pylint: disable=line-too-long,useless-suppression\n# ------------------------------------\n# Copyright (c) Microsoft Corporation.\n# Licensed under the MIT License.\n# ------------------------------------\n\"\"\"Customize generated code here.\n\nFollow our quickstart for examples: https://aka.ms/azsdk/python/dpcodegen/python/customize\n\"\"\"\nimport asyncio\nimport logging\nimport time\nfrom functools import partial\nfrom typing import Any, IO, List, Optional, overload, Union\n\nfrom azure.core.polling import AsyncPollingMethod, AsyncLROPoller\nfrom azure.core.tracing.decorator_async import distributed_trace_async\n\nfrom ._operations import JSON\nfrom ._operations import _LoadTestAdministrationClientOperationsMixin as GeneratedAdministrationClientOperations\nfrom ._operations import _LoadTestRunClientOperationsMixin as GeneratedRunClientOperations\n\nfrom ... import models as _models\n\nlogger = logging.getLogger(__name__)\n\n\nclass AsyncLoadTestingPollingMethod(AsyncPollingMethod):\n    \"\"\"Base class for custom async polling methods.\"\"\"\n\n    _status: Optional[str]\n    _termination_statuses: List[str]\n    _polling_interval: int\n    _resource: Optional[JSON]\n    _command: Any\n    _initial_response: Any\n\n    def _update_status(self) -> None:\n        raise NotImplementedError(\"This method needs to be implemented\")\n\n    async def _update_resource(self) -> None:\n        self._resource = await self._command()\n\n    def initialize(self, client, initial_response, deserialization_callback) -> None:\n        self._command = client\n        self._initial_response = initial_response\n        self._resource = initial_response\n\n    def status(self) -> str:\n        return self._status # type: ignore[return-value]\n\n    def finished(self) -> bool:\n        return self._status in self._termination_statuses\n\n    def resource(self) -> JSON:\n        return self._resource   # type: ignore[return-value]\n\n    async def run(self) -> None:\n        try:\n            while not self.finished():\n                await self._update_resource()\n                self._update_status()\n\n                if not self.finished():\n                    await asyncio.sleep(self._polling_interval)\n        except Exception as e:\n            logger.error(e)\n            raise e\n\n\nclass AsyncValidationCheckPoller(AsyncLoadTestingPollingMethod):\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\n            \"VALIDATION_SUCCESS\",\n            \"VALIDATION_FAILURE\",\n            \"NOT_VALIDATED\",\n            \"VALIDATION_NOT_REQUIRED\",\n        ]\n\n    def _update_status(self) -> None:\n        self._status = self._resource[\"validationStatus\"]  # type: ignore[index]\n\n\nclass AsyncTestRunStatusPoller(AsyncLoadTestingPollingMethod):\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\"DONE\", \"FAILED\", \"CANCELLED\"]\n\n    def _update_status(self) -> None:\n        self._status = self._resource[\"status\"]  # type: ignore[index]\n\n\nclass AsyncTestProfileRunStatusPoller(AsyncLoadTestingPollingMethod):\n    def __init__(self, interval=5) -> None:\n        self._resource = None\n        self._command = None\n        self._initial_response = None\n        self._polling_interval = interval\n        self._status = None\n        self._termination_statuses = [\"DONE\", \"FAILED\", \"CANCELLED\"]\n\n    def _update_status(self) -> None:\n        self._status = self._resource[\"status\"]  # type: ignore[index]\n\n\nclass LoadTestAdministrationClientOperationsMixin(GeneratedAdministrationClientOperations):\n\n    def __init__(self, *args, **kwargs):\n        super(LoadTestAdministrationClientOperationsMixin, self).__init__(*args, **kwargs)\n\n    @overload\n    async def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: IO,\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: IO\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: bytes,\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: bytes\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace_async\n    async def begin_upload_test_file(\n        self,\n        test_id: str,\n        file_name: str,\n        body: Union[IO, bytes],\n        *,\n        file_type: Optional[Union[str, _models.FileType]] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestFileInfo]:\n        \"\"\"Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        Upload input file for a given test Id. File size can't be more than 50 MB.\n        Existing file with same name for the given test will be overwritten. File\n        should be provided in the request body as application/octet-stream.\n\n        :param test_id: Unique name for the load test, must contain only lower-case alphabetic,\n         numeric, underscore or hyphen characters. Required.\n        :type test_id: str\n        :param file_name: Unique name for test file with file extension like : App.jmx. Required.\n        :type file_name: str\n        :param body: The file content as application/octet-stream. Required.\n        :type body: Is one of the following types: IO, bytes\n        :keyword file_type: File type. Known values are: \"JMX_FILE\", \"USER_PROPERTIES\",\n         \"ADDITIONAL_ARTIFACTS\", \"ZIPPED_ARTIFACTS\", \"URL_TEST_CONFIG\", and \"TEST_SCRIPT\". Default value\n         is None.\n        :paramtype file_type: str or ~azure.developer.loadtesting.models.FileType\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestFileInfo`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestFileInfo]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n        upload_test_file_operation = await super()._begin_upload_test_file(\n            test_id=test_id, file_name=file_name, body=body, file_type=file_type, **kwargs  # type: ignore[arg-type]\n        )\n\n        command = partial(self.get_test_file, test_id=test_id, file_name=file_name)\n\n        file_validation_status_polling = AsyncValidationCheckPoller(interval=polling_interval)\n        return AsyncLROPoller(\n            command,\n            upload_test_file_operation,\n            lambda *_: None,\n            file_validation_status_polling,\n        )\n\n\nclass LoadTestRunClientOperationsMixin(GeneratedRunClientOperations):\n\n    def __init__(self, *args, **kwargs):\n        super(LoadTestRunClientOperationsMixin).__init__(*args, **kwargs)\n\n    @overload\n    async def begin_test_run(\n        self,\n        test_run_id: str,\n        body: _models.TestRun,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: ~azure.developer.loadtesting.models.TestRun\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def begin_test_run(\n        self,\n        test_run_id: str,\n        body: JSON,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: JSON\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def begin_test_run(\n        self,\n        test_run_id: str,\n        body: IO[bytes],\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Required.\n        :type body: IO[bytes]\n        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace_async\n    async def begin_test_run(\n        self,\n        test_run_id: str,\n        body: Union[_models.TestRun, JSON, IO[bytes]],\n        *,\n        old_test_run_id: Optional[str] = None,\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestRun]:\n        \"\"\"Create and start a new test run with the given test run Id.\n\n        Create and start a new test run with the given test run Id.\n\n        :param test_run_id: Unique test run identifier for the load test run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_run_id: str\n        :param body: The resource instance. Is one of the following types: TestRun, JSON, IO[bytes]\n         Required.\n        :type body: ~azure.developer.loadtesting.models.TestRun or JSON or IO[bytes]\n        :keyword old_test_run_id: Existing test run identifier that should be rerun, if this is\n         provided, the\n         test will run with the JMX file, configuration and app components from the\n         existing test run. You can override the configuration values for new test run\n         in the request body. Default value is None.\n        :paramtype old_test_run_id: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n        if polling_interval is None:\n            polling_interval = 5\n\n        create_or_update_test_run_operation = await super()._begin_test_run(\n            test_run_id, body, old_test_run_id=old_test_run_id, **kwargs\n        )\n\n        command = partial(self.get_test_run, test_run_id=test_run_id)\n\n        test_run_status_polling = AsyncTestRunStatusPoller(interval=polling_interval)\n\n        return AsyncLROPoller(\n            command,\n            create_or_update_test_run_operation,\n            lambda *_: None,\n            test_run_status_polling,\n        )\n\n    @overload\n    async def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: _models.TestProfileRun,\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: ~azure.developer.loadtesting.models.TestProfileRun\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def begin_test_profile_run(\n        self, test_profile_run_id: str, body: JSON, *, content_type: str = \"application/merge-patch+json\", **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: JSON\n        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @overload\n    async def begin_test_profile_run(\n        self,\n        test_profile_run_id: str,\n        body: IO[bytes],\n        *,\n        content_type: str = \"application/merge-patch+json\",\n        **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Required.\n        :type body: IO[bytes]\n        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.\n         Default value is \"application/merge-patch+json\".\n        :paramtype content_type: str\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n\n    @distributed_trace_async\n    async def begin_test_profile_run(\n        self, test_profile_run_id: str, body: Union[_models.TestProfileRun, JSON, IO[bytes]], **kwargs: Any\n    ) -> AsyncLROPoller[_models.TestProfileRun]:\n        \"\"\"Create and start a new test profile run.\n\n        Create and start a new test profile run with the given test profile run Id.\n\n        :param test_profile_run_id: Unique identifier for the test profile run, must contain only\n         lower-case alphabetic, numeric, underscore or hyphen characters. Required.\n        :type test_profile_run_id: str\n        :param body: The resource instance. Is one of the following types: TestProfileRun, JSON,\n         IO[bytes] Required.\n        :type body: ~azure.developer.loadtesting.models.TestProfileRun or JSON or IO[bytes]\n        :return: An instance of AsyncLROPoller. Call `result()` on the poller object to return a :class:`~azure.developer.loadtesting.models.TestProfileRun`.\n        :rtype: ~azure.core.polling.AsyncLROPoller[~azure.developer.loadtesting.models.TestProfileRun]\n        :raises ~azure.core.exceptions.HttpResponseError:\n        \"\"\"\n        polling_interval = kwargs.pop(\"_polling_interval\", None)\n\n        if polling_interval is None:\n            polling_interval = 5\n\n        create_or_update_test_profile_run_operation = await super()._begin_test_profile_run(\n            test_profile_run_id, body, **kwargs\n        )\n\n        command = partial(self.get_test_profile_run, test_profile_run_id=test_profile_run_id)\n\n        test_profile_run_status_polling = AsyncTestProfileRunStatusPoller(interval=polling_interval)\n        return AsyncLROPoller(\n            command,\n            create_or_update_test_profile_run_operation,\n            lambda *_: None,\n            test_profile_run_status_polling,\n        )\n\n\n# Add all objects you want publicly available to users at this package level\n__all__: List[str] = [\"LoadTestAdministrationClientOperationsMixin\", \"LoadTestRunClientOperationsMixin\"]\n\n\ndef patch_sdk():\n    \"\"\"Do not remove from this file.\n\n    `patch_sdk` is a last resort escape hatch that allows you to do customizations\n    you can't accomplish using the techniques described in\n    https://aka.ms/azsdk/python/dpcodegen/python/customize\n    \"\"\"\n",
+      "contentHash": "c9131db11198fc730cc54777c5dde863a84867e22c33a3240e6762ec83def85d",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 512,
+      "kind": "handwritten-marker",
+      "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/pyproject.toml",
+      "text": "# --------------------------------------------------------------------------\n# Copyright (c) Microsoft Corporation. All rights reserved.\n# Licensed under the MIT License. See License.txt in the project root for license information.\n# Code generated by Microsoft (R) Python Code Generator.\n# Changes may cause incorrect behavior and will be lost if the code is regenerated.\n# --------------------------------------------------------------------------\n\n[build-system]\nrequires = [\"setuptools>=77.0.3\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"azure-developer-loadtesting\"\nauthors = [\n  { name = \"Microsoft Corporation\", email = \"azpysdkhelp@microsoft.com\" },\n]\ndescription = \"Microsoft Corporation Azure Developer Loadtesting Client Library for Python\"\nlicense = \"MIT\"\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\nrequires-python = \">=3.9\"\nkeywords = [\"azure\", \"azure sdk\"]\n\ndependencies = [\n    \"isodate>=0.6.1\",\n    \"azure-core>=1.36.0\",\n    \"typing-extensions>=4.6.0\",\n]\ndynamic = [\n\"version\", \"readme\"\n]\n\n[project.urls]\nrepository = \"https://github.com/Azure/azure-sdk-for-python\"\n\n[tool.setuptools.dynamic]\nversion = {attr = \"azure.developer.loadtesting._version.VERSION\"}\nreadme = {file = [\"README.md\", \"CHANGELOG.md\"], content-type = \"text/markdown\"}\n\n[tool.setuptools.packages.find]\nexclude = [\n    \"tests*\",\n    \"generated_tests*\",\n    \"samples*\",\n    \"generated_samples*\",\n    \"doc*\",\n    \"azure\",\n    \"azure.developer\",\n]\n\n[tool.setuptools.package-data]\npytyped = [\"py.typed\"]\n\n[tool.azure-sdk-build]\npylint = false\npyright = false\n\n[tool.azure-sdk-conda]\nin_bundle = false\n",
+      "contentHash": "ace79190e5ca071e9b474109dfe9155c39c962711f39764a54611bee98274794",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/loadtesting/azure-developer-loadtesting/pyproject.toml"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/README.md",
+      "text": "# Azure Load Testing client library for Python\n\nAzure Load Testing provides client library in python to the user by which they can interact natively with Azure Load Testing service. Azure Load Testing is a fully managed load-testing service that enables you to generate high-scale load. The service simulates traffic for your applications, regardless of where they're hosted. Developers, testers, and quality assurance (QA) engineers can use it to optimize application performance, scalability, or capacity.\n\n## Documentation\n\nVarious documentation is available to help you get started\n\n- [API reference documentation][api_reference_doc]\n- [Product Documentation][product_documentation]\n\n## Getting started\n\n### Prequisites\n\n- Python 3.8 or later is required to use this package.\n- You need an [Azure subscription][azure_sub] to use this package.\n- An existing Azure LoadTesting resource.\n\n### Installing the package\n\n```bash\npython -m pip install azure-developer-loadtesting\n```\n\n### Create with an Azure Active Directory Credential\n\nTo use an [Azure Active Directory (AAD) token credential][authenticate_with_token],\nprovide an instance of the desired credential type obtained from the\n[azure-identity][azure_identity_credentials] library.\n\nTo authenticate with AAD, you must first [pip][pip] install [`azure-identity`][azure_identity_pip]\n\nAfter setup, you can choose which type of [credential][azure_identity_credentials] from azure.identity to use.\n\nAs an example, sign in via the Azure CLI `az login` command and [DefaultAzureCredential](https://learn.microsoft.com/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python) will authenticate as that user.\n\nUse the returned token credential to authenticate the client.\n\n### Create the client\n\nAzure Developer LoadTesting SDK has 2 sub-clients of the main client (`LoadTestingClient`) to interact with the service, 'LoadTestAdministrationClient' for administrative operations and 'LoadTestRunClient' to run tests/test-profiles.\n\n```python\nfrom azure.developer.loadtesting import LoadTestAdministrationClient\n\n# for managing authentication and authorization\n# can be installed from pypi, follow: https://pypi.org/project/azure-identity/\n# using DefaultAzureCredentials, read more at: https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python\nfrom azure.identity import DefaultAzureCredential\n\nclient = LoadTestAdministrationClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n```\n\n`<endpoint>` refers to the data-plane endpoint/URL of the resource.\n\nThe data-plane endpoint is obtained from Control Plane APIs. To obtain the data-plane endpoint for your resource, follow [this documentation][obtaining_data_plane_uri].\n\n## Key concepts\n\nThe Azure Load Test client library for python allows you to interact with each of these components through the use of clients. There are two top-level clients which are the main entry points for the library\n\n- `LoadTestAdministrationClient` (`azure.developer.loadtesting.LoadTestAdministrationClient`)\n- `LoadTestRunClient` (`azure.developer.loadtesting.LoadTestRunClient`)\n\nThese two clients also have there asynchronous counterparts, which are \n- `LoadTestAdministrationClient` (`azure.developer.loadtesting.aio.LoadTestAdministrationClient`)\n- `LoadTestRunClient` (`azure.developer.loadtesting.aio.LoadTestRunClient`)\n\n### Load Test Administration Client\n\nThe `LoadTestAdministrationClient` is used to administer and configure the load tests, test profiles, app components and metrics.\n\n#### Test\n\nA test specifies the test script, and configuration settings for running a load test. You can create one or more tests in an Azure Load Testing resource.\n\n#### App Component\n\nWhen you run a load test for an Azure-hosted application, you can monitor resource metrics for the different Azure application components (server-side metrics). While the load test runs, and after completion of the test, you can monitor and analyze the resource metrics in the Azure Load Testing dashboard.\n\n#### Metrics\n\nDuring a load test, Azure Load Testing collects metrics about the test execution. There are two types of metrics:\n\n1. Client-side metrics give you details reported by the test engine. These metrics include the number of virtual users, the request response time, the number of failed requests, or the number of requests per second.\n\n2. Server-side metrics are available for Azure-hosted applications and provide information about your Azure application components. Metrics can be for the number of database reads, the type of HTTP responses, or container resource consumption.\n\n### Test Run Client\n\nThe `LoadTestRunClient`  is used to start and stop test runs corresponding to a load test. It can also be used to start and stop test profile runs corresponding to a test profile. A test run represents one execution of a load test. It collects the logs associated with running the Apache JMeter or Locust script, the load test YAML configuration, the list of app components to monitor, and the results of the test.\n\n### Data-Plane Endpoint\n\nData-plane of Azure Load Testing resources is addressable using the following URL format:\n\n`00000000-0000-0000-0000-000000000000.aaa.cnt-prod.loadtesting.azure.com`\n\nThe first GUID `00000000-0000-0000-0000-000000000000` is the unique identifier used for accessing the Azure Load Testing resource. This is followed by  `aaa` which is the Azure region of the resource.\n\nThe data-plane endpoint is obtained from Control Plane APIs. To obtain the data-plane endpoint for your resource, follow [this documentation][obtaining_data_plane_uri].\n\n**Example:** `1234abcd-12ab-12ab-12ab-123456abcdef.eastus.cnt-prod.loadtesting.azure.com`\n\nIn the above example, `eastus` represents the Azure region `East US`.\n\n## Examples\n\n### Creating a load test \n\n```python\nfrom azure.developer.loadtesting import LoadTestAdministrationClient\nfrom azure.identity import DefaultAzureCredential\nfrom azure.core.exceptions import HttpResponseError\nimport os\n\nTEST_ID = \"some-test-id\"  \nDISPLAY_NAME = \"my-load-test\"  \n\n# set SUBSCRIPTION_ID as an environment variable\nSUBSCRIPTION_ID = os.environ[\"SUBSCRIPTION_ID\"]  \n\nclient = LoadTestAdministrationClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n\ntry:\n    result = client.create_or_update_test(\n        TEST_ID,\n        {\n            \"description\": \"\",\n            \"displayName\": \"My New Load Test\",\n            \"loadTestConfiguration\": {\n                \"engineInstances\": 1,\n                \"splitAllCSVs\": False,\n            },\n            \"passFailCriteria\": {\n                \"passFailMetrics\": {\n                    \"condition1\": {\n                        \"clientmetric\": \"response_time_ms\",\n                        \"aggregate\": \"avg\",\n                        \"condition\": \">\",\n                        \"value\": 300\n                    },\n                    \"condition2\": {\n                        \"clientmetric\": \"error\",\n                        \"aggregate\": \"percentage\",\n                        \"condition\": \">\",\n                        \"value\": 50\n                    },\n                    \"condition3\": {\n                        \"clientmetric\": \"latency\",\n                        \"aggregate\": \"avg\",\n                        \"condition\": \">\",\n                        \"value\": 200,\n                        \"requestName\": \"GetCustomerDetails\"\n                    }\n                }\n            },\n            \"secrets\": {\n                \"secret1\": {\n                    \"value\": \"https://sdk-testing-keyvault.vault.azure.net/secrets/sdk-secret\",\n                    \"type\": \"AKV_SECRET_URI\"\n                }\n            },\n            \"environmentVariables\": {\n                \"my-variable\": \"value\"\n            }\n        }\n    )\n    print(result)\nexcept HttpResponseError as e:\n     print('Service responded with error: {}'.format(e.response.json()))\n\n```\n\n### Uploading test script file to a Test\n\n```python\nfrom azure.developer.loadtesting import LoadTestAdministrationClient\nfrom azure.identity import DefaultAzureCredential\nfrom azure.core.exceptions import HttpResponseError\n\n# This sample uploads a JMX Test Script File\nTEST_ID = \"some-test-id\"  \nFILE_NAME = \"some-file-name.jmx\"  \n\nclient = LoadTestAdministrationClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n\ntry:\n\n    # uploading .jmx file to a test\n    resultPoller = client.begin_upload_test_file(TEST_ID, FILE_NAME, open(\"sample.jmx\", \"rb\"))\n\n    # getting result of LRO poller with timeout of 600 secs\n    validationResponse = resultPoller.result(600)\n    print(validationResponse)\n    \nexcept HttpResponseError as e:\n    print(\"Failed with error: {}\".format(e.response.json()))\n```\n\n### Running a Test\n\n```python\nfrom azure.developer.loadtesting import LoadTestRunClient\nfrom azure.identity import DefaultAzureCredential\nfrom azure.core.exceptions import HttpResponseError\n\nTEST_ID = \"some-test-id\"  \nTEST_RUN_ID = \"some-testrun-id\" \nDISPLAY_NAME = \"my-load-test-run\"  \n\nclient = LoadTestRunClient(endpoint='<endpoint>', credential=DefaultAzureCredential())\n\ntry:\n    testRunPoller = client.begin_test_run(\n    TEST_RUN_ID,\n        {\n            \"testId\": TEST_ID,\n            \"displayName\": \"My New Load Test Run\",\n        }\n    )\n\n    #waiting for test run status to be completed with timeout = 3600 seconds\n    result = testRunPoller.result(3600)\n    \n    print(result)\nexcept HttpResponseError as e:\n    print(\"Failed with error: {}\".format(e.response.json()))\n```\n\n## Troubleshooting\n\n### Logging\n\nThis SDK uses Python standard [logging][python_logging] library for logging.\nBasic information about HTTP sessions (URLs, headers, etc.) is logged at INFO\nlevel.\n\nDetailed DEBUG level logging, including request/response bodies and unredacted\nheaders, can be enabled on a client with the `logging_enable` keyword argument.\nDo note that DEBUG level logging can contain sensitive information:\n\n```python\nimport sys\nimport logging\nfrom azure.identity import DefaultAzureCredential\n\n# Create a logger for the 'azure' SDK\nlogger = logging.getLogger('azure')\nlogger.setLogLevel(logging.DEBUG)\n\n# Configure console output\nhandler = logging.StreamHandler(stream=sys.stdout)\nlogger.addHandler(handler)\n\n# Enable logging for a client\nclient = LoadTestAdministrationClient(endpoint='<endpoint>', credential=DefaultAzureCredential(), logging_enable=True)\n```\n\nSimilarly, `logging_enable` can enable detailed logging for a single call, even when it isn't enabled for the whole client\n\n```python\nclient.create_or_update_test(..., logging_enable=True)\n```\n\n## Next steps\n\nMore samples can be found [here](https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/loadtesting/azure-developer-loadtesting/samples).\n\n## Contributing\n\nThis project welcomes contributions and suggestions. Most contributions require\nyou to agree to a Contributor License Agreement (CLA) declaring that you have\nthe right to, and actually do, grant us the rights to use your contribution.\nFor details, visit https://cla.microsoft.com.\n\nWhen you submit a pull request, a CLA-bot will automatically determine whether\nyou need to provide a CLA and decorate the PR appropriately (e.g., label,\ncomment). Simply follow the instructions provided by the bot. You will only\nneed to do this once across all repos using our CLA.\n\nThis project has adopted the\n[Microsoft Open Source Code of Conduct][code_of_conduct]. For more information,\nsee the Code of Conduct FAQ or contact opencode@microsoft.com with any\nadditional questions or comments.\n\n<!-- LINKS -->\n[code_of_conduct]: https://opensource.microsoft.com/codeofconduct/\n[authenticate_with_token]: https://docs.microsoft.com/azure/cognitive-services/authentication?tabs=powershell#authenticate-with-an-authentication-token\n[azure_identity_credentials]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#credentials\n[azure_identity_pip]: https://pypi.org/project/azure-identity/\n[default_azure_credential]: https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity#defaultazurecredential\n[pip]: https://pypi.org/project/pip/\n[azure_sub]: https://azure.microsoft.com/free/\n[api_reference_doc]: https://learn.microsoft.com/rest/api/apptesting/loadtest/\n[product_documentation]: https://azure.microsoft.com/services/load-testing/\n[obtaining_data_plane_uri]: https://learn.microsoft.com/rest/api/apptesting/loadtest/data-plane-uri\n[python_logging]: https://docs.python.org/3/library/logging.html\n",
+      "contentHash": "47fd1c46ba4214789f64af41636c80c7745d40036b7861e55b2096f4222bb8ec",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/loadtesting/azure-developer-loadtesting/README.md"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/tsp-location.yaml",
+      "text": "directory: specification/loadtestservice/data-plane/loadtesting\ncommit: 4c7c015ab9f054ecb26bdd77ee4fd23b1e175e3d\nrepo: Azure/azure-rest-api-specs\nadditionalDirectories: \n",
+      "contentHash": "e31b63ff58cd7b114b5475387127b3f91a80d93a1520bf1f2702b19aa080e844",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-python/blob/5f632656b9cbd1eb964b3bc931bc256220f1d0cc/sdk/loadtesting/azure-developer-loadtesting/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "06bba5103fb97e24b7502da1608d5d9114a65eb4707c544e8b4fa03b04bd2f24",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "f6b0dfa86e69387ac32f08fb9f54410c8d549fcd0b9e0528a691eb4e69fe5e60",
+        "category": "LRO / polling",
+        "subtype": "synchronous-command-driven-polling-base",
+        "explanation": "LoadTestingPollingMethod stores the supplied callable and initial resource, repeatedly calls the callable and subclass status updater until terminal-status membership succeeds, and sleeps only between nonterminal iterations. resource returns the stored resource; caught exceptions are logged and re-raised. It does not normalize service statuses or independently raise on terminal failure values.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This substantive PollingMethod implementation is in the explicit operations _patch.py and identifies itself as a custom sync polling base. The concrete subclasses and patched operation methods visibly use it; this is not the empty patch skeleton.",
+        "symbols": [
+          "LoadTestingPollingMethod"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 31,
+            "endLine": 71
+          }
+        ]
+      },
+      {
+        "key": "407174c9eff6f2a38dd2d1a28806c2ce291e5323096f33445c860ed9b3547fa0",
+        "category": "LRO / polling",
+        "subtype": "file-validation-terminal-status-strategy",
+        "explanation": "ValidationCheckPoller reads validationStatus from the current resource, defaults its interval to five, and configures VALIDATION_SUCCESS, VALIDATION_FAILURE, NOT_VALIDATED and VALIDATION_NOT_REQUIRED as terminal statuses. It retains the raw service status rather than translating those values into generic succeeded/failed states.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete custom polling subclass has executable state initialization and a status extractor in the populated operations patch, with a visible patched upload call site. This supplies handwritten behavior beyond a dependency or generated poller declaration.",
+        "symbols": [
+          "ValidationCheckPoller"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 74,
+            "endLine": 91
+          }
+        ]
+      },
+      {
+        "key": "70e5924abc2e85c81f02d2d75c3e9c766c4a30e6ef40b3206a7917a68c136371",
+        "category": "LRO / polling",
+        "subtype": "test-run-terminal-status-strategy",
+        "explanation": "TestRunStatusPoller reads resource['status'], defaults its interval to five, and configures DONE, FAILED and CANCELLED as terminal statuses for the shared polling lifecycle. This is a service-status strategy, not an observed successful service operation.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "A substantive concrete subclass in the populated _patch.py implements the service-specific terminal set and status extraction, and the patched begin_test_run visibly constructs it.",
+        "symbols": [
+          "TestRunStatusPoller"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 94,
+            "endLine": 106
+          }
+        ]
+      },
+      {
+        "key": "9a6a698acfb9474fe3d654d756dc970597f3eb062978bacded98b77949cfee4e",
+        "category": "LRO / polling",
+        "subtype": "test-profile-run-terminal-status-strategy",
+        "explanation": "TestProfileRunStatusPoller reads resource['status'], defaults its interval to five, and supplies DONE, FAILED and CANCELLED as terminal statuses. It is the distinct strategy instantiated by the patched test-profile-run entry point.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated patch defines this concrete custom polling subclass with executable state/status behavior and a matching operation call site, not only a generated or empty class shell.",
+        "symbols": [
+          "TestProfileRunStatusPoller"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 109,
+            "endLine": 121
+          }
+        ]
+      },
+      {
+        "key": "65ab502f7be06cb2001e778d869861c7cd8b212f0feb72948f3e084ec9119c4f",
+        "category": "LRO / polling",
+        "subtype": "upload-operation-with-file-validation-polling",
+        "explanation": "LoadTestAdministrationClientOperationsMixin.begin_upload_test_file removes _polling_interval from kwargs, defaults it to five when None, calls the generated superclass _begin_upload_test_file, and returns LROPoller using that return value as initial resource, a get_test_file partial bound to test/file IDs, and ValidationCheckPoller. The GET partial does not capture the remaining operation kwargs.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An exported operations-patch mixin subclasses the explicitly imported generated operations and adds a real begin method wiring its own validation polling strategy. This is positive patch ownership, not an assumption from a begin-method name.",
+        "symbols": [
+          "LoadTestAdministrationClientOperationsMixin.begin_upload_test_file"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 124,
+            "endLine": 126
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 201,
+            "endLine": 210
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 235,
+            "endLine": 255
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 529,
+            "endLine": 533
+          }
+        ]
+      },
+      {
+        "key": "6d89a5a0e134eb9491386a0b867a20c7f1dab7c8d8ea9d76e5eef4ddc2386747",
+        "category": "LRO / polling",
+        "subtype": "test-run-operation-with-resource-status-polling",
+        "explanation": "LoadTestRunClientOperationsMixin.begin_test_run removes _polling_interval with a five default for None, delegates to superclass _begin_test_run with old_test_run_id, and returns LROPoller configured with a get_test_run partial bound to test_run_id and TestRunStatusPoller. It passes the generated method's return value as initial resource and a no-op deserialization callback.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported operations-patch mixin explicitly extends generated operations and implements a concrete custom polling wrapper. Its same-name overload declarations are one method family, not separate instances.",
+        "symbols": [
+          "LoadTestRunClientOperationsMixin.begin_test_run"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 258,
+            "endLine": 261
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 362,
+            "endLine": 370
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 392,
+            "endLine": 407
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 529,
+            "endLine": 533
+          }
+        ]
+      },
+      {
+        "key": "2ea1f4bdb9c929740f4bfedb93582bade7b615aa990e9ebd83790ff075b2c0b8",
+        "category": "LRO / polling",
+        "subtype": "test-profile-run-operation-with-resource-status-polling",
+        "explanation": "LoadTestRunClientOperationsMixin.begin_test_profile_run delegates to superclass _begin_test_profile_run and wraps its return value in LROPoller with a get_test_profile_run partial and TestProfileRunStatusPoller. It removes _polling_interval from kwargs, uses five for None, and supplies a no-op deserialization callback.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported generated-operations subclass in _patch.py contains a real replacement begin implementation and explicit custom strategy wiring, rather than only overload documentation or scaffolding.",
+        "symbols": [
+          "LoadTestRunClientOperationsMixin.begin_test_profile_run"
+        ],
+        "evidence": [
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 258,
+            "endLine": 261
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 487,
+            "endLine": 493
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 508,
+            "endLine": 526
+          },
+          {
+            "id": "08c423031d040e6ce05f7911e80c87f4c1f912b5214bfeee37e08ca4ac0908e0",
+            "startLine": 529,
+            "endLine": 533
+          }
+        ]
+      },
+      {
+        "key": "1ab45fe21c1836762ef3c8328869cf1ed59f2a68aab8ac92cdea2ebd153b2f19",
+        "category": "LRO / polling",
+        "subtype": "asynchronous-command-driven-polling-base",
+        "explanation": "AsyncLoadTestingPollingMethod stores the callable and initial resource, awaits resource refreshes, runs the subclass status updater, and awaits asyncio.sleep only while still nonterminal. finished uses membership in the configured terminal list and resource returns the stored object; caught exceptions are logged and re-raised. initialize itself is synchronous.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The substantive AsyncPollingMethod implementation in aio's populated operations patch explicitly identifies itself as a custom async polling base and is used by concrete patched strategies.",
+        "symbols": [
+          "AsyncLoadTestingPollingMethod"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 28,
+            "endLine": 68
+          }
+        ]
+      },
+      {
+        "key": "e97cf9b6250abf01efadc054998f01510f310e2b6d0ff7f65294c4bfd8e5772c",
+        "category": "LRO / polling",
+        "subtype": "async-file-validation-terminal-status-strategy",
+        "explanation": "AsyncValidationCheckPoller reads resource['validationStatus'], defaults its interval to five, and marks VALIDATION_SUCCESS, VALIDATION_FAILURE, NOT_VALIDATED and VALIDATION_NOT_REQUIRED terminal for the shared asynchronous lifecycle. The status updater is synchronous and preserves raw status values.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The concrete custom asynchronous polling subclass in aio/_operations/_patch.py contains real state/status behavior and is instantiated by the patched upload operation.",
+        "symbols": [
+          "AsyncValidationCheckPoller"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 71,
+            "endLine": 86
+          }
+        ]
+      },
+      {
+        "key": "22a30ac4475ce0b0364ef3c395e0a4836594830c910902c14bccf1506e518bfc",
+        "category": "LRO / polling",
+        "subtype": "async-test-run-terminal-status-strategy",
+        "explanation": "AsyncTestRunStatusPoller configures DONE, FAILED and CANCELLED as terminal statuses, defaults its interval to five, and copies resource['status'] into its status field for the shared async polling lifecycle.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "This executable concrete strategy is defined in the populated asynchronous operations patch and visibly used by the patched begin_test_run, not inferred from core polling imports.",
+        "symbols": [
+          "AsyncTestRunStatusPoller"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 89,
+            "endLine": 99
+          }
+        ]
+      },
+      {
+        "key": "57d1ac8427cc50aa124f1c859a03e2f093592ef56c15827882b29ff8745628fb",
+        "category": "LRO / polling",
+        "subtype": "async-test-profile-run-terminal-status-strategy",
+        "explanation": "AsyncTestProfileRunStatusPoller reads resource['status'], defaults its interval to five, and configures DONE, FAILED and CANCELLED as terminal statuses. It is the separate strategy selected by the async test-profile-run wrapper.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The populated asynchronous patch defines a concrete subclass with state initialization/status extraction and a corresponding patched operation call site.",
+        "symbols": [
+          "AsyncTestProfileRunStatusPoller"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 102,
+            "endLine": 112
+          }
+        ]
+      },
+      {
+        "key": "f22af82c3455044154975ebfce2d5e5648830ea1c31e9bb4f4254155540839d3",
+        "category": "LRO / polling",
+        "subtype": "async-upload-operation-with-file-validation-polling",
+        "explanation": "The async LoadTestAdministrationClientOperationsMixin.begin_upload_test_file awaits the generated superclass upload begin method, then returns AsyncLROPoller using its return value, a get_test_file partial bound to test/file IDs, AsyncValidationCheckPoller and a no-op deserialization callback. _polling_interval is removed from kwargs and defaults to five when None.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "An explicitly exported generated-operations subclass in the populated aio operations patch supplies an executable async method that wires its own polling strategy. Same-name typing overloads are not counted independently.",
+        "symbols": [
+          "LoadTestAdministrationClientOperationsMixin.begin_upload_test_file"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 115,
+            "endLine": 118
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 188,
+            "endLine": 197
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 221,
+            "endLine": 236
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 502,
+            "endLine": 503
+          }
+        ]
+      },
+      {
+        "key": "1e6e6a609a61c7643ce14517a6310506ef6261138bb5adda8e3640e02caa5ae4",
+        "category": "LRO / polling",
+        "subtype": "async-test-run-operation-with-resource-status-polling",
+        "explanation": "The async LoadTestRunClientOperationsMixin.begin_test_run awaits superclass _begin_test_run with old_test_run_id and wraps the result in AsyncLROPoller using a get_test_run partial, AsyncTestRunStatusPoller and a no-op deserialization callback. It removes _polling_interval from kwargs and uses five when None.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported aio operations-patch mixin explicitly subclasses generated operations and contains a real async polling wrapper. No runtime correctness or successful mixin construction is assumed.",
+        "symbols": [
+          "LoadTestRunClientOperationsMixin.begin_test_run"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 239,
+            "endLine": 242
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 343,
+            "endLine": 351
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 372,
+            "endLine": 389
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 502,
+            "endLine": 503
+          }
+        ]
+      },
+      {
+        "key": "0aab9e4505ce07b98ea943947fa2399437811db4db9114bf698eeb7eef15e22e",
+        "category": "LRO / polling",
+        "subtype": "async-test-profile-run-operation-with-resource-status-polling",
+        "explanation": "The async LoadTestRunClientOperationsMixin.begin_test_profile_run awaits the generated superclass method and returns AsyncLROPoller with a get_test_profile_run partial and AsyncTestProfileRunStatusPoller. It uses the generated return value as initial resource, supplies a no-op deserialization callback, and defaults _polling_interval to five when None.",
+        "pattern": "lro-custom-poller",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The exported generated-operations subclass in aio/_operations/_patch.py adds an executable async begin wrapper with explicit custom strategy wiring, rather than only a generated signature.",
+        "symbols": [
+          "LoadTestRunClientOperationsMixin.begin_test_profile_run"
+        ],
+        "evidence": [
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 239,
+            "endLine": 242
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 464,
+            "endLine": 467
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 482,
+            "endLine": 499
+          },
+          {
+            "id": "bc13ceab4d8f93517c49753192c445ab862da009c3fd4d10be449a3c1953ff34",
+            "startLine": 502,
+            "endLine": 503
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "f6b0dfa86e69387ac32f08fb9f54410c8d549fcd0b9e0528a691eb4e69fe5e60",
+        "status": "accepted",
+        "reason": "The sync operations patch defines this PollingMethod subclass and implements callable-based refresh, terminal-membership checks, conditional sleep, resource access and exception logging at cited lines 31-71. The concrete subclasses use that lifecycle; no generated poller behavior is being counted as its implementation."
+      },
+      {
+        "key": "407174c9eff6f2a38dd2d1a28806c2ce291e5323096f33445c860ed9b3547fa0",
+        "status": "accepted",
+        "reason": "The populated sync patch defines this subclass at lines 74-91: it configures four literal terminal validation states and copies validationStatus from the resource. The upload wrapper constructs it at lines 246-254. This is a status strategy, not a claim that failure states raise exceptions."
+      },
+      {
+        "key": "70e5924abc2e85c81f02d2d75c3e9c766c4a30e6ef40b3206a7917a68c136371",
+        "status": "accepted",
+        "reason": "Lines 94-106 define and implement the sync test-run polling subclass with its terminal states and resource status extraction; begin_test_run constructs it at line 401. This distinct named strategy is backed by patch code rather than inferred from LROPoller alone."
+      },
+      {
+        "key": "9a6a698acfb9474fe3d654d756dc970597f3eb062978bacded98b77949cfee4e",
+        "status": "accepted",
+        "reason": "Lines 109-121 define a separate sync test-profile-run polling subclass, set DONE/FAILED/CANCELLED as terminal and extract status; begin_test_profile_run selects it at lines 518-525. The status values are not evidence of successful service execution."
+      },
+      {
+        "key": "65ab502f7be06cb2001e778d869861c7cd8b212f0feb72948f3e084ec9119c4f",
+        "status": "accepted",
+        "reason": "The exported sync operations mixin implements begin_upload_test_file at lines 201-255, delegating the initial upload to its generated superclass and explicitly wiring a file-specific GET partial and custom validation poller. Unlike the preceding overloads, lines 235-255 contain executable wrapper logic; the GET partial binds IDs but not leftover kwargs."
+      },
+      {
+        "key": "6d89a5a0e134eb9491386a0b867a20c7f1dab7c8d8ea9d76e5eef4ddc2386747",
+        "status": "accepted",
+        "reason": "The exported sync generated-operations subclass has an executable begin_test_run at lines 362-407, which strips the interval, invokes the superclass operation with old_test_run_id, and constructs a custom poller with a bound GET callback. The overload-only definitions above it do not add separate runtime instances."
+      },
+      {
+        "key": "2ea1f4bdb9c929740f4bfedb93582bade7b615aa990e9ebd83790ff075b2c0b8",
+        "status": "accepted",
+        "reason": "The sync test-profile-run method at lines 487-526 is executable patch behavior: it delegates to the superclass begin method and constructs an LROPoller with a bound GET and its own status strategy. This differs from merely declaring the generated operation or documenting its overloads."
+      },
+      {
+        "key": "1ab45fe21c1836762ef3c8328869cf1ed59f2a68aab8ac92cdea2ebd153b2f19",
+        "status": "accepted",
+        "reason": "The aio operations patch implements an AsyncPollingMethod subclass at lines 28-68: initialize stores inputs, run awaits refresh and conditional sleep, and terminal membership controls completion. Its initialize and status updater are synchronous methods; this finding does not attribute behavior of AsyncLROPoller itself to the patch."
+      },
+      {
+        "key": "e97cf9b6250abf01efadc054998f01510f310e2b6d0ff7f65294c4bfd8e5772c",
+        "status": "accepted",
+        "reason": "The aio patch defines this concrete async-lifecycle validation strategy at lines 71-86, assigning four terminal values and extracting validationStatus. The patched upload method instantiates it at lines 228-235; the updater itself is synchronous."
+      },
+      {
+        "key": "22a30ac4475ce0b0364ef3c395e0a4836594830c910902c14bccf1506e518bfc",
+        "status": "accepted",
+        "reason": "Lines 89-99 of the aio patch implement a concrete test-run status strategy, with literal terminal states and resource status extraction. The async begin_test_run wrapper selects it at line 382, providing a substantive patch-local implementation rather than a generated-poller inference."
+      },
+      {
+        "key": "57d1ac8427cc50aa124f1c859a03e2f093592ef56c15827882b29ff8745628fb",
+        "status": "accepted",
+        "reason": "The distinct test-profile-run polling subclass is defined with executable state and status logic at aio patch lines 102-112, and its matching wrapper selects it at line 493. DONE, FAILED and CANCELLED merely mark terminal states here."
+      },
+      {
+        "key": "f22af82c3455044154975ebfce2d5e5648830ea1c31e9bb4f4254155540839d3",
+        "status": "accepted",
+        "reason": "The aio exported operations mixin implements this async wrapper at lines 188-236: it awaits the superclass upload, binds GET IDs, and returns AsyncLROPoller configured with the custom validation strategy. The cited executable body supports the behavioral finding; type-only overloads do not count again."
+      },
+      {
+        "key": "1e6e6a609a61c7643ce14517a6310506ef6261138bb5adda8e3640e02caa5ae4",
+        "status": "accepted",
+        "reason": "The aio patch's begin_test_run at lines 343-389 has an executable body that awaits the superclass operation, retains old_test_run_id delegation, and wires its own GET callback and status poller. The unusual aio mixin constructor at line 242 remains a runtime-activation uncertainty, not evidence that this body is generated."
+      },
+      {
+        "key": "0aab9e4505ce07b98ea943947fa2399437811db4db9114bf698eeb7eef15e22e",
+        "status": "accepted",
+        "reason": "The aio patch's executable begin_test_profile_run at lines 464-499 awaits the superclass and constructs an AsyncLROPoller with a bound GET and custom profile-run status strategy. The operation is distinct from begin_test_run; its adjacent overloads supply signatures only."
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Two complete supplied patch files span two distinct paths, while collector metadata reports 65 discovered, 30 eligible and 2 captured files, partial coverage, and no skipped/error entries. Empty skipped/error arrays do not establish complete package discovery or absence elsewhere.",
+      "Both patches contain executable generated-operations subclasses exported through nonempty __all__, plus concrete custom polling strategies. The generated operation implementations, public client binding modules, models and azure-core polling implementation are not supplied; installation, activation and successful execution are unverified.",
+      "The two polling bases, six concrete terminal-status strategies and six operation wrappers are distinct behavior/declaration units. Base accessors, mixin constructors, same-name typing overloads and tracing decorators are not separately inflated into additional instances.",
+      "initialize stores the supplied command/initial resource and ignores the deserialization callback. Wrapper callbacks are no-ops. The generated superclass begin methods' actual return shapes are unavailable, so initial HTTP response types, deserialization behavior and declared typed-result guarantees are not inferred.",
+      "Terminal FAILED/CANCELLED or VALIDATION_FAILURE values stop the visible membership-based loops without an explicit failure-status exception. Exceptions from resource/status updates are logged and re-raised; no status normalization, cancellation hook, timeout, continuation-token restoration or retry policy is implemented in these excerpts.",
+      "The partial GET commands capture only resource identifiers, not the wrappers' remaining kwargs. Initial-call options are not thereby proven to propagate to polling GETs. None/default interval handling does not validate interval sign/type.",
+      "The async run mixin initializer calls super(LoadTestRunClientOperationsMixin).__init__(*args, **kwargs), unlike the other shown mixin constructors that pass self. No successful client instantiation or correction is claimed; the frozen source is not changed.",
+      "The patch_sdk functions contain only their standard docstrings and perform no visible mutation, so they are excluded. Imports, generated dependency metadata and README samples are context, not separate customizations or runtime tests.",
+      "Inventory latestRelease is 1.2.0b1, but the supplied pyproject version is dynamically read from an unprovided _version module. README's Python 3.8 prerequisite differs from pyproject's >=3.9; neither establishes release/runtime parity.",
+      "Only supplied frozen SDK context and evidence were used, without accessing outside SDK source. All proposals remain pending independent AI review, not human verification; human overrides remain authoritative.",
+      "The frozen identity is python:azure-developer-loadtesting:module-v1. Its supplied library latestRelease is 1.2.0b1 (still major 1); pyproject.toml specifies a dynamic version from an uncaptured _version module, so the source package's exact version was not independently confirmed.",
+      "Coverage is partial: the collector reports 65 discovered files, 30 eligible files and two captured source files, both populated operations _patch.py paths. These are collector/file counts, not counts of independently inspected SDK paths or proof of absence elsewhere. Fourteen proposals span those two distinct source paths; zero omissions means no distinct missed instance was established within the supplied fragments, not that the library has no other customization.",
+      "Both populated patches export their operations mixins, and the README documents the clients and poller usage. Client import wiring and generated superclass implementations were not supplied; exports and documentation alone do not prove runtime activation, correct results, or successful service calls. In particular the aio run-mixin constructor invokes super(LoadTestRunClientOperationsMixin).__init__ without a bound instance; actual constructor behavior is untested.",
+      "The supplied code treats VALIDATION_FAILURE, FAILED and CANCELLED as terminal states, without itself translating them into raised errors. The generated operations' request, serialization and authentication behavior, and possible TypeSpec support for the service status fields, are unobserved. A generator or TypeSpec could plausibly emit these polling shapes, but whether it currently can, why the patches were needed, and cross-service recurrence were not measured.",
+      "The supplied same-symbol overload declarations only carry signatures and docstrings; patch_sdk in each supplied source ends after its docstring. Neither constitutes a separate supported behavioral omission, and the tracing decorators on the three patched begin methods per source are not separate same-identity instances."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 542,
+      "provenance": "Python patch",
+      "contentHash": "745590d76837ac1e1096e94a4b1ec71ebec5aaeb472775d73033393e22962b3d"
+    },
+    {
+      "path": "sdk/loadtesting/azure-developer-loadtesting/azure/developer/loadtesting/aio/_operations/_patch.py",
+      "startLine": 1,
+      "endLine": 512,
+      "provenance": "Python patch",
+      "contentHash": "c9131db11198fc730cc54777c5dde863a84867e22c33a3240e6762ec83def85d"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "3fb2f623-b8d1-4c59-bbd5-fc5c7da96e9a",
+  "observedAt": "2026-10-30T17:46:49.532Z",
+  "identity": "dotnet:azure.provisioning.resourcehealth:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.Provisioning.ResourceHealth",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth"
+  },
+  "commit": "46c60441441d5e4d6ef965b6ce6560c717cc5307",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "c6ae8d376c53fcc20490c34eb4f7e5e7939f1aba"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 54,
+    "eligibleFiles": 44,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthEventImpactedResource.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing Azure.Provisioning.Primitives;\n\nnamespace Azure.Provisioning.ResourceHealth\n{\n    // The provisioning emitter collapses the tenant and subscription projections and drops their scope-specific parent paths.\n    // TODO: Remove this when https://github.com/Azure/azure-sdk-for-net/issues/62410 is fixed.\n    public partial class ResourceHealthEventImpactedResource\n    {\n        private ResourceReference<ResourceHealthEvent> _parent;\n\n        /// <summary> Gets or sets the parent resource health event. </summary>\n        public ResourceHealthEvent Parent\n        {\n            get\n            {\n                Initialize();\n                return _parent.Value;\n            }\n            set\n            {\n                Initialize();\n                _parent.Value = value;\n            }\n        }\n\n        partial void DefineAdditionalProperties()\n        {\n            _parent = DefineResource<ResourceHealthEvent>(nameof(Parent), new string[] { \"parent\" }, isRequired: true);\n        }\n    }\n}\n",
+      "contentHash": "7f343505d042fe8cd512f2d944556ce2d53a609804bea2147b1c75e328b5b739",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthEventImpactedResource.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "kind": "handwritten-marker",
+      "id": "b3d1959c65b74d0e776e8991add857bc1aa52237f60487ec89c36b20ec5e7394"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthMetadataEntity.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\n#nullable disable\n\nusing Azure.Provisioning;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.Provisioning.ResourceHealth\n{\n    // The service's properties.dependsOn list is unrelated to ProvisionableResource.DependsOn,\n    // which controls Bicep deployment ordering. Rename only the flattened provisioning member\n    // to avoid hiding the inherited property. A shared TypeSpec rename would also change the\n    // DependsOn API already shipped by Azure.ResourceManager.ResourceHealth 1.1.0.\n    public partial class ResourceHealthMetadataEntity\n    {\n        /// <summary> Gets the list of keys on which this entity depends. </summary>\n        [CodeGenMember(\"DependsOn\")]\n        public BicepList<string> MetadataDependencies => Properties.DependsOn;\n    }\n}\n",
+      "contentHash": "bf35ac31f3b0d3477a6794502444dc3fa71b59e1bf98952b5da1064460d8b8a7",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthMetadataEntity.cs",
+      "startLine": 1,
+      "endLine": 21,
+      "kind": "handwritten-marker",
+      "id": "bfbb8f229a6e4ba86b407aaab753c9c2b7b9945b5233a3abffa5e1d95c9d0b5a"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/README.md",
+      "text": "# Azure Provisioning ResourceHealth client library for .NET\n\nAzure.Provisioning.ResourceHealth simplifies declarative resource provisioning for Azure Resource Health in .NET.\n\n## Getting started\n\n### Install the package\n\nInstall the client library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.Provisioning.ResourceHealth --prerelease\n```\n\n### Prerequisites\n\n> You must have an [Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\n## Key concepts\n\nThis library allows you to specify your infrastructure in a declarative style using .NET. You can then use azd to deploy your infrastructure to Azure directly without needing to write or maintain Bicep or ARM templates.\n\n## Examples\n\n### Reference a Resource Health event\n\nThis example references an existing Resource Health event by its event tracking ID.\n\n```C# Snippet:ResourceHealthEventBasic\nInfrastructure infra = new() { TargetScope = DeploymentScope.Subscription };\n\nResourceHealthEvent healthEvent = ResourceHealthEvent.FromExisting(nameof(healthEvent), ResourceHealthEvent.ResourceVersions.V2025_05_01);\nhealthEvent.Name = \"eventTrackingId\";\ninfra.Add(healthEvent);\n\ninfra.Add(new ProvisioningOutput(\"eventId\", typeof(string)) { Value = healthEvent.Id });\n```\n\n## Troubleshooting\n\n- File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n- Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing guide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit <https://cla.microsoft.com>.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For more information, see the [Code of Conduct FAQ][coc_faq] or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any questions or comments.\n\n<!-- LINKS -->\n\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/resourcemanager/Azure.ResourceManager/docs/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "dc62ef5d6445c49c8fd8f7a0f74617c0c3e7de784c49560e4900de2db6d78e06",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/resourcehealth/Azure.Provisioning.ResourceHealth/README.md"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Azure.Provisioning.ResourceHealth.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <Description>Azure.Provisioning.ResourceHealth simplifies declarative resource provisioning in .NET.</Description>\n    <Version>1.0.0-beta.2</Version>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Azure.Provisioning\" />\n  </ItemGroup>\n\n</Project>",
+      "contentHash": "bfebccc46d1f57a468421c68d0aa70f5569fa32aa225eb890b231895e92a1623",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Azure.Provisioning.ResourceHealth.csproj"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/tsp-location.yaml",
+      "text": "directory: specification/resourcehealth/resource-manager/Microsoft.ResourceHealth/ResourceHealth\ncommit: 6f3addea92904aa144a5cce8259d48b9ac9c7042\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-provisioning-emitter-package.json\"\n",
+      "contentHash": "16846d98b6c58a0364d31728962a8fed8cf8df312b35904ad78ee00d22bf2415",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/46c60441441d5e4d6ef965b6ce6560c717cc5307/sdk/resourcehealth/Azure.Provisioning.ResourceHealth/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "missing",
+    "cacheKey": "",
+    "analystModel": "",
+    "reviewerModel": "",
+    "analystPromptVersion": "1",
+    "reviewerPromptVersion": "1",
+    "proposals": [],
+    "decisions": [],
+    "omissions": [],
+    "limitations": [],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthEventImpactedResource.cs",
+      "startLine": 1,
+      "endLine": 36,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "7f343505d042fe8cd512f2d944556ce2d53a609804bea2147b1c75e328b5b739"
+    },
+    {
+      "path": "sdk/resourcehealth/Azure.Provisioning.ResourceHealth/src/Custom/ResourceHealthMetadataEntity.cs",
+      "startLine": 1,
+      "endLine": 21,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "bf35ac31f3b0d3477a6794502444dc3fa71b59e1bf98952b5da1064460d8b8a7"
+    }
+  ]
+}

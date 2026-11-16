@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 1,
+  "id": "84d2949b-1265-4325-abbe-aa09cc91900c",
+  "observedAt": "2026-10-27T05:16:01.559Z",
+  "identity": "dotnet:azure.resourcemanager.previewalertrule:module-v1",
+  "target": {
+    "language": "dotnet",
+    "package": "Azure.ResourceManager.PreviewAlertRule",
+    "moduleMajor": 1,
+    "repo": "Azure/azure-sdk-for-net",
+    "root": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule"
+  },
+  "commit": "395c74ac6a6ed2917cfb84ef74d74b9824b8847f",
+  "provenance": {
+    "origin": "public-github",
+    "collectorVersion": "4",
+    "reader": "git",
+    "packageTree": "27b9cf04babdd3a5092ac64f515a1c7267ec9927"
+  },
+  "coverage": {
+    "status": "partial",
+    "discoveredFiles": 78,
+    "eligibleFiles": 69,
+    "capturedFiles": 2,
+    "skipped": [],
+    "errors": [],
+    "note": "Configured package root only; bounded source-file extraction, not exhaustive customization discovery. Empty results do not prove absence."
+  },
+  "evidence": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing System;\nusing System.Collections.Generic;\nusing Azure.Core;\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.PreviewAlertRule.Models\n{\n    // Background:\n    //\n    // `LogAlertRule` is an input-only request-body shape sent through\n    // `PreviewAlertRuleRequest.Properties.ScheduledQueryRuleProperties`. The\n    // TypeSpec model wraps its scalar fields (description, displayName,\n    // severity, enabled, evaluationFrequency, windowSize, overrideQueryTimeRange)\n    // inside an inner `properties` envelope. The C# MPG generator's\n    // implicit-flatten then emits those scalars on `LogAlertRule` as\n    // **getter-only** delegations to an `internal` `Properties` envelope, and\n    // the generated public constructor does NOT initialize that envelope.\n    //\n    // Two consequences without this customization:\n    //   1. Callers cannot configure a `LogAlertRule` (every scalar setter is\n    //      missing), so the model is unusable.\n    //   2. Even *reading* a scalar (e.g. `rule.Description`) throws a\n    //      `NullReferenceException` because the public constructor leaves the\n    //      internal `Properties` envelope null.\n    //\n    // The spec-side fixes that have been applied in `client.tsp`\n    // (`@@usage(LogAlertRuleResource, Usage.input, \"csharp\")` plus\n    // `@@Legacy.flattenProperty(LogAlertRuleResource.properties, \"csharp\")`)\n    // already restore the public constructor and surface the scalars on\n    // `LogAlertRule`, but the implicit-flatten readonly pattern is intrinsic\n    // to the generator — there is no decorator that makes flattened scalars\n    // settable. Until that generator behavior changes, this customization is\n    // the documented workaround (see mpg-api-diff.md §5.2 \"Property re-exposure\n    // via delegation\"):\n    //\n    //   * Suppress the broken public constructor and replace it with one that\n    //     initializes the envelope so the scalar getters never NRE.\n    //   * Suppress the read-only `Properties` property and re-declare it with\n    //     a setter so the new constructor and the scalar setters can\n    //     write through it.\n    //   * Suppress each read-only scalar property and re-expose it as a\n    //     standard `{ get; set; }` that delegates through `Properties`\n    //     (lazy-initializing the envelope on first write).\n    [CodeGenSuppress(\"LogAlertRule\", typeof(AzureLocation))]\n    [CodeGenSuppress(nameof(Properties))]\n    [CodeGenSuppress(nameof(Description))]\n    [CodeGenSuppress(nameof(DisplayName))]\n    [CodeGenSuppress(nameof(Severity))]\n    [CodeGenSuppress(nameof(Enabled))]\n    [CodeGenSuppress(nameof(EvaluationFrequency))]\n    [CodeGenSuppress(nameof(WindowSize))]\n    [CodeGenSuppress(nameof(OverrideQueryTimeRange))]\n    public partial class LogAlertRule\n    {\n        /// <summary> Initializes a new instance of <see cref=\"LogAlertRule\"/>. </summary>\n        /// <param name=\"location\"> The geo-location where the resource lives. </param>\n        public LogAlertRule(AzureLocation location)\n        {\n            Tags = new ChangeTrackingDictionary<string, string>();\n            Location = location;\n            Properties = new LogAlertRuleProperties();\n        }\n\n        /// <summary> The rule properties of the resource. </summary>\n        internal LogAlertRuleProperties Properties { get; set; }\n\n        /// <summary> The description of the scheduled query rule. </summary>\n        public string Description\n        {\n            get => Properties?.Description;\n            set => (Properties ??= new LogAlertRuleProperties()).Description = value;\n        }\n\n        /// <summary> The display name of the alert rule. </summary>\n        public string DisplayName\n        {\n            get => Properties?.DisplayName;\n            set => (Properties ??= new LogAlertRuleProperties()).DisplayName = value;\n        }\n\n        /// <summary> Severity of the alert. Should be an integer between [0-4]. Value of 0 is severest. Relevant and required only for rules of the kind LogAlert. </summary>\n        public AlertSeverity? Severity\n        {\n            get => Properties?.Severity;\n            set => (Properties ??= new LogAlertRuleProperties()).Severity = value;\n        }\n\n        /// <summary> The flag which indicates whether this scheduled query rule is enabled. Value should be true or false. </summary>\n        public bool? Enabled\n        {\n            get => Properties?.Enabled;\n            set => (Properties ??= new LogAlertRuleProperties()).Enabled = value;\n        }\n\n        /// <summary> How often the scheduled query rule is evaluated represented in ISO 8601 duration format. Relevant and required only for rules of the kind LogAlert. </summary>\n        public TimeSpan? EvaluationFrequency\n        {\n            get => Properties?.EvaluationFrequency;\n            set => (Properties ??= new LogAlertRuleProperties()).EvaluationFrequency = value;\n        }\n\n        /// <summary> The period of time (in ISO 8601 duration format) on which the Alert query will be executed (bin size). Relevant and required only for rules of the kind LogAlert. </summary>\n        public TimeSpan? WindowSize\n        {\n            get => Properties?.WindowSize;\n            set => (Properties ??= new LogAlertRuleProperties()).WindowSize = value;\n        }\n\n        /// <summary> If specified then overrides the query time range (default is WindowSize*NumberOfEvaluationPeriods). Relevant only for rules of the kind LogAlert. </summary>\n        public TimeSpan? OverrideQueryTimeRange\n        {\n            get => Properties?.OverrideQueryTimeRange;\n            set => (Properties ??= new LogAlertRuleProperties()).OverrideQueryTimeRange = value;\n        }\n    }\n}\n",
+      "contentHash": "1c1d58b019ffe94eca6fe2867545f8b7df885b9f7d348668af0532f9e777f7cd",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "startLine": 1,
+      "endLine": 119,
+      "kind": "handwritten-marker",
+      "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "text": "// Copyright (c) Microsoft Corporation. All rights reserved.\n// Licensed under the MIT License.\n\nusing Microsoft.TypeSpec.Generator.Customizations;\n\nnamespace Azure.ResourceManager.PreviewAlertRule.Models\n{\n    // Background:\n    //\n    // `client.tsp` applies `@@Legacy.flattenProperty(PreviewAlertRuleRequest.properties, \"csharp\")`\n    // so the inner `Timespan` (required) and `ScheduledQueryRuleProperties` (optional)\n    // surface directly on `PreviewAlertRuleContent`. The C# MPG generator's implicit-flatten\n    // however emits the complex `ScheduledQueryRuleProperties` projection as a **getter-only**\n    // delegation to the (now-internal) `Properties` envelope, even though the inner property\n    // is `{ get; set; }`. This leaves the model effectively unconstructible for the common\n    // case where a caller wants to attach a `LogAlertRule` payload — there is no path to\n    // assign one through public API.\n    //\n    // The implicit-flatten readonly behavior for nested complex properties is the same\n    // generator constraint documented on `LogAlertRule` (see mpg-api-diff.md §5.2). Until\n    // the generator emits writable projections for flattened complex properties, this\n    // small re-exposure restores the standard `{ get; set; }` shape so callers can write:\n    //\n    //   new PreviewAlertRuleContent(location, timespan)\n    //   {\n    //       ScheduledQueryRuleProperties = new LogAlertRule(location) { ... }\n    //   }\n    [CodeGenSuppress(nameof(ScheduledQueryRuleProperties))]\n    public partial class PreviewAlertRuleContent\n    {\n        /// <summary> The properties of the alert rule to preview. </summary>\n        public LogAlertRule ScheduledQueryRuleProperties\n        {\n            get => Properties.ScheduledQueryRuleProperties;\n            set => Properties.ScheduledQueryRuleProperties = value;\n        }\n    }\n}\n",
+      "contentHash": "c6449ce4185196e81090756166ccd458448877c714a238d4e74af2088ee922a2",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "startLine": 1,
+      "endLine": 38,
+      "kind": "handwritten-marker",
+      "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8"
+    }
+  ],
+  "generationContext": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/README.md",
+      "text": "# Microsoft Azure PreviewAlertRule management client library for .NET\n\nThis library supports managing Microsoft Azure Alerts Management preview alert rule API resources.\n\nThis library follows the [new Azure SDK guidelines](https://azure.github.io/azure-sdk/general_introduction.html), and provides many core capabilities:\n\n    - Support MSAL.NET, Azure.Identity is out of box for supporting MSAL.NET.\n    - Support [OpenTelemetry](https://opentelemetry.io/) for distributed tracing.\n    - HTTP pipeline with custom policies.\n    - Better error-handling.\n    - Support uniform telemetry across all languages.\n\n## Getting started\n\n### Install the package\n\nInstall the Microsoft Azure PreviewAlertRule management library for .NET with [NuGet](https://www.nuget.org/):\n\n```dotnetcli\ndotnet add package Azure.ResourceManager.PreviewAlertRule --prerelease\n```\n\n### Prerequisites\n\n* You must have an [Microsoft Azure subscription](https://azure.microsoft.com/free/dotnet/).\n\n### Authenticate the Client\n\nTo create an authenticated client and start interacting with Microsoft Azure resources, see the [quickstart guide here](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n\n## Key concepts\n\nKey concepts of the Microsoft Azure SDK for .NET can be found [here](https://azure.github.io/azure-sdk/dotnet_introduction.html).\n\n## Documentation\n\nDocumentation is available to help you learn how to use this package:\n\n- [Quickstart](https://github.com/Azure/azure-sdk-for-net/blob/main/doc/dev/mgmt_quickstart.md).\n- [API References](https://learn.microsoft.com/dotnet/api/?view=azure-dotnet).\n- [Authentication](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/identity/Azure.Identity/README.md).\n\n## Examples\n\nCode samples for using the management library for .NET can be found in the following locations\n- [.NET Management Library Code Samples](https://aka.ms/azuresdk-net-mgmt-samples)\n\n## Troubleshooting\n\n-   File an issue via [GitHub Issues](https://github.com/Azure/azure-sdk-for-net/issues).\n-   Check [previous questions](https://stackoverflow.com/questions/tagged/azure+.net) or ask new ones on Stack Overflow using Azure and .NET tags.\n\n## Next steps\n\nFor more information about Microsoft Azure SDK, see [this website](https://azure.github.io/azure-sdk/).\n\n## Contributing\n\nFor details on contributing to this repository, see the [contributing\nguide][cg].\n\nThis project welcomes contributions and suggestions. Most contributions\nrequire you to agree to a Contributor License Agreement (CLA) declaring\nthat you have the right to, and actually do, grant us the rights to use\nyour contribution. For details, visit <https://cla.microsoft.com>.\n\nWhen you submit a pull request, a CLA-bot will automatically determine\nwhether you need to provide a CLA and decorate the PR appropriately\n(for example, label, comment). Follow the instructions provided by the\nbot. You'll only need to do this action once across all repositories\nusing our CLA.\n\nThis project has adopted the [Microsoft Open Source Code of Conduct][coc]. For\nmore information, see the [Code of Conduct FAQ][coc_faq] or contact\n<opencode@microsoft.com> with any other questions or comments.\n\n<!-- LINKS -->\n[cg]: https://github.com/Azure/azure-sdk-for-net/blob/main/CONTRIBUTING.md\n[coc]: https://opensource.microsoft.com/codeofconduct/\n[coc_faq]: https://opensource.microsoft.com/codeofconduct/faq/\n",
+      "contentHash": "cc179cd3d3cc2c837809937cdda81568b0abfe32760629a63c52fc915b4b1089",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/README.md"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Azure.ResourceManager.PreviewAlertRule.csproj",
+      "text": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <Version>1.0.0-beta.1</Version>\n    <PackageId>Azure.ResourceManager.PreviewAlertRule</PackageId>\n    <Description>Microsoft Azure Resource Manager client SDK for Azure resource provider Microsoft.AlertsManagement Preview Alert Rule.</Description>\n    <PackageTags>azure;management;arm;resource manager;alertsmanagement;previewalertrule</PackageTags>\n    <DisableEnhancedAnalysis>true</DisableEnhancedAnalysis>\n  </PropertyGroup>\n</Project>\n",
+      "contentHash": "82af43dca5bb6d1b2a7c26af6a65e329c6fb83c0cf6846710fec177cec46df4a",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Azure.ResourceManager.PreviewAlertRule.csproj"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/tsp-location.yaml",
+      "text": "directory: specification/alertsmanagement/resource-manager/Microsoft.AlertsManagement/PreviewAlertRule\ncommit: e32fbe52693f319f34bbca0dfae50bec4375ed7b\nrepo: Azure/azure-rest-api-specs\nemitterPackageJsonPath: \"eng/azure-typespec-http-client-csharp-mgmt-emitter-package.json\"\n",
+      "contentHash": "e68f550f94c2e31117dfe4864108e57549a6bfe428ce438610bd3139f9149aa3",
+      "sourceUrl": "https://github.com/Azure/azure-sdk-for-net/blob/395c74ac6a6ed2917cfb84ef74d74b9824b8847f/sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/tsp-location.yaml"
+    }
+  ],
+  "analysis": {
+    "status": "complete",
+    "cacheKey": "b63ae13628cc061caa81827fc089af0cd4f950f1d8e248ad2c3e4c26ae1e636a",
+    "analystModel": "copilot/gpt-6.1-sol",
+    "reviewerModel": "copilot/gpt-6-sol",
+    "analystPromptVersion": "2",
+    "reviewerPromptVersion": "2",
+    "proposals": [
+      {
+        "key": "ca37dc8a027eb87529854552d2a33b08361923d7ff110d750976a285dd76696c",
+        "category": "Model overrides",
+        "subtype": "Constructor initializing tags, location and nested rule properties",
+        "explanation": "The AzureLocation constructor signature is targeted by CodeGenSuppress and implemented with a new ChangeTrackingDictionary for Tags, assignment of Location, and a new LogAlertRuleProperties envelope.",
+        "pattern": "model-default-value",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The active suppression and concrete Custom constructor body establish initialization behavior; comment claims about the generated constructor are not independently verified.",
+        "symbols": ["LogAlertRule.LogAlertRule(AzureLocation)"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 47,
+            "endLine": 47
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 60,
+            "endLine": 65
+          }
+        ]
+      },
+      {
+        "key": "3b729b59727b398528b6a89b698e4e092f748aea36210e20178b61d4c915dc00",
+        "category": "Model overrides",
+        "subtype": "Writable internal rule-properties envelope",
+        "explanation": "The partial model targets Properties for suppression and declares an internal LogAlertRuleProperties auto-property with both getter and setter, used by its constructor and public delegating setters.",
+        "pattern": "model-property-mutability",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Active name-specific metadata and the actual writable Custom property are captured; the old generated property's declaration is not supplied.",
+        "symbols": ["LogAlertRule.Properties"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 48,
+            "endLine": 48
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 68,
+            "endLine": 68
+          }
+        ]
+      },
+      {
+        "key": "cd5bf681d087c65eb9a93155ddb45ec0fc68ea78bc4e94e981d3faa687eff6a5",
+        "category": "Model overrides",
+        "subtype": "Description projection with null-safe read and lazy write",
+        "explanation": "The suppressed Description name is re-exposed as a public string property whose getter reads Properties?.Description and whose setter creates the envelope when null before assigning the nested field.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The active attribute and complete Custom accessor bodies explicitly implement the nested property projection.",
+        "symbols": ["LogAlertRule.Description"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 49,
+            "endLine": 49
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 71,
+            "endLine": 75
+          }
+        ]
+      },
+      {
+        "key": "15a4a40d2f3702160c0cd79c4b91b26104036f5ff6c4bbe43bbe3d3b53152002",
+        "category": "Model overrides",
+        "subtype": "DisplayName projection with null-safe read and lazy write",
+        "explanation": "The model suppresses DisplayName and declares a public string projection that reads the nested value null-conditionally and initializes LogAlertRuleProperties on a write when needed.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The name-specific suppression and full getter/setter implementation are supplied in Custom outside Generated.",
+        "symbols": ["LogAlertRule.DisplayName"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 50,
+            "endLine": 50
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 78,
+            "endLine": 82
+          }
+        ]
+      },
+      {
+        "key": "d942aa8912359561e02330db85a753562e468bc5b615e6937f169facbcc99456",
+        "category": "Model overrides",
+        "subtype": "Nullable Severity projection with lazy envelope initialization",
+        "explanation": "The suppressed Severity name is replaced by a public AlertSeverity? property that reads Properties?.Severity and writes through an existing or newly created envelope; the body performs no severity-range validation.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Concrete Custom getter/setter bodies and active suppression establish the delegation, independently of the documentation's range prose.",
+        "symbols": ["LogAlertRule.Severity"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 51,
+            "endLine": 51
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 85,
+            "endLine": 89
+          }
+        ]
+      },
+      {
+        "key": "df332c8085b5f13ef7e736a9f78ac89812b349f6978b99d233e9c2e10640ae59",
+        "category": "Model overrides",
+        "subtype": "Nullable Enabled projection with lazy envelope initialization",
+        "explanation": "The model suppresses Enabled and provides a public bool? property that null-conditionally reads the nested Enabled value and creates the envelope if required by a setter call.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "Active metadata plus both complete Custom accessors establish a writable projection, not an inferred default-enablement policy.",
+        "symbols": ["LogAlertRule.Enabled"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 52,
+            "endLine": 52
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 92,
+            "endLine": 96
+          }
+        ]
+      },
+      {
+        "key": "5525ffb59597dd2425910ae8ad21c082fb15736ffe218226a033cc88d06db39f",
+        "category": "Model overrides",
+        "subtype": "EvaluationFrequency projection with lazy envelope initialization",
+        "explanation": "The suppressed EvaluationFrequency name is re-exposed as TimeSpan?, with a null-conditional read and a setter that creates LogAlertRuleProperties when absent before assigning EvaluationFrequency.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The complete Custom accessors and active suppression show property delegation; no duration wire-format converter is supplied.",
+        "symbols": ["LogAlertRule.EvaluationFrequency"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 53,
+            "endLine": 53
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 99,
+            "endLine": 103
+          }
+        ]
+      },
+      {
+        "key": "61d1060d3e0754fb6fb04b4602b72cd16bf2664b6e1f0a7995b07d828a957f93",
+        "category": "Model overrides",
+        "subtype": "WindowSize projection with null-safe read and lazy write",
+        "explanation": "The model targets WindowSize for suppression and implements a public TimeSpan? projection over Properties.WindowSize, using null-conditional access for reads and null-coalescing envelope creation for writes.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The explicit name-specific attribute and complete Custom getter/setter bodies provide the handwritten signal.",
+        "symbols": ["LogAlertRule.WindowSize"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 54,
+            "endLine": 54
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 106,
+            "endLine": 110
+          }
+        ]
+      },
+      {
+        "key": "dbc296605bc585ae41e6fd52de35c05eb15359e02b093844d8da19dd57df59b4",
+        "category": "Model overrides",
+        "subtype": "OverrideQueryTimeRange projection with lazy envelope initialization",
+        "explanation": "The suppressed OverrideQueryTimeRange name is re-exposed as TimeSpan? with a null-conditional nested getter and an assigning setter that constructs the envelope if absent; no default query-range calculation is implemented here.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The actual Custom accessors and matching suppression metadata show projection behavior, not the documentation's described service defaults.",
+        "symbols": ["LogAlertRule.OverrideQueryTimeRange"],
+        "evidence": [
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 55,
+            "endLine": 55
+          },
+          {
+            "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+            "startLine": 113,
+            "endLine": 117
+          }
+        ]
+      },
+      {
+        "key": "9ce62daa424af4c8d61444614ad90f375a1df984b3b13901b894bd531f309a55",
+        "category": "Model overrides",
+        "subtype": "Writable scheduled-query rule projection without a null guard",
+        "explanation": "PreviewAlertRuleContent suppresses ScheduledQueryRuleProperties and exposes it as a public LogAlertRule property; getter and setter directly dereference the Properties envelope without null-conditional access or lazy initialization.",
+        "pattern": "model-property-alias",
+        "generatorAddressable": "yes",
+        "handwrittenRationale": "The active Custom suppression and complete delegating accessors are captured, but the containing model's constructor and generated envelope initialization are not.",
+        "symbols": ["PreviewAlertRuleContent.ScheduledQueryRuleProperties"],
+        "evidence": [
+          {
+            "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8",
+            "startLine": 28,
+            "endLine": 29
+          },
+          {
+            "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8",
+            "startLine": 32,
+            "endLine": 36
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "key": "ca37dc8a027eb87529854552d2a33b08361923d7ff110d750976a285dd76696c",
+        "status": "accepted",
+        "reason": "The captured Custom constructor suppresses its AzureLocation counterpart and actually initializes Tags, Location, and the nested Properties model. The default-value pattern describes its initialization without relying on the source comment's unverified account of generated behavior."
+      },
+      {
+        "key": "3b729b59727b398528b6a89b698e4e092f748aea36210e20178b61d4c915dc00",
+        "status": "accepted",
+        "reason": "The captured partial type suppresses Properties and declares the internal property with a setter; the distinct writable-envelope behavior and model-property-mutability pattern are supported directly, without assuming the generated property's exact shape."
+      },
+      {
+        "key": "cd5bf681d087c65eb9a93155ddb45ec0fc68ea78bc4e94e981d3faa687eff6a5",
+        "status": "revised",
+        "reason": "The accessor and suppression support the finding, but model-property-alias describes a renamed or added property, not same-name re-exposure with a writable nested projection. Use the existing proposal's reusable model-property-mutability pattern.",
+        "finding": {
+          "key": "cd5bf681d087c65eb9a93155ddb45ec0fc68ea78bc4e94e981d3faa687eff6a5",
+          "category": "Model overrides",
+          "subtype": "Description projection with null-safe read and lazy write",
+          "explanation": "The suppressed Description name is re-exposed as a public string property whose getter reads Properties?.Description and whose setter creates the envelope when null before assigning the nested field.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The active attribute and complete Custom accessor bodies explicitly implement the nested property projection.",
+          "symbols": ["LogAlertRule.Description"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 49,
+              "endLine": 49
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 71,
+              "endLine": 75
+            }
+          ]
+        }
+      },
+      {
+        "key": "15a4a40d2f3702160c0cd79c4b91b26104036f5ff6c4bbe43bbe3d3b53152002",
+        "status": "revised",
+        "reason": "The same-name getter/setter is a writable nested projection, not a property alias or addition; the captured suppression and accessors justify the model-property-mutability pattern.",
+        "finding": {
+          "key": "15a4a40d2f3702160c0cd79c4b91b26104036f5ff6c4bbe43bbe3d3b53152002",
+          "category": "Model overrides",
+          "subtype": "DisplayName projection with null-safe read and lazy write",
+          "explanation": "The model suppresses DisplayName and declares a public string projection that reads the nested value null-conditionally and initializes LogAlertRuleProperties on a write when needed.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The name-specific suppression and full getter/setter implementation are supplied in Custom outside Generated.",
+          "symbols": ["LogAlertRule.DisplayName"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 50,
+              "endLine": 50
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 78,
+              "endLine": 82
+            }
+          ]
+        }
+      },
+      {
+        "key": "d942aa8912359561e02330db85a753562e468bc5b615e6937f169facbcc99456",
+        "status": "revised",
+        "reason": "Severity retains its name and delegates through a writable nested projection; the original alias pattern misclassifies its shape. The source supports model-property-mutability without claiming severity validation.",
+        "finding": {
+          "key": "d942aa8912359561e02330db85a753562e468bc5b615e6937f169facbcc99456",
+          "category": "Model overrides",
+          "subtype": "Nullable Severity projection with lazy envelope initialization",
+          "explanation": "The suppressed Severity name is replaced by a public AlertSeverity? property that reads Properties?.Severity and writes through an existing or newly created envelope; the body performs no severity-range validation.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Concrete Custom getter/setter bodies and active suppression establish the delegation, independently of the documentation's range prose.",
+          "symbols": ["LogAlertRule.Severity"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 51,
+              "endLine": 51
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 85,
+              "endLine": 89
+            }
+          ]
+        }
+      },
+      {
+        "key": "df332c8085b5f13ef7e736a9f78ac89812b349f6978b99d233e9c2e10640ae59",
+        "status": "revised",
+        "reason": "Enabled is neither renamed nor added: its handwritten setter re-exposes a same-name nested value. Replace the alias pattern with model-property-mutability; no default-enablement behavior is inferred.",
+        "finding": {
+          "key": "df332c8085b5f13ef7e736a9f78ac89812b349f6978b99d233e9c2e10640ae59",
+          "category": "Model overrides",
+          "subtype": "Nullable Enabled projection with lazy envelope initialization",
+          "explanation": "The model suppresses Enabled and provides a public bool? property that null-conditionally reads the nested Enabled value and creates the envelope if required by a setter call.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "Active metadata plus both complete Custom accessors establish a writable projection, not an inferred default-enablement policy.",
+          "symbols": ["LogAlertRule.Enabled"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 52,
+              "endLine": 52
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 92,
+              "endLine": 96
+            }
+          ]
+        }
+      },
+      {
+        "key": "5525ffb59597dd2425910ae8ad21c082fb15736ffe218226a033cc88d06db39f",
+        "status": "revised",
+        "reason": "The code changes a same-name flattened property's writability through a nested setter, not its name or existence. The mutability pattern better fits; no wire-format conversion is shown.",
+        "finding": {
+          "key": "5525ffb59597dd2425910ae8ad21c082fb15736ffe218226a033cc88d06db39f",
+          "category": "Model overrides",
+          "subtype": "EvaluationFrequency projection with lazy envelope initialization",
+          "explanation": "The suppressed EvaluationFrequency name is re-exposed as TimeSpan?, with a null-conditional read and a setter that creates LogAlertRuleProperties when absent before assigning EvaluationFrequency.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The complete Custom accessors and active suppression show property delegation; no duration wire-format converter is supplied.",
+          "symbols": ["LogAlertRule.EvaluationFrequency"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 53,
+              "endLine": 53
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 99,
+              "endLine": 103
+            }
+          ]
+        }
+      },
+      {
+        "key": "61d1060d3e0754fb6fb04b4602b72cd16bf2664b6e1f0a7995b07d828a957f93",
+        "status": "revised",
+        "reason": "WindowSize is a same-name mutable nested projection, not an alias or new property. The captured accessor behavior supports model-property-mutability and does not establish wire-format work.",
+        "finding": {
+          "key": "61d1060d3e0754fb6fb04b4602b72cd16bf2664b6e1f0a7995b07d828a957f93",
+          "category": "Model overrides",
+          "subtype": "WindowSize projection with null-safe read and lazy write",
+          "explanation": "The model targets WindowSize for suppression and implements a public TimeSpan? projection over Properties.WindowSize, using null-conditional access for reads and null-coalescing envelope creation for writes.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The explicit name-specific attribute and complete Custom getter/setter bodies provide the handwritten signal.",
+          "symbols": ["LogAlertRule.WindowSize"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 54,
+              "endLine": 54
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 106,
+              "endLine": 110
+            }
+          ]
+        }
+      },
+      {
+        "key": "dbc296605bc585ae41e6fd52de35c05eb15359e02b093844d8da19dd57df59b4",
+        "status": "revised",
+        "reason": "OverrideQueryTimeRange's captured same-name setter changes a nested projection's mutability rather than adding an alias. Use model-property-mutability; the comments about query-range defaults do not prove an implementation here.",
+        "finding": {
+          "key": "dbc296605bc585ae41e6fd52de35c05eb15359e02b093844d8da19dd57df59b4",
+          "category": "Model overrides",
+          "subtype": "OverrideQueryTimeRange projection with lazy envelope initialization",
+          "explanation": "The suppressed OverrideQueryTimeRange name is re-exposed as TimeSpan? with a null-conditional nested getter and an assigning setter that constructs the envelope if absent; no default query-range calculation is implemented here.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The actual Custom accessors and matching suppression metadata show projection behavior, not the documentation's described service defaults.",
+          "symbols": ["LogAlertRule.OverrideQueryTimeRange"],
+          "evidence": [
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 55,
+              "endLine": 55
+            },
+            {
+              "id": "493e407c5f897e7234b6ad153aea76b4f443ae3235536d90542255158fda57ea",
+              "startLine": 113,
+              "endLine": 117
+            }
+          ]
+        }
+      },
+      {
+        "key": "9ce62daa424af4c8d61444614ad90f375a1df984b3b13901b894bd531f309a55",
+        "status": "revised",
+        "reason": "The captured ScheduledQueryRuleProperties member is a same-name writable projection, not an alias or addition. The setter directly dereferences Properties; whether a generated constructor initializes that envelope is not established by the capture.",
+        "finding": {
+          "key": "9ce62daa424af4c8d61444614ad90f375a1df984b3b13901b894bd531f309a55",
+          "category": "Model overrides",
+          "subtype": "Writable scheduled-query rule projection without a null guard",
+          "explanation": "PreviewAlertRuleContent suppresses ScheduledQueryRuleProperties and exposes it as a public LogAlertRule property; getter and setter directly dereference the Properties envelope without null-conditional access or lazy initialization.",
+          "pattern": "model-property-mutability",
+          "generatorAddressable": "yes",
+          "handwrittenRationale": "The active Custom suppression and complete delegating accessors are captured, but the containing model's constructor and generated envelope initialization are not.",
+          "symbols": ["PreviewAlertRuleContent.ScheduledQueryRuleProperties"],
+          "evidence": [
+            {
+              "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8",
+              "startLine": 28,
+              "endLine": 29
+            },
+            {
+              "id": "8e8cc4270222e62f986a78f42b3fd73daedd8b43e99f4267241b151a18afafd8",
+              "startLine": 32,
+              "endLine": 36
+            }
+          ]
+        }
+      }
+    ],
+    "omissions": [],
+    "limitations": [
+      "Only two complete source texts of 69 eligible files among 78 discovered files were supplied. Partial coverage and empty skipped/error inventories do not establish exhaustive discovery or absence elsewhere.",
+      "The extensive background comments describe generator behavior, TypeSpec changes and a workaround rationale; no specification, generated counterpart, historical comparison or current generator capability was independently inspected. Findings describe only active suppression metadata and the actual constructor/accessor bodies.",
+      "The seven LogAlertRule scalar getters are null-conditional and their setters lazily create an envelope. PreviewAlertRuleContent's complex projection does neither; its envelope initialization is uncaptured. No actual runtime failure is asserted, and service documentation about ranges/defaults or ISO duration formats is not counted as implemented validation, calculation or serialization.",
+      "All three context texts are separate provenance: source project version1.0.0-beta.1 is present while latest-release metadata is empty, not evidence of inactivity or no release. README authentication/telemetry prose is not customized code. Generator-addressable values describe plausible writable-projection/default-initialization features, not demonstrated present support; no external URLs or runtime tools were used.",
+      "Coverage is partial: two captured handwritten-marker source files out of 69 eligible files in the configured package root (78 discovered); the empty skipped and errors arrays do not establish exhaustive customization discovery.",
+      "No generated counterpart, generator output, runtime behavior, TypeSpec source, or historical change is supplied. The source comments about readonly generated projections, constructor defects, spec fixes, and generator constraints are not independently verified; generatorAddressable=yes is only a plausible generalized opportunity.",
+      "The PreviewAlertRuleContent capture does not show the generated Properties envelope or its constructor initialization; the direct dereference is visible, but a runtime null failure is not established. The README, project metadata and tsp-location supply context, not additional handwritten behavior. All accepted and revised findings remain AI-reviewed, not human-verified."
+    ],
+    "errors": []
+  },
+  "navigation": [
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/LogAlertRule.cs",
+      "startLine": 1,
+      "endLine": 119,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "1c1d58b019ffe94eca6fe2867545f8b7df885b9f7d348668af0532f9e777f7cd"
+    },
+    {
+      "path": "sdk/alertsmanagement/Azure.ResourceManager.PreviewAlertRule/src/Custom/Models/PreviewAlertRuleContent.cs",
+      "startLine": 1,
+      "endLine": 38,
+      "provenance": "C# handwritten source candidate",
+      "contentHash": "c6449ce4185196e81090756166ccd458448877c714a238d4e74af2088ee922a2"
+    }
+  ]
+}
