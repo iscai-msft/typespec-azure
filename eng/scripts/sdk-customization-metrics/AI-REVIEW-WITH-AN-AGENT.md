@@ -18,9 +18,38 @@ libraries in that scope. The exported database has one additional out-of-scope i
 with missing analysis, so global and scoped missing counts differ. All source coverage
 is bounded, including libraries whose assessments are complete.
 
-## Re-review run, November 2026 (to do)
+## JavaScript run, November 2026 (to do)
+
+Scope: the 35 JavaScript libraries in
+[`review-targets/javascript-2026-11.txt`](./review-targets/javascript-2026-11.txt), which have
+handwritten code under the layout rule in `guidelines/javascript.md` (25 merge flow, then 10 full
+wrappers). Their scans are already committed (November 16, 2026, commit `2ee50517`), so there is
+no rescan step: each batch commits only the review records `review` writes.
+
+Evidence differs from other languages:
+
+- **Merge-flow edits** are the changed lines of a `src/` file (with 3 lines of context), not the
+  whole file. Where the generated copy has newer code that `src/` lacks, suspect a missed merge
+  (an author bug), not a customization.
+- **Files only in `src/`** and **`--skip` files** are whole files, as before.
+- **Full wrappers** (storage, app-configuration, tables, …) are handwritten code around
+  `src/generated/`; report what the wrapper adds, not "wraps the generated client".
+
+```bash
+cd eng/scripts/sdk-customization-metrics
+export AM="copilot/gpt-6.1-sol" RM="copilot/gpt-6-sol"
+review() {
+  mise exec -- node cli.ts review --state state --plane all --exchange .local/exchange-js \
+    --analyst-model "$AM" --reviewer-model "$RM" --only @review-targets/javascript-2026-11.txt --limit 10
+}
+```
+
+Four cohorts (10, 10, 10, 5). Commit messages say "JavaScript batch N".
+
+## Re-review run, November 2026 (complete)
 
 Scope: the 61 libraries in [`review-targets/rereview-2026-11.txt`](./review-targets/rereview-2026-11.txt):
+
 - 39 .NET libraries with handwritten files that kept a copied generated header. Under the
   folder-only rule they now count as handwritten.
 - 22 Java libraries with `Customization` scripts, under the new Java rule (report what the
