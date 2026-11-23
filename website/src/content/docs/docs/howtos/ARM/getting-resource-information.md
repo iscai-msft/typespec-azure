@@ -40,6 +40,18 @@ Each `ResolvedResource` represents one concrete resource instance path. The same
 therefore appear in more than one resolved resource when it is used at multiple scopes, parent
 paths, or extension targets.
 
+### How resource identities are discovered
+
+The resolver establishes a concrete resource identity from a registered read or create-or-update
+operation whose HTTP path is a valid ARM resource instance path. A create-or-update operation is
+enough to establish the resource when no read operation exists.
+
+List, action, update, delete, and check-existence operations can attach to an established resource,
+but they do not create a resource identity by themselves. Consequently, a model with only list or
+action operations does not appear as a resolved resource. Literal path segments are matched
+case-insensitively, and variable segments are matched by their positions rather than parameter
+names.
+
 ## Read resource operations
 
 Operations are grouped by how they relate to a resource:
@@ -123,9 +135,12 @@ import {
   type ArmServiceVersionSelection,
 } from "@azure-tools/typespec-azure-resource-manager";
 
-const serviceVersions: ArmServiceVersionSelection[] = listServices(context.program)
+const serviceVersions: ArmServiceVersionSelection[] = listServices(
+  context.program,
+)
   .filter(
-    ({ type: namespace }) => getArmProviderNamespace(context.program, namespace) !== undefined,
+    ({ type: namespace }) =>
+      getArmProviderNamespace(context.program, namespace) !== undefined,
   )
   .map(({ type: namespace }) => {
     const version = getAllVersions(context.program, namespace)?.at(-1);
@@ -164,7 +179,9 @@ const version = getAllVersions(context.program, namespace)?.find(
   (candidate) => candidate.value === configuredVersion,
 );
 if (version === undefined) {
-  throw new Error(`Version ${configuredVersion} was not found for ${configuredNamespace}.`);
+  throw new Error(
+    `Version ${configuredVersion} was not found for ${configuredNamespace}.`,
+  );
 }
 
 const provider = resolveArmResources(context.program, {
@@ -183,14 +200,19 @@ applied to the logical ARM metadata:
 
 ```ts
 import { resolveArmResources } from "@azure-tools/typespec-azure-resource-manager";
-import { createSdkContext, getLibraryName } from "@azure-tools/typespec-client-generator-core";
+import {
+  createSdkContext,
+  getLibraryName,
+} from "@azure-tools/typespec-client-generator-core";
 
 const sdkContext = await createSdkContext(context, "@azure-tools/my-emitter");
 
 const provider = resolveArmResources(context.program, {
   version: "2025-01-01",
   nameResolver: ({ kind, type }) =>
-    kind === "resource" || type === undefined ? undefined : getLibraryName(sdkContext, type),
+    kind === "resource" || type === undefined
+      ? undefined
+      : getLibraryName(sdkContext, type),
 });
 ```
 
