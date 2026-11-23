@@ -158,6 +158,8 @@ Concrete ARM resource identities are seeded only by registered read or createOrU
 
 Identity paths are matched case-insensitively for literal segments and by position for variable segments. A createOrUpdate operation can establish a resource without a read operation; list-only and action-only operation sets cannot.
 
+The emitter-facing guide `howtos/ARM/getting-resource-information.md` should document these identity-seeding rules because they determine which models appear in `resolveArmResources` results.
+
 ## ARM Request and Response Rules
 
 - `no-query-in-collection` allows only `api-version` and case-sensitive `$filter` on collection GET operations.
@@ -171,6 +173,12 @@ Identity paths are matched case-insensitively for literal segments and by positi
 - `lro-response-mismatch` validates that PUT and PATCH final results match the resource type, DELETE final results are `void`, and POST final results match successful response bodies.
 
 When these rules are added or promoted, update both the generated linter reference and the manually maintained rule evaluation and RPC coverage guides.
+
+The manually maintained RPC coverage guide must not describe `resource-missing-read` as a remaining GET gap. It partially covers the required lifecycle operation set; PATCH and the required list variants remain gaps.
+
+`use-standard-response-codes` and `use-resource-path-for-put` are registered ARM library rules but disabled in the general Azure resource-manager ruleset. `use-scope-for-extension-routing` is also opt-in and disabled in the ARM library's `all` ruleset. Documentation must distinguish this opt-in coverage from rules enabled by default.
+
+`list-response-envelope` applies both to ARM-provider collection GET paths and to authored paged `@list` operations with a continuation link, including POST list actions. Do not summarize it as collection GET-only coverage.
 
 The `lro-response-mismatch` implementation has a detailed adjacent Markdown file but no `docs` association in its TypeScript rule definition. Consequently, `pnpm regen-docs` generates only its short description. Fixing the association requires an edit under `packages/typespec-azure-resource-manager/src/rules/`.
 
